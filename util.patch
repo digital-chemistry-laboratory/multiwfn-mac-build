@@ -1,0 +1,15 @@
+--- util_old.f90	2022-06-14 21:21:24.000000000 -0400
++++ util.f90	2022-06-14 21:21:26.000000000 -0400
+@@ -2087,7 +2087,11 @@
+ integer,optional :: ifound,irewind,maxline
+ character c200*200
+ CHARACTER(LEN=*) label
+-if ((.not.present(irewind)).or.(present(irewind).and.irewind==1)) rewind(fileid)
++if (.not. present(irewind)) then
++  rewind(fileid)
++else
++  if (irewind==1) rewind(fileid)
++end if
+ if (.not.present(maxline)) then
+ 	do while(.true.)
+ 		read(fileid,"(a)",iostat=ierror) c200
