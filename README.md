@@ -18,7 +18,7 @@ Here we get the source distribution of Multiwfn 3.8dev with `wget`. The latest v
 ```console
 $ wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_dev_src_Linux.zip
 $ unzip Multiwfn_3.8_dev_src_Linux.zip && mv Multiwfn_3.8_dev_src_Linux/* . && rmdir Multiwfn_3.8_dev_src_Linux
-$ sed -i '' 's/if ((.not.present(irewind)).or.(present(irewind).and.irewind==1)) rewind(fileid)/if (.not. present(irewind)) then\n  rewind(fileid)\nelse\n  if (irewind==1) rewind(fileid)\nend if/g' util.f90
+$ patch util.f90 util.patch
 $ cmake -B build
 $ cmake --build build
 $ cp build/multiwfn .
