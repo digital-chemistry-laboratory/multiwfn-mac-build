@@ -18,13 +18,11 @@ Here we get the source distribution of Multiwfn 3.8dev with `wget`. The latest v
 ```zsh
 $ wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_dev_src_Linux.zip
 $ unzip Multiwfn_3.8_dev_src_Linux.zip && mv Multiwfn_3.8_dev_src_Linux/* . && rmdir Multiwfn_3.8_dev_src_Linux
-$ patch util.f90 util.patch
+$ patch < util.patch
 $ cmake -B build
 $ cmake --build build
 $ cp build/multiwfn .
 ```
-
-`sed` is used to patch one of the source files so that it can be compiled with GFortran.
 
 We then need to add the Multiwfn path to the `~/.zshrc`. Adapt the specific path to where you have installed Multiwfn on your system. See the Multiwfn manual for more specific instructions.
 
