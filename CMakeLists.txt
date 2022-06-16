@@ -23,3 +23,4 @@ file (GLOB srcs CONFIGURE_DEPENDS
 add_executable(multiwfn ${srcs})
 target_link_libraries(multiwfn PRIVATE ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
 target_compile_options(multiwfn PRIVATE -std=legacy -ffree-line-length-none)
+install(TARGETS multiwfn)
