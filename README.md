@@ -24,6 +24,8 @@ $ cmake --build build
 $ cp build/multiwfn .
 ```
 
+Alternatively, use `cmake -B build -DCMAKE_BUILD_TYPE=Release` to fully optimize the build, but it will take additonal time.
+
 We then need to add the Multiwfn path to the `~/.zshrc`. Adapt the specific path to where you have installed Multiwfn on your system. See the Multiwfn manual for more specific instructions.
 
 ```zsh
