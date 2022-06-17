@@ -11,7 +11,7 @@ jobs:
 
     steps:
     - name: Checkout
-      uses: actions/checkout
+      uses: actions/checkout@v3
 
     - name: Download source and settings
       run: |
@@ -25,7 +25,7 @@ jobs:
         rm Multiwfn_3.8_dev_bin_Linux_noGUI.zip
 
     - name: Deploy
-      uses: JamesIves/github-pages-deploy-action
+      uses: JamesIves/github-pages-deploy-action@v4
       with:
         BRANCH: source_dist
         FOLDER: "."
