@@ -30,14 +30,3 @@ jobs:
       with:
         BRANCH: source_dist
         FOLDER: "."
-
-    - name: Get tag name from date
-      id: tag_name
-      run: echo "::set-output name=date::$(date +'%y%m.%d')"        
-
-    - name: Create a Release
-      uses: elgohr/Github-Release-Action@v4
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        title: ${{ steps.tag_name.outputs.date }}
