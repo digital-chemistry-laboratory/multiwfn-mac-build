@@ -22,7 +22,7 @@ jobs:
         rmdir Multiwfn_3.8_dev_src_Linux
         rm Multiwfn_3.8_dev_src_Linux.zip
         wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_dev_bin_Linux_noGUI.zip
-        unzip -j -o Multiwfn_3.8_dev_bin_Linux_noGUI.zip Multiwfn_3.8_dev_bin_Linux_noGUI/settings.ini
+        unzip -o -j Multiwfn_3.8_dev_bin_Linux_noGUI.zip Multiwfn_3.8_dev_bin_Linux_noGUI/{settings.ini,LICENSE.txt}
         rm Multiwfn_3.8_dev_bin_Linux_noGUI.zip
 
     - name: Deploy
