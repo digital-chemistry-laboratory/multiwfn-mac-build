@@ -8,6 +8,16 @@ find_dependency(LAPACK)
 find_package(BLAS)
 find_package(LAPACK)
 
+# Find OpenMP
+if(WITH_OpenMP)
+  find_package(OpenMP REQUIRED)
+endif()
+
+# Find X11. Can be added for GUI, if DISLIN is also available
+ if(WITH_GUI)
+  find_package(X11 REQUIRED)
+ endif()
+
 # Turn on preprocessor
 set(CMAKE_Fortran_PREPROCESS ON)
 
@@ -21,7 +31,16 @@ file (GLOB srcs CONFIGURE_DEPENDS
 
 # Add executable
 add_executable(multiwfn ${srcs})
-target_link_libraries(multiwfn PRIVATE ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES})
+target_link_libraries(
+  multiwfn
+  PRIVATE
+  ${BLAS_LIBRARIES}
+  ${LAPACK_LIBRARIES}
+  $<$<BOOL:${OpenMP_Fortran_FOUND}>:OpenMP::OpenMP_Fortran>
+  $<$<BOOL:${X11_FOUND}>:${X11_LIBRARIES}>
+)
 target_compile_options(multiwfn PRIVATE -std=legacy -ffree-line-length-none)
+
+# Install
 install(TARGETS multiwfn)
 install(FILES settings.ini DESTINATION ${CMAKE_INSTALL_PREFIX}/etc/multiwfn)

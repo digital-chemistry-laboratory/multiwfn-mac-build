@@ -32,6 +32,15 @@ export PATH=$PATH:$HOME/bin/Multiwfn
 export Multiwfnpath=$HOME/bin/Multiwfn
 ```
 
+## Building with OpenMP
+
+To build with OpenMP, set the flag `cmake -B build -DWITH_OpenMP=ON`. Then you need to specify the number of processors in `settings.ini` (see below).
+
+## Building with GUI
+
+Currently, it is not possible to build Multiwfn with a GUI on machines with an Apple Silicon processor, due to lack of a [DISLIN](https://www.dislin.de) distribution. If someone has an Intel Mac and would like to work out a recipe, please see the open issues on the question.
+
+
 # Settings
 
-The source distribution of Multiwfn doesn't come with the file `settings.ini`. You can [download](http://sobereva.com/multiwfn/) the binary distribution for Linux and copy just the file `settings.ini` into your Multiwfn folder.
+The source distribution of Multiwfn doesn't come with the file `settings.ini`. You can [download](http://sobereva.com/multiwfn/) the binary distribution for Linux and copy just the file `settings.ini` into your Multiwfn folder. A snapshot of the default `settings.ini` is given in the repository, but it might become outdated with further development of Multiwfn.
