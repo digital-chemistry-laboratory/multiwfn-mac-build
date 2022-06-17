@@ -39,7 +39,7 @@ target_link_libraries(
   $<$<BOOL:${OpenMP_Fortran_FOUND}>:OpenMP::OpenMP_Fortran>
   $<$<BOOL:${X11_FOUND}>:${X11_LIBRARIES}>
 )
-target_compile_options(multiwfn PRIVATE -std=legacy -ffree-line-length-none)
+target_compile_options(multiwfn PRIVATE -ffree-line-length-none)
 
 # Install
 install(TARGETS multiwfn)
