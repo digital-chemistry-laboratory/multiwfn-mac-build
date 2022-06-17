@@ -18,7 +18,6 @@ Here we get the source distribution of Multiwfn 3.8dev with `wget`. The latest v
 ```zsh
 $ wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_dev_src_Linux.zip
 $ unzip Multiwfn_3.8_dev_src_Linux.zip && mv Multiwfn_3.8_dev_src_Linux/* . && rmdir Multiwfn_3.8_dev_src_Linux
-$ patch < util.patch
 $ cmake -B build
 $ cmake --build build
 $ cp build/multiwfn .
