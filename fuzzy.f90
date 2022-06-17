@@ -1,0 +1,1978 @@
+!------ Integrate fuzzy atomic space
+!Normally iwork=0. If iwork=1, directly choose isel==4 to calculate delocalization index in fuzzy atomic spase (namely fuzzy bond order, see statement in JPCA,110,5108 below Eq.9) and then return
+!If iwork=2, directly choose isel==8 to calculate Laplacian bond order and then return
+!
+!The integration grid is directly controlled by sphpot and radpot in settings.ini, since integrand may be not proportional to electron density,
+!the grid will not be adjusted automatically as proposed by Becke for more efficient integration of XC functional
+subroutine intatomspace(iwork)
+use functions
+use util
+use topo
+implicit real*8 (a-h,o-z)
+integer iwork
+integer atmcalclist(ncenter),natmcalclist !The atoms to be calculated will be recorded in the array
+real*8 potx(sphpot),poty(sphpot),potz(sphpot),potw(sphpot)
+type(content) gridatm(radpot*sphpot)
+real*8 Pvec(ncenter),rintval(ncenter,10),funcval(radpot*sphpot),atmspcweight(radpot*sphpot) !rintval store integral, can record 10 integrand at the same time
+real*8 rintvalp(ncenter,10) !Private for each OpenMP thread
+real*8 promol(radpot*sphpot),atomdens(radpot*sphpot),selfdens(radpot*sphpot),selfdensgrad(3,radpot*sphpot),selfdenslapl(radpot*sphpot) !For Hirshfeld partition
+real*8 specrho(radpot*sphpot),specrhograd2(radpot*sphpot) !Density and its gradient^2 of atom in specific state (user-provided atomic wavefunction). Used for taking Hirshfeld as reference to calculate relative Shannon and Fisher entropy
+real*8 :: covr_becke(0:nelesupp)=0D0 !Covalent radii used for Becke partition
+real*8 DI(ncenter,ncenter),DIa(ncenter,ncenter),DIb(ncenter,ncenter) !Delocalization index matrix
+real*8 LI(ncenter),LIa(ncenter),LIb(ncenter) !Localization index array
+real*8 CLRK(ncenter,ncenter) !Condensed linear response kernel
+real*8 ovlpinttot(ncenter,ncenter),ovlpintpos(ncenter,ncenter),ovlpintneg(ncenter,ncenter),ovlpintpostmp(ncenter,ncenter),ovlpintnegtmp(ncenter,ncenter) !Integration between fuzzy atoms, store positive part and negative part respectively
+real*8 atmmono(ncenter) !Atomic monopole, filled during multipole integration task
+integer :: ifunc=3,ipartition=1,PDIatom(6),FLUatom(ncenter),FLUorb(nmo),PLRatom(6)
+real*8,allocatable :: AOM(:,:,:),AOMa(:,:,:),AOMb(:,:,:),AOMsum(:,:),AOMsuma(:,:),AOMsumb(:,:) !AOM(i,j,k) means overlap matrix of MO i,j in atom k space
+real*8 :: FLUref(nelesupp,nelesupp)=-1D0
+real*8 :: AOMtmp(nmo,nmo),orbval(nmo)
+integer :: iraddefine=-1 !-1= Specific for Laplacian bond order. 0=Custom 1=CSD 2=Pyykko 3=Suresh
+integer :: nbeckeiter=3
+integer :: cenind(10) !Record atom index for multicenter DI
+real*8 hess(3,3),rhogradw(3)
+character :: radfilename*200,selectyn,c80inp*80,specatmfilename*80,c200tmp*200,c2000tmp*2000
+character(len=200) :: atmvolwfn(nelesupp)=" " !Record the wavefunction file path of each element for evaluating atomic volume
+real*8,external :: fdens_rad
+integer,allocatable :: aromatatm(:)
+real*8 atmpol(ncenter) !Atomic polarizability estimated by TS method
+real*8 quadmom(3,3),tmpvec(3),tmpmat(3,3)
+
+!Atomic polarizability table, 2020 version http://ctcp.massey.ac.nz/index.php?menu=dipole&page=dipole
+real*8 :: atmpol_free(1:nelesupp)=(/ &
+4.50711D0,1.38375D0,164.1125D0,37.74D0,20.5D0,11.3D0,7.4D0,5.3D0,3.74D0,2.66110D0,& !H~Ne
+162.7D0,71.2D0,57.8D0,37.3D0,25D0,19.4D0,14.6D0,11.083D0,& !Na~Ar
+289.7D0,160.8D0,97D0,100D0,87D0,83D0,68D0,62D0,55D0,49D0,46.5D0,38.67D0,50D0,40D0,30D0,28.9D0,21D0,16.78D0,&  !K~Kr
+319.8D0,197.2D0,162D0,112D0,98D0,87D0,79D0,72D0,66D0,26.14D0,55D0,46D0,65D0,53D0,43D0,38D0,32.9D0,27.32D0,& !Rb~Xe
+400.9D0,272D0,215D0,205D0,216D0,208D0,200D0,192D0,184D0,158D0,170D0,163D0,156D0,150D0,144D0,139D0,137D0,& !Cs~Lu
+103D0,74D0,68D0,62D0,57D0,54D0,48D0,36D0,33.91D0,50D0,47D0,48D0,44D0,42D0,35D0,& !& !Hf~Rn
+317.8D0,246D0,203D0,217D0,154D0,129D0,151D0,132D0,131D0,144D0,125D0,122D0,118D0,113D0,109D0,110D0,320D0,& !Fr~Lr
+112D0,42D0,40D0,38D0,36D0,34D0,32D0,32D0,28D0,29D0,31D0,70D0,67D0,62D0,58D0,169D0,159D0,(0D0,i=121,nelesupp)/) !Rf~Ubn (120)
+
+if (ispecial==2) then
+	ipartition=2 !Use Hirshfeld for shubin's 2nd project
+	expcutoff=1 !Full accuracy
+end if
+
+do i=1,ncenter !Initialize the list of the atoms to be integrated
+	atmcalclist(i)=i
+end do
+natmcalclist=ncenter
+
+if (all(covr_becke==0D0)) then
+	if (iraddefine==-1) covr_becke=covr_tianlu !The first time
+	if (iraddefine==1) covr_becke=covr
+	if (iraddefine==2) covr_becke=covr_pyy
+	if (iraddefine==3) covr_becke=covr_Suresh
+end if
+if (all(FLUref==-1D0)) then !If =-1, means missing reference value
+	FLUref(6,6)=1.468D0 !Calculated for benzene under HF/6-31G* opted
+	FLUref(6,7)=1.566D0 !Pyridine
+	FLUref(7,6)=1.566D0
+	FLUref(5,7)=1.260D0 !Borazine
+	FLUref(7,5)=1.260D0
+end if
+!Backup original grid setting, because calculating bond order may use lower grid quality
+nradpotold=radpot
+nsphpotold=sphpot
+
+
+!==== Interface loop ====!
+!==== Interface loop ====!
+do while(.true.) 
+
+!For some functions, e.g. calculate DI, it is safe to use relatively low grid quality for saving time,
+!so sphpot and radpot may be adjusted automatically, but each time enter main interface we recover the ones set by users
+radpot=nradpotold
+sphpot=nsphpotold
+if (iwork==0) then
+	write(*,*)
+	write(*,*) "                ======== Fuzzy atomic space analysis ========"
+	if (numcp>0) write(*,*) "-11 Choose a critical point as reference point"
+	write(*,"(a,3f10.5,' Bohr')") " -10 Set X,Y,Z of reference point, current: ",refx,refy,refz
+	if (natmcalclist==ncenter) write(*,*) "-5 Define the atoms to be considered in options 1, 2, 13, current: all atoms"
+	if (natmcalclist/=ncenter) write(*,"(a,i5,a)") " -5 Define the atoms to be considered in options 1, 2, 13, current:",natmcalclist," atoms"
+	write(*,*) "-4 Adjust reference parameter for FLU"
+	if (ipartition==1) then !For Becke
+		write(*,"(' -3 Set the number of iterations for Becke partition, current:',i3)") nbeckeiter
+		if (iraddefine==-1) write(*,*) "-2 Select radius definition for Becke partition, current: Modified CSD"
+		if (iraddefine==0) write(*,*) "-2 Select radius definition for Becke partition, current: Custom"
+		if (iraddefine==1) write(*,*) "-2 Select radius definition for Becke partition, current: CSD"
+		if (iraddefine==2) write(*,*) "-2 Select radius definition for Becke partition, current: Pyykko"
+		if (iraddefine==3) write(*,*) "-2 Select radius definition for Becke partition, current: Suresh"
+		if (iraddefine==4) write(*,*) "-2 Select radius definition for Becke partition, current: Hugo"
+	end if
+	if (ipartition==1) write(*,"(a)") " -1 Select method for partitioning atomic space, current: Becke"
+	if (ipartition==2) write(*,"(a)") " -1 Select method for partitioning atomic space, current: Hirshfeld"
+	if (ipartition==3) write(*,"(a)") " -1 Select method for partitioning atomic space, current: Hirshfeld*"
+	if (ipartition==4) write(*,"(a)") " -1 Select method for partitioning atomic space, current: Hirshfeld-I"
+	write(*,*) "0 Return"
+	write(*,*) "1 Perform integration in fuzzy atomic spaces for a real space function"
+	write(*,*) "2 Calculate atomic and molecular multipole moments and <r^2>"
+	write(*,*) "3 Calculate and output atomic overlap matrix (AOM) in current folder"
+	write(*,*) "4 Calculate localization and delocalization index (Fuzzy bond order)"
+	write(*,*) "5 Calculate PDI (Para-delocalization index)"
+	write(*,*) "6 Calculate FLU (Aromatic fluctuation index)"
+	write(*,*) "7 Calculate FLU-pi"
+	write(*,*) "8 Perform integration in fuzzy overlap region for a real space functions"
+	if (allocated(CObasa)) write(*,*) "9 Calculate condensed linear response kernel (CLRK)" !Need virtual orbital informations
+	if (allocated(CObasa)) write(*,*) "10 Calculate PLR (Para linear response index)" !Need virtual orbital informations
+	write(*,*) "11 Calculate multi-center delocalization index" !Only can be used for HF/DFT closed-shell wavefunction
+    write(*,*) "12 Calculate information-theoretic aromaticity index (ACS Omega, 3, 18370)"
+    write(*,*) "13 Calculate atomic effective volume, free volume and polarizability"
+  	!write(*,*) "101 Integrate a function in Hirshfeld atomic space with molecular grid"
+	if (ispecial==2) then
+		write(*,*) "99 Calculate relative Shannon and Fisher entropy and 2nd-order term"
+		write(*,"(a)") " 100 Calculate relative Shannon and Fisher entropy of specific state w.r.t. Hirshfeld density"
+		write(*,*) "102 Obtain quadratic and cubic Renyi entropy"
+		write(*,*) "103 Obtain quadratic and cubic Renyi relative entropy"
+		write(*,*) "104 The same as 99, but also calculate relative g1,g2,g3"
+	end if
+	read(*,*) isel
+	
+else if (iwork==1) then
+	isel=4 !Directly calculate delocalization index
+else if (iwork==2) then
+	isel=8 !Directly calculate Laplacian bond order
+end if
+
+
+!!===================================
+!!--------- Adjust settings ---------
+!!===================================
+if (isel==0) then
+	exit
+	
+else if (isel==101) then
+	call intHirsh_molgrid
+	
+else if (isel==-11) then
+	if (numcp>0) then
+		write(*,*) "Summary of found CPs (in Bohr):"
+        write(*,*) " Index         X               Y               Z         Type"
+		do icp=1,numcp
+			write(*,"(i6,3f16.9,3x,a)") icp,CPpos(:,icp),CPtyp2lab(CPtype(icp))
+		end do
+		write(*,*) "Select a CP by inputting its index, e.g. 5"
+		read(*,*) icp
+		refx=CPpos(1,icp)
+		refy=CPpos(2,icp)
+		refz=CPpos(3,icp)
+	else
+		write(*,*) "Error: No CP has been found"
+	end if
+	
+else if (isel==-10) then
+	write(*,*) "Input X,Y,Z of reference point, e.g. 3.0,-4.12,0.0"
+	read(*,*) refx,refy,refz
+	write(*,*) "You inputted coordinate is in which unit?  1: Bohr  2: Angstrom"
+	read(*,*) iunit
+	if (iunit==2) then
+		refx=refx/b2a
+		refy=refy/b2a
+		refz=refz/b2a
+	end if
+	
+else if (isel==-5) then
+	do while(.true.)
+		write(*,*) "Input atom indices, e.g. 1,3-7,9,12"
+		read(*,"(a)") c200tmp
+		call str2arr(c200tmp,natmcalclist,atmcalclist)
+		if (any(atmcalclist(1:natmcalclist)>ncenter).or.any(atmcalclist(1:natmcalclist)<=0)) then
+			write(*,*) "One or more atoms exceeded valid range!"
+		else
+			exit
+		end if
+	end do
+	write(*,*) "Done! The atoms you chose:"
+	write(*,"(10i6)") atmcalclist(1:natmcalclist)
+	write(*,*)
+	
+else if (isel==-4) then
+	write(*,*) "Current FLU reference paramters:"
+	do iref=1,nelesupp
+		do jref=iref,nelesupp
+			if (FLUref(iref,jref)/=-1) write(*,"(' ',a,a,a,a,f10.5)") ind2name(iref),'-',ind2name(jref),':',FLUref(iref,jref)
+		end do
+	end do
+	do while(.true.)
+		write(*,*) "Input two element indices and a new reference parameter"
+		write(*,*) "e.g. 6,7,1.35  means set reference parameter for C-N to 1.35"
+		write(*,*) "(Input q can return)"
+		read(*,"(a)") c80inp
+		if (c80inp(1:1)=='q'.or.c80inp(1:1)=='Q') exit
+		read(c80inp,*) itmp,jtmp,refval
+		FLUref(itmp,jtmp)=refval
+		FLUref(jtmp,itmp)=refval
+		write(*,*) "Done!"
+	end do
+	
+else if (isel==-3) then
+	nbeckeiterold=nbeckeiter
+	write(*,*) "Do how many times of iteration? e.g. 3"
+	write(*,*) "Note: Larger value gives rise to sharper atomic boundary"
+	read(*,*) nbeckeiter
+	if (nbeckeiter/=nbeckeiterold) then
+		if (allocated(AOM)) deallocate(AOM,AOMsum)
+		if (allocated(AOMa)) deallocate(AOMa,AOMb,AOMsuma,AOMsumb)
+	end if
+	
+else if (isel==-2) then
+	if (allocated(AOM)) deallocate(AOM,AOMsum)
+	if (allocated(AOMa)) deallocate(AOMa,AOMb,AOMsuma,AOMsumb)
+	do while(.true.)
+		write(*,*)
+		write(*,*) "-1 Use the modified version of CSD radii defined by Tian Lu"
+		write(*,*) "0 Return"
+		write(*,*) "1 Use CSD radii (Dalton Trans., 2008, 2832-2838)"
+		write(*,*) "2 Use Pyykko radii (Chem. Eur.-J., 15, 186-197)"
+		write(*,*) "3 Use Suresh radii (J. Phys. Chem. A, 105, 5940-5944)"
+		write(*,*) "4 Use Hugo radii (Chem. Phys. Lett., 480, 127-131)"
+		write(*,*) "10 Read radii from external file"
+		write(*,*) "11 Modify current radii by manual input"
+		write(*,*) "12 Print current radii list"
+		
+		read(*,*) iselrad
+		if (iselrad==-1) then
+			covr_becke=covr_TianLu
+			iraddefine=-1
+			write(*,*) "Done!"
+		else if (iselrad==0) then
+			exit
+		else if (iselrad==1) then
+			covr_becke=covr
+			iraddefine=1
+			write(*,*) "Done!"
+		else if (iselrad==2) then
+			covr_becke=covr_pyy
+			iraddefine=2
+			write(*,*) "Done!"
+		else if (iselrad==3) then
+			covr_becke=covr_Suresh
+			iraddefine=3
+			write(*,*) "Done!"
+		else if (iselrad==4) then
+			covr_becke=radii_hugo
+			iraddefine=4
+			write(*,*) "Done!"
+		else if (iselrad==10) then
+			iraddefine=0
+			write(*,"(a)") " About the file format:"
+			write(*,"(a)") " The first line should be the number of elements you want to modify, followed by element indices and radii (in Angstrom), for example:"
+			write(*,"(a)") " 4"
+			write(*,"(a)") " 1 0.35"
+			write(*,"(a)") " 4 1.2"
+			write(*,"(a)") " 5 1.12"
+			write(*,"(a)") " 14 1.63"
+			write(*,*)
+			write(*,*) "Input file path, e.g. C:\radall.txt"
+			read(*,"(a)") radfilename
+			inquire(file=radfilename,exist=alive)
+			if (alive.eqv..true.) then
+				open(10,file=radfilename,status="old")
+				read(10,*) nmodrad
+				do irad=1,nmodrad
+					read(10,*) indtmp,radtmp
+					covr_becke(indtmp)=radtmp/b2a
+				end do
+				close(10)
+				write(*,*) "Done!"
+			else
+				write(*,*) "Error: File cannot be found"
+			end if
+		else if (iselrad==11) then
+			iraddefine=0
+			write(*,*) "Input element index and radius (in Angstrom), e.g. 5,0.84"
+			read(*,*) indtmp,radtmp
+			covr_becke(indtmp)=radtmp/b2a
+			write(*,*) "Done!"
+		else if (iselrad==12) then
+			do irad=0,nelesupp
+				write(*,"(' Element:',i5,'(',a,')   Radius:',f8.3,' Angstrom')") irad,ind2name(irad),covr_becke(irad)*b2a
+			end do
+		end if
+	end do
+	
+else if (isel==-1) then
+	ipartitionold=ipartition
+	write(*,*) "Select atomic space partition method"
+	write(*,*) "1 Becke"
+	write(*,*) "2 Hirshfeld"
+	write(*,*) "3 Hirshfeld* (preferred over 2)"
+	write(*,*) "4 Hirshfeld-I"
+	write(*,"(a)") " Note: (2) uses atomic .wfn files to calculate Hirshfeld weights, they must be provided by yourself or let Multiwfn automatically &
+	invoke Gaussian to generate them. (3) evaluates the weights based on built-in radial atomic densities, thus is more convenient than (2)"
+	read(*,*) ipartition
+	if (imodwfn==1.and.(ipartition==2.or.ipartition==4)) then !These two modes need reloading firstly loaded file, so they cannot be already modified
+		write(*,"(a)") " Error: Since the wavefunction has been modified by you or by other functions, present function is unable to use. &
+		Please reboot Multiwfn and reload the file"
+		ipartition=ipartitionold
+		cycle
+	end if
+	if (ipartition/=ipartitionold) then
+		if (allocated(AOM)) deallocate(AOM,AOMsum)
+		if (allocated(AOMa)) deallocate(AOMa,AOMb,AOMsuma,AOMsumb)
+	end if
+	if (ipartition==4) then !Generate radial density of all atoms by Hirshfeld-I
+		call Hirshfeld_I(2)
+	end if
+end if
+if (isel==101.or.isel<0) cycle
+
+
+!!=======================================
+!!--------- Prepare calculation ---------
+!!=======================================
+
+if (isel==1.or.isel==8) then !Select which function to be integrated in single atomic space or overlap between two atomic spaces
+	if (isel==8.and.ipartition/=1) then
+		write(*,"(a)") " Error: Only the fuzzy atomic space defined by Becke can be used together with this function"
+		cycle
+	end if
+	if (iwork==2) then  !When ==2, means calculate Laplacian bond order
+		ifunc=3 !Laplacian of rho
+		if (iautointgrid==1) then !Allow change integration grid adapatively. Do not use sphpot=230/266, the result will be frantic, I don't know why
+			radpot=45
+			sphpot=302
+		end if
+	else
+		write(*,*) "-2 Deformation density"
+		call selfunc_interface(1,ifunc)
+	end if
+else if (isel==2) then !Multipole moment integral needs electron density
+	ifunc=1
+    if (ispecial==1) then
+		write(*,"(a)") " Note: Since ""ispecial"" in settings.ini was set to 1, the electron density involved in this function is replaced with user-defined function"
+        ifunc=100
+    end if
+    write(*,*) "Select outputting destination of the result"
+    write(*,*) "1 Output on screen"
+    write(*,*) "2 Output to multipole.txt in current folder"
+    write(*,"(a)") " If choose 2, atom_moment.txt will also be outputted in current folder, &
+    which contains electric dipole moments as well as eigenvalues and eigenvectors of quadrupole moment tensors of all atoms"
+    read(*,*) itmp
+    if (itmp==1) then
+		iout=6
+    else if (itmp==2) then
+		iout=20
+		open(20,file="multipole.txt",status="replace")
+		open(21,file="atom_moment.txt",status="replace")
+    end if
+	write(iout,*) "Note: All units below are in a.u."
+	write(iout,*)
+	
+!AOM,LI/DI,PDI,FLU/-pi/CLRK/PLR/Multicenter DI. Note: MO values will be generated when collecting data
+else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.or.isel==11) then
+	!Even (30,110) can be used for fuzzy bond order, so (45,170) is absolutely enough
+	if (iautointgrid==1) then !Allow change integration grid adapatively
+		radpot=45
+		sphpot=170
+	end if
+	!FLU,FLU-pi,PDI,PLR,CLRK are only applied to closed-shell system
+	if (isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10) then
+		if (wfntype/=0.and.wfntype/=3) then
+			write(*,*) "Error: This function is only available for closed-shell system!"
+			cycle
+		end if
+	else if (isel==11.and.wfntype/=0) then
+		write(*,"(a)") " Error: This function is only available for single-determinant closed-shell system!"
+		cycle
+	end if
+	!Allocate space for AOM
+	if ((isel==9.or.isel==10).and.allocated(AOM).and.size(AOM,1)==nmo) then !The AOM calculated for FLU/PDI is smaller than nmo, since virtual orbitals are not taken into account
+		goto 10
+	else if ((isel==5.or.isel==6.or.isel==7).and.(allocated(AOM).or.allocated(AOMa))) then !Don't calculate AOM again. If AOM is calculated for PLR, the AOM is also applicable since it is more than necessary
+		write(*,*) "Note: AOM has already been generated before, so skipping its calculation"
+		goto 10
+	else !Haven't calculate AOM, hence it is needed to be calculated this time
+		if (wfntype==0.or.wfntype==2.or.wfntype==3) then !RHF,ROHF,R-post-HF
+			if (wfntype==3.or.isel==9.or.isel==10) then !R-post-HF or CLRK or PLR, need to consider all orbitals
+				nmatsize=nmo
+			else !RHF,ROHF
+				!High-lying virtual orbitals will be deleted, especially for .fch case
+				!Notice that occupation number may be not contiguous, some low-lying orbital may have
+				!zero occupation due to modification by users, so we can't simply use nelec to determine matrix size
+				do nmatsize=nmo,1,-1
+					if (MOocc(nmatsize)/=0) exit
+				end do
+				if (nmo-nmatsize>0) write(*,"(' Note: The highest',i6,' virtual orbitals will not be taken into account')") nmo-nmatsize
+			end if
+			if (allocated(AOM)) deallocate(AOM,AOMsum) !For PLR, the previous AOM and AOMsum allocated by PDI/FLU is too small, so here should be released
+			allocate(AOM(nmatsize,nmatsize,ncenter),AOMsum(nmatsize,nmatsize))
+			AOM=0
+			AOMsum=0
+		else if (wfntype==1.or.wfntype==4) then !UHF,U-post-HF
+			do iendalpha=nmo,1,-1
+				if (MOtype(iendalpha)==1) exit
+			end do
+			if (wfntype==4) then !U-post-HF
+				nmatsizea=iendalpha !Total number of alpha orbitals
+				nmatsizeb=nmo-nmatsizea !Total number of beta orbitals
+			else !UHF
+				do nmatsizea=iendalpha,1,-1
+					if (MOocc(nmatsizea)/=0D0) exit
+				end do
+				if (nint(nbelec)==0) then
+					nmatsizeb=0
+				else
+					do nmatsizeb=nmo,iendalpha+1,-1
+						if (MOocc(nmatsizeb)/=0D0) exit
+					end do
+					nmatsizeb=nmatsizeb-iendalpha
+				end if
+				if (iendalpha-nmatsizea>0) write(*,"(' Note: The highest',i6,' alpha virtual orbitals will not be taken into account')") iendalpha-nmatsizea
+				if (nmo-iendalpha-nmatsizeb>0) write(*,"(' Note: The highest',i6,' beta virtual orbitals will not be taken into account')") nmo-iendalpha-nmatsizeb
+			end if
+			if (allocated(AOMa)) deallocate(AOMa,AOMb,AOMsuma,AOMsumb)
+			allocate( AOMa(nmatsizea,nmatsizea,ncenter),AOMb(nmatsizeb,nmatsizeb,ncenter) )
+			allocate( AOMsuma(nmatsizea,nmatsizea),AOMsumb(nmatsizeb,nmatsizeb) )
+			AOMa=0
+			AOMb=0
+			AOMsuma=0
+			AOMsumb=0
+		end if
+	end if
+else if (isel==12) then
+	write(*,*) "Choose one of information-theoretic quantity"
+	write(*,*) "1 Shannon entropy"
+	write(*,*) "2 Fisher information"
+	write(*,*) "3 Ghosh-Berkowitz-Parr (GBP) entropy"
+	read(*,*) infoaromat
+	write(*,*) "Input the atoms constituing the ring, e.g. 2,3,7-10"
+	read(*,"(a)") c2000tmp
+	call str2arr(c2000tmp,naromatatm)
+	if (allocated(aromatatm)) deallocate(aromatatm)
+	allocate(aromatatm(naromatatm))
+	call str2arr(c2000tmp,naromatatm,aromatatm)
+else if (isel==13) then !Calculating atomic volume needs electron density
+	ifunc=1
+    do iele=1,nelesupp
+		if (any(a(atmcalclist(1:natmcalclist))%index==iele)) then
+			if (atmvolwfn(iele)==" ") then
+				write(*,"(/,a)") " Input path of the file containing free-state wavefunction of element "//trim(ind2name(iele))
+                write(*,*) "For example, D:\atmvol\"//trim(ind2name(iele))//".wfn"
+                do while(.true.)
+					read(*,"(a)") c200tmp
+					inquire(file=c200tmp,exist=alive)
+					if (alive) then
+						atmvolwfn(iele)=c200tmp
+						exit
+                    end if
+					write(*,*) "Cannot find the file, input again!"
+                end do
+            else
+				write(*,"(1x,a)") trim(atmvolwfn(iele))//" will be used for element "//trim(ind2name(iele))
+            end if
+        end if
+    end do
+end if
+
+
+
+!!=======================================
+!!---------------------------------------
+!!--------- Start calculation -----------
+!!---------------------------------------
+!!=======================================
+rintval=0D0 !Initialize accumulated variables
+ovlpintpos=0D0
+ovlpintneg=0D0
+atmmono=0
+xinttot=0D0;yinttot=0D0;zinttot=0D0 !For calculating molecular multiple moment
+xxinttot=0D0;yyinttot=0D0;zzinttot=0D0;xyinttot=0D0;yzinttot=0D0;xzinttot=0D0
+xxxinttot=0D0;yyyinttot=0D0;zzzinttot=0D0;yzzinttot=0D0;xzzinttot=0D0;xxzinttot=0D0;yyzinttot=0D0;xxyinttot=0D0;xyyinttot=0D0;xyzinttot=0D0
+
+if (ipartition==2.or.ifunc==-2) call setpromol !In this routine reload first molecule at the end
+write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
+write(*,*) "Please wait..."
+write(*,*)
+call walltime(nwalltime1)
+
+call Lebedevgen(sphpot,potx,poty,potz,potw)
+
+!! Cycle each atom !!!! Cycle each atom !!!! Cycle each atom !!!! Cycle each atom !!
+if ((isel==2.and.iout==20).or.(isel/=2.and.isel/=13)) then
+	ifinish=0
+	call showprog(0,natmcalclist)
+end if
+
+do iatm=1,ncenter
+
+	if ( (isel==1.or.isel==2.or.isel==13).and.all(atmcalclist(1:natmcalclist)/=iatm) ) cycle
+	if (isel==12) then
+        if (all(aromatatm(1:naromatatm)/=iatm)) cycle
+    end if
+    
+	!!! Prepare grid points on current center
+	iradcut=0 !Before where the radial points will be cut
+	parm=1D0
+	do i=1,radpot !Combine spherical point&weights with second kind Gauss-Chebyshev method for radial part
+		radx=cos(i*pi/(radpot+1))
+		radr=(1+radx)/(1-radx)*parm !Becke transform
+		radw=2*pi/(radpot+1)*parm**3 *(1+radx)**2.5D0/(1-radx)**3.5D0 *4*pi
+		gridatm( (i-1)*sphpot+1:i*sphpot )%x=radr*potx
+		gridatm( (i-1)*sphpot+1:i*sphpot )%y=radr*poty
+		gridatm( (i-1)*sphpot+1:i*sphpot )%z=radr*potz
+		gridatm( (i-1)*sphpot+1:i*sphpot )%value=radw*potw
+		if (radcut/=0D0.and.iradcut==0.and.radr<radcut) iradcut=i-1
+	end do
+! 	if (radcut/=0) write(*,"(i8,' points per center were discarded')") iradcut*sphpot
+	gridatm%x=gridatm%x+a(iatm)%x !Move quadrature point to actual position in molecule
+	gridatm%y=gridatm%y+a(iatm)%y
+	gridatm%z=gridatm%z+a(iatm)%z
+    
+    !!! Calculating function value
+	!For integrating real space function (1,8), calculate selected function value at each point here
+	!For multipole moment integration (2) and evaluating atomic volume (13), calculate electron density here
+    !For information-theoretic aromaticity index (12), calculate selected information density at each point here
+	!For AOM, LI/DI, FLU/PDI calculation, wavefunction value will be computed in integration stage rather than here
+	if (isel==1.or.isel==2.or.isel==8.or.isel==13.or.isel==102) then
+		!$OMP parallel do shared(funcval) private(i) num_threads(nthreads)
+		do i=1+iradcut*sphpot,radpot*sphpot
+			if (ifunc==-2.or.isel==102) then !Deformation density and Renyi entropy require molecular electron density
+				funcval(i)=fdens(gridatm(i)%x,gridatm(i)%y,gridatm(i)%z)
+			else
+				funcval(i)=calcfuncall(ifunc,gridatm(i)%x,gridatm(i)%y,gridatm(i)%z)
+			end if
+		end do
+		!$OMP end parallel do
+		
+		!Calculate deformation density. We have calculated total density, thus now minusing it by each atomic density in free-state
+		if ((isel==1.or.isel==8).and.ifunc==-2) then
+			do jatm=1,ncenter_org !Calc free atomic density
+				call dealloall(0)
+				call readwfn(custommapname(jatm),1)
+				!$OMP parallel do shared(atomdens) private(ipt) num_threads(nthreads)
+				do ipt=1+iradcut*sphpot,radpot*sphpot
+					atomdens(ipt)=fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
+				end do
+				!$OMP end parallel do
+				funcval=funcval-atomdens
+			end do
+			call dealloall(0)
+			call readinfile(firstfilename,1) !Retrieve to first loaded file(whole molecule) to calc real rho again
+		end if
+    else if (isel==12) then !Information-theoretic aromaticity index
+        !$OMP parallel do shared(funcval) private(i) num_threads(nthreads)
+		do i=1+iradcut*sphpot,radpot*sphpot
+            if (infoaromat==1) then
+                funcval(i)=infoentro(2,gridatm(i)%x,gridatm(i)%y,gridatm(i)%z)
+            else if (infoaromat==2) then
+                funcval(i)=Fisherinfo(1,gridatm(i)%x,gridatm(i)%y,gridatm(i)%z)
+            else if (infoaromat==3) then
+				funcval(i)=Ghoshentro(gridatm(i)%x,gridatm(i)%y,gridatm(i)%z,2)
+			end if
+		end do
+		!$OMP end parallel do
+	end if
+	
+	!!! Calculate atomic space weight function at all points around the atom (recorded in atmspcweight), which will be used later
+	!Also integrate fuzzy overlap region here (only available for Becke partition)
+	if (ipartition==1) then !Becke partition
+		!$OMP parallel shared(atmspcweight,ovlpintpos,ovlpintneg) private(i,rnowx,rnowy,rnowz,&
+		!$OMP ii,jj,Pvec,tmpval,tmpval2,ovlpintpostmp,ovlpintnegtmp) num_threads(nthreads)
+		ovlpintpostmp=0D0
+		ovlpintnegtmp=0D0
+		!$OMP do schedule(dynamic)
+		do i=1+iradcut*sphpot,radpot*sphpot
+			rnowx=gridatm(i)%x
+			rnowy=gridatm(i)%y
+			rnowz=gridatm(i)%z
+            
+			!Calculate Becke weight of all atoms (Pvec) at current point
+            call BeckePvec(rnowx,rnowy,rnowz,Pvec,covr_becke,nbeckeiter)
+            
+			atmspcweight(i)=Pvec(iatm)
+			
+			if (isel==8) then !Integration between two fuzzy atoms
+				tmpval=Pvec(iatm)*funcval(i)*gridatm(i)%value
+				!if (ELF_LOL(rnowx,rnowy,rnowz,"LOL")>0.7D0) then
+				!	tmpval=Pvec(iatm)*funcval(i)*gridatm(i)%value
+				!else
+				!	tmpval=0
+				!end if
+				do ii=1,ncenter !Note, ovlpint is lower triangular matrix, will be convert to full matrix during statistic stage
+					do jj=ii,ncenter
+						tmpval2=Pvec(jj)*Pvec(ii)*tmpval
+						if (tmpval>0) then !ovlpinttot will be summed up to single value in statistic stage
+							ovlpintpostmp(jj,ii)=ovlpintpostmp(jj,ii)+tmpval2
+						else
+							ovlpintnegtmp(jj,ii)=ovlpintnegtmp(jj,ii)+tmpval2
+						end if
+					end do
+				end do
+			end if
+		end do
+		!$OMP end do
+		!$OMP CRITICAL
+			ovlpintpos=ovlpintpos+ovlpintpostmp
+			ovlpintneg=ovlpintneg+ovlpintnegtmp
+		!$OMP end CRITICAL
+		!$OMP end parallel
+	else if (ipartition==2) then !Hirshfeld partition based on atomic .wfn files
+		promol=0D0
+		do jatm=1,ncenter_org !Calculate free atomic density of each atom and promolecular density
+			call dealloall(0)
+			call readwfn(custommapname(jatm),1)
+			!$OMP parallel do shared(atomdens,selfdensgrad,selfdenslapl) private(ipt,hess) num_threads(nthreads)
+			do ipt=1+iradcut*sphpot,radpot*sphpot
+				atomdens(ipt)=fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
+				if (jatm==iatm) then !SPECIAL: For Shubin's project, evaluate derivative of rho
+                    if (isel==99.or.isel==100) then !Calculate rho and its gradient for free atom
+					    call calchessmat_dens(1,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,selfdens(ipt),selfdensgrad(1:3,ipt),hess)
+                    else if (isel==104) then !Calculate rho, its gradient and Hessian for free atom
+					    call calchessmat_dens(2,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,selfdens(ipt),selfdensgrad(1:3,ipt),hess)
+                        selfdenslapl(ipt)=hess(1,1)+hess(2,2)+hess(3,3)
+                    end if
+				end if
+			end do
+			!$OMP end parallel do
+			promol=promol+atomdens
+			if (jatm==iatm) selfdens=atomdens
+		end do
+		do i=1+iradcut*sphpot,radpot*sphpot !Get Hirshfeld weight of present atom
+			if (promol(i)/=0D0) then
+				atmspcweight(i)=selfdens(i)/promol(i)
+			else
+				atmspcweight(i)=0D0
+			end if
+		end do
+		call dealloall(0)
+		call readinfile(firstfilename,1) !Retrieve the firstly loaded file(whole molecule) in order to calculate real rho later
+	else if (ipartition==3.or.ipartition==4) then !Hirshfeld or Hirshfeld-I
+		promol=0D0
+		if (ipartition==3) then !Hirshfeld based on interpolation of built-in atomic radius density
+			do jatm=1,ncenter !Calculate free atomic density of each atom and promolecular density
+				!$OMP parallel do shared(atomdens) private(ipt) num_threads(nthreads)
+				do ipt=1+iradcut*sphpot,radpot*sphpot
+					atomdens(ipt)=calcatmdens(jatm,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,0)
+				end do
+				!$OMP end parallel do
+				promol=promol+atomdens
+				if (jatm==iatm) selfdens=atomdens
+			end do
+		else !Hirshfeld-I based on refined atomic radial density
+			do jatm=1,ncenter !Calculate free atomic density of each atom and promolecular density
+				!$OMP parallel do shared(atomdens) private(ipt) num_threads(nthreads)
+				do ipt=1+iradcut*sphpot,radpot*sphpot
+					atomdens(ipt)=fdens_rad(jatm,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
+				end do
+				!$OMP end parallel do
+				promol=promol+atomdens
+				if (jatm==iatm) selfdens=atomdens
+			end do
+		end if
+		do i=1+iradcut*sphpot,radpot*sphpot !Get Hirshfeld weight of present atom
+			if (promol(i)/=0D0) then
+				atmspcweight(i)=selfdens(i)/promol(i)
+			else
+				atmspcweight(i)=0D0
+			end if
+		end do
+	end if
+    
+    !SPECIAL CASE: Calculate density of atom in specific-state, for Shubin's idea
+    if (isel==100) then
+		write(specatmfilename,"(a,i4.4,a)") "specwfn/",iatm,".wfn"
+		write(*,*) "Prodessing "//trim(specatmfilename)
+		call dealloall(0)
+		call readwfn(specatmfilename,1)
+		a=a_org(iatm) !Set atom position to actual atom position
+		!$OMP parallel do shared(specrho,specrhograd2) private(ipt) num_threads(nthreads)
+		do ipt=1+iradcut*sphpot,radpot*sphpot
+		    specrho(ipt)=fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
+            specrhograd2(ipt)=fgrad(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,'t')**2
+		end do
+		!$OMP end parallel do
+		call dealloall(0)
+		call readinfile(firstfilename,1) !Retrieve the first loaded file(whole molecule) to calc real rho later
+    end if
+    
+	!!! Perform integration on current atom space (single center grid)
+	if (isel==1.or.isel==12) then
+		do i=1+iradcut*sphpot,radpot*sphpot
+			rintval(iatm,1)=rintval(iatm,1)+atmspcweight(i)*funcval(i)*gridatm(i)%value
+		end do
+	else if (isel==99.or.isel==100.or.isel==103.or.isel==104) then !SPECIAL SPECIAL SPECIAL
+		!=99:  Calculate relative Shannon and Fisher entropy and 2nd-order term
+		!=100: Calculate relative Shannon/Fisher entropy by taking Hirshfeld density as reference
+		!=103: Calculate quadratic and cubic Renyi relative entropy
+		!=104: Same as 99, but also calculate relative g1, g2, g3
+		!$OMP parallel shared(rintval) private(i,rnowx,rnowy,rnowz,rhow,rhogradw,rhograd2w,hess,rholaplw,rintvalp,tmpx,tmpy,tmpz) num_threads(nthreads)
+		rintvalp=0D0
+		!$OMP do schedule(dynamic)
+		do i=1+iradcut*sphpot,radpot*sphpot
+			rnowx=gridatm(i)%x
+			rnowy=gridatm(i)%y
+			rnowz=gridatm(i)%z
+			if (isel==99.or.isel==100) then
+				call calchessmat_dens(1,rnowx,rnowy,rnowz,rhow,rhogradw(:),hess)
+				rhow=atmspcweight(i)*rhow !rhoA
+				rhogradw=atmspcweight(i)*rhogradw !grad_rhoA
+				rhograd2w=sum(rhogradw(:)**2) !|grad_rhoA|^2
+			else if (isel==104) then
+				call calchessmat_dens(2,rnowx,rnowy,rnowz,rhow,rhogradw(:),hess)
+				rhow=atmspcweight(i)*rhow !rhoA
+				rhogradw=atmspcweight(i)*rhogradw !grad_rhoA
+				rhograd2w=sum(rhogradw(:)**2) !|grad_rhoA|^2
+                rholaplw=atmspcweight(i)*(hess(1,1)+hess(2,2)+hess(3,3))
+			else
+				rhow=atmspcweight(i)*fdens(rnowx,rnowy,rnowz) !rhoA at current point
+			end if
+			if (isel==99.or.isel==104) then
+			    !Relative Shannon entropy w.r.t. free-state
+			    rintvalp(iatm,1)=rintvalp(iatm,1)+rhow*log(rhow/selfdens(i))*gridatm(i)%value
+			    !Relative Fisher information entropy w.r.t. free-state (old formula, incorrect)
+			    rintvalp(iatm,2)=rintvalp(iatm,2)+(rhograd2w/rhow-sum(selfdensgrad(1:3,i)**2)/selfdens(i))*gridatm(i)%value
+			    !Atomic Shannon
+			    rintvalp(iatm,3)=rintvalp(iatm,3)-rhow*log(rhow)*gridatm(i)%value
+			    !Atomic Fisher
+			    rintvalp(iatm,4)=rintvalp(iatm,4)+(rhograd2w/rhow)*gridatm(i)%value
+			    !1st-order term: rhoA-rho0
+			    rintvalp(iatm,5)=rintvalp(iatm,5)+(rhow-selfdens(i))*gridatm(i)%value
+			    !2nd-order term
+			    rintvalp(iatm,6)=rintvalp(iatm,6)+(rhow-selfdens(i))**2/rhow/2D0 *gridatm(i)%value
+			    !Relative Fisher information entropy w.r.t. free-state (new formula, correct)
+			    tmpx=rhogradw(1)/rhow-selfdensgrad(1,i)/selfdens(i)
+			    tmpy=rhogradw(2)/rhow-selfdensgrad(2,i)/selfdens(i)
+			    tmpz=rhogradw(3)/rhow-selfdensgrad(3,i)/selfdens(i)
+			    rintvalp(iatm,7)=rintvalp(iatm,7)+rhow*(tmpx**2+tmpy**2+tmpz**2)*gridatm(i)%value
+                if (isel==104) then !Relative g1, g2, g3, respectively
+                    rintvalp(iatm,8)=rintvalp(iatm,8) + rholaplw*log(rhow/selfdens(i))*gridatm(i)%value
+                    rintvalp(iatm,9)=rintvalp(iatm,9) + rhow*(rholaplw/rhow-selfdenslapl(i)/selfdens(i))*gridatm(i)%value
+                    tmpx=rhogradw(1)/rhow-selfdensgrad(1,i)/selfdens(i)
+                    tmpy=rhogradw(2)/rhow-selfdensgrad(2,i)/selfdens(i)
+                    tmpz=rhogradw(3)/rhow-selfdensgrad(3,i)/selfdens(i)
+                    rintvalp(iatm,10)=rintvalp(iatm,10) + rhow*(tmpx**2+tmpy**2+tmpz**2)*gridatm(i)%value
+                end if
+			else if (isel==100) then
+			    !Relative Shannon entropy of specific atomic state with Hirshfeld density as reference
+			    rintvalp(iatm,1)=rintvalp(iatm,1)+specrho(i)*log(specrho(i)/rhow)*gridatm(i)%value
+			    !Relative Fisher information entropy of specific atomic state with Hirshfeld density as reference
+			    rintvalp(iatm,2)=rintvalp(iatm,2)+(specrhograd2(i)/specrho(i)-rhograd2w/rhow)*gridatm(i)%value
+			else if (isel==103) then
+				!Quadratic Renyi relative entropy 
+				rintvalp(iatm,1)=rintvalp(iatm,1)+rhow**2/selfdens(i) *gridatm(i)%value
+				!Cubic Renyi relative entropy 
+				rintvalp(iatm,2)=rintvalp(iatm,2)+rhow**3/selfdens(i)**2 *gridatm(i)%value
+			end if
+		end do
+		!$OMP end do
+		!$OMP CRITICAL
+			rintval=rintval+rintvalp
+		!$OMP end CRITICAL
+		!$OMP end parallel
+            
+	else if (isel==102) then !SPECIAL SPECIAL SPECIAL: Obtain quadratic and cubic Renyi entropy
+		do i=1+iradcut*sphpot,radpot*sphpot
+			rintval(iatm,1)=rintval(iatm,1)+atmspcweight(i)*funcval(i)**2*gridatm(i)%value
+			rintval(iatm,2)=rintval(iatm,2)+atmspcweight(i)*funcval(i)**3*gridatm(i)%value
+		end do
+        
+	else if (isel==2) then !Integrate multipole moments
+		eleint=0D0
+		xint=0D0;yint=0D0;zint=0D0
+		xxint=0D0;yyint=0D0;zzint=0D0;xyint=0D0;yzint=0D0;xzint=0D0
+		xxxint=0D0;yyyint=0D0;zzzint=0D0;yzzint=0D0;xzzint=0D0;xxzint=0D0;yyzint=0D0;xxyint=0D0;xyyint=0D0;xyzint=0D0
+		do i=1+iradcut*sphpot,radpot*sphpot
+			tmpmul=atmspcweight(i)*funcval(i)*gridatm(i)%value
+			eleint=eleint-tmpmul !monopole
+            !Calculate atomic dipole/quadruple/octopole, the coordinates are w.r.t. nucleus
+			rx=gridatm(i)%x-a(iatm)%x
+			ry=gridatm(i)%y-a(iatm)%y
+			rz=gridatm(i)%z-a(iatm)%z
+			xint=xint+rx*tmpmul !Dipole moments
+			yint=yint+ry*tmpmul
+			zint=zint+rz*tmpmul
+			xxint=xxint+rx*rx*tmpmul !Quadruple moments
+			yyint=yyint+ry*ry*tmpmul
+			zzint=zzint+rz*rz*tmpmul
+			xyint=xyint+rx*ry*tmpmul
+			yzint=yzint+ry*rz*tmpmul
+			xzint=xzint+rx*rz*tmpmul
+			xxxint=xxxint+rx*rx*rx*tmpmul !Octopole moments
+			yyyint=yyyint+ry*ry*ry*tmpmul
+			zzzint=zzzint+rz*rz*rz*tmpmul
+			yzzint=yzzint+ry*rz*rz*tmpmul
+			xzzint=xzzint+rx*rz*rz*tmpmul
+			xxzint=xxzint+rx*rx*rz*tmpmul
+			yyzint=yyzint+ry*ry*rz*tmpmul
+			xxyint=xxyint+rx*rx*ry*tmpmul
+			xyyint=xyyint+rx*ry*ry*tmpmul
+			xyzint=xyzint+rx*ry*rz*tmpmul
+            !Calculate molecular dipole/quadruple/octopole, the coordinates are w.r.t. origin
+			rx=gridatm(i)%x
+            ry=gridatm(i)%y
+            rz=gridatm(i)%z
+			xinttot=xinttot-rx*tmpmul
+			yinttot=yinttot-ry*tmpmul
+			zinttot=zinttot-rz*tmpmul
+			xxinttot=xxinttot-rx*rx*tmpmul
+			yyinttot=yyinttot-ry*ry*tmpmul
+			zzinttot=zzinttot-rz*rz*tmpmul
+			xyinttot=xyinttot-rx*ry*tmpmul
+			yzinttot=yzinttot-ry*rz*tmpmul
+			xzinttot=xzinttot-rx*rz*tmpmul
+			xxxinttot=xxxinttot-rx*rx*rx*tmpmul
+			yyyinttot=yyyinttot-ry*ry*ry*tmpmul
+			zzzinttot=zzzinttot-rz*rz*rz*tmpmul
+			yzzinttot=yzzinttot-ry*rz*rz*tmpmul
+			xzzinttot=xzzinttot-rx*rz*rz*tmpmul
+			xxzinttot=xxzinttot-rx*rx*rz*tmpmul
+			yyzinttot=yyzinttot-ry*ry*rz*tmpmul
+			xxyinttot=xxyinttot-rx*rx*ry*tmpmul
+			xyyinttot=xyyinttot-rx*ry*ry*tmpmul
+			xyzinttot=xyzinttot-rx*ry*rz*tmpmul
+		end do
+		rrint=xxint+yyint+zzint
+		rrxint=xxxint+xyyint+xzzint
+		rryint=xxyint+yyyint+yzzint
+		rrzint=xxzint+yyzint+zzzint
+		if (nEDFelec==0) then !Normal case, all electron basis or using pseudopotential but not accompanied by EDF
+			atmchgtmp=a(iatm)%charge+eleint
+		else !EDF is used, so using a(iatm)%index instead of a(iatm)%charge
+			atmchgtmp=a(iatm)%index+eleint
+		end if
+		atmmono(iatm)=eleint
+		write(iout,"('                           *****  Atom',i6,'(',a2,')  *****')") iatm,a(iatm)%name
+		write(iout,"(' Atomic charge:',f12.6)") atmchgtmp
+		write(iout,"(' Atomic monopole moment (from electrons):',f12.6)") eleint
+		write(iout,"(' Atomic dipole moments:')")
+		write(iout,"(' X=',f12.6,'  Y=',f12.6,'  Z=',f12.6,'  Norm=',f12.6)") -xint,-yint,-zint,dsqrt(xint**2+yint**2+zint**2)
+		write(iout,"(' Contribution to molecular dipole moment:')")
+		contridipx=atmchgtmp*a(iatm)%x-xint
+		contridipy=atmchgtmp*a(iatm)%y-yint
+		contridipz=atmchgtmp*a(iatm)%z-zint
+		write(iout,"(' X=',f12.6,'  Y=',f12.6,'  Z=',f12.6,'  Norm=',f12.6)") contridipx,contridipy,contridipz,dsqrt(contridipx**2+contridipy**2+contridipz**2)
+        if (ispecial==1) then
+			write(iout,"(' Atomic quadrupole moments (Standard Cartesian form):')")
+			write(iout,"(' XX=',f12.6,'  XY=',f12.6,'  XZ=',f12.6)") -xxint,-xyint,-xzint
+			write(iout,"(' YX=',f12.6,'  YY=',f12.6,'  YZ=',f12.6)") -xyint,-yyint,-yzint
+			write(iout,"(' ZX=',f12.6,'  ZY=',f12.6,'  ZZ=',f12.6)") -xzint,-yzint,-zzint
+        end if
+		write(iout,"(' Atomic quadrupole moments (Traceless Cartesian form):')")
+		QXX=(-3*xxint+rrint)/2
+		QYY=(-3*yyint+rrint)/2
+		QZZ=(-3*zzint+rrint)/2
+        quadmom(1,1)=QXX
+        quadmom(1,2)=(-3*xyint)/2
+        quadmom(1,3)=(-3*xzint)/2
+        quadmom(2,1)=(-3*xyint)/2
+        quadmom(2,2)=QYY
+        quadmom(2,3)=(-3*yzint)/2
+        quadmom(3,1)=(-3*xzint)/2
+        quadmom(3,2)=(-3*yzint)/2
+        quadmom(3,3)=QZZ
+		write(iout,"(' XX=',f12.6,'  XY=',f12.6,'  XZ=',f12.6)") quadmom(1,:)
+		write(iout,"(' YX=',f12.6,'  YY=',f12.6,'  YZ=',f12.6)") quadmom(2,:)
+		write(iout,"(' ZX=',f12.6,'  ZY=',f12.6,'  ZZ=',f12.6)") quadmom(3,:)
+		write(iout,"(' Magnitude of the traceless quadrupole moment tensor:',f12.6)") sqrt(2D0/3D0*(QXX**2+QYY**2+QZZ**2))
+		R20=-(3*zzint-rrint)/2D0 !Notice that the negative sign, because electrons carry negative charge
+		R2n1=-dsqrt(3D0)*yzint
+		R2p1=-dsqrt(3D0)*xzint
+		R2n2=-dsqrt(3D0)*xyint
+		R2p2=-dsqrt(3D0)/2D0*(xxint-yyint)
+		write(iout,"(' Atomic quadrupole moments (Spherical harmonic form):')")
+		write(iout,"(' Q_2,0 =',f11.6,'   Q_2,-1=',f11.6,'   Q_2,1=',f11.6)") R20,R2n1,R2p1
+		write(iout,"(' Q_2,-2=',f11.6,'   Q_2,2 =',f11.6)") R2n2,R2p2
+		write(iout,"( ' Magnitude: |Q_2|=',f12.6)") dsqrt(R20**2+R2n1**2+R2p1**2+R2n2**2+R2p2**2)
+        AESEx=xxint
+        AESEy=yyint
+        AESEz=zzint
+        AESE=rrint
+		write(iout,"(a,f14.6)") " Atomic electronic spatial extent <r^2>:",AESE
+		write(iout,"(' Components of <r^2>:  X=',f14.6,'  Y=',f14.6,'  Z=',f14.6)") AESEx,AESEy,AESEz
+		R30=-(5*zzzint-3*rrzint)/2D0
+		R3n1=-dsqrt(3D0/8D0)*(5*yzzint-rryint)
+		R3p1=-dsqrt(3D0/8D0)*(5*xzzint-rrxint)
+		R3n2=-dsqrt(15D0)*xyzint
+		R3p2=-dsqrt(15D0)*(xxzint-yyzint)/2D0
+		R3n3=-dsqrt(5D0/8D0)*(3*xxyint-yyyint)
+		R3p3=-dsqrt(5D0/8D0)*(xxxint-3*xyyint)
+		write(iout,"(' Atomic octopole moments (Spherical harmonic form):')")
+		write(iout,"(' Q_3,0 =',f11.6,'  Q_3,-1=',f11.6,'  Q_3,1 =',f11.6)") R30,R3n1,R3p1
+		write(iout,"(' Q_3,-2=',f11.6,'  Q_3,2 =',f11.6,'  Q_3,-3=',f11.6,'  Q_3,3 =',f11.6)") R3n2,R3p2,R3n3,R3p3
+		write(iout,"( ' Magnitude: |Q_3|=',f12.6)") dsqrt(R30**2+R3n1**2+R3p1**2+R3n2**2+R3p2**2+R3n3**2+R3p3**2)
+		write(iout,*)
+        !Output dipole and quadrupole moments
+        if (iout==20) then
+			write(21,"(' Atom',i6,' (',a,')')") iatm,a(iatm)%name
+			write(21,"(' Atomic dipole moment:',3f12.6)") -xint,-yint,-zint
+			call diagsymat(quadmom,tmpmat,tmpvec,istat)
+			write(21,"(' Information of atomic quadrupole moment (Traceless Cartesian):')")
+			write(21,"(' Eigenvalue 1:',f12.6,'  Eigenvector:',3f12.6)") tmpvec(1),tmpmat(:,1)
+			write(21,"(' Eigenvalue 2:',f12.6,'  Eigenvector:',3f12.6)") tmpvec(2),tmpmat(:,2)
+			write(21,"(' Eigenvalue 3:',f12.6,'  Eigenvector:',3f12.6)") tmpvec(3),tmpmat(:,3)
+			write(21,*)
+        end if
+    
+	else if (isel==13) then !Calculate atomic volume
+        !Calculate effective volume
+		effV=0
+		do i=1+iradcut*sphpot,radpot*sphpot
+			rx=gridatm(i)%x-a(iatm)%x
+			ry=gridatm(i)%y-a(iatm)%y
+			rz=gridatm(i)%z-a(iatm)%z
+            r3=dsqrt(rx**2+ry**2+rz**2)**3
+			tmp=funcval(i)*atmspcweight(i) * r3 *gridatm(i)%value !Current funcval records electron density
+            effV=effV+tmp
+		end do
+        !Calculate free volume
+        freeV=0
+        	gridatm%x=gridatm%x-a(iatm)%x !Recover the integration points to (0,0,0) as center
+		gridatm%y=gridatm%y-a(iatm)%y
+		gridatm%z=gridatm%z-a(iatm)%z
+		call dealloall(0)
+		call readinfile(atmvolwfn(a_org(iatm)%index),1)
+        gridatm%x=gridatm%x+a(1)%x !Move the points to current single atom as center
+		gridatm%y=gridatm%y+a(1)%y
+		gridatm%z=gridatm%z+a(1)%z
+		do i=1+iradcut*sphpot,radpot*sphpot
+			rx=gridatm(i)%x-a(1)%x
+			ry=gridatm(i)%y-a(1)%y
+			rz=gridatm(i)%z-a(1)%z
+            r3=dsqrt(rx**2+ry**2+rz**2)**3
+			tmp=fdens(gridatm(i)%x,gridatm(i)%y,gridatm(i)%z) * r3 *gridatm(i)%value
+            freeV=freeV+tmp
+        end do
+		call dealloall(0)
+		call readinfile(firstfilename,1) !Retrieve to the whole molecule wavefunction
+        write(*,"(' Atom',i5,'(',a,')  Effective V:',f10.3,'  Free V:',f10.3,' a.u.  Ratio:',f6.3)") &
+        iatm,a(iatm)%name,effV,freeV,effV/freeV
+        atmpol(iatm)=atmpol_free(a(iatm)%index)*effV/freeV
+	
+	!Calculate atomic overlap matrix (AOM) for all tasks that require it
+	else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.or.isel==11) then
+		if (wfntype==0.or.wfntype==2.or.wfntype==3) then !RHF,ROHF,R-post-HF
+			!$OMP parallel shared(AOM) private(i,imo,jmo,AOMtmp,orbval) num_threads(nthreads)
+			AOMtmp=0D0
+			!$OMP do schedule(dynamic)
+			do i=1+iradcut*sphpot,radpot*sphpot
+				call orbderv(1,1,nmatsize,gridatm(i)%x,gridatm(i)%y,gridatm(i)%z,orbval) !Calculate orbital wavefunction value of all MOs in current position and store to orbval
+				do imo=1,nmatsize
+					do jmo=imo,nmatsize	
+						AOMtmp(imo,jmo)=AOMtmp(imo,jmo)+atmspcweight(i)*orbval(imo)*orbval(jmo)*gridatm(i)%value
+					end do
+				end do
+			end do
+			!$OMP end do
+			!$OMP CRITICAL
+				AOM(:,:,iatm)=AOM(:,:,iatm)+AOMtmp(1:nmatsize,1:nmatsize)
+			!$OMP end CRITICAL
+			!$OMP end parallel
+			AOM(:,:,iatm)=AOM(:,:,iatm)+transpose(AOM(:,:,iatm))
+			do imo=1,nmatsize
+				AOM(imo,imo,iatm)=AOM(imo,imo,iatm)/2D0
+			end do
+		else if (wfntype==1.or.wfntype==4) then !UHF,U-post-HF
+			!Alpha part
+			do i=1+iradcut*sphpot,radpot*sphpot
+				call orbderv(1,1,nmatsizea,gridatm(i)%x,gridatm(i)%y,gridatm(i)%z,orbval)
+				do imo=1,nmatsizea
+					do jmo=imo,nmatsizea
+						AOMa(imo,jmo,iatm)=AOMa(imo,jmo,iatm)+atmspcweight(i)*orbval(imo)*orbval(jmo)*gridatm(i)%value
+					end do
+				end do
+			end do
+			AOMa(:,:,iatm)=AOMa(:,:,iatm)+transpose(AOMa(:,:,iatm))
+			do imo=1,nmatsizea
+				AOMa(imo,imo,iatm)=AOMa(imo,imo,iatm)/2D0
+			end do
+			!Beta part
+			if (nmatsizeb>0) then !If there is no beta orbital, then nmatsizeb=0, and we will do nothing
+				MOinit=iendalpha+1
+				MOend=iendalpha+nmatsizeb
+				do i=1+iradcut*sphpot,radpot*sphpot
+					call orbderv(1,MOinit,MOend,gridatm(i)%x,gridatm(i)%y,gridatm(i)%z,orbval)
+					do imo=MOinit,MOend
+						imotmp=imo-iendalpha !So that the index start from 1 to nbelec
+						do jmo=imo,MOend
+							jmotmp=jmo-iendalpha
+							AOMb(imotmp,jmotmp,iatm)=AOMb(imotmp,jmotmp,iatm)+atmspcweight(i)*orbval(imo)*orbval(jmo)*gridatm(i)%value
+						end do
+					end do
+				end do					
+				AOMb(:,:,iatm)=AOMb(:,:,iatm)+transpose(AOMb(:,:,iatm))
+				do imo=1,nmatsizeb
+					AOMb(imo,imo,iatm)=AOMb(imo,imo,iatm)/2D0
+				end do
+			end if
+		end if
+	end if
+    
+	!Show progress for integrating function
+    !For electric multipole moment integration and evaluating atomic volume, the process is not shown, because process is directly printed
+	if (isel==12) then
+        ifinish=ifinish+1
+        call showprog(ifinish,naromatatm)
+    else if ((isel==2.and.iout==20).or.(isel/=2.and.isel/=13)) then
+        ifinish=ifinish+1
+        call showprog(ifinish,natmcalclist)
+    end if
+	
+end do !End cycling atoms
+
+call walltime(nwalltime2)
+write(*,"(' Calculation took up',i8,' seconds wall clock time')") nwalltime2-nwalltime1
+
+
+
+!==== Check sanity of AOM ====!
+if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.or.isel==11) then
+	if (wfntype==0.or.wfntype==2.or.wfntype==3) then !RHF,ROHF,R-post-HF
+		do iatm=1,ncenter
+			AOMsum=AOMsum+AOM(:,:,iatm)
+		end do
+		AOMerror=identmaterr(AOMsum)/ncenter
+		write(*,"(' Error of AOM is',f14.8)") AOMerror
+		if (AOMerror>0.001D0) write(*,"(a)") " Warning: The integration is not very accurate, in the settings.ini, &
+		you need to set ""iautointgrid"" to 0 and proper set ""radpot"" and ""sphpot"" parameters"		
+! 		call showmatgau(AOMsum,"",1,"f14.8",7)
+	else if (wfntype==1.or.wfntype==4) then !UHF,U-post-HF
+		AOMerrorb=0D0
+		do iatm=1,ncenter
+			AOMsuma=AOMsuma+AOMa(:,:,iatm)
+			if (nmatsizeb>0) AOMsumb=AOMsumb+AOMb(:,:,iatm)
+		end do
+		AOMerrora=identmaterr(AOMsuma)/ncenter
+		if (nmatsizeb>0) AOMerrorb=identmaterr(AOMsumb)/ncenter
+		write(*,"(' Error of alpha AOM is',f14.8)") AOMerrora
+		if (nmatsizeb>0) write(*,"(' Error of Beta AOM is ',f14.8)") AOMerrorb
+		if (AOMerrora>0.001D0.or.AOMerrorb>0.001D0)  write(*,"(a)") " Warning: The integration is not very accurate, in the settings.ini, &
+		you need to set ""iautointgrid"" to 0 and proper set ""radpot"" and ""sphpot"" parameters"		
+	end if
+end if
+
+!==== Generate DI, LI or condensed linear response kernel (CLRK) ====!
+!DI-pi will be calculated for FLU-pi at later stage
+!Multicenter DI will be calculated at later stage
+10	if (isel==4.or.isel==5.or.isel==6) then !For LI/DI, PDI and FLU
+	if (any(MOocc<0)) then
+		where(MOocc<0) MOocc=0
+		write(*,"(a)") " Note: Some occupation numbers are negative. In order to make the calculation feasible, they have been set to zero"
+		write(*,*) "Press ENTER button to continue"
+		read(*,*)
+	end if
+	!RHF,R-post-HF, DI_A,B=2∑[i,j]dsqrt(n_i*n_j)*S_i,j_A * S_i,j_B     where i and j are non-spin orbitals
+	if (wfntype==0.or.wfntype==3) then
+		DI=0D0
+		do iatm=1,ncenter
+			do jatm=iatm,ncenter
+				do iorb=1,nmatsize
+					do jorb=1,nmatsize
+						DI(iatm,jatm)=DI(iatm,jatm)+dsqrt(MOocc(iorb)*MOocc(jorb))*AOM(iorb,jorb,iatm)*AOM(iorb,jorb,jatm)
+					end do
+				end do
+			end do
+			LI(iatm)=DI(iatm,iatm)
+		end do
+		DI=2*(DI+transpose(DI))
+		do iatm=1,ncenter !Diagonal terms are the sum of corresponding row or column
+			DI(iatm,iatm)=0D0
+			DI(iatm,iatm)=sum(DI(iatm,:))
+		end do
+	else if (wfntype==2) then !ROHF
+		DIa=0D0
+		DIb=0D0
+		do nmoclose=nmatsize,1,-1
+			if (MOtype(nmoclose)==0) exit
+		end do
+		do iatm=1,ncenter
+			do jatm=iatm,ncenter
+				!Alpha
+				do iorb=1,nmatsize !The number of close or alpha orbitals needed to be concerned
+					occi=MOocc(iorb)
+					if (MOtype(iorb)==0) occi=occi/2D0
+					do jorb=1,nmatsize
+						occj=MOocc(jorb)
+						if (MOtype(jorb)==0) occj=occj/2D0
+						DIa(iatm,jatm)=DIa(iatm,jatm)+dsqrt(occi*occj)*AOM(iorb,jorb,iatm)*AOM(iorb,jorb,jatm)
+					end do
+				end do
+				!Beta
+				do iorb=1,nmoclose !The number of close orbitals needed to be concerned
+					do jorb=1,nmoclose
+						DIb(iatm,jatm)=DIb(iatm,jatm)+dsqrt(MOocc(iorb)/2D0*MOocc(jorb)/2D0)*AOM(iorb,jorb,iatm)*AOM(iorb,jorb,jatm)
+					end do
+				end do
+			end do
+			LIa(iatm)=DIa(iatm,iatm)
+			LIb(iatm)=DIb(iatm,iatm)
+		end do
+		DIa=2*(DIa+transpose(DIa))
+		DIb=2*(DIb+transpose(DIb))
+		do iatm=1,ncenter !Diagonal terms are the sum of corresponding row or column
+			DIa(iatm,iatm)=0D0
+			DIb(iatm,iatm)=0D0
+			DIa(iatm,iatm)=sum(DIa(iatm,:))
+			DIb(iatm,iatm)=sum(DIb(iatm,:))
+		end do
+		!Combine alpha and Beta to total
+		DI=DIa+DIb
+		LI=LIa+LIb
+	!UHF,U-post-HF   DI(A,B)=2∑[i,j]dsqrt(n_i*n_j)*S_i,j_A * S_i,j_B   where i and j are spin orbitals
+	else if (wfntype==1.or.wfntype==4) then
+		!Alpha
+		DIa=0D0
+		do iatm=1,ncenter
+			do jatm=iatm,ncenter
+				do iorb=1,nmatsizea
+					do jorb=1,nmatsizea
+						DIa(iatm,jatm)=DIa(iatm,jatm)+dsqrt(MOocc(iorb)*MOocc(jorb))*AOMa(iorb,jorb,iatm)*AOMa(iorb,jorb,jatm)
+					end do
+				end do
+			end do
+			LIa(iatm)=DIa(iatm,iatm)
+		end do
+		DIa=2*(DIa+transpose(DIa))
+		!Beta
+		if (nmatsizeb>0) then
+			DIb=0D0
+			MOinit=iendalpha+1 !Index range of beta orbitals
+			MOend=iendalpha+nmatsizeb
+			do iatm=1,ncenter
+				do jatm=iatm,ncenter
+					do iorb=MOinit,MOend
+						iorbtmp=iorb-iendalpha
+						do jorb=MOinit,MOend
+							jorbtmp=jorb-iendalpha
+							DIb(iatm,jatm)=DIb(iatm,jatm)+dsqrt(MOocc(iorb)*MOocc(jorb))*AOMb(iorbtmp,jorbtmp,iatm)*AOMb(iorbtmp,jorbtmp,jatm)
+						end do
+					end do
+				end do
+				LIb(iatm)=DIb(iatm,iatm)
+			end do
+			DIb=2*(DIb+transpose(DIb))
+		end if
+		do iatm=1,ncenter !Diagonal terms are the sum of corresponding row or column
+			DIa(iatm,iatm)=0D0
+			DIb(iatm,iatm)=0D0
+			DIa(iatm,iatm)=sum(DIa(iatm,:))
+			DIb(iatm,iatm)=sum(DIb(iatm,:))
+		end do
+		!Combine alpha and Beta to total
+		DI=DIa+DIb
+		LI=LIa+LIb
+	end if
+	
+else if (isel==9.or.isel==10) then !Calculate condensed linear response kernel, PLR also uses it
+	CLRK=0D0
+	do iatm=1,ncenter
+		do jatm=iatm,ncenter
+			do iorb=1,nmo !Occupied MOs
+				if (nint(MOocc(iorb))==2D0) then
+					do jorb=idxHOMO+1,nmo !Virtual MOs
+						if (nint(MOocc(jorb))==0D0) CLRK(iatm,jatm)=CLRK(iatm,jatm)+AOM(iorb,jorb,iatm)*AOM(iorb,jorb,jatm)/(MOene(iorb)-MOene(jorb))
+					end do
+				end if
+			end do
+		end do
+	end do
+	CLRK=CLRK*4D0
+	CLRK=CLRK+transpose(CLRK)
+	do iatm=1,ncenter
+		CLRK(iatm,iatm)=CLRK(iatm,iatm)/2D0
+	end do
+end if
+
+
+
+
+!!====================================================
+!!------- Statistic results or post-processing -------
+!!====================================================
+write(*,*)
+if (isel==1) then
+	sumval=sum(rintval(:,1))
+	sumabsval=sum(abs(rintval(:,1)))
+	write(*,*) "  Atomic space        Value                % of sum            % of sum abs"
+	if (any(abs(rintval(:,1))>1D9).or.all(abs(rintval(:,1))<1D-7)) then
+		do iatm=1,ncenter
+			write(*,"(i6,'(',a2,')  ',E20.10,1x,f20.6,1x,f20.6)") iatm,a(iatm)%name,rintval(iatm,1),rintval(iatm,1)/sumval*100,rintval(iatm,1)/sumabsval*100
+		end do
+		write(*,"(' Summing up above values:',E20.10)") sumval
+		write(*,"(' Summing up absolute value of above values:',E20.10)") sumabsval
+    else
+		do iatm=1,ncenter
+			write(*,"(i6,'(',a2,')  ',f20.8,1x,f20.6,1x,f20.6)") iatm,a(iatm)%name,rintval(iatm,1),rintval(iatm,1)/sumval*100,rintval(iatm,1)/sumabsval*100
+		end do
+		write(*,"(' Summing up above values:',f20.8)") sumval
+		write(*,"(' Summing up absolute value of above values:',f20.8)") sumabsval
+	end if
+	
+else if (isel==99.or.isel==104) then !SPECIAL: Relative Shannon and Fisher entropy and 2nd-order term
+	write(*,*) "Relative Shannon entropy and relative Fisher information w.r.t. its free-state"
+	write(*,*) "   Atom           Rel.Shannon       Rel.Fisher(old)   Rel.Fisher(new)"
+	do iatm=1,ncenter
+		write(*,"(i6,'(',a2,')  ',3f18.8)") iatm,a(iatm)%name,rintval(iatm,1),rintval(iatm,2),rintval(iatm,7)
+	end do
+	write(*,"(' Summing up above values:',3f18.8)") sum(rintval(:,1)),sum(rintval(:,2)),sum(rintval(:,7))
+	write(*,*)
+	write(*,*) "Shannon and Fisher information entropy of each atom"
+	write(*,*) "   Atom             Shannon            Fisher"
+	do iatm=1,ncenter
+		write(*,"(i6,'(',a2,')  ',2f18.8)") iatm,a(iatm)%name,rintval(iatm,3),rintval(iatm,4)
+	end do
+	write(*,"(' Summing up above values:',2f22.8)") sum(rintval(:,3)),sum(rintval(:,4))
+	write(*,*)
+	write(*,*) "1st and 2nd-order terms of each atom"
+	write(*,*) "   Atom           1st           2nd"
+	do iatm=1,ncenter
+		write(*,"(i6,'(',a2,')  ',2f14.8)") iatm,a(iatm)%name,rintval(iatm,5),rintval(iatm,6)
+	end do
+	write(*,"(' Summing up above values:',2f16.8)") sum(rintval(:,5)),sum(rintval(:,6))
+	write(*,*)
+    if (isel==104) then
+	    write(*,*) "Relative g1, g2 and g3"
+        write(*,*) "    Atom            rel. g1           rel. g2           rel. g3"
+	    do iatm=1,ncenter
+		    write(*,"(i6,'(',a2,')  ',3f18.8)") iatm,a(iatm)%name,rintval(iatm,8),rintval(iatm,9),rintval(iatm,10)
+	    end do
+	    write(*,"(' Summing up above values:',3f18.8)") sum(rintval(:,8)),sum(rintval(:,9)),sum(rintval(:,10))
+	end if
+else if (isel==100) then !SPECIAL: Relative Shannon/Fisher by taking Hirshfeld density as reference
+	write(*,*) "Relative Shannon and Fisher entropy of specific state w.r.t. Hirshfeld density"
+	write(*,*) "   Atom         Relat_Shannon      Relat_Fisher"
+	do iatm=1,ncenter
+		write(*,"(i6,'(',a2,')  ',2f18.8)") iatm,a(iatm)%name,rintval(iatm,1),rintval(iatm,2)
+	end do
+else if (isel==102) then !SPECIAL: Quadratic and cubic Renyi entropy
+	write(*,*) "Atomic contribution to int(rho^2) and int(rho^3) under Hirshfeld partition:"
+	write(*,*) "   Atom            Quadratic             Cubic"
+	do iatm=1,ncenter
+		write(*,"(i6,'(',a2,')  ',2(1PE20.8))") iatm,a(iatm)%name,rintval(iatm,1),rintval(iatm,2)
+	end do
+	write(*,"('    Total   ',2(1PE20.8))") sum(rintval(:,1)),sum(rintval(:,2))
+	write(*,*)
+	write(*,"(' Molecular quadratic Renyi entropy:',f18.8)") -log10(sum(rintval(:,1)))
+	write(*,"(' Molecular cubic Renyi entropy:    ',f18.8)") -log10(sum(rintval(:,2)))/2
+else if (isel==103) then !SPECIAL: Quadratic and cubic Renyi relative entropy
+	write(*,"(a)") " Note: rhoA=w_A(r)*rho(r) is density of A in molecule, rhoA0 is density of A in its free-state"
+	write(*,*) "   Atom        int(rhoA^2/rhoA0)   int(rhoA^3/rhoA0^2)"
+	do iatm=1,ncenter
+		write(*,"(i6,'(',a2,')  ',2(1PE20.8))") iatm,a(iatm)%name,rintval(iatm,1),rintval(iatm,2)
+	end do
+	write(*,"('    Total   ',2(1PE20.8))") sum(rintval(:,1)),sum(rintval(:,2))
+	write(*,*)
+	write(*,"(' Molecular quadratic Renyi relative entropy:',f18.8)") -log10(sum(rintval(:,1)))
+	write(*,"(' Molecular cubic Renyi relative entropy:    ',f18.8)") -log10(sum(rintval(:,2)))
+		
+else if (isel==2) then !Multipole moment
+    if (natmcalclist/=ncenter) then
+        write(iout,"(a)") " Note: The word ""Molecular"" in this context corresponds to the fragment you defined by option -5"
+    else
+        write(iout,"(a)") " Note: The word ""Molecular"" in this context corresponds to the entire current system"
+    end if
+    write(iout,*) "             *****  Molecular dipole and multipole moments  *****"
+	write(iout,"(' Total number of electrons:',f14.6,'   Net charge:',f12.6)") -sum(atmmono),sum(a(atmcalclist(1:natmcalclist))%index)+sum(atmmono)
+    
+    ESEx=-xxinttot
+    ESEy=-yyinttot
+    ESEz=-zzinttot
+    ESE=ESEx+ESEy+ESEz
+	!Combine nuclear contribution and electron contribution to obtain molecular multiple moment
+    do idx=1,natmcalclist
+        iatm=atmcalclist(idx)
+        xinttot=xinttot+a(iatm)%x*a(iatm)%index
+        yinttot=yinttot+a(iatm)%y*a(iatm)%index
+        zinttot=zinttot+a(iatm)%z*a(iatm)%index
+        xxinttot=xxinttot+a(iatm)%x*a(iatm)%x*a(iatm)%index
+        yyinttot=yyinttot+a(iatm)%y*a(iatm)%y*a(iatm)%index
+        zzinttot=zzinttot+a(iatm)%z*a(iatm)%z*a(iatm)%index
+        xyinttot=xyinttot+a(iatm)%x*a(iatm)%y*a(iatm)%index
+        yzinttot=yzinttot+a(iatm)%y*a(iatm)%z*a(iatm)%index
+        xzinttot=xzinttot+a(iatm)%x*a(iatm)%z*a(iatm)%index
+		xxxinttot=xxxinttot+a(iatm)%x*a(iatm)%x*a(iatm)%x*a(iatm)%index
+		yyyinttot=yyyinttot+a(iatm)%y*a(iatm)%y*a(iatm)%y*a(iatm)%index
+		zzzinttot=zzzinttot+a(iatm)%z*a(iatm)%z*a(iatm)%z*a(iatm)%index
+		yzzinttot=yzzinttot+a(iatm)%y*a(iatm)%z*a(iatm)%z*a(iatm)%index
+		xzzinttot=xzzinttot+a(iatm)%x*a(iatm)%z*a(iatm)%z*a(iatm)%index
+		xxzinttot=xxzinttot+a(iatm)%x*a(iatm)%x*a(iatm)%z*a(iatm)%index
+		yyzinttot=yyzinttot+a(iatm)%y*a(iatm)%y*a(iatm)%z*a(iatm)%index
+		xxyinttot=xxyinttot+a(iatm)%x*a(iatm)%x*a(iatm)%y*a(iatm)%index
+		xyyinttot=xyyinttot+a(iatm)%x*a(iatm)%y*a(iatm)%y*a(iatm)%index
+		xyzinttot=xyzinttot+a(iatm)%x*a(iatm)%y*a(iatm)%z*a(iatm)%index
+    end do
+	rrinttot=xxinttot+yyinttot+zzinttot
+	rrxinttot=xxxinttot+xyyinttot+xzzinttot
+	rryinttot=xxyinttot+yyyinttot+yzzinttot
+	rrzinttot=xxzinttot+yyzinttot+zzzinttot
+    
+	write(iout,"(' Molecular dipole moment (a.u.): ',3f14.6)") xinttot,yinttot,zinttot
+	write(iout,"(' Molecular dipole moment (Debye):',3f14.6)") xinttot*au2debye,yinttot*au2debye,zinttot*au2debye
+	dipmag=sqrt(xinttot**2+yinttot**2+zinttot**2)
+	write(iout,"(' Magnitude of molecular dipole moment (a.u.&Debye):',2f14.6)") dipmag,dipmag*au2debye
+    write(iout,"(' Molecular quadrupole moments (Standard Cartesian form):')")
+    fac=1
+    !fac=au2debye*b2a !If using this factor, result will be identical to "Quadrupole moment (field-independent basis, Debye-Ang):" printed by Gaussian
+	write(iout,"(' XX=',f12.4,'  XY=',f12.4,'  XZ=',f12.4)") xxinttot*fac,xyinttot*fac,xzinttot*fac
+	write(iout,"(' YX=',f12.4,'  YY=',f12.4,'  YZ=',f12.4)") xyinttot*fac,yyinttot*fac,yzinttot*fac
+	write(iout,"(' ZX=',f12.4,'  ZY=',f12.4,'  ZZ=',f12.4)") xzinttot*fac,yzinttot*fac,zzinttot*fac
+    write(iout,"(' Molecular quadrupole moments (Traceless Cartesian form):')")
+    !If removing the comment, the data will be identical to "Traceless Quadrupole moment (field-independent basis, Debye-Ang)" printed by Gaussian
+	QXX=(3*xxinttot-rrinttot)/2 !*au2debye*b2a/1.5D0
+	QYY=(3*yyinttot-rrinttot)/2 !*au2debye*b2a/1.5D0
+	QZZ=(3*zzinttot-rrinttot)/2 !*au2debye*b2a/1.5D0
+    QXY=3*xyinttot/2            !*au2debye*b2a/1.5D0
+    QXZ=3*xzinttot/2            !*au2debye*b2a/1.5D0
+    QYZ=3*yzinttot/2            !*au2debye*b2a/1.5D0
+	write(iout,"(' XX=',f12.4,'  XY=',f12.4,'  XZ=',f12.4)") QXX,QXY,QXZ
+	write(iout,"(' YX=',f12.4,'  YY=',f12.4,'  YZ=',f12.4)") QXY,QYY,QYZ
+	write(iout,"(' ZX=',f12.4,'  ZY=',f12.4,'  ZZ=',f12.4)") QXZ,QYZ,QZZ
+	write(iout,"(' Magnitude of the traceless quadrupole moment tensor:',f12.6)") sqrt(2D0/3D0*(QXX**2+QYY**2+QZZ**2))
+	R20=(3*zzinttot-rrinttot)/2D0 !Notice that the negative sign, because electrons carry negative charge
+	R2n1=dsqrt(3D0)*yzinttot
+	R2p1=dsqrt(3D0)*xzinttot
+	R2n2=dsqrt(3D0)*xyinttot
+	R2p2=dsqrt(3D0)/2D0*(xxinttot-yyinttot)
+	write(iout,"(' Molecular quadrupole moments (Spherical harmonic form):')")
+	write(iout,"(' Q_2,0 =',f12.4,'   Q_2,-1=',f12.4,'   Q_2,1=',f12.4)") R20,R2n1,R2p1
+	write(iout,"(' Q_2,-2=',f12.4,'   Q_2,2 =',f12.4)") R2n2,R2p2
+	write(iout,"(' Magnitude: |Q_2|=',f12.4)") dsqrt(R20**2+R2n1**2+R2p1**2+R2n2**2+R2p2**2)
+	write(iout,"(a,f16.6)") " Molecular electronic spatial extent <r^2>:",ESE
+	write(iout,"(' Components of <r^2>:  X=',f15.6,'  Y=',f15.6,'  Z=',f15.6)") ESEx,ESEy,ESEz
+	R30=(5*zzzinttot-3*rrzinttot)/2D0
+	R3n1=dsqrt(3D0/8D0)*(5*yzzinttot-rryinttot)
+	R3p1=dsqrt(3D0/8D0)*(5*xzzinttot-rrxinttot)
+	R3n2=dsqrt(15D0)*xyzinttot
+	R3p2=dsqrt(15D0)*(xxzinttot-yyzinttot)/2D0
+	R3n3=dsqrt(5D0/8D0)*(3*xxyinttot-yyyinttot)
+	R3p3=dsqrt(5D0/8D0)*(xxxinttot-3*xyyinttot)
+	write(iout,"(' Molecular octopole moments (Cartesian form):')")
+    fac=1
+    !fac=au2debye*b2a*b2a !If using this factor, result will be identical to "Octapole moment (field-independent basis, Debye-Ang**2):" printed by Gaussian
+	write(iout,"(' XXX=',f10.4,'  YYY=',f10.4,'  ZZZ=',f10.4,'  XYY=',f10.4,'  XXY=',f10.4)") &
+    xxxinttot*fac,yyyinttot*fac,zzzinttot*fac,xyyinttot*fac,xxyinttot*fac
+	write(iout,"(' XXZ=',f10.4,'  XZZ=',f10.4,'  YZZ=',f10.4,'  YYZ=',f10.4,'  XYZ=',f10.4)") &
+    xxzinttot*fac,xzzinttot*fac,yzzinttot*fac,yyzinttot*fac,xyzinttot*fac
+	write(iout,"(' Molecular octopole moments (Spherical harmonic form):')")
+	write(iout,"(' Q_3,0 =',f11.4,'  Q_3,-1=',f11.4,'  Q_3,1 =',f11.4)") R30,R3n1,R3p1
+	write(iout,"(' Q_3,-2=',f11.4,'  Q_3,2 =',f11.4,'  Q_3,-3=',f11.4,'  Q_3,3 =',f11.4)") R3n2,R3p2,R3n3,R3p3
+	write(iout,"(' Magnitude: |Q_3|=',f12.4)") dsqrt(R30**2+R3n1**2+R3p1**2+R3n2**2+R3p2**2+R3n3**2+R3p3**2)
+    if (iout==20) then
+		close(20)
+		close(21)
+		write(*,"(a)") " Electric dipole and quadrupole moments of all atoms have been exported to multipole.txt and atom_moment.txt in current folder"
+    end if
+    
+else if (isel==3) then !Output AOM
+	open(10,file="AOM.txt",status="replace")
+	if (wfntype==0.or.wfntype==2.or.wfntype==3) then
+		do iatm=1,ncenter
+			write(10,"('Atomic overlap matrix of',i6,'(',a2,')')") iatm,a(iatm)%name
+			call showmatgau(AOM(:,:,iatm),"",1,"f14.8",10)
+			write(10,*)
+		end do
+	else if (wfntype==1.or.wfntype==4) then
+		do iatm=1,ncenter
+			write(10,"('Alpha part of atomic overlap matrix of',i6,'(',a2,')')") iatm,a(iatm)%name
+			call showmatgau(AOMa(:,:,iatm),"",1,"f14.8",10)
+			if (nmatsizeb>0) then
+				write(10,"('Beta part of atomic overlap matrix of',i6,'(',a2,')')") iatm,a(iatm)%name
+				call showmatgau(AOMb(:,:,iatm),"",1,"f14.8",10)
+			end if
+			write(10,*)
+		end do
+	end if
+	close(10)
+	write(*,*) "Done, AOM have been exported to AOM.txt in current folder"
+	
+else if (isel==4) then !Show LI and DI or fuzzy bond order
+	if (iwork==0) then !Output LI and DI
+		write(*,"(a)") " Note: Delocalization index in fuzzy atomic space is also known as fuzzy bond order"
+		!The strict definition of atomic valence in fuzzy space is Eq.18 in CPL,368,375, however in closed-shell case free valence is zero, so sum of bond order is just atomic valence
+		write(*,"(a)") " Note: Diagonal terms are the sum of corresponding row or column elements, for closed-shell cases, they are also known as atomic valence"
+		write(*,*)
+		selectyn='n'
+		ioutid=6
+		do while(.true.)
+			if (wfntype==1.or.wfntype==2.or.wfntype==4) then !UHF,ROHF,U-post-HF, output each spin component first
+				!Alpha
+				call showmatgau(DIa,"Delocalization index matrix for alpha spin",0,"f14.8",ioutid)
+				write(ioutid,*)
+				if (iwork/=1) then
+					write(ioutid,*) "Localization index for alpha spin:"
+					do iatm=1,ncenter
+						write(ioutid,"(i5,'(',a,'):',f7.3)",advance='no') iatm,ind2name(a(iatm)%index),LIa(iatm)
+						if (mod(iatm,4)==0) write(ioutid,*)
+					end do
+					write(ioutid,*)
+					write(ioutid,*)
+				end if
+				!Beta
+				call showmatgau(DIb,"Delocalization index matrix for beta spin",0,"f14.8",ioutid)
+				write(ioutid,*)
+				if (iwork/=1) then
+					write(ioutid,*) "Localization index for beta spin:"
+					do iatm=1,ncenter
+						write(ioutid,"(i5,'(',a,'):',f7.3)",advance='no') iatm,ind2name(a(iatm)%index),LIb(iatm)
+						if (mod(iatm,4)==0) write(ioutid,*)
+					end do
+					write(ioutid,*)
+					write(ioutid,*)
+				end if
+			end if
+			!Alpha+Beta
+			call showmatgau(DI,"Total delocalization index matrix",0,"f14.8",ioutid)
+			write(ioutid,*)
+			if (iwork/=1) then
+				write(ioutid,*) "Localization index:"
+				do iatm=1,ncenter
+					write(ioutid,"(i5,'(',a,'):',f7.3)",advance='no') iatm,ind2name(a(iatm)%index),LI(iatm)
+					if (mod(iatm,4)==0) write(ioutid,*)
+				end do
+				write(ioutid,*)
+				write(ioutid,*)
+			end if
+			if (selectyn=='n') then !Just output result to screen, choose if output result to plain text file
+				write(*,*) "If also outputting LI and DI to LIDI.txt in current folder? (y/n)"
+				read(*,*) selectyn
+				if (selectyn=='y') then
+					open(10,file="LIDI.txt",status="replace")
+					ioutid=10
+				else if (selectyn=='n') then
+					exit
+				end if
+			else if (selectyn=='y') then !Have already outputted result to LIDI.txt, exit cycle
+				write(*,*) "Done, the LI and DI have been outputted to LIDI.txt in current folder"
+				close(10)
+				exit
+			end if
+		end do
+		
+	else if (iwork==1) then !Output fuzzy bond order
+		write(*,"(' The total bond order >=',f10.6)") bndordthres
+		itmp=0
+		if (wfntype==1.or.wfntype==2.or.wfntype==4) then
+			do i=1,ncenter
+				do j=i+1,ncenter
+					if (DIa(i,j)+DIb(i,j)>=bndordthres) then
+						itmp=itmp+1
+						write(*,"(' #',i5,':',i5,a,i5,a,' Alpha: ',f10.6,' Beta:',f10.6,' Total:',f10.6)") &
+						itmp,i,'('//a(i)%name//')',j,'('//a(j)%name//')',DIa(i,j),DIb(i,j),DIa(i,j)+DIb(i,j)
+					end if
+				end do
+			end do
+		else if (wfntype==0.or.wfntype==3) then
+			itmp=0
+			do i=1,ncenter
+				do j=i+1,ncenter
+					if (DI(i,j)>=bndordthres) then
+						itmp=itmp+1
+						write(*,"('#',i5,':',5x,i5,a,i5,a,f14.8)") itmp,i,'('//a(i)%name//')',j,'('//a(j)%name//')',DI(i,j)
+					end if
+				end do
+			end do
+		end if
+		!Output bond order sequence defined by oliarr
+! 		do itmp=1,size(oliarr)-1
+! 			write(*,"(2i6,f12.6)") oliarr(itmp),oliarr(itmp+1),DI(oliarr(itmp),oliarr(itmp+1))
+! 		end do
+		if (allocated(frag1)) then
+			bndordfraga=0
+			bndordfragb=0
+			bndordfragtot=0
+			do i=1,size(frag1)
+				do j=1,size(frag2)
+					if (wfntype==1.or.wfntype==2.or.wfntype==4) then 
+						bndordfraga=bndordfraga+DIa(frag1(i),frag2(j))
+						bndordfragb=bndordfragb+DIb(frag1(i),frag2(j))
+					else if (wfntype==0.or.wfntype==3) then
+						bndordfragtot=bndordfragtot+DI(frag1(i),frag2(j))
+					end if
+				end do
+			end do
+			write(*,*)
+			if (wfntype==1.or.wfntype==2.or.wfntype==4) then
+				write(*,"(' The bond order between fragment 1 and 2:')")
+				write(*,"(' Alpha:',f10.6,' Beta:',f10.6,' Total:',f10.6)") bndordfraga,bndordfragb,bndordfraga+bndordfragb
+			else if (wfntype==0.or.wfntype==3) then
+				write(*,"(' The bond order between fragment 1 and 2:',f12.6)") bndordfragtot
+			end if
+		end if
+		write(*,*)
+		write(*,*) "If outputting bond order matrix to bndmat.txt in current folder? (y/n)"
+		read(*,*) selectyn
+		if (selectyn=='y'.or.selectyn=='Y') then
+			open(10,file="bndmat.txt",status="replace")
+			if (wfntype==1.or.wfntype==2.or.wfntype==4) then !UHF,ROHF,U-post-HF, output each spin component first
+				call showmatgau(DIa,"Delocalization index matrix for alpha spin",0,"f14.8",10)
+				write(10,*)
+				call showmatgau(DIb,"Delocalization index matrix for beta spin",0,"f14.8",10)
+				write(10,*)
+			end if
+			call showmatgau(DI,"Total delocalization index matrix",0,"f14.8",10)
+			write(10,*)
+			close(10)
+			write(*,*) "Done, bond order matrix has been outputted to bndmat.txt in current folder"
+			write(*,"(a)") " Note: Diagonal terms in the bond order matrix are the sum of corresponding row or column elements, for closed-shell cases, they are also known as atomic valence"
+		end if
+		radpot=nradpotold
+		sphpot=nsphpotold
+		return !Fuzzy bond order has been shown, now (normally) return to bond order analysis interface
+	end if
+	
+else if (isel==5) then !PDI
+	call showmatgau(DI,"Delocalization index matrix",0,"f14.8")
+	write(*,"(a)") " Note: Diagonal terms are the sum of corresponding row or column elements, for closed-shell cases, these also known as atomic valence"
+	do while(.true.)
+		write(*,"(/,a)") " Input indices of the six atoms constituting the ring, in clockwise or anti-clockwise order. e.g. 4,5,6,7,8,2"
+		write(*,*) "(Input q can return)"
+		read(*,"(a)") c80inp
+		if (c80inp(1:1)=='q'.or.c80inp(1:1)=='Q') exit
+		read(c80inp,*) PDIatom(:)
+		write(*,"(' Delocalization index of ',i5,'(',a,')   --',i5,'(',a,'):',f12.6)") PDIatom(1),a(PDIatom(1))%name,PDIatom(4),a(PDIatom(4))%name,DI(PDIatom(1),PDIatom(4))
+		write(*,"(' Delocalization index of ',i5,'(',a,')   --',i5,'(',a,'):',f12.6)") PDIatom(2),a(PDIatom(2))%name,PDIatom(5),a(PDIatom(5))%name,DI(PDIatom(2),PDIatom(5))
+		write(*,"(' Delocalization index of ',i5,'(',a,')   --',i5,'(',a,'):',f12.6)") PDIatom(3),a(PDIatom(3))%name,PDIatom(6),a(PDIatom(6))%name,DI(PDIatom(3),PDIatom(6))
+		write(*,"(' PDI value is',f12.6)") ( DI(PDIatom(1),PDIatom(4))+DI(PDIatom(2),PDIatom(5))+DI(PDIatom(3),PDIatom(6)) )/3D0
+	end do
+	
+else if (isel==6) then !FLU
+	call showmatgau(DI,"Delocalization index matrix",0,"f14.8")
+	write(*,"(a)") " Note: Diagonal terms are the sum of corresponding row or column elements, for closed-shell cases, these also known as atomic valence"
+	write(*,*)
+	write(*,*) "Current FLU reference parameters:"
+	do iref=1,nelesupp
+		do jref=iref,nelesupp
+			if (FLUref(iref,jref)/=-1) write(*,"(' ',a,a,a,a,f10.5)") ind2name(iref),'-',ind2name(jref),':',FLUref(iref,jref)
+		end do
+	end do
+	do while(.true.)
+		write(*,"(/,a)") " Input indices of the atoms in the ring, in clockwise or anti-clockwise order"
+		write(*,*) "e.g. 4,7,8,1,2,3      (Input q can exit)"
+		read(*,"(a)") c80inp
+		if (c80inp(1:1)=='q'.or.c80inp(1:1)=='Q') exit
+		call str2arr(c80inp,nFLUatom,FLUatom)
+		FLUval=0D0
+        write(*,*)
+		write(*,*) "        Atom pair         Contribution          DI"
+		do iidx=1,nFLUatom
+			jidx=iidx+1
+			if (iidx==nFLUatom) jidx=1 !Return to the first element of the ring after a cycle
+			iatm=FLUatom(iidx) !Actual atom index in present system
+			jatm=FLUatom(jidx)
+			iatmeleidx=a(iatm)%index !Index in periodic table
+			jatmeleidx=a(jatm)%index
+			refval=FLUref(iatmeleidx,jatmeleidx)
+			if (refval==-1D0) then
+				write(*,"(' Error: Missing reference parameter for',a,'-',a)") ind2name(iatmeleidx),ind2name(jatmeleidx)
+				exit
+			end if
+			valenratio=DI(iatm,iatm)/DI(jatm,jatm) !DI(iatm,iatm) is the sum of corresponding row or column elements, namely atomic valence, rather than LI*2 of iatm
+			if (valenratio<1) valenratio=1D0/valenratio
+			FLUpair=(valenratio*( (DI(iatm,jatm)-refval)/refval ))**2/nFLUatom
+			write(*,"(i5,'(',a,')  --',i5,'(',a,'):',f15.6,f16.6)") iatm,ind2name(iatmeleidx),jatm,ind2name(jatmeleidx),FLUpair,DI(iatm,jatm)
+			FLUval=FLUval+FLUpair
+		end do
+		write(*,"(' FLU value is',f12.6)") FLUval
+	end do
+	
+else if (isel==7) then !FLU-pi
+	write(*,*) "Which occupied orbitals are pi orbitals? Input their indices, e.g. 17,20,21"
+	read(*,"(a)") c80inp
+	call str2arr(c80inp,nFLUorb,FLUorb)
+	!Generate DI for pi orbitals. DI_A,B=2∑[i,j]dsqrt(n_i*n_j)*S_i,j_A * S_i,j_B     where i and j are non-spin orbital
+	DI=0D0
+	do iatm=1,ncenter
+		do jatm=iatm+1,ncenter
+			tmpval=0D0
+			do iidx=1,nFLUorb
+				iorb=FLUorb(iidx)
+				do jidx=1,nFLUorb
+					jorb=FLUorb(jidx)
+					tmpval=tmpval+dsqrt(MOocc(iorb)*MOocc(jorb))*AOM(iorb,jorb,iatm)*AOM(iorb,jorb,jatm)
+				end do
+			end do
+			DI(iatm,jatm)=tmpval
+		end do
+	end do
+	DI=2*(DI+transpose(DI))
+	do iatm=1,ncenter !Calculate atomic valence
+		DI(iatm,iatm)=sum(DI(iatm,:))
+	end do
+	call showmatgau(DI,"Delocalization index matrix for pi electrons",0,"f14.8")
+	write(*,"(a)") " Note: Diagonal terms are the sum of corresponding row or column elements"
+	do while(.true.)
+		write(*,"(/,a)") " Input indices of the atoms in the ring, in clockwise or anti-clockwise"
+		write(*,*) "e.g. 4,7,8,1,2,3      (Input q can exit)"
+		read(*,"(a)") c80inp
+		if (c80inp(1:1)=='q'.or.c80inp(1:1)=='Q') exit
+		call str2arr(c80inp,nFLUatom,FLUatom)
+		!Calculate average of DI-oi first
+		avgDI=0D0
+		do iidx=1,nFLUatom
+			jidx=iidx+1
+			if (iidx==nFLUatom) jidx=1
+			avgDI=avgDI+DI(FLUatom(iidx),FLUatom(jidx))
+		end do
+		avgDI=avgDI/nFLUatom
+		write(*,"(' Average of DI-pi is',f12.6)") avgDI
+		FLUval=0D0
+		write(*,*) "        Atom pair         Contribution          DI"
+		do iidx=1,nFLUatom
+			jidx=iidx+1
+			if (iidx==nFLUatom) jidx=1
+			iatm=FLUatom(iidx) !Actual atom index in present system
+			jatm=FLUatom(jidx)
+			iatmeleidx=a(iatm)%index !Index in periodic table
+			jatmeleidx=a(jatm)%index
+			valenratio=DI(iatm,iatm)/DI(jatm,jatm)
+			if (valenratio<1) valenratio=1D0/valenratio
+			FLUpair=(valenratio*(DI(iatm,jatm)-avgDI)/avgDI)**2/nFLUatom
+			write(*,"(i5,'(',a,')  --',i5,'(',a,'):',f15.6,f16.6)") iatm,ind2name(iatmeleidx),jatm,ind2name(jatmeleidx),FLUpair,DI(iatm,jatm)
+			FLUval=FLUval+FLUpair
+		end do
+		write(*,"(' FLU-pi value is',f12.6)") FLUval
+	end do
+	
+else if (isel==8) then !Integral in overlap region
+	ovlpintpos=ovlpintpos+transpose(ovlpintpos)
+	ovlpintneg=ovlpintneg+transpose(ovlpintneg)
+	sumdiagpos=0D0
+	sumdiagneg=0D0
+	do i=1,ncenter
+		ovlpintpos(i,i)=ovlpintpos(i,i)/2D0
+		sumdiagpos=sumdiagpos+ovlpintpos(i,i)
+		ovlpintneg(i,i)=ovlpintneg(i,i)/2D0
+		sumdiagneg=sumdiagneg+ovlpintneg(i,i)
+	end do
+	ovlpinttot=ovlpintpos+ovlpintneg
+	if (iwork==2) then !Output Laplacian bond order
+		write(*,"(' The bond orders >=',f10.6)") bndordthres
+		itmp=0
+		do i=1,ncenter
+			do j=i+1,ncenter
+				if (-10*ovlpintneg(i,j)>=bndordthres) then
+					itmp=itmp+1
+					write(*,"(' #',i5,':',i5,a,i5,a,':',f10.6)") &
+					itmp,i,'('//a(i)%name//')',j,'('//a(j)%name//')',-10*ovlpintneg(i,j)
+				end if
+			end do
+		end do
+		if (allocated(frag1)) then !Output interfragment bond order
+			bndordfragtot=0
+			do i=1,size(frag1)
+				do j=1,size(frag2)
+					bndordfragtot=bndordfragtot-10*ovlpintneg(frag1(i),frag2(j))
+				end do
+			end do
+			write(*,*)
+			write(*,"(' The bond order between fragment 1 and 2:',f12.6)") bndordfragtot
+		end if
+		write(*,*)
+		write(*,*) "If outputting bond order matrix to bndmat.txt in current folder? (y/n)"
+		read(*,*) selectyn
+		if (selectyn=='y'.or.selectyn=='Y') then
+			open(10,file="bndmat.txt",status="replace")
+			do i=1,ncenter
+				ovlpintneg(i,i)=sum(ovlpintneg(i,:))-ovlpintneg(i,i) !Make diagonal terms are the sum of corresponding row elements, namely valence
+			end do
+			call showmatgau(-10*ovlpintneg,"Laplacian bond order matrix",0,"f14.8",10)
+			close(10)
+			write(*,*) "Done, bond order matrix has been outputted to bndmat.txt in current folder"
+			write(*,"(a)") " Note: Diagonal terms in the bond order matrix are the sum of corresponding row or column elements"
+			write(*,*)
+		end if
+		radpot=nradpotold
+		sphpot=nsphpotold
+		return !Laplacian bond order has been shown, now (normally) return to bond order analysis interface
+	else
+		call showmatgau(ovlpintpos,"Integration of positive values in overlap region",0,"f14.8")
+		sumovlppos=sum(ovlpintpos)
+		write(*,"(' Summing up diagonal matrix elements:     ',f20.8)") sumdiagpos
+		write(*,"(' Summing up non-diagonal, matrix elements:',f20.8)") sumovlppos-sumdiagpos
+		write(*,"(' Summing up all matrix elements:          ',f20.8)") sumovlppos
+		write(*,*)
+		sumovlpneg=sum(ovlpintneg)
+		call showmatgau(ovlpintneg,"Integration of negative values in overlap region",0,"f14.8")
+		write(*,"(' Summing up diagonal matrix elements:     ',f20.8)") sumdiagneg
+		write(*,"(' Summing up non-diagonal, matrix elements:',f20.8)") sumovlpneg-sumdiagneg
+		write(*,"(' Summing up all matrix elements:          ',f20.8)") sumovlpneg
+		write(*,*)
+		sumovlptot=sum(ovlpinttot)
+		call showmatgau(ovlpinttot,"Integration of all values in overlap region",0,"f14.8")
+		write(*,"(' Summing up diagonal matrix elements:     ',f20.8)") sumdiagpos+sumdiagneg
+		write(*,"(' Summing up non-diagonal, matrix elements:',f20.8)") sumovlptot-sumdiagpos-sumdiagneg
+		write(*,"(' Summing up all matrix elements:          ',f20.8)") sumovlptot
+		write(*,*)
+		write(*,*) "If also outputting above matrices to intovlp.txt in current folder? (y/n)"
+		read(*,*) selectyn
+		if (selectyn=='y'.or.selectyn=='Y') then
+			open(10,file="intovlp.txt",status="replace")
+			call showmatgau(ovlpintpos,"Integration of positive values in overlap region",0,"f14.8",10)
+			write(10,*)
+			call showmatgau(ovlpintneg,"Integration of negative values in overlap region",0,"f14.8",10)
+			write(10,*)
+			call showmatgau(ovlpinttot,"Integration of all values in overlap region",0,"f14.8",10)
+			write(10,*)
+			close(10)
+			write(*,*) "Done, the matrices have been outputted to intovlp.txt in current folder"
+		end if
+	end if
+	
+else if (isel==9) then !CLRK
+	call showmatgau(CLRK,"Condensed linear response kernel (CLRK) matrix",0,"f14.8")
+	write(*,*)
+	write(*,*) "If also outputting CLRK to CLRK.txt in current folder? (y/n)"
+	read(*,*) selectyn
+	if (selectyn=='y'.or.selectyn=='Y') then
+		open(10,file="CLRK.txt",status="replace")
+		call showmatgau(CLRK,"Condensed linear response kernel (CLRK) matrix",0,"f14.8",10)
+		close(10)
+		write(*,*) "Done, the CLRK matrix has been outputted to CLRK.txt in current folder"
+	end if
+	
+else if (isel==10) then !PLR
+	call showmatgau(CLRK,"Condensed linear response kernel (CLRK) matrix",0,"f14.8")
+	write(*,*)
+	do while(.true.)
+		write(*,"(a)") " Input indices of the six atoms constituting the ring, in clockwise or anti-clockwise. e.g. 4,5,6,7,8,2"
+		write(*,*) "(Input q can return)"
+		read(*,"(a)") c80inp
+		if (c80inp(1:1)=='q'.or.c80inp(1:1)=='Q') exit
+		read(c80inp,*) PLRatom(:)
+		write(*,"(' CLRK of ',i5,'(',a,')   --',i5,'(',a,'):',f12.6)") PLRatom(1),a(PLRatom(1))%name,PLRatom(4),a(PLRatom(4))%name,CLRK(PLRatom(1),PLRatom(4))
+		write(*,"(' CLRK of ',i5,'(',a,')   --',i5,'(',a,'):',f12.6)") PLRatom(2),a(PLRatom(2))%name,PLRatom(5),a(PLRatom(5))%name,CLRK(PLRatom(2),PLRatom(5))
+		write(*,"(' CLRK of ',i5,'(',a,')   --',i5,'(',a,'):',f12.6)") PLRatom(3),a(PLRatom(3))%name,PLRatom(6),a(PLRatom(6))%name,CLRK(PLRatom(3),PLRatom(6))
+		write(*,"(' PLR index is',f12.6)") ( CLRK(PLRatom(1),PLRatom(4))+CLRK(PLRatom(2),PLRatom(5))+CLRK(PLRatom(3),PLRatom(6)) )/3D0
+	end do
+	
+else if (isel==11) then !Multicenter DI
+	do while(.true.)
+		write(*,*) "Input atom indices, e.g. 3,4,7,8,10    (Up to 10 atoms)"
+		write(*,*) "Input q can return to upper level menu"
+		read(*,"(a)") c80inp
+		if (c80inp(1:1)=='q') then
+			exit
+		else
+			call str2arr(c80inp,nDIcen,cenind)
+		end if
+		DImulti=0D0
+		write(*,*) "Please wait..."
+		if (nDIcen==3) then
+			do iorb=1,nmatsize
+				if (MOocc(iorb)==0D0) cycle
+				do jorb=1,nmatsize
+					if (MOocc(jorb)==0D0) cycle
+					do korb=1,nmatsize
+						if (MOocc(korb)==0D0) cycle
+			DImulti=DImulti+&
+			AOM(iorb,jorb,cenind(1))*AOM(jorb,korb,cenind(2))*AOM(korb,iorb,cenind(3))
+					end do
+				end do
+			end do
+		else if (nDIcen==4) then
+			do iorb=1,nmatsize
+				if (MOocc(iorb)==0D0) cycle
+				do jorb=1,nmatsize
+					if (MOocc(jorb)==0D0) cycle
+					do korb=1,nmatsize
+						if (MOocc(korb)==0D0) cycle
+						do lorb=1,nmatsize
+							if (MOocc(lorb)==0D0) cycle
+			DImulti=DImulti+&
+			AOM(iorb,jorb,cenind(1))*AOM(jorb,korb,cenind(2))*AOM(korb,lorb,cenind(3))*AOM(lorb,iorb,cenind(4))
+						end do
+					end do
+				end do
+			end do
+		else if (nDIcen==5) then
+			do iorb=1,nmatsize
+				if (MOocc(iorb)==0D0) cycle
+				do jorb=1,nmatsize
+					if (MOocc(jorb)==0D0) cycle
+					do korb=1,nmatsize
+						if (MOocc(korb)==0D0) cycle
+						do lorb=1,nmatsize
+							if (MOocc(lorb)==0D0) cycle
+							do morb=1,nmatsize
+								if (MOocc(morb)==0D0) cycle
+			DImulti=DImulti+&
+			AOM(iorb,jorb,cenind(1))*AOM(jorb,korb,cenind(2))*AOM(korb,lorb,cenind(3))*AOM(lorb,morb,cenind(4))*AOM(morb,iorb,cenind(5))
+							end do
+						end do
+					end do
+				end do
+			end do				
+		else if (nDIcen==6) then
+			do iorb=1,nmatsize
+				if (MOocc(iorb)==0D0) cycle
+				do jorb=1,nmatsize
+					if (MOocc(jorb)==0D0) cycle
+					do korb=1,nmatsize
+						if (MOocc(korb)==0D0) cycle
+						do lorb=1,nmatsize
+							if (MOocc(lorb)==0D0) cycle
+							do morb=1,nmatsize
+								if (MOocc(morb)==0D0) cycle
+								do norb=1,nmatsize
+									if (MOocc(norb)==0D0) cycle
+			DImulti=DImulti+& !dsqrt(MOocc(iorb)*MOocc(jorb)*MOocc(korb)*MOocc(lorb)*MOocc(morb)*MOocc(norb))*
+			AOM(iorb,jorb,cenind(1))*AOM(jorb,korb,cenind(2))*AOM(korb,lorb,cenind(3))*AOM(lorb,morb,cenind(4))*AOM(morb,norb,cenind(5))*AOM(norb,iorb,cenind(6))
+								end do
+							end do
+						end do
+					end do
+				end do
+			end do
+		else if (nDIcen==7) then
+			do iorb=1,nmatsize
+				write(*,"(' Finished',i8,'/',i8)") iorb,nmatsize
+				if (MOocc(iorb)==0D0) cycle
+				do jorb=1,nmatsize
+					if (MOocc(jorb)==0D0) cycle
+					do korb=1,nmatsize
+						if (MOocc(korb)==0D0) cycle
+						do lorb=1,nmatsize
+							if (MOocc(lorb)==0D0) cycle
+							do morb=1,nmatsize
+								if (MOocc(morb)==0D0) cycle
+								do norb=1,nmatsize
+									if (MOocc(norb)==0D0) cycle
+									do iiorb=1,nmatsize
+										if (MOocc(iiorb)==0D0) cycle
+			DImulti=DImulti+&
+			AOM(iorb,jorb,cenind(1))*AOM(jorb,korb,cenind(2))*AOM(korb,lorb,cenind(3))*AOM(lorb,morb,cenind(4))*AOM(morb,norb,cenind(5))*&
+			AOM(norb,iiorb,cenind(6))*AOM(iiorb,iorb,cenind(7))
+									end do
+								end do
+							end do
+						end do
+					end do
+				end do
+			end do
+		else if (nDIcen==8) then
+			do iorb=1,nmatsize
+				write(*,"(' Finished',i8,'/',i8)") iorb,nmatsize
+				if (MOocc(iorb)==0D0) cycle
+				do jorb=1,nmatsize
+					if (MOocc(jorb)==0D0) cycle
+					do korb=1,nmatsize
+						if (MOocc(korb)==0D0) cycle
+						do lorb=1,nmatsize
+							if (MOocc(lorb)==0D0) cycle
+							do morb=1,nmatsize
+								if (MOocc(morb)==0D0) cycle
+								do norb=1,nmatsize
+									if (MOocc(norb)==0D0) cycle
+									do iiorb=1,nmatsize
+										if (MOocc(iiorb)==0D0) cycle
+										do jjorb=1,nmatsize
+											if (MOocc(jjorb)==0D0) cycle
+			DImulti=DImulti+&
+			AOM(iorb,jorb,cenind(1))*AOM(jorb,korb,cenind(2))*AOM(korb,lorb,cenind(3))*AOM(lorb,morb,cenind(4))*AOM(morb,norb,cenind(5))*&
+			AOM(norb,iiorb,cenind(6))*AOM(iiorb,jjorb,cenind(7))*AOM(jjorb,iorb,cenind(8))
+										end do
+									end do
+								end do
+							end do
+						end do
+					end do
+				end do
+			end do
+		else if (nDIcen==9) then
+			do iorb=1,nmatsize
+				write(*,"(' Finished',i8,'/',i8)") iorb,nmatsize
+				if (MOocc(iorb)==0D0) cycle
+				do jorb=1,nmatsize
+					if (MOocc(jorb)==0D0) cycle
+					do korb=1,nmatsize
+						if (MOocc(korb)==0D0) cycle
+						do lorb=1,nmatsize
+							if (MOocc(lorb)==0D0) cycle
+							do morb=1,nmatsize
+								if (MOocc(morb)==0D0) cycle
+								do norb=1,nmatsize
+									if (MOocc(norb)==0D0) cycle
+									do iiorb=1,nmatsize
+										if (MOocc(iiorb)==0D0) cycle
+										do jjorb=1,nmatsize
+											if (MOocc(jjorb)==0D0) cycle
+											do kkorb=1,nmatsize
+												if (MOocc(kkorb)==0D0) cycle
+			DImulti=DImulti+&
+			AOM(iorb,jorb,cenind(1))*AOM(jorb,korb,cenind(2))*AOM(korb,lorb,cenind(3))*AOM(lorb,morb,cenind(4))*AOM(morb,norb,cenind(5))*&
+			AOM(norb,iiorb,cenind(6))*AOM(iiorb,jjorb,cenind(7))*AOM(jjorb,kkorb,cenind(8))*AOM(kkorb,iorb,cenind(9))
+											end do
+										end do
+									end do
+								end do
+							end do
+						end do
+					end do
+				end do
+			end do
+		else if (nDIcen==10) then
+			do iorb=1,nmatsize
+				write(*,"(' Finished',i8,'/',i8)") iorb,nmatsize
+				if (MOocc(iorb)==0D0) cycle
+				do jorb=1,nmatsize
+					if (MOocc(jorb)==0D0) cycle
+					do korb=1,nmatsize
+						if (MOocc(korb)==0D0) cycle
+						do lorb=1,nmatsize
+							if (MOocc(lorb)==0D0) cycle
+							do morb=1,nmatsize
+								if (MOocc(morb)==0D0) cycle
+								do norb=1,nmatsize
+									if (MOocc(norb)==0D0) cycle
+									do iiorb=1,nmatsize
+										if (MOocc(iiorb)==0D0) cycle
+										do jjorb=1,nmatsize
+											if (MOocc(jjorb)==0D0) cycle
+											do kkorb=1,nmatsize
+												if (MOocc(kkorb)==0D0) cycle
+												do llorb=1,nmatsize
+													if (MOocc(llorb)==0D0) cycle
+			DImulti=DImulti+&
+			AOM(iorb,jorb,cenind(1))*AOM(jorb,korb,cenind(2))*AOM(korb,lorb,cenind(3))*AOM(lorb,morb,cenind(4))*AOM(morb,norb,cenind(5))*&
+			AOM(norb,iiorb,cenind(6))*AOM(iiorb,jjorb,cenind(7))*AOM(jjorb,kkorb,cenind(8))*AOM(kkorb,llorb,cenind(9))*AOM(llorb,iorb,cenind(10))
+												end do
+											end do
+										end do
+									end do
+								end do
+							end do
+						end do
+					end do
+				end do
+			end do
+		end if
+		DImulti=DImulti*2**(nDIcen-1)
+		write(*,"(' Multicenter DI:',f13.7,/)") DImulti
+		write(*,"(' Multicenter DI in normalized form: ',f13.7,/)") DImulti**(1D0/nDIcen)
+	end do
+	
+else if (isel==12) then !Information-theoretic defined aromaticity
+	valavg=0
+	do idx=1,naromatatm
+		iatm=aromatatm(idx)
+		tmpval=rintval(iatm,1)
+		write(*,"(' Atom',i5,'(',a,'):',f12.6)") iatm,a(iatm)%name,tmpval
+		valavg=valavg+tmpval
+	end do
+	write(*,"(' The result (average of above data) is',f12.6)") valavg/naromatatm
+    
+else if (isel==13) then !Atomic polarizability
+	write(*,*) "Atomic polarizabilities estimated using Tkatchenko-Scheffler method:"
+	totpol=0
+	do iatm=1,ncenter
+		if (all(atmcalclist(1:natmcalclist)/=iatm)) cycle
+        totpol=totpol+atmpol(iatm)
+    end do
+	do iatm=1,ncenter
+		if (all(atmcalclist(1:natmcalclist)/=iatm)) cycle
+        write(*,"(i5,'(',a,'):',f8.3,' a.u.  Contribution:',f6.2,' %  (Ref. data:',f8.3,' a.u.)')") &
+        iatm,a(iatm)%name,atmpol(iatm),atmpol(iatm)/totpol*100,atmpol_free(a(iatm)%index)
+    end do
+    write(*,"(' Sum of atomic polarizabilities:',f10.3,' a.u.')") totpol
+end if
+	
+end do !End interface loop
+
+end subroutine
+
+
+
+
+

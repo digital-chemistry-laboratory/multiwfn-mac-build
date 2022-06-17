@@ -1,0 +1,30 @@
+This document introduces how to compile Multiwfn in Linux by Intel Fortran compiler (ifort), the compiler version I am using is 19.0.1.144, my system is CentOS 6.1 64bit. I assume that you have logged on your system as root.
+PS: I cannot guarantee that compiling Multiwfn using gfortran could be successful. Whenever possible, please use ifort.
+
+
+Common steps of compilation of Multiwfn:
+
+1 Uncompress the source code package to your favorite path, I assume the path is /sob/Multiwfn. In the package you can find the following files:
+a lot of .f90 files (except for dislin_d.f90) // Source code of Multiwfn
+Lebedev-Laikov.F // A file containing the routines for generating Lebedev integration points
+DFTxclib.F // A file containing the routines for calculating DFT exchange-correlation functionals
+dislin_d.f90 and dislin_d-11.0.a // Module file and static library of Dislin graphical library
+noGUI/dislin_d_empty.f90 // Dummy implementation of Dislin graphical library, used for compiling noGUI version
+"libreta_hybrid" folder // Files of special form of LIBRETA electron integral library
+
+2 Ensure that you have installed developer edition of motif (e.g. motif-devel-2.3.4-1.x86_64_0), because libXm.a in this package is necessary in compilation of Multiwfn. If you have not installed it, you can search the package from the CD of your Linux distribution or download it from https://motif.ics.com/motif/downloads.
+If you are using CentOS/RHEL system, you can also directly run "yum install motif-devel" to install it.
+If you are using Ubuntu system, you can also directly run "apt install libmotif-dev" to install it.
+
+Also ensure that you have installed mesa-libGL-devel and mesa-libGLU-devel packages, in CentOS/RHEL you can use "yum install libGL-devel libGLU-devel" to install them.
+
+3 Go to /sob/Multiwfn folder, then run "make -j". On a common 8-cores computer, the compilation takes about 15 minutes.
+
+If no any exception occurs, you will find executable files "Multiwfn" and "Multiwfn_noGUI" in current folder. Other file needed for running Multiwfn (settings.ini), many example files and useful scripts are provided in binary package of Multiwfn, which can be downloaded from http://sobereva.com/multiwfn.
+
+If this is the first time you use Linux version of Multiwfn, do not forget to read Section 2.1.2 of the manual to know how to prepare the running environment.
+
+
+============ Compile Multiwfn without GUI and plotting functionalities ============
+
+If you encountered difficulties when compiling or running Multiwfn due to missing or incompatibility of some graphical library files, and in the meantime you do not need visualization functions of Multiwfn, you can compile Multiwfn without GUI supported, all functions irrelevant to GUI and plotting will still work normally. The compilation steps is simply running "make noGUI -j" instead of the "make -j" mentioned above.
