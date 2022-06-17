@@ -20,7 +20,7 @@ No guarantees are given for other combinations of compilers and linear algebra b
 The [source_dist](https://github.com/kjelljorner/multiwfn-mac-build/tree/source_dist) branch is updated daily based on the published Multiwfn [source files](http://sobereva.com/multiwfn/download.html). We clone this branch and build with cmake:
 
 ```zsh
-$ git clone -branch source_dist https://github.com/kjelljorner/multiwfn-mac-build.git
+$ git clone --branch source_dist https://github.com/kjelljorner/multiwfn-mac-build.git
 $ cd multiwfn-mac-build
 $ cmake -B build
 $ cmake --build build
