@@ -46,4 +46,48 @@ Use `cmake --install build` to install the `multiwfn` executable and `settings.i
 
 ## Building with GUI
 
-Currently, it is not possible to build Multiwfn with a GUI on machines with an Apple Silicon processor, due to lack of a [DISLIN](https://www.dislin.de) distribution. If someone has an Intel Mac and would like to work out a recipe, please see the open issues on the question.
+To build with GUI version, the following additional packages and libraries can be installed via Homebrew and configured correctly, respectively. 
+- openmotif
+- libxt
+- XQuartz
+- x11lib
+Commandline tools can be installed via `xcode-select --install`.
+[DISLIN](https://www.dislin.de) can be downloaded in official website and configured with _Official User Manual_. 
+
+The packages LIB files should linked to your building envirment. Add the library PATH to your bash profile such as `.zprofile` or `.zshrc` or `$export` it.
+
+```zsh
+$ vi ~/.zprofile #or .zshrc
+```
+
+#Add these to `.zprofile` or `.zshrc` file in home folder. Do not just copy the following fields. All libraries should be confiugred correctly.
+
+```
+PATH=$PATH:/other/executable/path/folder
+
+DYLD_LIBRARY_PATH=$DYLD_LIBRARY_PATH:/usr/lib:/usr/local/lib:/Library/Developer/CommandLineTools/SDKs/MacOSX.sdk/usr/lib:/your/path/to/libxt/1.2.1/lib:/your/path/to/dislin/lib:/your/path/to/openmotif/lib
+
+#In order to let cmake find libdislin, LIBRARY_PATH should be configured, LD_LIBRARY_PATH can be configured additonaly.
+
+LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$DYLD_LIBRARY_PATH
+LIBRARY_PATH=$DYLD_LIBRARY_PATH
+
+export DYLD_LIBRARY_PATH
+export LD_LIBRARY_PATH
+export LIBRARY_PATH
+export PATH
+
+```
+Restart the terminal or use `$source ~/.zprofile or .zshrc` , then build the GUI version multiwfn.
+
+```zsh
+$ git clone --branch source_dist https://github.com/kjelljorner/multiwfn-mac-build.git
+$ cd multiwfn-mac-build
+$ cmake -B build -DWITH_OpenMP=ON -DWITH_GUI=ON
+$ cd build
+$ make -j6    # or just use make
+$ cp multiwfn ../.
+```
+Then we can try execute the multiwfn to find if we build it correctly with GUI.
+
+After that, we can install the multiwfn just as previous steps and configured it into PATH.
