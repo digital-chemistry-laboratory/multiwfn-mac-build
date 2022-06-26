@@ -500,74 +500,76 @@ end subroutine
 
 
 
-!!!--------- Construct global array a_tmp, which contains real atoms and replicated boundary atoms. Used for visualization purpose
+!!!--------- Construct global array a_tmp, which contains real atoms and replicated boundary atoms
 !ncenter_tmp is returned variable containing number of all atoms including the replicated boundary ones
 subroutine construct_atmp_withbound(ncenter_tmp)
 use defvar
 implicit real*8 (a-h,o-z)
-real*8 Cart(3),fract(3),fracttmp(3)
+real*8 Cart(3),fract(3),ftest(3)
 integer ncenter_tmp
+
 call getcellabc(asize,bsize,csize,alpha,beta,gamma)
 devthres=1D-3 !If distance to cell boundary is less than 0.001 Bohr, then it will be regarded as boundary atom
-nadd=0
-do iatm=1,ncenter
-    Cart(1)=a(iatm)%x
-    Cart(2)=a(iatm)%y
-    Cart(3)=a(iatm)%z
-    call Cart2fract(Cart,fract)
-    naddold=nadd
-    do ix=-1,1
-        fracta=fract(1)+ix
-        do iy=-1,1
-            fractb=fract(2)+iy
-            do iz=-1,1
-                if (ix==0.and.iy==0.and.iz==0) cycle
-                fractc=fract(3)+iz
-                !write(*,"(i5,3i3,6f11.6)") iatm,ix,iy,iz,fracta,fractb,fractc,fracta*asize,fractb*bsize,fractc*csize
-                if (fracta*asize>-devthres.and.(fracta-1)*asize<devthres.and.&
-                    fractb*bsize>-devthres.and.(fractb-1)*bsize<devthres.and.&
-                    fractc*csize>-devthres.and.(fractc-1)*csize<devthres) then
-                    nadd=nadd+1
-                end if
+fdeva=devthres/asize
+fdevb=devthres/bsize
+fdevc=devthres/csize
+
+!itime=1: Test how many atoms to be added, =2: Actual constract a_tmp
+do itime=1,2
+    nadd=0
+    do iatm=1,ncenter
+        Cart(1)=a(iatm)%x
+        Cart(2)=a(iatm)%y
+        Cart(3)=a(iatm)%z
+        call Cart2fract(Cart,fract)
+        xdiff=asize*abs(fract(1)-nint(fract(1)))
+        ydiff=bsize*abs(fract(2)-nint(fract(2)))
+        zdiff=csize*abs(fract(3)-nint(fract(3)))
+        if (xdiff<devthres.or.ydiff<devthres.or.zdiff<devthres) then !Existing boundary atom is at least very close to one of cell walls
+            !Try to replicate the existing boundary atom to all possible neighbouring mirror sites
+            do ix=-1,1
+                do iy=-1,1
+                    do iz=-1,1
+                        if (ix==0.and.iy==0.and.iz==0) cycle
+                        ftest(1)=fract(1)+ix
+                        ftest(2)=fract(2)+iy
+                        ftest(3)=fract(3)+iz
+                        !Mirror boundary must be within or quasi within current cell
+                        if (ftest(1)>-fdeva.and.ftest(1)<1+fdeva.and.ftest(2)>-fdevb.and.ftest(2)<1+fdevb.and.ftest(3)>-fdevc.and.ftest(3)<1+fdevc) then
+                            call fract2Cart(ftest,Cart)
+                            !Check if the mirror boundary atom is too close to existing atoms
+                            iadd=1
+                            do jatm=1,ncenter
+                                if (jatm==iatm) cycle
+                                dist=dsqrt( (Cart(1)-a(jatm)%x)**2 + (Cart(2)-a(jatm)%y)**2 + (Cart(3)-a(jatm)%z)**2 )
+                                if (dist<devthres) then !Too close, skip it
+                                    iadd=0
+                                    exit
+                                end if
+                            end do
+                            if (iadd==1) then
+                                nadd=nadd+1
+                                if (itime==2) then
+                                    a_tmp(ncenter+nadd)=a(iatm)
+                                    a_tmp(ncenter+nadd)%x=Cart(1)
+                                    a_tmp(ncenter+nadd)%y=Cart(2)
+                                    a_tmp(ncenter+nadd)%z=Cart(3)
+                                end if
+                            end if
+                        end if
+                    end do
+                end do
             end do
-        end do
+        end if
     end do
-    !write(*,"(i5,1x,a,3f10.6,' added',i5)") iatm,a(iatm)%name,fract(:),nadd-naddold
+    if (itime==1) then
+        ncenter_tmp=ncenter+nadd
+        if (allocated(a_tmp)) deallocate(a_tmp)
+        allocate(a_tmp(ncenter_tmp))
+        a_tmp(1:ncenter)=a(1:ncenter)
+    end if
 end do
-ncenter_tmp=ncenter+nadd
-if (allocated(a_tmp)) deallocate(a_tmp)
-allocate(a_tmp(ncenter_tmp))
-a_tmp(1:ncenter)=a(1:ncenter)
-iadd=0
-do iatm=1,ncenter
-    Cart(1)=a(iatm)%x
-    Cart(2)=a(iatm)%y
-    Cart(3)=a(iatm)%z
-    call Cart2fract(Cart,fract)
-    do ix=-1,1
-        fracta=fract(1)+ix
-        do iy=-1,1
-            fractb=fract(2)+iy
-            do iz=-1,1
-                if (ix==0.and.iy==0.and.iz==0) cycle
-                fractc=fract(3)+iz
-                if (fracta*asize>-devthres.and.(fracta-1)*asize<devthres.and.&
-                    fractb*bsize>-devthres.and.(fractb-1)*bsize<devthres.and.&
-                    fractc*csize>-devthres.and.(fractc-1)*csize<devthres) then
-                    iadd=iadd+1
-                    a_tmp(ncenter+iadd)=a(iatm)
-                    fracttmp(1)=fracta
-                    fracttmp(2)=fractb
-                    fracttmp(3)=fractc
-                    call fract2Cart(fracttmp,Cart)
-                    a_tmp(ncenter+iadd)%x=Cart(1)
-                    a_tmp(ncenter+iadd)%y=Cart(2)
-                    a_tmp(ncenter+iadd)%z=Cart(3)
-                end if
-            end do
-        end do
-    end do
-end do
+
 !do iatm=1,ncenter_tmp
 !    write(*,"(i5,1x,a,3f12.6)") iatm,a_tmp(iatm)%name,a_tmp(iatm)%x,a_tmp(iatm)%y,a_tmp(iatm)%z
 !end do

@@ -1862,7 +1862,7 @@ do while(.true.)
     write(*,*) "23 Translate system along cell axes by given distances"
     write(*,*) "24 Translate system to center selected part in the cell"
     write(*,*) "25 Extract a molecular cluster (central molecule + neighbouring ones)"
-    write(*,*) "26 Set cell information"
+    write(*,*) "26 Set cell information       27 Add boundary atoms"
     read(*,*) isel
     
     if (isel==-10) then
@@ -2756,7 +2756,7 @@ do while(.true.)
                 write(*,"(' Cell size:        a=',f9.4,'     b=',f9.4,'      c=',f9.4,' Angstrom')") dsqrt(sum(cellv1**2))*b2a,dsqrt(sum(cellv2**2))*b2a,dsqrt(sum(cellv3**2))*b2a
             end if
             write(*,*)
-            write(*,*) "-1 Restore to original cell information:"
+            write(*,*) "-1 Restore to original cell information"
             write(*,*) "0 Return"
             if (ifPBC==3) then
                 write(*,*) "1 Set length of a"
@@ -2818,6 +2818,20 @@ do while(.true.)
             end if
         end do
         
+    else if (isel==27) then !Add boundary atoms
+        ncenter_old=ncenter
+        call construct_atmp_withbound(ncenter_tmp)
+        deallocate(a)
+        ncenter=ncenter_tmp
+        allocate(a(ncenter))
+        a=a_tmp
+        deallocate(a_tmp)
+        ntmp=ncenter-ncenter_old
+        if (ntmp==0) then
+            write(*,*) "No new boundary atoms were added"
+        else
+            write(*,"(a,i6,a)") " Done!",ntmp," boundary atoms have been added to present system"
+        end if
     end if
 end do
     

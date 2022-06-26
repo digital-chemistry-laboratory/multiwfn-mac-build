@@ -1,14 +1,87 @@
 module boysfunc
 implicit none
+integer :: iaccurateESP=0
 include "boysfunc_data1.h"
+
 contains
     subroutine initboys()
-        ! ================================================
-include "boysfunc_data2.h"
+        include "boysfunc_data2.h"
     end subroutine
-    ! Best way to calculate Boys function.
+    
     function boys(x,n)
         real*8 :: boys
+        real*8,intent(in) :: x
+        integer,intent(in) :: n
+        if (iaccurateESP==0) then !Standard ESP accuracy
+            boys=boys_libreta(x,n)
+        else !High ESP accuracy
+            boys=boys_HP(x,n)
+        end if
+    end function
+    
+    !Evaluate Boys function in high precision (HP). Identical to Fmch in Multiwfn
+    !The accuracy is adequate for deriving numerical gradient/Hessian based on finite difference
+    real*8 function boys_HP(x,m)
+    IMPLICIT none
+    integer m,i
+    real*8 x,expnx,a,b,term,partsum,APPROX,xd,FIMULT,NOTRMS,eps,fiprop
+    eps=1.0D-9  !Convergence precision
+    boys_HP=0D0
+    expnx=dexp(-x)
+    if (x<=10) then
+	    if (expnx==0D0) RETURN
+	    A=m+0.5D0
+	    term=1D0/A
+	    partsum=term
+	    DO I=2,50
+		    A=A+1D0
+		    term=term*X/A
+		    partsum=partsum+term
+		    if ( term/partsum < eps) THEN
+		       boys_HP = 0.5D0*partsum*expnx
+		       RETURN
+		    END IF
+	    END DO
+	    write(*,*) "Error: Boys did not converge"
+    else !x is big, use suitable method for solve this situation
+	    A=M
+	    B=A+0.5D0
+	    A=A-0.5D0
+	    XD=1D0/X
+	    APPROX=0.88622692D0*(dsqrt(XD)*XD**m)
+	    DO I=1,m
+		    B=B-1D0
+		    APPROX=APPROX*B
+	    END DO
+	    FIMULT=0.5D0*expnx*XD
+	    partsum=0.D0
+	    IF (FIMULT==0D0) THEN
+		    boys_HP=APPROX-FIMULT*partsum
+		    return
+	    ELSE
+		    FIPROP=FIMULT/APPROX
+		    term=1D0
+		    partsum=term
+		    NOTRMS=X
+		    NOTRMS=NOTRMS+M
+		    DO I=2,NOTRMS
+		       term=term*A*XD
+		       partsum=partsum+term
+		       IF (dabs(term*FIPROP/partsum)<eps)  THEN
+			      boys_HP=APPROX-FIMULT*partsum
+			      RETURN
+		       END IF
+		       A=A-1D0
+		    END DO
+		    write(*,*) "Error: Boys did not converge"
+	    END IF
+    end if
+    end function
+    
+    
+    ! Best way to calculate Boys function (Sobereva comment: Original one in libreta)
+    function boys_libreta(x,n)
+        real*8 :: boys_libreta
         real*8,intent(in) :: x
         integer,intent(in) :: n
         integer :: idx1,idx2,idx3,idx4,idx5
@@ -20,11 +93,11 @@ include "boysfunc_data2.h"
         ! ================================================
         ! Accurate method.
         if (n > MaxN) then
-            boys = accboys(x,n)
+            boys_libreta = accboys(x,n)
         else
             ! Asympotic approximation.
             if (x > AsymX) then
-                boys = BoysAsympoticConstants(n+1)*(x**(-n-0.5))
+                boys_libreta = BoysAsympoticConstants(n+1)*(x**(-n-0.5))
             ! Fast method.
             else
                 ! Look up.
@@ -43,11 +116,13 @@ include "boysfunc_data2.h"
                 y345 =(x-x5)*(y34-y45)/(x3-x5)+y45
                 y1234 = (x-x4)*(y123-y234)/(x1-x4)+y234
                 y2345 = (x-x5)*(y234-y345)/(x2-x5)+y345
-                boys = (x-x5)*(y1234-y2345)/(x1-x5)+y2345
+                boys_libreta = (x-x5)*(y1234-y2345)/(x1-x5)+y2345
             endif
         endif
     end function
-    ! Calculate Boys function accurately but SLOWLY.
+    
+    
+    ! Calculate Boys function accurately but SLOWLY. (Sobereva comment: Extremely slowly)
     function accboys(x,n)
         real*8 :: accboys
         real*8,intent(in) :: x

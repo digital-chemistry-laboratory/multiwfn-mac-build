@@ -1279,6 +1279,9 @@ else if (ifuncsel==18) then
 else if (ifuncsel==22.or.ifuncsel==23) then !delta-g
 	drawlowlim=0D0
 	drawuplim=0.5D0
+else if (ifuncsel==24) then !IRI
+	drawlowlim=0D0
+	drawuplim=2D0
 else if (ifuncsel==111.or.ifuncsel==112) then !Becke/Hirshfeld weight
 	drawlowlim=0D0
 	drawuplim=1D0
@@ -2307,6 +2310,9 @@ else !Calculate grid data
 		outcubfile="EDRDmax.cub"
 	else if (ifuncsel==22) then
 		outcubfile="Delta_g.cub"
+	else if (ifuncsel==24) then
+		sur_value=1D0
+		outcubfile="IRI.cub"
 	else if (ifuncsel==100) then
 		outcubfile="userfunc.cub"
 	else if (ifuncsel==111) then

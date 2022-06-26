@@ -1511,22 +1511,20 @@ do while(.true.)
 								do imode=1,numdata !Cycle vibration modes
                                     fragIR=0
                                     fragIRintra=0
-									do idir=1,3 !Calculate fragment contribution to x,y,z component of total IR intensity
+                                    do idir=1,3 !Calculate fragment contribution to x,y,z component of total IR intensity
+                                        tmpall=0;tmpintra=0
 										do icart=1,3*ncenter !Loop Cartesian coordinates
+											iatm=ceiling(icart/3D0)
+											icomp=icart-3*(iatm-1) !1/2/3=x,y,z of atom
+                                            tmpval=dipder(icomp,iatm,idir)*normmat_atm(icomp,iatm,imode)
+                                            tmpall=tmpall+tmpval
 											if (cartlist(icart,ifrag)==1) then
-												iatm=ceiling(icart/3D0)
-												icomp=icart-3*(iatm-1) !1/2/3=x,y,z of atom
-                                                tmpval=dipder(icomp,iatm,idir)*normmat_atm(icomp,iatm,imode)
-                                                fragdipcomp(icomp,idir,ifrag,imode)=fragdipcomp(icomp,idir,ifrag,imode)+tmpval
-												do jcart=1,3*ncenter !Loop Cartesian coordinates
-													jatm=ceiling(jcart/3D0)
-													jcomp=jcart-3*(jatm-1)
-													tmpval2=tmpval*dipder(jcomp,jatm,idir)*normmat_atm(jcomp,jatm,imode)
-													fragIR=fragIR+tmpval2
-                                                    if (cartlist(jcart,ifrag)==1) fragIRintra=fragIRintra+tmpval2
-												end do
+												tmpintra=tmpintra+tmpval
+												fragdipcomp(icomp,idir,ifrag,imode)=fragdipcomp(icomp,idir,ifrag,imode)+tmpval
                                             end if
                                         end do
+                                        fragIRintra=fragIRintra+tmpintra**2 !Add intrafragment contribution in current direction
+                                        fragIR=fragIR+tmpintra*tmpall !Add fragment contribution in current direction
 									end do
                                     if (totIR(imode)==0) then
 										PVScomp(ifrag,imode)=0D0
@@ -1541,19 +1539,19 @@ do while(.true.)
 								do imode=1,numdata !Cycle vibration modes
                                     coupIR=0
 									do idir=1,3 !Calculate fragment contribution to x,y,z component of total IR intensity
+										tmpintra1=0
+                                        tmpintra2=0
 										do icart=1,3*ncenter !Loop Cartesian coordinates
+											iatm=ceiling(icart/3D0)
+											icomp=icart-3*(iatm-1)
+                                            tmpval=dipder(icomp,iatm,idir)*normmat_atm(icomp,iatm,imode)
 											if (cartlist(icart,OPVSidx1)==1) then
-												iatm=ceiling(icart/3D0)
-												icomp=icart-3*(iatm-1)
-                                                tmpval=dipder(icomp,iatm,idir)*normmat_atm(icomp,iatm,imode)
-												do jcart=1,3*ncenter !Loop Cartesian coordinates
-													jatm=ceiling(jcart/3D0)
-													jcomp=jcart-3*(jatm-1)
-													tmpval2=tmpval*dipder(jcomp,jatm,idir)*normmat_atm(jcomp,jatm,imode)
-													if (cartlist(jcart,OPVSidx2)==1) coupIR=coupIR+2*tmpval2
-												end do
+												tmpintra1=tmpintra1+tmpval
+											else if (cartlist(icart,OPVSidx2)==1) then
+												tmpintra2=tmpintra2+tmpval
                                             end if
                                         end do
+                                        coupIR=coupIR+2*tmpintra1*tmpintra2
 									end do
 									if (totIR(imode)==0D0) then
 										OPVScomp(imode)=0
@@ -1990,7 +1988,7 @@ do while(.true.)
                     end if
 				end if
             end if
-		end do
+		end do !End menu loop of PVS
         
     end if
 	

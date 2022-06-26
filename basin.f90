@@ -37,9 +37,7 @@ do while(.true.)
 	if (numatt>0) write(*,*) "-4 Export attractors as pdb/pqr/txt/gjf file"
 	if (numatt>0) write(*,*) "-3 Show information of attractors"
 	if (numatt>0) write(*,*) "-2 Measure distances, angles and dihedral angles between attractors or atoms"
-	if (igridmethod==1) write(*,*) "-1 Select the method for generating basins, current: On-grid"
-	if (igridmethod==2) write(*,*) "-1 Select the method for generating basins, current: Near-grid"
-	if (igridmethod==3) write(*,*) "-1 Select the method for generating basins, current: Near-grid with refinement"
+    write(*,*) "-1 Select the method for generating basins"
 	if (numatt>0) write(*,*) " 0 Visualize attractors and basins"
 	if (numatt>0) then
 		write(*,*) " 1 Regenerate basins and relocate attractors"
@@ -565,12 +563,32 @@ do while(.true.)
 		end do
 		
 	else if (isel==-1) then
-		write(*,*) "1: On-grid method, Comput .Mat. Sci., 36, 354 (2006)"
-		write(*,*) "2: Near-grid method, J. Phys.: Condens. Matter, 21, 08420 (2009)"
-		write(*,*) "3: Near-grid method with boundary refinement step"
-		write(*,"(a)") " Note: Near-grid method (adapted by Tian Lu) is more accurate than On-grid method and thus is more recommended; with the boundary refinement step, the result will be better"
-		read(*,*) igridmethod
-		
+		do while(.true.)
+			write(*,*)
+			write(*,*) "0 Return"
+			if (igridmethod==1) write(*,*) "1 Select algorithm for generating basins, current: On-grid"
+			if (igridmethod==2) write(*,*) "1 Select algorithm for generating basins, current: Near-grid"
+			if (igridmethod==3) write(*,*) "1 Select algorithm for generating basins, current: Near-grid with refinement"
+			if (ibasinlocmin==0) write(*,*) "2 Switch the object to locate if all grid data are positive, current: Maxima"
+			if (ibasinlocmin==1) write(*,*) "2 Switch the object to locate if all grid data are positive, current: Minima"
+			read(*,*) isel2
+			if (isel2==0) then
+				exit
+			else if (isel2==1) then
+				write(*,*) "1: On-grid method, Comput .Mat. Sci., 36, 354 (2006)"
+				write(*,*) "2: Near-grid method, J. Phys.: Condens. Matter, 21, 08420 (2009)"
+				write(*,*) "3: Near-grid method with boundary refinement step"
+				write(*,"(a)") " Note: Near-grid method (adapted by Tian Lu) is more accurate than On-grid method and thus &
+				is more recommended; with the boundary refinement step, the result will be better"
+				read(*,*) igridmethod
+			else if (isel2==2) then
+				if (ibasinlocmin==0) then
+					ibasinlocmin=1
+				else
+					ibasinlocmin=0
+				end if
+			end if
+		end do
 	else if (isel==0) then
 		ioldtextheigh=textheigh
 		textheigh=40 !Default textheigh is too small
@@ -914,7 +932,7 @@ cyciatt:            do iatt=1,numatt !Test if current grid corresponds to an exi
 							call getgridxyz(inowx,inowy,inowz,tmpx,tmpy,tmpz)
 							if (grdposneg(inowx,inowy,inowz)) then
 								write(*,"(i8,3f14.8,f20.8)") numatt,tmpx*b2a,tmpy*b2a,tmpz*b2a,cubmat(inowx,inowy,inowz)
-							else !This grid should has negative value
+							else !This grid should have negative value
 								write(*,"(i8,3f14.8,f20.8)") numatt,tmpx*b2a,tmpy*b2a,tmpz*b2a,-cubmat(inowx,inowy,inowz)
 							end if
                         else if (itime==2) then
@@ -1023,7 +1041,7 @@ cyciatt:            do iatt=1,numatt !Test if current grid corresponds to an exi
                 end if
                     
 				!Test if encountered box boundary for isolated system
-				if (itime==1.and.ifPBC==0.and.(inowx==1.or.inowx==nx.or.inowy==1.or.inowy==ny.or.inowz==1.or.inowz==nz)) then
+				if (ifPBC==0.and.(inowx==1.or.inowx==nx.or.inowy==1.or.inowy==ny.or.inowz==1.or.inowz==nz)) then
 					do itrjgrid=1,ntrjgrid
 						gridbas(trjgrid(1,itrjgrid),trjgrid(2,itrjgrid),trjgrid(3,itrjgrid))=-1
 					end do

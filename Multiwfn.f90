@@ -30,7 +30,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2022-Jun-16"
+write(*,*) "Version 3.8(dev), release date: 2022-Jun-25"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -249,7 +249,7 @@ if (allocated(a)) then
 end if
 
 !Special treatment and test new code
-!call test
+!call cavity_diameter
 
 !!!--------------------- Now everything start ---------------------!!!
 do while(.true.) !Main loop
@@ -326,6 +326,8 @@ do while(.true.) !Main loop
         write(*,"(a)") " Done! The internal coordinates have been exported to "//trim(c200tmp)
     else if (c200tmp=="MPP".or.c200tmp=="mpp") then
 		call calcMPP
+    else if (c200tmp=="cav") then
+		call cavity_diameter
     else
         read(c200tmp,*,iostat=ierror) isel
         if (ierror/=0) then

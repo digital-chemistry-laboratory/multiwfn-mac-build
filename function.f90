@@ -10,7 +10,7 @@ implicit real*8 (a-h,o-z)
 contains
 
 
-!-------- Calculate any supported real space function at a given point
+!!-------- Calculate any supported real space function at a given point
 real*8 function calcfuncall(ifunc,x,y,z)
 integer ifunc
 real*8 x,y,z
@@ -21,53 +21,367 @@ if (ifunc==1) then
 		calcfuncall=calcprodens(x,y,z,0) !Use interpolation promolecular density
 	end if
 else if (ifunc==2) then
-calcfuncall=fgrad(x,y,z,'t')
+	calcfuncall=fgrad(x,y,z,'t')
 else if (ifunc==3) then
-calcfuncall=flapl(x,y,z,'t')
+	calcfuncall=flapl(x,y,z,'t')
 else if (ifunc==4) then
-calcfuncall=fmo(x,y,z,iorbsel)
+	calcfuncall=fmo(x,y,z,iorbsel)
 else if (ifunc==5) then
-calcfuncall=fspindens(x,y,z,'s')
+	calcfuncall=fspindens(x,y,z,'s')
 else if (ifunc==6) then
-calcfuncall=Hamkin(x,y,z,0)
+	calcfuncall=Hamkin(x,y,z,0)
 else if (ifunc==7) then
-calcfuncall=lagkin(x,y,z,0)
+	calcfuncall=lagkin(x,y,z,0)
 else if (ifunc==8) then
-calcfuncall=nucesp(x,y,z)
+	calcfuncall=nucesp(x,y,z)
 else if (ifunc==9) then
-calcfuncall=ELF_LOL(x,y,z,"ELF")
+	calcfuncall=ELF_LOL(x,y,z,"ELF")
 else if (ifunc==10) then
-calcfuncall=ELF_LOL(x,y,z,"LOL")
+	calcfuncall=ELF_LOL(x,y,z,"LOL")
 else if (ifunc==11) then
-calcfuncall=infoentro(1,x,y,z)
+	calcfuncall=infoentro(1,x,y,z)
 else if (ifunc==12) then
-calcfuncall=totesp(x,y,z)
+	calcfuncall=totesp(x,y,z)
 else if (ifunc==13) then
-calcfuncall=fgrad(x,y,z,'r')
+	calcfuncall=fgrad(x,y,z,'r')
 else if (ifunc==14) then
-calcfuncall=RDGprodens(x,y,z)
+	calcfuncall=RDGprodens(x,y,z)
 else if (ifunc==15) then
-calcfuncall=signlambda2rho(x,y,z)
+	calcfuncall=signlambda2rho(x,y,z)
 else if (ifunc==16) then
-calcfuncall=signlambda2rho_prodens(x,y,z)
+	calcfuncall=signlambda2rho_prodens(x,y,z)
 else if (ifunc==17) then
-calcfuncall=pairfunc(refx,refy,refz,x,y,z)
+	calcfuncall=pairfunc(refx,refy,refz,x,y,z)
 else if (ifunc==18) then
-calcfuncall=avglocion(x,y,z)
+	calcfuncall=avglocion(x,y,z)
 else if (ifunc==19) then
-calcfuncall=srcfunc(x,y,z,srcfuncmode)
+	calcfuncall=srcfunc(x,y,z,srcfuncmode)
 else if (ifunc==20) then
-calcfuncall=edr(x,y,z) 
+	calcfuncall=edr(x,y,z) 
 else if (ifunc==21) then
-calcfuncall=edrdmax(x,y,z)
+	calcfuncall=edrdmax(x,y,z)
 else if (ifunc==22) then
-calcfuncall=delta_g_promol(x,y,z)
+	calcfuncall=delta_g_promol(x,y,z)
 else if (ifunc==23) then
-calcfuncall=delta_g_Hirsh(x,y,z)
+	calcfuncall=delta_g_Hirsh(x,y,z)
+else if (ifunc==24) then
+    calcfuncall=IRIfunc(x,y,z)
 else if (ifunc==100) then
-calcfuncall=userfunc(x,y,z)
+	calcfuncall=userfunc(x,y,z)
 end if
 end function
+
+
+
+
+!!--------- User-defined function, the content is needed to be filled by users or selected by "iuserfunc" in settings.ini
+real*8 function userfunc(x,y,z)
+real*8 x,y,z,vec(3),mat(3,3)
+userfunc=1D0 !Default value
+
+select case(iuserfunc)
+case (-3) !The function value evaluated by cubic spline interpolation from cubmat
+    userfunc=splineintp3d(x,y,z,1)
+case (-2) !Promolecular density
+    userfunc=calcprodens(x,y,z,0)
+case (-1) !The function value evaluated by trilinear interpolation from cubmat
+    userfunc=linintp3d(x,y,z,1)
+case (1) !Alpha density
+    userfunc=fspindens(x,y,z,'a')
+case (2) !Beta density
+    userfunc=fspindens(x,y,z,'b')
+case (3) !Integrand of electronic spatial extent <r^2>
+    userfunc=(x*x+y*y+z*z)*fdens(x,y,z)
+case (4) !Weizsacker potential
+    userfunc=weizpot(x,y,z)
+case (5) !Integrand of weizsacker functional
+    userfunc=KED(x,y,z,4) !Equivalent to weizsacker(x,y,z)
+case (6) !Radial distribution function (assume that density is sphericalized)
+    userfunc=4*pi*fdens(x,y,z)*(x*x+y*y+z*z)
+case (7) !Local Temperature(Kelvin), PNAS,81,8028
+	tmp=fdens(x,y,z)
+	if (tmp>uservar) then
+	    userfunc=2D0/3D0*lagkin(x,y,z,0)/tmp
+    else
+		userfunc=0
+    end if
+case (8) !Average local electrostatic potential, useful in exhibiting atomic shell structure
+    userfunc=totesp(x,y,z)/fdens(x,y,z)
+case (9) !Shape function
+    userfunc=fdens(x,y,z)/nelec
+case (10) !Potential energy density, also known as virial field
+    userfunc=-Hamkin(x,y,z,0)-lagkin(x,y,z,0)
+case (11) !Energy density
+    userfunc=-Hamkin(x,y,z,0)
+case (12) !Local nuclear attraction potential energy
+    userfunc=-nucesp(x,y,z)*fdens(x,y,z)
+case (13) !This quantity at bond critical point is useful to discriminate covalent bonding and closed-shell interaction
+    userfunc=lagkin(x,y,z,0)/fdens(x,y,z)
+case (14) !Electrostatic potential from electrons
+    userfunc=eleesp(x,y,z)
+case (15) !Bond metallicity
+    userfunc=fdens(x,y,z)/flapl(x,y,z,'t')
+case (16) !Dimensionless bond metallicity
+    userfunc=36*(3*pi*pi)**(2D0/3D0)/5D0*fdens(x,y,z)**(5D0/3D0)/flapl(x,y,z,'t')
+case (17) !Energy density per electron
+    userfunc=-Hamkin(x,y,z,0)/fdens(x,y,z)
+case (18) !Region of Slow Electrons (RoSE), defined in Chem. Phys. Lett., 582, 144 (2013)
+	rho=fdens(x,y,z)
+	if (wfntype==0.or.wfntype==3) then !Closed-shell cases
+		Dh=2.871234000D0*rho**(5D0/3D0)
+	else if (wfntype==1.or.wfntype==2.or.wfntype==4) then !Open shell cases
+		rhospin=fspindens(x,y,z,'s') !rhospin=rhoa-rhob, rho=rhoa+rhob
+		rhoa=(rhospin+rho)/2D0
+		rhob=(rho-rhospin)/2D0
+		Dh=4.557799872D0*(rhoa**(5D0/3D0)+rhob**(5D0/3D0)) !kinetic energy of HEG
+	end if
+	G=Lagkin(x,y,z,0)
+	userfunc=(Dh-G)/(Dh+G)
+case (19) !SEDD
+    userfunc=SEDD(x,y,z)
+case (20) !DORI
+    userfunc=DORI(x,y,z)
+case (21) !Integrand of X component of electric dipole moment
+    userfunc=-x*fdens(x,y,z)
+case (22) !Integrand of Y component of electric dipole moment
+    userfunc=-y*fdens(x,y,z)
+case (23) !Integrand of Z component of electric dipole moment
+    userfunc=-z*fdens(x,y,z)
+case (24) !Approximate form of DFT linear response kernel for closed-shell
+    userfunc=linrespkernel(x,y,z)
+case (25) !Magnitude of fluctuation of the electronic momentum
+    userfunc=fgrad(x,y,z,'t')/fdens(x,y,z)/2D0
+case (26) !Thomas-Fermi kinetic energy density
+    userfunc=KED(x,y,z,3)
+case (27) !Local electron affinity
+    userfunc=loceleaff(x,y,z)
+case (28) !Local Mulliken electronegativity
+    userfunc=(avglocion(x,y,z)+loceleaff(x,y,z))/2
+case (29) !Local hardness
+    userfunc=(avglocion(x,y,z)-loceleaff(x,y,z))/2
+case (30) !Ellipticity of electron density
+    userfunc=densellip(x,y,z,1)
+case (31) !eta index, Angew. Chem. Int. Ed., 53, 2766-2770 (2014)
+    userfunc=densellip(x,y,z,2)
+case (32) !Modified eta index
+    userfunc=densellip(x,y,z,2)-1
+case (33) !PAEM, potential acting on one electron in a molecule, defined by Zhongzhi Yang
+    userfunc=PAEM(x,y,z,1)
+case (34) !The same as 33, but using DFT XC potential directly rather than evaluating the XC potential based on pair density
+    userfunc=PAEM(x,y,z,2)
+case (35) !|V(r)|/G(r)
+	tmpval=lagkin(x,y,z,0)
+	userfunc=abs(-Hamkin(x,y,z,0)-tmpval)/tmpval
+case (36) !On-top pair density, i.e. r1=r2 case of pair density. paircorrtype affects result
+	pairfunctypeold=pairfunctype
+	pairfunctype=12
+	userfunc=pairfunc(x,y,z,x,y,z)
+	pairfunctype=pairfunctypeold
+case (37) !SCI
+    userfunc=ELF_LOL(x,y,z,"SCI")
+case (38) !The angle between the second eigenvector of rho and the plane defined by option 4 of main function 1000
+    userfunc=Ang_rhoeigvec_ple(x,y,z,2)
+case (39) !ESP without contribution of nuclues "iskipnuc"
+    userfunc=totespskip(x,y,z,iskipnuc)
+case (40) !Steric energy density
+    userfunc=weizsacker(x,y,z)
+case (41) !Steric potential
+    userfunc=stericpot(x,y,z)
+case (42) !Steric charge
+    userfunc=stericcharge(x,y,z)
+case (43) !The magnitude of steric force
+    userfunc=stericforce(x,y,z)
+case (44) !Steric potential with damping function to a given constant value
+    userfunc=stericpot_damp(x,y,z)
+case (45) !Steric force based on damped potential
+    userfunc=stericforce_damp(x,y,z)
+case (46) !Steric force directly damped to zero
+    userfunc=stericforce_directdamp(x,y,z)
+case (49) !Relative Shannon entropy, also called information gain
+    userfunc=relShannon(x,y,z)
+case (50) !Shannon entropy density, see JCP,126,191107 for example
+    userfunc=infoentro(2,x,y,z)
+case (51) !Fisher information density, see JCP,126,191107 for example
+    userfunc=Fisherinfo(1,x,y,z)
+case (52) !Second Fisher information density, see JCP,126,191107 for derivation
+    userfunc=Fisherinfo(2,x,y,z)
+case (53) !Ghosh entropy density with G(r) as kinetic energy density, PNAS,81,8028
+    userfunc=Ghoshentro(x,y,z,1)
+case (54) !Ghosh entropy density with G(r)-der2rho/8 as kinetic energy density, exactly corresponds to Eq.22 in PNAS,81,8028
+    userfunc=Ghoshentro(x,y,z,2)
+case (55) !Integrand of quadratic form of Renyi entropy
+    userfunc=fdens(x,y,z)**2
+case (56) !Integrand of cubic form of Renyi entropy
+    userfunc=fdens(x,y,z)**3
+case (60) !Pauli potential, Comp. Theor. Chem., 1006, 92-99
+    userfunc=paulipot(x,y,z)
+case (61) !Magnitude of Pauli force
+    userfunc=pauliforce(x,y,z)
+case (62) !Pauli charge
+    userfunc=paulicharge(x,y,z)
+case (63) !Quantum potential
+    userfunc=quantumpot(x,y,z)
+case (64) !The magnitude of quantum force
+    userfunc=quantumforce(x,y,z)
+case (65) !Quantum charge
+    userfunc=quantumcharge(x,y,z)
+case (66) !The magnitude of electrostatic force
+    userfunc=elestatforce(x,y,z)
+case (67) !Electrostatic charge
+    userfunc=elestatcharge(x,y,z)
+case (68) !Energy density of electronic part of electrostatic term (Ee) of SBL's energy decomposition
+    userfunc=-fdens(x,y,z)*totesp(x,y,z)
+case (69) !Energy density of quantum term (Eq) of SBL's energy decomposition using Hamiltonian kinetic energy
+    userfunc=Hamkin(x,y,z,0)-weizsacker(x,y,z)+DFTxcfunc(x,y,z)
+case (-69) !Energy density of quantum term (Eq) of SBL's energy decomposition using Lagrangian kinetic energy
+    userfunc=Lagkin(x,y,z,0)-weizsacker(x,y,z)+DFTxcfunc(x,y,z)
+case (70) !Phase-space-defined Fisher information density
+    userfunc=4.5D0*fdens(x,y,z)**2/lagkin(x,y,z,0)
+case (71) !X component of electron linear momentum density in 3D representation
+    userfunc=elemomdens(x,y,z,1)
+case (72) !Y component of electron linear momentum density in 3D representation
+    userfunc=elemomdens(x,y,z,2)
+case (73) !Z component of electron linear momentum density in 3D representation
+    userfunc=elemomdens(x,y,z,3)
+case (74) !Magnitude of electron linear momentum density in 3D representation
+    userfunc=elemomdens(x,y,z,0)
+case (75) !X component of magnetic dipole moment density
+    userfunc=magmomdens(x,y,z,1)
+case (76) !Y component of magnetic dipole moment density
+    userfunc=magmomdens(x,y,z,2)
+case (77) !Z component of magnetic dipole moment density
+    userfunc=magmomdens(x,y,z,3)
+case (78) !Magnitude of magnetic dipole moment density
+    userfunc=magmomdens(x,y,z,0)
+case (79) !Gradient norm of energy density
+    userfunc=energydens_grdn(x,y,z)
+case (80) !Laplacian of energy density
+    userfunc=energydens_lapl(x,y,z)
+case (81) !X component of Hamiltonian kinetic energy density
+    userfunc=hamkin(x,y,z,1)
+case (82) !Y component of Hamiltonian kinetic energy density
+    userfunc=hamkin(x,y,z,2)
+case (83) !Z component of Hamiltonian kinetic energy density
+    userfunc=hamkin(x,y,z,3)
+case (84) !X component of Lagrangian kinetic energy density
+    userfunc=Lagkin(x,y,z,1)
+case (85) !Y component of Lagrangian kinetic energy density
+    userfunc=Lagkin(x,y,z,2)
+case (86) !Z component of Lagrangian kinetic energy density
+    userfunc=Lagkin(x,y,z,3)
+case (87) !Local total electron correlation function
+    userfunc=localcorr(x,y,z,1)
+case (88) !Local dynamic electron correlation function
+    userfunc=localcorr(x,y,z,2)
+case (89) !Local nondynamic electron correlation function
+    userfunc=localcorr(x,y,z,3)
+case (91) !Delta-g_inter(Hirsh) defined in IGMH model
+    userfunc=delta_g_inter_Hirsh(x,y,z)
+case (92) !vdW potential
+    userfunc=vdwpotfunc(x,y,z,1)
+case (93) !Repulsion potential
+    userfunc=vdwpotfunc(x,y,z,2)
+case (94) !Disperison potential
+    userfunc=vdwpotfunc(x,y,z,3)
+case (95) !Orbital-weighted f+ Fukui function
+    userfunc=orbwei_Fukui(1,x,y,z)
+case (96) !Orbital-weighted f- Fukui function
+    userfunc=orbwei_Fukui(2,x,y,z)
+case (97) !Orbital-weighted f0 Fukui function
+    userfunc=orbwei_Fukui(3,x,y,z)
+case (98) !Orbital-weighted dual descriptor
+    userfunc=orbwei_Fukui(4,x,y,z)
+case (99) !Interaction region indicator (IRI)
+    userfunc=IRIfunc(x,y,z)
+case (100) !Disequilibrium (also known as semi-similarity)
+    userfunc=fdens(x,y,z)**2
+case (101) !Positive part of ESP
+	userfunc=totesp(x,y,z)
+	if (userfunc<0D0) userfunc=0D0
+case (102) !Negative part of ESP
+	userfunc=totesp(x,y,z)
+	if (userfunc>0D0) userfunc=0D0
+case (103) !Magnitude of electric field
+	call gencalchessmat(1,12,x,y,z,value,vec,mat) !Get gradient of ESP
+	userfunc=dsqrt(sum(vec**2))
+case (110) !Total energy density of the energy components defined by SBL (steric + electrostatic + quantum)
+    !That is, userfunc(40) + userfunc(68) + userfunc(69)
+    !userfunc = weizsacker(x,y,z) - fdens(x,y,z)*totesp(x,y,z) + (Hamkin(x,y,z,0)-weizsacker(x,y,z)+DFTxcfunc(x,y,z)) !Original expression
+    userfunc = -fdens(x,y,z)*totesp(x,y,z) + Hamkin(x,y,z,0) + DFTxcfunc(x,y,z)
+case (111) !Total potential of the energy components defined by SBL (steric + electrostatic + quantum)
+    userfunc = stericpot(x,y,z) - totesp(x,y,z) + quantumpot(x,y,z)
+case (112) !Magnitude of total force of the energy components defined by SBL (steric + electrostatic + quantum)
+    !That is, vector sum of userfunc(43), userfunc(66), userfunc(64)
+    !userfunc= stericforce(x,y,z) + elestatforce(x,y,z) + quantumforce(x,y,z) !This is sum of magnitude, not what we want
+    userfunc = SBLallforce(x,y,z)
+case (113) !Total charge of the energy components defined by SBL (steric + electrostatic + quantum)
+    !That is, userfunc(42) + userfunc(67) + userfunc(65)
+    userfunc = stericcharge(x,y,z) + elestatcharge(x,y,z) + quantumcharge(x,y,z)
+case (114) !Pauli kinetic energy density
+    userfunc = KED(x,y,z,iKEDsel) - weizsacker(x,y,z)
+case (802:807)
+    userfunc=funcvalLSB(iuserfunc-800,x,y,z)
+case (812:817)
+    userfunc=1/funcvalLSB(iuserfunc-810,x,y,z)
+case (819) !Ultrastrong interaction (USI)
+    userfunc=flapl(x,y,z,'t')/fdens(x,y,z)**(5D0/3D0)
+case (820) !Bonding and noncovalent interaction (BNI): (tau-t_w)/t_w
+    tmp=weizsacker(x,y,z)
+    userfunc=(lagkin(x,y,z,0)-tmp)/tmp
+case (821) !rho^(4/3)/|der_rho|, for shubin
+    userfunc=fdens(x,y,z)**(4D0/3D0) / fgrad(x,y,z,'t')
+case (900) !X coordinate
+    userfunc=x
+case (901) !Y coordinate
+    userfunc=y
+case (902) !Z coordinate
+    userfunc=z
+case (910) !Hirshfeld atomic weighting function
+	call Hirshatmwei(nint(uservar),x,y,z,userfunc)
+case (911) !Becke atomic weighting function using covr_tianlu
+	call Beckeatmwei(nint(uservar),x,y,z,userfunc,covr_tianlu,3)
+case (912) !Becke atomic weighting function using CSD covalent radii
+	call Beckeatmwei(nint(uservar),x,y,z,userfunc,covr,3)
+case (913) !LT1 atomic weighting function
+	call TLatmwei(nint(uservar),x,y,z,userfunc,1)
+case (914) !LT1 atomic weighting function
+	call TLatmwei(nint(uservar),x,y,z,userfunc,2)
+case (999) !Local Hartree-Fock exchange energy
+	userfunc=locHFexc(x,y,z)
+case (1000) !Various kinds of DFT exchange-correlation functions
+    userfunc=DFTxcfunc(x,y,z)
+case (1100) !Various kinds of DFT exchange-correlation potentials for closed-shell
+    userfunc=DFTxcpot(x,y,z,0)
+case (1101) !Various kinds of DFT exchange-correlation potentials of alpha electrons for open-shell
+    userfunc=DFTxcpot(x,y,z,1)
+case (1102) !Various kinds of DFT exchange-correlation potentials of beta electrons for open-shell
+    userfunc=DFTxcpot(x,y,z,2)
+case (1200) !Various kinds of electronic kinetic energy density (KED)
+    userfunc=KED(x,y,z,iKEDsel)
+case (1201) !Get difference between KED selected by iKEDsel and Weizsacker KED
+    userfunc=KEDdiff(x,y,z,iKEDsel,1)
+case (1202) !Get difference between KED selected by iKEDsel and Lagrangian KED
+    userfunc=KEDdiff(x,y,z,iKEDsel,2)
+case (1203) !Get absolute difference between KED selected by iKEDsel and Lagrangian KED
+    userfunc=KEDdiff(x,y,z,iKEDsel,3)
+case (1204) !Local Temperature(Kelvin), PNAS,81,8028, but using user-defined KED by "iKEDsel"
+	tmp=fdens(x,y,z)
+	if (tmp>uservar) then
+	    userfunc=2D0/3D0*KED(x,y,z,iKEDsel)/tmp
+    else
+		userfunc=0
+    end if
+case (1210) !Potential of KED
+    userfunc=KEDpot(x,y,z)
+end select
+!Below are other examples
+! userfunc=hamkin(x,y,z,3)-0.5D0*(hamkin(x,y,z,1)+hamkin(x,y,z,2)) !Anisotropy of Hamiltonian kinetic energy in Z, namely K_Z-0.5*(K_X+K_Y)
+! userfunc=-x*y*fdens(x,y,z) !Integrand of XY component of electric quadrupole moment
+! userfunc=-x*y*z*fdens(x,y,z)*au2debye*b2a**2 !Integrand of XYZ component of electric octapole moment in Debye-Ang**2
+end function
+
+
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !! Calculate wavefunction value of a range of orbitals and their derivatives at a given point, up to third-order
@@ -489,8 +803,6 @@ end subroutine
 
 
 
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!--------- The same as orbderv, but explicitly consider PBC
 !! Calculate wavefunction value of a range of orbitals and their derivatives at a given point, up to third-order
 !! istart and iend is the range of the orbitals will be calculated, to calculate all orbitals, use 1,nmo
@@ -916,7 +1228,6 @@ end subroutine
 
 
 
-
 !!--------- The same as subroutine orbderv, but calculate for promolecular wavefunction (CO_promol ...), up to Hessian
 !! istart and iend is the range of the orbitals will be calculated, to calculate all orbitals, use 1,nmo_pmol
 !! runtype=1: value  =2: value+dx/y/z  =3: value+dxx/yy/zz(diagonal of hess)  =4: value+dx/y/z+Hessian
@@ -1019,9 +1330,9 @@ end subroutine
 
 
 
-!!!----------- Calculate value of all GTFs at a point. Adapted from subroutine "orbderv"
+
+!!----------- Calculate values of all GTFs at a point. Adapted from subroutine "orbderv"
 subroutine calcGTFval(x,y,z,GTFvalarr)
-use defvar
 implicit real*8 (a-h,o-z)
 real*8 x,y,z,GTFvalarr(nprims)
 
@@ -1083,10 +1394,10 @@ end subroutine
 
 
 
-!!!----------- Calculate value of all basis functions at a point
+
+!!----------- Calculate value of all basis functions at a point
 !The global COtr matrix must have been allocated and filled by using COtr=transpose(CO)
 subroutine calcbasval(x,y,z,basval)
-use defvar
 implicit real*8 (a-h,o-z)
 real*8 x,y,z,basval(nbasis),GTFvalarr(nprims)
 
@@ -1118,7 +1429,8 @@ end subroutine
 
 
 
-!!!----------- Calculate contribution from EDFs (recorded in wfx file) to density and corresponding derivatives (up to third-order)
+
+!!----------- Calculate contribution from EDFs (recorded in wfx file) to density and corresponding derivatives (up to third-order)
 !Only S-type GTFs are supported
 ! In wfx files, GTFs are used to expand core density
 ! runtype=1: Only calculate rho, =2: rho+dx/dy/dz =3: rho+dx/dy/dz+dxx/dyy/dzz
@@ -1204,7 +1516,8 @@ end subroutine
 
 
 
-!!!----------- The same as EDFrho, but for PBC case
+
+!!----------- The same as EDFrho, but for PBC case
 subroutine EDFrho_PBC(runtype,x,y,z,value,grad,hess,tens3)
 integer runtype
 real*8 x,y,z,value,tvec(3)
@@ -1299,7 +1612,7 @@ end subroutine
 
 
 
-!!!------ A general routine used to calculate value, gradient and Hessian matrix at a given point for some real space functions
+!!-------- A general routine used to calculate value, gradient and Hessian matrix for all real space functions
 ! itype=1 Only calculate value and grad
 ! itype=2 Calculate value, gradient and Hessian
 subroutine gencalchessmat(itype,ifunc,x,y,z,value,grad,hess)
@@ -1308,6 +1621,7 @@ real*8 x,y,z,value,grad(3),hess(3,3),tens3(3,3,3)
 real*8 gradaddx(3),gradminx(3),gradaddy(3),gradminy(3),gradaddz(3),gradminz(3)
 character selELFLOL*3
 diff=8D-4
+!if (ifunc==12.and.(iESPcode==2.or.iESPcode==3)) diff=1D-2 !ESP by libreta needs larger stepsize otherwise gradient acccuracy is unsatisfactory
 denom=2D0*diff
 if (ifunc==9) selELFLOL="ELF"
 if (ifunc==10) selELFLOL="LOL"
@@ -1317,31 +1631,41 @@ if (ifunc==10) selELFLOL="LOL"
 if (ifunc==1) then
 	call calchessmat_dens(itype,x,y,z,value,grad,hess)
 	return
+else if (ifunc==2) then
+	call calchessmat_rhograd(itype,x,y,z,value,grad,hess)
+	return
 else if (ifunc==4) then
 	call calchessmat_orb(itype,iorbsel,x,y,z,value,grad,hess)
 	return
-else if (ifunc==100.and.iuserfunc==49) then !Relative Shannon entropy density
-	call relShannon_gradhess(x,y,z,value,grad,hess)
+else if (ifunc==13) then !RDG
+    call calchessmat_IRI_RDG(itype,2,x,y,z,value,grad,hess)
 	return
-else if (ifunc==100.and.iuserfunc==50) then !Shannon entropy density
-	call Shannon_gradhess(x,y,z,value,grad,hess)
+else if (ifunc==24) then !IRI
+    call calchessmat_IRI_RDG(itype,1,x,y,z,value,grad,hess)
 	return
-else if (ifunc==100.and.iuserfunc==51) then !Fisher information density
-	call Fisherinfo_gradhess(x,y,z,value,grad,hess)
-	return
-else if (ifunc==100.and.iuserfunc==52) then !Second Fisher information density
-	call second_Fisherinfo_gradhess(x,y,z,value,grad,hess)
+else if (ifunc==100) then
+	if (iuserfunc==49) then !Relative Shannon entropy density
+		call relShannon_gradhess(x,y,z,value,grad,hess)
+	else if (iuserfunc==50) then !Shannon entropy density
+		call Shannon_gradhess(x,y,z,value,grad,hess)
+	else if (iuserfunc==51) then !Fisher information density
+		call Fisherinfo_gradhess(x,y,z,value,grad,hess)
+	else if (iuserfunc==52) then !Second Fisher information density
+		call second_Fisherinfo_gradhess(x,y,z,value,grad,hess)
+	else if (iuserfunc==99) then !IRI
+		call calchessmat_IRI_RDG(itype,1,x,y,z,value,grad,hess)
+    end if
 	return
 end if
 	
 !Calculate gradient
-!For other functions aside from above ones, analytical Hessian or even gradient hasn't been realized
+!For other functions aside from above ones, analytical Hessian or even gradient has not been realized
 if (ifunc==3) then
 	call calchessmat_lapl(1,x,y,z,value,grad,hess)
 else if (ifunc==9.or.ifunc==10) then
-	if (ELFLOL_type==0) then !Analytical gradient for Becke's ELF/LOL
+	if (ELFLOL_type==0) then !Analytical gradient for original ELF/LOL
 		call calchessmat_ELF_LOL(1,x,y,z,value,grad,hess,selELFLOL)
-	else !Numerical gradient for other definition of ELF/LOL
+	else !Numerical gradient for other definitions of ELF/LOL
 		value=ELF_LOL(x,y,z,selELFLOL)
 		xadd=ELF_LOL(x+diff,y,z,selELFLOL)
 		xmin=ELF_LOL(x-diff,y,z,selELFLOL)
@@ -1364,17 +1688,6 @@ else !User general interface to calculate value for all other functions
 	grad(1)=(xadd-xmin)/denom
 	grad(2)=(yadd-ymin)/denom
 	grad(3)=(zadd-zmin)/denom
-!else if (ifunc==12) then !Numerical gradient for total ESP, may be replaced by analytic one in the future
-!	value=totesp(x,y,z)
-!	xadd=totesp(x+diff,y,z)
-!	xmin=totesp(x-diff,y,z)
-!	yadd=totesp(x,y+diff,z)
-!	ymin=totesp(x,y-diff,z)
-!	zadd=totesp(x,y,z+diff)
-!	zmin=totesp(x,y,z-diff)
-!	grad(1)=(xadd-xmin)/denom
-!	grad(2)=(yadd-ymin)/denom
-!	grad(3)=(zadd-zmin)/denom
 end if
 
 !Calculate Hessian semi (namely based on analyical gradient) or pure (based on function value) numerically
@@ -1395,9 +1708,9 @@ if (itype==2) then
 		hess(2,1)=hess(1,2)
 		hess(3,2)=hess(2,3)
 		hess(3,1)=hess(1,3)
-		return !Don't do below procedures for generating pure numerical Hessian
-	else if (ifunc==9.or.ifunc==10) then
-		if (ELFLOL_type==0) then !Use semi-analytical for Hessian of Becke's ELF/LOL
+		return !Do not do below procedures to generate pure numerical Hessian
+	else if (ifunc==9.or.ifunc==10) then !ELF, LOL
+		if (ELFLOL_type==0) then !Use semi-analytical for Hessian of original ELF/LOL
 			call calchessmat_ELF_LOL(1,x+diff,y,z,tmpval,gradaddx,hess,selELFLOL)
 			call calchessmat_ELF_LOL(1,x-diff,y,z,tmpval,gradminx,hess,selELFLOL)
 			call calchessmat_ELF_LOL(1,x,y+diff,z,tmpval,gradaddy,hess,selELFLOL)
@@ -1414,7 +1727,7 @@ if (itype==2) then
 			hess(3,2)=hess(2,3)
 			hess(3,1)=hess(1,3)
 			return
-		else !for other definition of ELF/LOL, use pure numerical Hessian
+		else !For other definitions of ELF/LOL, use pure numerical Hessian
 			xaddxadd=ELF_LOL(x+2D0*diff,y,z,selELFLOL)
 			xminxmin=ELF_LOL(x-2D0*diff,y,z,selELFLOL)
 			yaddyadd=ELF_LOL(x,y+2D0*diff,z,selELFLOL)
@@ -1453,25 +1766,6 @@ if (itype==2) then
 		xminzadd=calcfuncall(ifunc,x-diff,y,z+diff)
 		xaddzmin=calcfuncall(ifunc,x+diff,y,z-diff)
 		xminzmin=calcfuncall(ifunc,x-diff,y,z-diff)
-	!else if (ifunc==12) then !Pure numerical Hessian for total ESP, may be replaced by analytic one in the future
-	!	xaddxadd=totesp(x+2D0*diff,y,z)
-	!	xminxmin=totesp(x-2D0*diff,y,z)
-	!	yaddyadd=totesp(x,y+2D0*diff,z)
-	!	yminymin=totesp(x,y-2D0*diff,z)
-	!	zaddzadd=totesp(x,y,z+2D0*diff)
-	!	zminzmin=totesp(x,y,z-2D0*diff)
-	!	xaddyadd=totesp(x+diff,y+diff,z)
-	!	xminyadd=totesp(x-diff,y+diff,z)
-	!	xaddymin=totesp(x+diff,y-diff,z)
-	!	xminymin=totesp(x-diff,y-diff,z)
-	!	yaddzadd=totesp(x,y+diff,z+diff)
-	!	yminzadd=totesp(x,y-diff,z+diff)
-	!	yaddzmin=totesp(x,y+diff,z-diff)
-	!	yminzmin=totesp(x,y-diff,z-diff)
-	!	xaddzadd=totesp(x+diff,y,z+diff)
-	!	xminzadd=totesp(x-diff,y,z+diff)
-	!	xaddzmin=totesp(x+diff,y,z-diff)
-	!	xminzmin=totesp(x-diff,y,z-diff)
 	end if 
 	!Collect above temporary data to evaluate pure numerical Hessian
 	gradx_yadd=(xaddyadd-xminyadd)/denom
@@ -1494,323 +1788,8 @@ end subroutine
 
 
 
-!============================================================
-!=================== Real space functions ===================
-!============================================================
 
-
-!!!--------- User-defined function, the content is needed to be filled by users or selected by iuserfunc
-!The units should be given in a.u.
-real*8 function userfunc(x,y,z)
-real*8 x,y,z,vec(3),mat(3,3)
-userfunc=1D0 !Default value. Note: default "iuserfunc" is 0
-
-!Below functions can be selected by "iuserfunc" parameter in settings.ini
-select case(iuserfunc)
-case (-3) !The function value evaluated by cubic spline interpolation from cubmat
-    userfunc=splineintp3d(x,y,z,1)
-case (-2) !Promolecular density
-    userfunc=calcprodens(x,y,z,0)
-case (-1) !The function value evaluated by trilinear interpolation from cubmat
-    userfunc=linintp3d(x,y,z,1)
-case (1) !Alpha density
-    userfunc=fspindens(x,y,z,'a')
-case (2) !Beta density
-    userfunc=fspindens(x,y,z,'b')
-case (3) !Integrand of electronic spatial extent <r^2>
-    userfunc=(x*x+y*y+z*z)*fdens(x,y,z)
-case (4) !Weizsacker potential
-    userfunc=weizpot(x,y,z)
-case (5) !Integrand of weizsacker functional
-    userfunc=KED(x,y,z,4) !Equivalent to weizsacker(x,y,z)
-case (6) !Radial distribution function (assume that density is sphericalized)
-    userfunc=4*pi*fdens(x,y,z)*(x*x+y*y+z*z)
-case (7) !Local Temperature(Kelvin), PNAS,81,8028
-	tmp=fdens(x,y,z)
-	if (tmp>uservar) then
-	    userfunc=2D0/3D0*lagkin(x,y,z,0)/tmp
-    else
-		userfunc=0
-    end if
-case (8) !Average local electrostatic potential, useful in exhibiting atomic shell structure
-    userfunc=totesp(x,y,z)/fdens(x,y,z)
-case (9) !Shape function
-    userfunc=fdens(x,y,z)/nelec
-case (10) !Potential energy density, also known as virial field
-    userfunc=-Hamkin(x,y,z,0)-lagkin(x,y,z,0)
-case (11) !Energy density
-    userfunc=-Hamkin(x,y,z,0)
-case (12) !Local nuclear attraction potential energy
-    userfunc=-nucesp(x,y,z)*fdens(x,y,z)
-case (13) !This quantity at bond critical point is useful to discriminate covalent bonding and closed-shell interaction
-    userfunc=lagkin(x,y,z,0)/fdens(x,y,z)
-case (14) !Electrostatic potential from electrons
-    userfunc=eleesp(x,y,z)
-case (15) !Bond metallicity
-    userfunc=fdens(x,y,z)/flapl(x,y,z,'t')
-case (16) !Dimensionless bond metallicity
-    userfunc=36*(3*pi*pi)**(2D0/3D0)/5D0*fdens(x,y,z)**(5D0/3D0)/flapl(x,y,z,'t')
-case (17) !Energy density per electron
-    userfunc=-Hamkin(x,y,z,0)/fdens(x,y,z)
-case (18) !Region of Slow Electrons (RoSE), defined in Chem. Phys. Lett., 582, 144 (2013)
-	rho=fdens(x,y,z)
-	if (wfntype==0.or.wfntype==3) then !Closed-shell cases
-		Dh=2.871234000D0*rho**(5D0/3D0)
-	else if (wfntype==1.or.wfntype==2.or.wfntype==4) then !Open shell cases
-		rhospin=fspindens(x,y,z,'s') !rhospin=rhoa-rhob, rho=rhoa+rhob
-		rhoa=(rhospin+rho)/2D0
-		rhob=(rho-rhospin)/2D0
-		Dh=4.557799872D0*(rhoa**(5D0/3D0)+rhob**(5D0/3D0)) !kinetic energy of HEG
-	end if
-	G=Lagkin(x,y,z,0)
-	userfunc=(Dh-G)/(Dh+G)
-case (19) !SEDD
-    userfunc=SEDD(x,y,z)
-case (20) !DORI
-    userfunc=DORI(x,y,z)
-case (21) !Integrand of X component of electric dipole moment
-    userfunc=-x*fdens(x,y,z)
-case (22) !Integrand of Y component of electric dipole moment
-    userfunc=-y*fdens(x,y,z)
-case (23) !Integrand of Z component of electric dipole moment
-    userfunc=-z*fdens(x,y,z)
-case (24) !Approximate form of DFT linear response kernel for closed-shell
-    userfunc=linrespkernel(x,y,z)
-case (25) !Magnitude of fluctuation of the electronic momentum
-    userfunc=fgrad(x,y,z,'t')/fdens(x,y,z)/2D0
-case (26) !Thomas-Fermi kinetic energy density
-    userfunc=KED(x,y,z,3)
-case (27) !Local electron affinity
-    userfunc=loceleaff(x,y,z)
-case (28) !Local Mulliken electronegativity
-    userfunc=(avglocion(x,y,z)+loceleaff(x,y,z))/2
-case (29) !Local hardness
-    userfunc=(avglocion(x,y,z)-loceleaff(x,y,z))/2
-case (30) !Ellipticity of electron density
-    userfunc=densellip(x,y,z,1)
-case (31) !eta index, Angew. Chem. Int. Ed., 53, 2766-2770 (2014)
-    userfunc=densellip(x,y,z,2)
-case (32) !Modified eta index
-    userfunc=densellip(x,y,z,2)-1
-case (33) !PAEM, potential acting on one electron in a molecule, defined by Zhongzhi Yang
-    userfunc=PAEM(x,y,z,1)
-case (34) !The same as 33, but using DFT XC potential directly rather than evaluating the XC potential based on pair density
-    userfunc=PAEM(x,y,z,2)
-case (35) !|V(r)|/G(r)
-	tmpval=lagkin(x,y,z,0)
-	userfunc=abs(-Hamkin(x,y,z,0)-tmpval)/tmpval
-case (36) !On-top pair density, i.e. r1=r2 case of pair density. paircorrtype affects result
-	pairfunctypeold=pairfunctype
-	pairfunctype=12
-	userfunc=pairfunc(x,y,z,x,y,z)
-	pairfunctype=pairfunctypeold
-case (37) !SCI
-    userfunc=ELF_LOL(x,y,z,"SCI")
-case (38) !The angle between the second eigenvector of rho and the plane defined by option 4 of main function 1000
-    userfunc=Ang_rhoeigvec_ple(x,y,z,2)
-case (39) !ESP without contribution of nuclues "iskipnuc"
-    userfunc=totespskip(x,y,z,iskipnuc)
-case (40) !Steric energy density
-    userfunc=weizsacker(x,y,z)
-case (41) !Steric potential
-    userfunc=stericpot(x,y,z)
-case (42) !Steric charge
-    userfunc=stericcharge(x,y,z)
-case (43) !The magnitude of steric force
-    userfunc=stericforce(x,y,z)
-case (44) !Steric potential with damping function to a given constant value
-    userfunc=stericpot_damp(x,y,z)
-case (45) !Steric force based on damped potential
-    userfunc=stericforce_damp(x,y,z)
-case (46) !Steric force directly damped to zero
-    userfunc=stericforce_directdamp(x,y,z)
-case (49) !Relative Shannon entropy, also called information gain
-    userfunc=relShannon(x,y,z)
-case (50) !Shannon entropy density, see JCP,126,191107 for example
-    userfunc=infoentro(2,x,y,z)
-case (51) !Fisher information density, see JCP,126,191107 for example
-    userfunc=Fisherinfo(1,x,y,z)
-case (52) !Second Fisher information density, see JCP,126,191107 for derivation
-    userfunc=Fisherinfo(2,x,y,z)
-case (53) !Ghosh entropy density with G(r) as kinetic energy density, PNAS,81,8028
-    userfunc=Ghoshentro(x,y,z,1)
-case (54) !Ghosh entropy density with G(r)-der2rho/8 as kinetic energy density, exactly corresponds to Eq.22 in PNAS,81,8028
-    userfunc=Ghoshentro(x,y,z,2)
-case (55) !Integrand of quadratic form of Renyi entropy
-    userfunc=fdens(x,y,z)**2
-case (56) !Integrand of cubic form of Renyi entropy
-    userfunc=fdens(x,y,z)**3
-case (60) !Pauli potential, Comp. Theor. Chem., 1006, 92-99
-    userfunc=paulipot(x,y,z)
-case (61) !Magnitude of Pauli force
-    userfunc=pauliforce(x,y,z)
-case (62) !Pauli charge
-    userfunc=paulicharge(x,y,z)
-case (63) !Quantum potential
-    userfunc=quantumpot(x,y,z)
-case (64) !The magnitude of quantum force
-    userfunc=quantumforce(x,y,z)
-case (65) !Quantum charge
-    userfunc=quantumcharge(x,y,z)
-case (66) !The magnitude of electrostatic force
-    userfunc=elestatforce(x,y,z)
-case (67) !Electrostatic charge
-    userfunc=elestatcharge(x,y,z)
-case (68) !Energy density of electronic part of electrostatic term (Ee) of SBL's energy decomposition
-    userfunc=-fdens(x,y,z)*totesp(x,y,z)
-case (69) !Energy density of quantum term (Eq) of SBL's energy decomposition using Hamiltonian kinetic energy
-    userfunc=Hamkin(x,y,z,0)-weizsacker(x,y,z)+DFTxcfunc(x,y,z)
-case (-69) !Energy density of quantum term (Eq) of SBL's energy decomposition using Lagrangian kinetic energy
-    userfunc=Lagkin(x,y,z,0)-weizsacker(x,y,z)+DFTxcfunc(x,y,z)
-case (70) !Phase-space-defined Fisher information density
-    userfunc=4.5D0*fdens(x,y,z)**2/lagkin(x,y,z,0)
-case (71) !X component of electron linear momentum density in 3D representation
-    userfunc=elemomdens(x,y,z,1)
-case (72) !Y component of electron linear momentum density in 3D representation
-    userfunc=elemomdens(x,y,z,2)
-case (73) !Z component of electron linear momentum density in 3D representation
-    userfunc=elemomdens(x,y,z,3)
-case (74) !Magnitude of electron linear momentum density in 3D representation
-    userfunc=elemomdens(x,y,z,0)
-case (75) !X component of magnetic dipole moment density
-    userfunc=magmomdens(x,y,z,1)
-case (76) !Y component of magnetic dipole moment density
-    userfunc=magmomdens(x,y,z,2)
-case (77) !Z component of magnetic dipole moment density
-    userfunc=magmomdens(x,y,z,3)
-case (78) !Magnitude of magnetic dipole moment density
-    userfunc=magmomdens(x,y,z,0)
-case (79) !Gradient norm of energy density
-    userfunc=energydens_grdn(x,y,z)
-case (80) !Laplacian of energy density
-    userfunc=energydens_lapl(x,y,z)
-case (81) !X component of Hamiltonian kinetic energy density
-    userfunc=hamkin(x,y,z,1)
-case (82) !Y component of Hamiltonian kinetic energy density
-    userfunc=hamkin(x,y,z,2)
-case (83) !Z component of Hamiltonian kinetic energy density
-    userfunc=hamkin(x,y,z,3)
-case (84) !X component of Lagrangian kinetic energy density
-    userfunc=Lagkin(x,y,z,1)
-case (85) !Y component of Lagrangian kinetic energy density
-    userfunc=Lagkin(x,y,z,2)
-case (86) !Z component of Lagrangian kinetic energy density
-    userfunc=Lagkin(x,y,z,3)
-case (87) !Local total electron correlation function
-    userfunc=localcorr(x,y,z,1)
-case (88) !Local dynamic electron correlation function
-    userfunc=localcorr(x,y,z,2)
-case (89) !Local nondynamic electron correlation function
-    userfunc=localcorr(x,y,z,3)
-case (91) !Delta-g_inter(Hirsh) defined in IGMH model
-    userfunc=delta_g_inter_Hirsh(x,y,z)
-case (92) !vdW potential
-    userfunc=vdwpotfunc(x,y,z,1)
-case (93) !Repulsion potential
-    userfunc=vdwpotfunc(x,y,z,2)
-case (94) !Disperison potential
-    userfunc=vdwpotfunc(x,y,z,3)
-case (95) !Orbital-weighted f+ Fukui function
-    userfunc=orbwei_Fukui(1,x,y,z)
-case (96) !Orbital-weighted f- Fukui function
-    userfunc=orbwei_Fukui(2,x,y,z)
-case (97) !Orbital-weighted f0 Fukui function
-    userfunc=orbwei_Fukui(3,x,y,z)
-case (98) !Orbital-weighted dual descriptor
-    userfunc=orbwei_Fukui(4,x,y,z)
-case (99) !Interaction region indicator (IRI)
-    userfunc=IRIfunc(x,y,z)
-case (100) !Disequilibrium (also known as semi-similarity)
-    userfunc=fdens(x,y,z)**2
-case (101) !Positive part of ESP
-	userfunc=totesp(x,y,z)
-	if (userfunc<0D0) userfunc=0D0
-case (102) !Negative part of ESP
-	userfunc=totesp(x,y,z)
-	if (userfunc>0D0) userfunc=0D0
-case (103) !Magnitude of electric field
-	call gencalchessmat(1,12,x,y,z,value,vec,mat) !Get gradient of ESP
-	userfunc=dsqrt(sum(vec**2))
-case (110) !Total energy density of the energy components defined by SBL (steric + electrostatic + quantum)
-    !That is, userfunc(40) + userfunc(68) + userfunc(69)
-    !userfunc = weizsacker(x,y,z) - fdens(x,y,z)*totesp(x,y,z) + (Hamkin(x,y,z,0)-weizsacker(x,y,z)+DFTxcfunc(x,y,z)) !Original expression
-    userfunc = -fdens(x,y,z)*totesp(x,y,z) + Hamkin(x,y,z,0) + DFTxcfunc(x,y,z)
-case (111) !Total potential of the energy components defined by SBL (steric + electrostatic + quantum)
-    userfunc = stericpot(x,y,z) - totesp(x,y,z) + quantumpot(x,y,z)
-case (112) !Magnitude of total force of the energy components defined by SBL (steric + electrostatic + quantum)
-    !That is, vector sum of userfunc(43), userfunc(66), userfunc(64)
-    !userfunc= stericforce(x,y,z) + elestatforce(x,y,z) + quantumforce(x,y,z) !This is sum of magnitude, not what we want
-    userfunc = SBLallforce(x,y,z)
-case (113) !Total charge of the energy components defined by SBL (steric + electrostatic + quantum)
-    !That is, userfunc(42) + userfunc(67) + userfunc(65)
-    userfunc = stericcharge(x,y,z) + elestatcharge(x,y,z) + quantumcharge(x,y,z)
-case (114) !Pauli kinetic energy density
-    userfunc = KED(x,y,z,iKEDsel) - weizsacker(x,y,z)
-case (802:807)
-    userfunc=funcvalLSB(x,y,z,iuserfunc-800)
-case (812:817)
-    userfunc=1/funcvalLSB(x,y,z,iuserfunc-810)
-case (819) !Ultrastrong interaction (USI)
-    userfunc=flapl(x,y,z,'t')/fdens(x,y,z)**(5D0/3D0)
-case (820) !Bonding and noncovalent interaction (BNI): (tau-t_w)/t_w
-    tmp=weizsacker(x,y,z)
-    userfunc=(lagkin(x,y,z,0)-tmp)/tmp
-case (821) !rho^(4/3) / |der_rho| , for shubin
-    userfunc=fdens(x,y,z)**(4D0/3D0) / fgrad(x,y,z,'t')
-case (900) !X coordinate
-    userfunc=x
-case (901) !Y coordinate
-    userfunc=y
-case (902) !Z coordinate
-    userfunc=z
-case (910) !Hirshfeld atomic weighting function
-	call Hirshatmwei(nint(uservar),x,y,z,userfunc)
-    userfunc=userfunc*fdens(x,y,z)
-case (911) !Becke atomic weighting function using covr_tianlu
-	call Beckeatmwei(nint(uservar),x,y,z,userfunc,covr_tianlu,3)
-case (912) !Becke atomic weighting function using CSD covalent radii
-	call Beckeatmwei(nint(uservar),x,y,z,userfunc,covr,3)
-case (913) !LT1 atomic weighting function
-	call TLatmwei(nint(uservar),x,y,z,userfunc,1)
-case (914) !LT1 atomic weighting function
-	call TLatmwei(nint(uservar),x,y,z,userfunc,2)
-case (999) !Local Hartree-Fock exchange energy
-	userfunc=locHFexc(x,y,z)
-case (1000) !Various kinds of DFT exchange-correlation functions
-    userfunc=DFTxcfunc(x,y,z)
-case (1100) !Various kinds of DFT exchange-correlation potentials for closed-shell
-    userfunc=DFTxcpot(x,y,z,0)
-case (1101) !Various kinds of DFT exchange-correlation potentials of alpha electrons for open-shell
-    userfunc=DFTxcpot(x,y,z,1)
-case (1102) !Various kinds of DFT exchange-correlation potentials of beta electrons for open-shell
-    userfunc=DFTxcpot(x,y,z,2)
-case (1200) !Various kinds of electronic kinetic energy density (KED)
-    userfunc=KED(x,y,z,iKEDsel)
-case (1201) !Get difference between KED selected by iKEDsel and Weizsacker KED
-    userfunc=KEDdiff(x,y,z,iKEDsel,1)
-case (1202) !Get difference between KED selected by iKEDsel and Lagrangian KED
-    userfunc=KEDdiff(x,y,z,iKEDsel,2)
-case (1203) !Get absolute difference between KED selected by iKEDsel and Lagrangian KED
-    userfunc=KEDdiff(x,y,z,iKEDsel,3)
-case (1204) !Local Temperature(Kelvin), PNAS,81,8028, but using user-defined KED by "iKEDsel"
-	tmp=fdens(x,y,z)
-	if (tmp>uservar) then
-	    userfunc=2D0/3D0*KED(x,y,z,iKEDsel)/tmp
-    else
-		userfunc=0
-    end if
-case (1210) !Potential of KED
-    userfunc=KEDpot(x,y,z)
-end select
-!Below are other examples
-! userfunc=hamkin(x,y,z,3)-0.5D0*(hamkin(x,y,z,1)+hamkin(x,y,z,2)) !Anisotropy of Hamiltonian kinetic energy in Z, namely K_Z-0.5*(K_X+K_Y)
-! userfunc=-x*y*fdens(x,y,z) !Integrand of XY component of electric quadrupole moment
-! userfunc=-x*y*z*fdens(x,y,z)*au2debye*b2a**2 !Integrand of XYZ component of electric octapole moment in Debye-Ang**2
-end function
-
-
-
-!!!----------- Output orbital wavefunction value at a given point (fmo=function for outputting MO)
+!!----------- Calculate orbital wavefunction value (fmo=function for outputting MO)
 real*8 function fmo(x,y,z,id)
 real*8 x,y,z,orbval(nmo)
 integer id
@@ -1819,7 +1798,9 @@ fmo=orbval(id)
 end function
 
 
-!!!----- Calculate orbital wavefunction Hessian matrix at x,y,z, store to hess, output value and gradient vector at same time
+
+
+!!----- Calculate orbital wavefunction Hessian matrix, store to hess, output value and gradient vector at same time
 !itype=1 Only calculate value and gradient, not Hessian
 !itype=2 Calculate value, gradient and Hessian
 subroutine calchessmat_orb(itype,id,x,y,z,value,grad,hess)
@@ -1833,7 +1814,7 @@ hess=wfnhess(:,:,id)
 end subroutine
 
 
-!--------Output electron density at a point
+!-------- Calculate electron density
 real*8 function fdens(x,y,z)
 real*8 x,y,z,wfnval(nmo)
 call orbderv(1,1,nmo,x,y,z,wfnval)
@@ -1849,10 +1830,12 @@ end if
 end function
 
 
-!!!------------------------- Output spin or Alpha or Beta electron density at a point
+
+
+!!----------------- Calculate spin or Alpha or Beta electron density
 !itype='s' output spin density, ='a' output alpha density, ='b' output beta density
 real*8 function fspindens(x,y,z,itype)
-real*8 :: x,y,z,wfnval(nmo)
+real*8 x,y,z,wfnval(nmo)
 character itype
 call orbderv(1,1,nmo,x,y,z,wfnval)
 adens=0D0
@@ -1878,8 +1861,10 @@ end if
 end function
 
 
-!!!------------------------- Output gradient of rho and RDG (reduced density gradient) at a point
-!label=x/y/z output 1-order derivation of x/y/z, =t get norm, =r get RDG, =s get |der_rho|/rho^(4/3)
+
+
+!!--------------- Calculate gradient norm of rho and RDG (reduced density gradient)
+!label=x/y/z output 1-order derivation of x/y/z, =t get norm, =r get RDG
 real*8 function fgrad(x,y,z,label)
 real*8 x,y,z,wfnval(nmo),wfnderv(3,nmo),gradrho(3),EDFgrad(3),sumgrad2
 character label
@@ -1891,7 +1876,7 @@ do i=1,nmo
 	gradrho(:)=gradrho(:)+MOocc(i)*wfnval(i)*wfnderv(:,i)
 end do
 gradrho=2*gradrho
-! Add in contribution of Electron density function
+! Add in contribution of electron density function (EDF)
 if (allocated(b_EDF)) then
 	call EDFrho(2,x,y,z,EDFdens,EDFgrad)
 	rho=rho+EDFdens
@@ -1909,17 +1894,10 @@ else if (label=='r') then
 	sumgrad2=sum(gradrho(:)**2)
 	if (RDG_maxrho/=0D0.and.rho>=RDG_maxrho) then
 		fgrad=100D0
-!This occurs at distant region when exponent cutoff is used, the actual value should be very large. In order to avoid denominator become zero, we set it artifically to a big value
-	else if (sumgrad2==0D0.or.rho==0D0) then
-		RDG=999D0
+	else if (sumgrad2==0D0.or.rho==0D0) then !This occurs at distant region when exponent cutoff is used, the actual value should be very large. In order to avoid denominator become zero, we set it artifically to a big value
+		fgrad=999D0
 	else
 		fgrad=0.161620459673995D0*dsqrt(sumgrad2)/rho**(4D0/3D0) !0.161620459673995D0=1/(2*(3*pi**2)**(1/3))
-	end if
-else if (label=='s') then
-	if (rho==0D0) then
-		fgrad=0
-	else
-		fgrad=dsqrt(sum(gradrho(:)**2))/rho**(4D0/3D0)
 	end if
 end if
 end function
@@ -2008,7 +1986,9 @@ sigab=sum(gradrhoa(:)*gradrhob(:))
 end subroutine
 
 
-!!!------------------------- Output Laplacian of electron density at a point
+
+
+!!----------------- Calculate Laplacian of electron density
 !label=x/y/z output 2-order derivative of electron density respect to xx/yy/zz; &
 !=t get their summing; =s get der2rho/rho^(5/3), which is used LSB's project
 real*8 function flapl(x,y,z,label)
@@ -2042,7 +2022,9 @@ end if
 end function
 
 
-!!!----- Calculate electron density, its gradient and Hessian matrix
+
+
+!!------ Calculate electron density, its gradient and Hessian matrix
 !itype=1 Only calculate value and grad, not Hessian
 !itype=2 Calculate value, gradient and Hessian
 subroutine calchessmat_dens(itype,x,y,z,elerho,elegrad,elehess)
@@ -2076,7 +2058,8 @@ end subroutine
 
 
 
-!!!----- Same as calchessmat_dens, but for promolecular wavefunction
+
+!!------ Same as calchessmat_dens, but for promolecular wavefunction
 !itype=1 Only calculate value and grad, not Hessian
 !itype=2 Calculate value, gradient and Hessian
 subroutine calchessmat_dens_promol(itype,x,y,z,elerho,elegrad,elehess)
@@ -2097,6 +2080,106 @@ if (itype==2) then
 	elehess(2,1)=elehess(1,2)
 	elehess(3,2)=elehess(2,3)
 	elehess(3,1)=elehess(1,3)
+end if
+end subroutine
+
+
+
+
+!!----- Calculate electron density, its gradient, Hessian and 3rd derivative tensor. EDF is taken into account
+!This is the most general and elegant code, can also fully replace calchessmat_dens
+subroutine rho_tensor(x,y,z,value,grad,hess,tens3)
+implicit real*8 (a-h,o-z)
+real*8 x,y,z,value,grad(3),hess(3,3),tens3(3,3,3),wfnval(nmo),wfnderv(3,nmo),wfnhess(3,3,nmo),wfntens3(3,3,3,nmo),EDFgrad(3),EDFhess(3,3),EDFtens3(3,3,3)
+
+call orbderv(5,1,nmo,x,y,z,wfnval,wfnderv,wfnhess,wfntens3)
+!rho
+value=sum( MOocc(1:nmo)*wfnval(1:nmo)*wfnval(1:nmo) )
+!gradient of rho
+do i=1,3
+	grad(i)=2*sum( MOocc(1:nmo)*wfnval(1:nmo)*wfnderv(i,1:nmo) )
+end do
+!Hessian of rho
+hess=0
+do i=1,3
+	do j=i,3
+		tmpval=0
+		do imo=1,nmo
+			if (MOocc(i)==0) cycle
+			tmpval=tmpval+MOocc(imo)*(wfnderv(i,imo)*wfnderv(j,imo)+wfnval(imo)*wfnhess(i,j,imo))
+        end do
+        hess(i,j)=2*tmpval
+        hess(j,i)=hess(i,j)
+	end do
+end do
+
+!3rd derivative tensor of rho
+tens3=0D0
+do i=1,3
+	do j=i,3
+		do k=j,3
+			tmpval=0
+			do imo=1,nmo
+				if (MOocc(i)==0) cycle
+                tmpval=tmpval+MOocc(imo)*( wfnderv(j,imo)*wfnhess(i,k,imo) + wfnderv(i,imo)*wfnhess(j,k,imo) + &
+                wfnderv(k,imo)*wfnhess(i,j,imo) + wfnval(imo)*wfntens3(i,j,k,imo) )
+			end do
+            tens3(i,j,k)=2*tmpval
+            tens3(i,k,j)=tens3(i,j,k)
+            tens3(k,j,i)=tens3(i,j,k)
+            tens3(j,i,k)=tens3(i,j,k)
+            tens3(k,i,j)=tens3(i,j,k)
+            tens3(j,k,i)=tens3(i,j,k)
+        end do
+    end do
+end do
+
+!Add in contribution of electron density function, assume EDFs are S type
+if (allocated(b_EDF)) then
+	call EDFrho(5,x,y,z,EDFdens,EDFgrad,EDFhess,EDFtens3)
+	rho=rho+EDFdens
+	grad=grad+EDFgrad
+	hess=hess+EDFhess
+    tens3=tens3+EDFtens3
+end if
+end subroutine
+
+
+
+
+!!--------- Calculate gradient and Hessian of gradient norm of electron density
+!itype=1 Only calculate value and grad, =2 Calculate value, gradient and Hessian
+subroutine calchessmat_rhograd(itype,x,y,z,value,grad,hess)
+implicit real*8 (a-h,o-z)
+integer itype
+real*8 x,y,z,value,grad(3),hess(3,3),rhograd(3),rhohess(3,3),rhotens3(3,3,3)
+
+call rho_tensor(x,y,z,rho,rhograd,rhohess,rhotens3)
+rhograd2=sum(rhograd**2)
+gnorm=dsqrt(rhograd2)
+value=gnorm
+
+grad=0
+do idir=1,3
+	do jdir=1,3
+		grad(idir)=grad(idir)+rhograd(jdir)*rhohess(idir,jdir)
+    end do
+end do
+grad=grad/gnorm
+
+if (itype==2) then
+	hess=0
+	do i=1,3
+		do j=1,3
+			tmp=0
+			tmp2=0
+			do k=1,3
+				tmp=tmp+rhograd(k)*rhohess(k,i)
+				tmp2=tmp2+rhohess(k,i)*rhohess(k,j)+rhograd(k)*rhotens3(k,i,j)
+            end do
+			hess(i,j)=-1D0/rhograd2*grad(j)*tmp+tmp2/gnorm
+		end do
+	end do
 end if
 end subroutine
 
@@ -2183,7 +2266,10 @@ end if
 end subroutine
 
 
-!!!------------------------- Output Lagrangian kinetic G(r) at a point. idir=0/1/2/3 means total/x/y/z kinetic energy
+
+
+!!----------------- Calculate Lagrangian kinetic G(r)
+!idir=0/1/2/3 means total/x/y/z kinetic energy
 real*8 function Lagkin(x,y,z,idir)
 real*8 x,y,z,wfnval(nmo),wfnderv(3,nmo)
 integer idir
@@ -2202,7 +2288,10 @@ lagkin=lagkin/2D0
 end function
 
 
-!!------------- Output Hamiltonian kinetic K(r) at a point. idir=0/1/2/3 means total/X/Y/Z kinetic energy
+
+
+!!------------- Calculate Hamiltonian kinetic K(r)
+!idir=0/1/2/3 means total/X/Y/Z kinetic energy
 real*8 function Hamkin(x,y,z,idir)
 real*8 x,y,z,wfnval(nmo),wfnderv(3,nmo),wfnhess(3,3,nmo)
 integer idir
@@ -2223,7 +2312,9 @@ Hamkin=-Hamkin/2D0
 end function
 
 
-!!------- Output analytic gradient vector of energy density (i.e. negative of K(r))
+
+
+!!------- Calculate analytic gradient vector of energy density (i.e. negative of K(r))
 subroutine energydens_grad(x,y,z,grad)
 real*8 x,y,z,grad(3),wfnval(nmo),wfnderv(3,nmo),wfnhess(3,3,nmo),wfntens(3,3,3,nmo)
 call orbderv(5,1,nmo,x,y,z,wfnval,wfnderv,wfnhess,wfntens)
@@ -2239,13 +2330,13 @@ do imo=1,nmo
 end do
 grad=grad/2
 end subroutine
-!!------- Output gradient norm of energy density (i.e. negative of K(r))
+!!------- Calculate gradient norm of energy density (i.e. negative of K(r))
 real*8 function energydens_grdn(x,y,z)
 real*8 x,y,z,grad(3)
 call energydens_grad(x,y,z,grad)
 energydens_grdn=dsqrt(sum(grad**2))
 end function
-!!------- Output Laplacian of energy density (i.e. negative of K(r))
+!!------- Calculate Laplacian of energy density (i.e. negative of K(r))
 real*8 function energydens_lapl(x,y,z)
 real*8 x,y,z,gradaddx(3),gradminx(3),gradaddy(3),gradminy(3),gradaddz(3),gradminz(3)
 diff=1D-5
@@ -2263,7 +2354,10 @@ energydens_lapl=xlapl+ylapl+zlapl
 end function
 
 
-!!!--------- Output electron linear momentum density in 3D representation at a point. idir=0/1/2/3 means magnitude/x/y/z component
+
+
+!!--------- Calculate electron linear momentum density in 3D representation
+!idir=0/1/2/3 means magnitude/x/y/z component
 real*8 function elemomdens(x,y,z,idir)
 real*8 x,y,z,wfnval(nmo),wfnderv(3,nmo),comp(0:3)
 integer idir
@@ -2277,7 +2371,10 @@ elemomdens=comp(idir)
 end function
 
 
-!!!--------- Output magnetic dipole moment density at a point. idir=0/1/2/3 means magnitude/x/y/z component
+
+
+!!--------- Calculate magnetic dipole moment density
+!idir=0/1/2/3 means magnitude/x/y/z component
 real*8 function magmomdens(x,y,z,idir)
 real*8 x,y,z,wfnval(nmo),wfnderv(3,nmo),comp(0:3)
 integer idir
@@ -2296,7 +2393,9 @@ magmomdens=comp(idir)
 end function
 
 
-!!!----- vdW potential (itype=1), repulsion potential (itype=2) and dispersion potential (itype=3)
+
+
+!!----- vdW potential (itype=1), repulsion potential (itype=2) and dispersion potential (itype=3)
 !UFF parameters are used. The unit is kcal/mol
 real*8 function vdwpotfunc(x,y,z,itype)
 integer itype
@@ -2351,18 +2450,21 @@ if (itype==3) vdwpotfunc=disp
 end function
 
 
-!!!----- Calculate Sign(lambda2(r))*rho(r) function, this is a wrapper used to convert subroutine to function form
+
+
+!!------- Calculate sign(lambda2)*rho, this is a wrapper used to convert subroutine to function form
 real*8 function signlambda2rho(x,y,z)
 real*8 x,y,z,sl2r,RDG,rho
 call signlambda2rho_RDG(x,y,z,sl2r,RDG)
 signlambda2rho=sl2r
 end function
-!!!------ Calculate signlambda2rho and RDG at the same time. rho and grad can also be returned if present
+!!------- Calculate sign(lambda2)*rho and RDG at the same time. rho and grad can also be returned if present
 subroutine signlambda2rho_RDG(x,y,z,sl2r,RDG,rho,grad)
 use util
 real*8 x,y,z,elerho,sl2r,RDG
 real*8 eigvecmat(3,3),eigval(3),elehess(3,3),elegrad(3) !Hessian of electron density
 real*8,optional :: rho,grad(3)
+
 call calchessmat_dens(2,x,y,z,elerho,elegrad,elehess)
 call diagmat(elehess,eigvecmat,eigval,100,1D-10)
 call sort(eigval)
@@ -2386,7 +2488,8 @@ end subroutine
 
 
 
-!!!----- Output ELF or LOL or Strong Covalent Interaction (SCI) and variants at a point
+
+!!------- Calculate ELF or LOL or Strong Covalent Interaction (SCI) and variants
 !label="ELF" or "LOL" or "SCI"
 real*8 function ELF_LOL(x,y,z,label)
 real*8 x,y,z,wfnval(nmo),wfnderv(3,nmo)
@@ -2508,13 +2611,13 @@ else if (label=="LOL") then !----- Calculate LOL based on wavefunction
 	if (ELFLOL_type==0) ELF_LOL=1D0/(1D0/t+1) !namely t/(1+t). This is default case
 	if (ELFLOL_type==2) ELF_LOL=1D0/((1D0/t)**2+1) !New form defined by Tian Lu
 end if
-
 end function
 
 
 
-!!!----- Calculate ELF/LOL, its gradient and Hessian matrix at x,y,z, store to hess 
-!!!!!!!!!!!! currently can not calculate Hessian
+
+!!------ Calculate ELF/LOL, its gradient and Hessian matrix, store to hess 
+! Currently can not calculate Hessian!
 !funsel="ELF" or "LOL"
 !itype=1 Only calculate value and gradient, not Hessian
 !itype=2 Calculate value, gradient and Hessian (Not available)
@@ -2623,7 +2726,7 @@ else if (wfntype==1.or.wfntype==2.or.wfntype==4) then
 	end do
 	
 	if (funsel=="ELF") then
-! 		!Calculate Hessian for rho
+! 		Calculate Hessian for rho
 		hessrhoa=0D0
 		hessrhob=0D0
 		do i=1,nmo
@@ -2745,7 +2848,8 @@ end if
 end subroutine
 
 
-!-------- Output average local ionization energy at a point
+
+!!-------- Calculate average local ionization energy (ALIE)
 real*8 function avglocion(x,y,z)
 real*8 x,y,z,wfnval(nmo)
 call orbderv(1,1,nmo,x,y,z,wfnval)
@@ -2762,7 +2866,7 @@ else
 end if
 end function
 
-!-------- Calculate average local ionization energy at a point and meantime decompose it to occupied orbitals contribution
+!!-------- Calculate average local ionization energy and meantime decompose it to occupied orbital contributions
 subroutine avglociondecomp(ifileid,x,y,z)
 real*8 x,y,z,wfnval(nmo)
 integer ifileid
@@ -2790,7 +2894,9 @@ end do
 end subroutine
 
 
-!-------- Output local electron affinity at a point
+
+
+!!-------- Calculate local electron affinity
 !Since virtual orbitals are involved, such as .fch/.molden/.gms must be used
 real*8 function loceleaff(x,y,z)
 real*8 x,y,z,wfnval(nmo)
@@ -2810,7 +2916,10 @@ else
 end if
 end function
 
-!!!------ Approximate form of DFT linear response kernel for closed-shell, X(r1,r2), see Eq.3 of PCCP,14,3960. Only applied to the case wfntype=0
+
+
+
+!!------ Approximate form of DFT linear response kernel for closed-shell, X(r1,r2), see Eq.3 of PCCP,14,3960. Only applied to the case wfntype=0
 ! r1 is taken as reference point and determined by refx,refy,refz. x,y,z in the argument is the coordinate of r2
 real*8 function linrespkernel(x,y,z)
 real*8 x,y,z,orbvalr1(nmo),orbvalr2(nmo)
@@ -2827,7 +2936,7 @@ end do
 linrespkernel=linrespkernel*4
 end function
 
-!!!------------- Output Exchange-correlation density, correlation hole and correlation factor
+!!------------- Calculate Exchange-correlation density, correlation hole and correlation factor
 !rfx,rfy,rfz is reference point (commonly use refx,refy,refz in defvar module), namely r1
 !x,y,z in the argument is the coordinate of r2
 !Calculate which function is controlled by "pairfunctype" in settings.ini, correlation type is determined by "paircorrtype" in settings.ini
@@ -2934,7 +3043,8 @@ end function
 
 
 
-!!!------------- Output source function
+
+!!------------- Calculate source function
 real*8 function srcfunc(x,y,z,imode) !Default imode=1
 real*8 x,y,z,denomin
 integer imode
@@ -2945,7 +3055,9 @@ if (imode==2) srcfunc=-flapl(refx,refy,refz,'t')/denomin !Used to study effect o
 end function
 
 
-!!!------------- Output RDG with promolecular approximation
+
+
+!!------------- Calculate RDG with promolecular approximation
 real*8 function RDGprodens(x,y,z)
 real*8 x,y,z,elerho,elegrad(3)
 call calchessmat_prodens(x,y,z,elerho,elegrad)
@@ -2958,14 +3070,14 @@ else
 	RDGprodens=0.161620459673995D0*elegradnorm/elerho**(4D0/3D0)
 end if
 end function
-!!!----- Calculate sign(lambda2(r))*rho(r) with promolecular approximation
-!!! this is a shell used to convert subroutine to function form
+!!------ Calculate sign(lambda2(r))*rho(r) with promolecular approximation
+! This is a wrapper to convert subroutine to function form
 real*8 function signlambda2rho_prodens(x,y,z)
 real*8 x,y,z,sl2r,RDG
 call signlambda2rho_RDG_prodens(x,y,z,sl2r,RDG)
 signlambda2rho_prodens=sl2r
 end function
-!!!------ Calculate sign(lambda2(r))*rho(r) and RDG at the same time with promolecular approximation
+!!------- Calculate sign(lambda2)*rho and RDG at the same time with promolecular approximation
 subroutine signlambda2rho_RDG_prodens(x,y,z,sl2r,RDG)
 use util
 real*8 x,y,z,elerho,RDG,sl2r,sumgrad2
@@ -2990,7 +3102,9 @@ end if
 end subroutine
 
 
-!!!----- Calculate electron density, its gradient and Hessian matrix at x,y,z with promolecular approximation
+
+
+!!----- Calculate electron density, its gradient and Hessian matrix at x,y,z with promolecular approximation
 !Currently only employed by RDG analysis
 !Electron density and its gradient are always calculated, Hessian will be calculated when "elehess" is present
 !Notice that global array "fragment" must be properly defined! Only the atoms in fragment will be taken into account
@@ -3114,7 +3228,9 @@ end if
 end subroutine
 
 
-!!---- Calculate atomic density based on STO fitted or radial density
+
+
+!!------ Calculate atomic density based on STO fitted or radial density
 !PBC is supported
 !indSTO==0: All atom densities will be evaluated based on interpolation of built-in radial density, quite accurate
 !indSTO==18: Use STO fitted atomic density for element <18, quality is mediocre but fast (Weitao Yang, RDG original paper)
@@ -3176,6 +3292,7 @@ end function
 
 
 
+
 !!------ Calculate delta-g function based on promolecular approximation
 real*8 function delta_g_promol(x,y,z)
 real*8 x,y,z,grad(3),IGM_gradnorm
@@ -3183,7 +3300,7 @@ call IGMgrad_promol(x,y,z,fragatm,grad,IGM_gradnorm)
 delta_g_promol=IGM_gradnorm-dsqrt(sum(grad**2))
 end function
 
-!!!----- Calculate gradient or Independent Gradient Model (IGM) gradient for specific fragment based on promolecular density
+!!----- Calculate gradient or Independent Gradient Model (IGM) gradient for specific fragment based on promolecular density
 !grad(1:3): Returned usual gradient vector;  IGM_grad: Returned IGM type of gradient norm
 !Only the atoms in "atmlist" will be taken into account
 subroutine IGMgrad_promol(x,y,z,atmlist,grad,IGM_gradnorm)
@@ -3201,7 +3318,6 @@ end subroutine
 !!------ Calculate density and gradient of atom "iatm" in free state fully using built-in density
 !Only atomic density obtained via Lagrangian interpolation density is used
 subroutine proatmgrad(iatm,x,y,z,rho,grad)
-use defvar
 real*8 posarr(200),rhoarr(200),rho,grad(3),tvec(3)
 ind=a(iatm)%index
 rho=0
@@ -3236,7 +3352,8 @@ end subroutine
 
 
 
-!!!------ Calculate delta-g function defined in IGM based on Hirshfeld partition (IGMH)
+
+!!------ Calculate delta-g function defined in IGM based on Hirshfeld partition (IGMH)
 !Note that by default fragatm contains the whole system
 real*8 function delta_g_Hirsh(x,y,z)
 real*8 x,y,z,grad(3),IGM_gradnorm
@@ -3244,7 +3361,7 @@ call IGMgrad_Hirsh(x,y,z,fragatm,grad,IGM_gradnorm)
 delta_g_Hirsh=IGM_gradnorm-dsqrt(sum(grad**2))
 end function
 
-!!!------ Calculate delta-g_inter function defined in IGM based on Hirshfeld partition (IGMH)
+!!------ Calculate delta-g_inter function defined in IGM based on Hirshfeld partition (IGMH)
 real*8 function delta_g_inter_Hirsh(x,y,z)
 real*8 x,y,z,grad1(3),IGM_gradnorm1,grad2(3),IGM_gradnorm2,grad(3),IGM_gradnorm
 call IGMgrad_Hirsh(x,y,z,frag1,grad1,IGM_gradnorm1)
@@ -3254,12 +3371,14 @@ IGM_gradnorm=dsqrt(sum(grad1**2))+dsqrt(sum(grad2**2))
 delta_g_inter_Hirsh=IGM_gradnorm-dsqrt(sum(grad**2))
 end function
 
-!----- Calculate gradient and IGM gradient of a specific fragment using Hirshfeld partition to yield involved atomic densities and gradients
+
+
+
+!!----- Calculate gradient and IGM gradient of a specific fragment using Hirshfeld partition to yield involved atomic densities and gradients
 !The fragment is defined by "atmlist" array
 !realrhoin and realgradin are real density and gradient of current system. If any of them is not passed in, they will be directly calculated. &
 ! This design is used to avoid recalculate these expensive data if they are already available
 subroutine IGMgrad_Hirsh(x,y,z,atmlist,grad,IGM_gradnorm,realrhoin,realgradin)
-use defvar
 implicit real*8 (a-h,o-z)
 real*8 x,y,z
 real*8 grad(3),IGM_gradnorm
@@ -3329,7 +3448,8 @@ end subroutine
 
 
 
-!!!--------------- Output Shannon information entropy function at a point
+
+!!--------------- Calculate Shannon information entropy function
 !itype=1 rho/N*ln(rho/N), this is normal definition
 !itype=2 rho*ln(rho), this is Shannon information density, see J. Chem. Phys., 126, 191107
 real*8 function infoentro(itype,x,y,z)
@@ -3349,14 +3469,34 @@ end if
 end function
 
 
-!!!------------------------- Output total ESP at a point
+
+
+!!--------- Calculate gradient and Hessian of Shannon entropy density, rho*ln(rho)
+subroutine Shannon_gradhess(x,y,z,value,grad,hess)
+implicit real*8 (a-h,o-z)
+real*8 x,y,z,value,grad(3),hess(3,3),rhograd(3),rhohess(3,3)
+call calchessmat_dens(2,x,y,z,rho,rhograd,rhohess)
+value=-rho*log(rho)
+tmp=log(rho)+1
+grad(:)=-rhograd(:)*tmp
+do i=1,3
+	do j=1,3
+		hess(i,j)=-rhohess(i,j)*tmp-rhograd(i)*rhograd(j)/rho
+    end do
+end do
+end subroutine
+
+
+
+
+!!--------------- Calculate total ESP
 real*8 function totesp(x,y,z)
 real*8 x,y,z
 totesp=eleesp(x,y,z)+nucesp(x,y,z)
 end function
 
 
-!!!--------------- Output total ESP at a point, but skip the nucleus marked by variable "iskipnuc"
+!!--------------- Calculate total ESP, but skip the nuclei marked by variable "iskipnuc"
 real*8 function totespskip(x,y,z,iskip)
 real*8 x,y,z
 integer iskip
@@ -3368,7 +3508,8 @@ end do
 totespskip=totespskip+eleesp(x,y,z)
 end function
 
-!!!------------------------- Output ESP from nuclear or atomic charges at a point
+
+!!---------------- Calculate ESP from nuclear or atomic charges
 !At nuclear positions, this function returns 1000 instead of infinity to avoid numerical problems
 real*8 function nucesp(x,y,z)
 nucesp=0D0
@@ -3386,7 +3527,7 @@ end do
 end function
 
 
-!------------------- Calculate ESP due to electrons at a point
+!!--------------- Calculate ESP due to electrons
 !Note that the negative sign of electron has already been taken into account
 !If user requests to use the old ESP code, or LIBRETA has not been (e.g. forgotten to be) initialized for present wavefunction, then use the old one
 real*8 function eleesp(Cx,Cy,Cz)
@@ -3402,18 +3543,18 @@ else
 end if
 end function
 
-!------------ Slow code of calculating ESP from electrons at a point
+!!------------ Slow code of calculating ESP from electrons
 real*8 function eleesp1(Cx,Cy,Cz)
 implicit none
 integer,parameter :: narrmax=396 !Enough for h-type GTF, 5+5=10. Alri(0:10,0:5,0:5)-->11*6*6=396
 real*8 Cx,Cy,Cz,term,ep,Ax,Ay,Az,Bx,By,Bz,Aexp,Bexp,Px,Py,Pz,prefac,tmpval
 real*8 sqPC,sqAB,expngaPC,PAx,PAy,PAz,PBx,PBy,PBz,PCx,PCy,PCz,fjtmp,addesp
 real*8 Alri(narrmax),Amsj(narrmax),Antk(narrmax),Fn(0:10) !Enough for h-type GTF, 5+5=10
-real*8 twoepsqPC,tl,tm,tn,espprivate,espexpcut,espprecutoff
+real*8 twoepsqPC,tl,tm,tn,espprivate
 integer nu,imo,iprim,jprim,maxFn,maplri(narrmax),mapmsj(narrmax),mapntk(narrmax),tmpnuml,tmpnumm,tmpnumn
 integer Aix,Aiy,Aiz,Bix,Biy,Biz,l,r,i,m,s,j,n,t,k,icen,jcen,sumAi,sumBi
+
 eleesp1=0D0
-espexpcut=log10(espprecutoff)*3
 !$OMP parallel do private(Aix,Aiy,Aiz,Bix,Biy,Biz,l,r,i,m,s,j,n,t,k,icen,jcen,sumAi,sumBi, &
 !$OMP nu,imo,iprim,jprim,maxFn,maplri,mapmsj,mapntk,tmpnuml,tmpnumm,tmpnumn,&
 !$OMP twoepsqPC,tl,tm,tn,Alri,Amsj,Antk,Fn,&
@@ -3459,17 +3600,13 @@ do iprim=1,nprims
 		tmpval=-Aexp*Bexp*sqAB/ep
 		prefac=2*pi/ep*dexp(tmpval)
 		
-		if (-ep*sqPC>espexpcut) then
-			expngaPC=dexp(-ep*sqPC)
-		else
-			expngaPC=0
-		end if
+		expngaPC=dexp(-ep*sqPC)
 		maxFn=sumAi+sumBi
 		Fn(maxFn)=Fmch(maxFn,ep*sqPC,expngaPC)
 		nu=maxFn
 		twoepsqPC=2*ep*sqPC
 		do while (nu>0)
-			Fn(nu-1)=(expngaPC+twoepsqPC*Fn(nu))/(2*nu-1) !cook book p280
+			Fn(nu-1)=(expngaPC+twoepsqPC*Fn(nu))/(2*nu-1) !Cook book p280
 			nu=nu-1
 		end do
 
@@ -3481,7 +3618,7 @@ do iprim=1,nprims
 			do r=0,l/2D0
 				do i=0,(l-2*r)/2D0
 					tmpnuml=tmpnuml+1
-					Alri(tmpnuml)=Afac(l,r,i,PCx,ep,fjtmp)
+					Alri(tmpnuml)=getAfac(l,r,i,PCx,ep,fjtmp)
 					maplri(tmpnuml)=l-2*r-i
 				end do
 			end do
@@ -3495,7 +3632,7 @@ do iprim=1,nprims
 			do s=0,m/2D0
 				do j=0,(m-2*s)/2D0
 					tmpnumm=tmpnumm+1
-					Amsj(tmpnumm)=Afac(m,s,j,PCy,ep,fjtmp)
+					Amsj(tmpnumm)=getAfac(m,s,j,PCy,ep,fjtmp)
 					mapmsj(tmpnumm)=m-2*s-j
 				end do
 			end do
@@ -3509,7 +3646,7 @@ do iprim=1,nprims
 			do t=0,n/2D0
 				do k=0,(n-2*t)/2D0
 					tmpnumn=tmpnumn+1
-					Antk(tmpnumn)=Afac(n,t,k,PCz,ep,fjtmp)
+					Antk(tmpnumn)=getAfac(n,t,k,PCz,ep,fjtmp)
 					mapntk(tmpnumn)=n-2*t-k
 				end do
 			end do
@@ -3542,7 +3679,8 @@ eleesp1=-eleesp1
 end function
 
 
-!!!------------ Calculate ESP in a plane. In due time, cubegen will be employed instead of internal code to evaluate ESP
+
+!!------------ Calculate ESP in a plane. In due time, cubegen will be employed instead of internal code to evaluate ESP
 subroutine planeesp
 use util
 implicit real*8 (a-h,o-z)
@@ -3637,15 +3775,17 @@ else
 end if
 end subroutine
 
-!!!----------- Calculate ESP contributed by electron in a plane and save to planemap, using old and slow code (but optimized for calculate plane)
-!We don't allocate Alrivec,Amsjvec,Antkvec dynamically since if we do this, this routine will crash in win7-64bit system.
+
+
+!!----------- Calculate ESP contributed by electron in a plane and save to planemap, using old and slow code (but optimized for calculate plane)
+!We do not allocate Alrivec,Amsjvec,Antkvec dynamically since if we do this, this routine will crash in win7-64bit system.
 !The reason may be that dynamical arrays are not fully compatiable with private property in OpenMP
 subroutine planeeleesp
 use util
 implicit real*8 (a-h,o-z)
 integer,parameter :: narrmax=396 !Enough for h-type GTF, 5+5=10. Alri(0:10,0:5,0:5)-->11*6*6=396
 real*8 Cx,Cy,Cz,Cxold,Cyold,Czold,term,ep,Ax,Ay,Az,Bx,By,Bz,Aexp,Bexp,Px,Py,Pz,prefac,tmpval
-real*8 sqPC,sqAB,expngaPC,PAx,PAy,PAz,PBx,PBy,PBz,PCx,PCy,PCz,fjtmp,addesp,espexpcut
+real*8 sqPC,sqAB,expngaPC,PAx,PAy,PAz,PBx,PBy,PBz,PCx,PCy,PCz,fjtmp,addesp
 real*8 Alri(narrmax),Amsj(narrmax),Antk(narrmax),Fnmat(0:ngridnum1-1,0:ngridnum2-1),Fnvec(0:10) !Enough for h-type GTF, 5+5=10
 real*8,allocatable :: Alrivec(:,:),Amsjvec(:,:),Antkvec(:,:)
 real*8 twoepsqPC,tl,tm,tn,pleprivate(ngridnum1,ngridnum2) !Store plane contribution of GTFs in each thread, then sum up
@@ -3657,7 +3797,6 @@ allocate(Alrivec(narrmax,maxnumgrid),Amsjvec(narrmax,maxnumgrid),Antkvec(narrmax
 
 planemat=0
 ifinish=0
-espexpcut=log10(espprecutoff)*3
 !$OMP PARALLEL DO private(Aix,Aiy,Aiz,Bix,Biy,Biz,l,r,i,m,s,j,n,t,k,icen,jcen,sumAi,sumBi,ii,jj,planetype,numx,numy,numz,&
 !$OMP nu,imo,iprim,jprim,maxFn,maplri,mapmsj,mapntk,tmpnuml,tmpnumm,tmpnumn,&
 !$OMP twoepsqPC,tl,tm,tn,Alrivec,Amsjvec,Antkvec,Alri,Amsj,Antk,Fnmat,Fnvec,&
@@ -3697,7 +3836,6 @@ do iprim=1,nprims
 		sqAB=(Ax-Bx)**2+(Ay-By)**2+(Az-Bz)**2
 		tmpval=-Aexp*Bexp*sqAB/ep
 		prefac=2*pi/ep*dexp(tmpval)
-		if (prefac<espprecutoff) cycle
 			
 		Cxold=999.99912D0 !An arbitrary number
 		Cyold=999.99912D0
@@ -3717,11 +3855,7 @@ do iprim=1,nprims
 				sqPC=PCx*PCx+PCy*PCy+PCz*PCz
 				twoepsqPC=2*ep*sqPC
 				term=0D0
-				if (-ep*sqPC>espexpcut) then
-					expngaPC=dexp(-ep*sqPC)
-				else
-					expngaPC=0D0
-				end if
+                expngaPC=dexp(-ep*sqPC)
 				Fnmat(ii,jj)=Fmch(maxFn,ep*sqPC,expngaPC)
 				Fnvec(maxFn)=Fnmat(ii,jj)
 				do nu=maxFn,1,-1
@@ -3737,7 +3871,7 @@ do iprim=1,nprims
 						do r=0,l/2D0
 							do i=0,(l-2*r)/2D0
 								tmpnuml=tmpnuml+1
-								Alri(tmpnuml)=Afac(l,r,i,PCx,ep,fjtmp)
+								Alri(tmpnuml)=getAfac(l,r,i,PCx,ep,fjtmp)
 								maplri(tmpnuml)=l-2*r-i
 							end do
 						end do
@@ -3753,7 +3887,7 @@ do iprim=1,nprims
 						do s=0,m/2D0
 							do j=0,(m-2*s)/2D0
 								tmpnumm=tmpnumm+1
-								Amsj(tmpnumm)=Afac(m,s,j,PCy,ep,fjtmp)
+								Amsj(tmpnumm)=getAfac(m,s,j,PCy,ep,fjtmp)
 								mapmsj(tmpnumm)=m-2*s-j
 							end do
 						end do
@@ -3769,7 +3903,7 @@ do iprim=1,nprims
 						do t=0,n/2D0
 							do k=0,(n-2*t)/2D0
 								tmpnumn=tmpnumn+1
-								Antk(tmpnumn)=Afac(n,t,k,PCz,ep,fjtmp)
+								Antk(tmpnumn)=getAfac(n,t,k,PCz,ep,fjtmp)
 								mapntk(tmpnumn)=n-2*t-k
 							end do
 						end do
@@ -3809,7 +3943,7 @@ end subroutine
 
 
 
-!!!----------- Calculate grid data of total ESP
+!!----------- Calculate grid data of total ESP
 !This subroutine uses old and slow code
 subroutine cubesp
 use util
@@ -3818,15 +3952,11 @@ integer,parameter :: narrmax=396 !Enough for h-type GTF, 5+5=10. Alri(0:10,0:5,0
 real*8 Cx,Cy,Cz,term,ep,Ax,Ay,Az,Bx,By,Bz,Aexp,Bexp,Px,Py,Pz,prefac,tmpval
 real*8 sqPC,sqAB,expngaPC,PAx,PAy,PAz,PBx,PBy,PBz,PCx,PCy,PCz,fjtmp,addesp
 real*8 Alrivec(narrmax,nx),Amsjvec(narrmax,ny),Antkvec(narrmax,nz),Fnmat(0:nx-1,0:ny-1,0:nz-1),Fnvec(0:10) !Enough for h-type GTF, 5+5=10
-real*8 twoepsqPC,tl,tm,tn,time_begin,time_end,espexpcut,espprecutoff,cubprivate(nx,ny,nz)
+real*8 twoepsqPC,tl,tm,tn,time_begin,time_end,cubprivate(nx,ny,nz)
 integer nu,imo,iprim,jprim,maxFn,maplri(narrmax),mapmsj(narrmax),mapntk(narrmax),tmpnuml,tmpnumm,tmpnumn
 integer Aix,Aiy,Aiz,Bix,Biy,Biz,l,r,i,m,s,j,n,t,k,icen,jcen,sumAi,sumBi,ii,jj,kk,ifinish
-!In order to speed up ESP evaluation, some integrals that have little contributions can be ignored. 
-!The threshold is controlled by "espprecutoff", enlarging this parameter results in more accurate ESP value, 
-!but also brings higher computational cost
-espprecutoff=0
+
 ifinish=0
-espexpcut=log10(espprecutoff)*3
 call showprog(0,nprims)
 !$OMP PARALLEL DO private(Aix,Aiy,Aiz,Bix,Biy,Biz,l,r,i,m,s,j,n,t,k,icen,jcen,sumAi,sumBi,ii,jj,kk, &
 !$OMP nu,imo,iprim,jprim,maxFn,maplri,mapmsj,mapntk,tmpnuml,tmpnumm,tmpnumn, &
@@ -3868,7 +3998,6 @@ do iprim=1,nprims
 		tmpval=-Aexp*Bexp*sqAB/ep
 		
 		prefac=2*pi/ep*dexp(tmpval)
-		if (prefac<espprecutoff) cycle
 		sumBi=Bix+Biy+Biz
 		maxFn=sumAi+sumBi
 
@@ -3883,7 +4012,7 @@ do iprim=1,nprims
 				do r=0,l/2D0
 					do i=0,(l-2*r)/2D0
 						tmpnuml=tmpnuml+1
-						Alrivec(tmpnuml,ii)=Afac(l,r,i,PCx,ep,fjtmp)
+						Alrivec(tmpnuml,ii)=getAfac(l,r,i,PCx,ep,fjtmp)
 						maplri(tmpnuml)=l-2*r-i
 					end do
 				end do
@@ -3900,7 +4029,7 @@ do iprim=1,nprims
 				do s=0,m/2D0
 					do j=0,(m-2*s)/2D0
 						tmpnumm=tmpnumm+1
-						Amsjvec(tmpnumm,ii)=Afac(m,s,j,PCy,ep,fjtmp)
+						Amsjvec(tmpnumm,ii)=getAfac(m,s,j,PCy,ep,fjtmp)
 						mapmsj(tmpnumm)=m-2*s-j
 					end do
 				end do
@@ -3917,7 +4046,7 @@ do iprim=1,nprims
 				do t=0,n/2D0
 					do k=0,(n-2*t)/2D0
 						tmpnumn=tmpnumn+1
-						Antkvec(tmpnumn,ii)=Afac(n,t,k,PCz,ep,fjtmp)
+						Antkvec(tmpnumn,ii)=getAfac(n,t,k,PCz,ep,fjtmp)
 						mapntk(tmpnumn)=n-2*t-k
 					end do
 				end do
@@ -3937,11 +4066,7 @@ do iprim=1,nprims
 					sqPC=PCx*PCx+PCy*PCy+PCz*PCz
 					twoepsqPC=2*ep*sqPC
 					term=0D0
-					if (-ep*sqPC>espexpcut) then
-						expngaPC=dexp(-ep*sqPC)
-					else
-						expngaPC=0D0
-					end if
+                    expngaPC=dexp(-ep*sqPC)
 					Fnmat(ii,jj,kk)=Fmch(maxFn,ep*sqPC,expngaPC)
                     Fnvec(maxFn)=Fnmat(ii,jj,kk)
 					do nu=maxFn,1,-1
@@ -3987,26 +4112,17 @@ do k=1,nz
 	end do
 end do
 !$OMP END PARALLEL DO
-
 end subroutine
 
 
 
 
-
-
-!========================================================================
-!============== Utilities routine for function module ===================
-!========================================================================
-
-!!!---------- Generate nuclear attraction potential integral matrix between all GTFs at a given point
+!!---------- Generate nuclear attraction potential integral matrix between all GTFs at a given point
 !Used by PAEM
 subroutine genGTFattmat(x,y,z,GTFattmat)
-use defvar
 integer,parameter :: narrmax=396
 real*8 x,y,z,GTFattmat(nprims,nprims),Alri(narrmax),Amsj(narrmax),Antk(narrmax),Fn(0:10) !Enough for h-type GTF, 5+5=10. Alri(0:10,0:5,0:5)-->11*6*6=396
 integer maxFn,maplri(narrmax),mapmsj(narrmax),mapntk(narrmax),tmpnuml,tmpnumm,tmpnumn,Aix,Aiy,Aiz,Bix,Biy,Biz,r,s,t,sumAi,sumBi
-espexpcut=log10(espprecutoff)*3
 !$OMP parallel do private(Aix,Aiy,Aiz,Bix,Biy,Biz,l,r,i,m,s,j,n,t,k,icen,jcen,sumAi,sumBi, &
 !$OMP nu,iprim,jprim,maxFn,maplri,mapmsj,mapntk,tmpnuml,tmpnumm,tmpnumn,&
 !$OMP twoepsqPC,tl,tm,tn,Alri,Amsj,Antk,Fn,sqPC,sqAB,expngaPC,PAx,PAy,PAz,PBx,PBy,PBz,PCx,PCy,PCz,fjtmp,&
@@ -4048,11 +4164,7 @@ do iprim=1,nprims
 		sqPC=PCx*PCx+PCy*PCy+PCz*PCz
 		tmpval=-Aexp*Bexp*sqAB/ep
 		prefac=2*pi/ep*dexp(tmpval)
-		if (-ep*sqPC>espexpcut) then
-			expngaPC=dexp(-ep*sqPC)
-		else
-			expngaPC=0
-		end if
+        expngaPC=dexp(-ep*sqPC)
 		maxFn=sumAi+sumBi
 		Fn(maxFn)=Fmch(maxFn,ep*sqPC,expngaPC)
 		nu=maxFn
@@ -4070,7 +4182,7 @@ do iprim=1,nprims
 			do r=0,l/2D0
 				do i=0,(l-2*r)/2D0
 					tmpnuml=tmpnuml+1
-					Alri(tmpnuml)=Afac(l,r,i,PCx,ep,fjtmp)
+					Alri(tmpnuml)=getAfac(l,r,i,PCx,ep,fjtmp)
 					maplri(tmpnuml)=l-2*r-i
 				end do
 			end do
@@ -4083,7 +4195,7 @@ do iprim=1,nprims
 			do s=0,m/2D0
 				do j=0,(m-2*s)/2D0
 					tmpnumm=tmpnumm+1
-					Amsj(tmpnumm)=Afac(m,s,j,PCy,ep,fjtmp)
+					Amsj(tmpnumm)=getAfac(m,s,j,PCy,ep,fjtmp)
 					mapmsj(tmpnumm)=m-2*s-j
 				end do
 			end do
@@ -4096,7 +4208,7 @@ do iprim=1,nprims
 			do t=0,n/2D0
 				do k=0,(n-2*t)/2D0
 					tmpnumn=tmpnumn+1
-					Antk(tmpnumn)=Afac(n,t,k,PCz,ep,fjtmp)
+					Antk(tmpnumn)=getAfac(n,t,k,PCz,ep,fjtmp)
 					mapntk(tmpnumn)=n-2*t-k
 				end do
 			end do
@@ -4119,8 +4231,9 @@ end do !end i primitive
 !$OMP end parallel do
 end subroutine
 
-!!!------------------------- Calculate A-factor at Cook book p245
-real*8 function Afac(l,r,i,PC,gamma,fjtmp)
+
+!!-------------------- Calculate A-factor at Cook book p245
+real*8 function getAfac(l,r,i,PC,gamma,fjtmp)
 integer l,r,i,ti
 real*8 gamma,PC,comp,PCterm,fjtmp
 ti=1D0
@@ -4128,12 +4241,13 @@ if (mod(i,2)==1) ti=-1D0 !faster than ti=(-1)**i
 PCterm=1D0
 if (l-2*r-2*i/=0) PCterm=PC**(l-2*r-2*i)
 comp=ti*PCterm*(0.25D0/gamma)**(r+i) / ( fact(r)*fact(i)*fact(l-2*r-2*i) )
-Afac=fjtmp*comp
+getAfac=fjtmp*comp
 ! comp=(-1)**i*fact(l)*PC**(l-2*r-2*i)*(1/(4*gamma))**(r+i) / ( fact(r)*fact(i)*fact(l-2*r-2*i) )
-! Afac=(-1)**l * fj(l,l1,l2,PA,PB)*comp
+! getAfac=(-1)**l * fj(l,l1,l2,PA,PB)*comp
 end function      
 
-!!!------------------------- Calculate fj at Cook book p237
+
+!!---------------- Calculate fj at Cook book p237
 real*8 function fj(j,l,m,aa,bb)
 real*8 aa,bb,pre,at,bt
 integer j,l,m,k,imin,imax
@@ -4150,10 +4264,11 @@ do k=imin,imax
 end do
 end function
 
-!!!---- Calculate int('t^(2*m)*exp(-x*t^2)','t',0,1), see Cook book p281 for detail
+
+!!------- Calculate Boys function int('t^(2*m)*exp(-x*t^2)','t',0,1), see Cook book p281 for detail
+!expnx is input parameter, value should be exp(-x), because calculation of the value is time-consuming and in
+!other place this value also need be calculate, so not recalculate in this subroutine
 real*8 function Fmch(m,x,expnx)
-! expnx is input parameter, value should be exp(-x), because calculate the value is time-consuming and in
-! other place this value also need be calculate, so not recalculate in this subroutine
 IMPLICIT none
 integer m,i
 real*8 x,expnx,a,b,term,partsum,APPROX,xd,FIMULT,NOTRMS,eps,fiprop
@@ -4211,10 +4326,10 @@ end function
 
 
 
-!!!------------- Generate Becke weight function, only used by Sobereva
+
+!!------------- Generate Becke weight function, only used by Sobereva
 !If inp2=0, then return atomic space weight of atom inp1, else return overlap weight of atom inp1 and inp2
 real*8 function beckewei(x,y,z,inp1,inp2)
-use defvar
 real*8 x,y,z
 integer inp1,inp2
 ! integer :: fraglist(13)=(/ 24,12,23,4,11,3,22,1,10,2,18,20,21 /)
@@ -4232,7 +4347,8 @@ end function
 
 
 
-!!!-------- Ellipticity of electron density (itype=1) or eta (itype=2)
+
+!!-------- Calculate ellipticity of electron density (itype=1) or eta (itype=2)
 real*8 function densellip(x,y,z,itype)
 use util
 integer itype
@@ -4251,7 +4367,9 @@ end if
 end function
 
 
-!!!-------------- Single exponential decay detector (SEDD)
+
+
+!!-------------- Calculate single exponential decay detector (SEDD)
 !Originally proposed in ChemPhysChem, 13, 3462 (2012), current implementation is based on the new definition in DORI paper (10.1021/ct500490b)
 real*8 function SEDD(x,y,z)
 real*8 x,y,z,rho,grad(3),hess(3,3)
@@ -4268,7 +4386,9 @@ SEDD=dlog(1+eps)
 end function
 
 
-!!!-------------- Density Overlap Regions Indicator (DORI)
+
+
+!!-------------- Calculate density Overlap Regions Indicator (DORI)
 real*8 function DORI(x,y,z)
 real*8 x,y,z,rho,grad(3),hess(3,3)
 call calchessmat_dens(2,x,y,z,rho,grad,hess)
@@ -4285,7 +4405,8 @@ end function
 
 
 
-!!!------------- Interaction region indicator at a point
+
+!!------------- Calculate interaction region indicator (IRI)
 real*8 function IRIfunc(x,y,z)
 real*8 x,y,z,rho,grad(3),hess(3,3)
 call calchessmat_dens(1,x,y,z,rho,grad,hess)
@@ -4293,11 +4414,81 @@ gradnorm=dsqrt(sum(grad**2))
 tmp=uservar
 if (uservar==0) tmp=1.1D0
 IRIfunc=gradnorm/rho**tmp
+if (rho==0D0) IRIfunc=5 !Arbitary large value
 if (IRI_rhocut/=0.and.(gradnorm==0D0.or.rho<=IRI_rhocut)) IRIfunc=5
 end function
 
 
-!!!------------- Simultaneously calculate interaction region indicator and sign(lambda2)rho at a point
+
+
+!!--------- Calculate gradient and Hessian of IRI or RDG or others with general form: c*|der_rho|/rho^a
+!itype=1 Only calculate value and grad, =2 Calculate value, gradient and Hessian
+!ifunc=1: IRI, =2: RDG
+subroutine calchessmat_IRI_RDG(itype,ifunc,x,y,z,value,grad,hess)
+implicit real*8 (a-h,o-z)
+integer itype,ifunc
+real*8 x,y,z,value,grad(3),hess(3,3),rhograd(3),rhohess(3,3),rhotens3(3,3,3),gnormgrad(3),gnormhess(3,3)
+
+call rho_tensor(x,y,z,rho,rhograd,rhohess,rhotens3)
+rhograd2=sum(rhograd**2)
+gnorm=dsqrt(rhograd2)
+
+if (ifunc==1) then !IRI
+	cfac=1
+    afac=1.1D0
+else if (ifunc==2) then !RDG
+	cfac=0.161620459673995D0 !=1/(2*(3*pi**2)**(1/3))
+    afac=4D0/3D0
+end if
+value=cfac*gnorm/rho**afac
+
+!Calculate gradient of intermediate quantity |der_rho|
+gnormgrad=0
+do idir=1,3
+	do jdir=1,3
+		gnormgrad(idir)=gnormgrad(idir)+rhograd(jdir)*rhohess(idir,jdir)
+    end do
+end do
+gnormgrad=gnormgrad/gnorm
+
+!Calculate gradient
+tmp1=-afac*gnorm/rho**(afac+1)
+do i=1,3
+    grad(i)=tmp1*rhograd(i)+gnormgrad(i)/rho**afac
+end do
+grad=grad*cfac
+
+if (itype==2) then
+	!Calculate Hessian of intermediate quantity |der_rho|
+	do i=1,3
+		do j=1,3
+			tmp=0
+			tmp2=0
+			do k=1,3
+				tmp=tmp+rhograd(k)*rhohess(k,i)
+				tmp2=tmp2+rhohess(k,i)*rhohess(k,j)+rhograd(k)*rhotens3(k,i,j)
+            end do
+			gnormhess(i,j)=-1D0/rhograd2*gnormgrad(j)*tmp+tmp2/gnorm
+		end do
+	end do
+
+	!Calculate Hessian
+	do i=1,3
+		do j=1,3
+			tmp1=-(afac+1)/rho**(afac+2)*rhograd(j)*gnorm*rhograd(i) + 1D0/rho**(afac+1)*gnormgrad(j)*rhograd(i) + gnorm/rho**(afac+1)*rhohess(i,j)
+			tmp2=-afac/rho**(afac+1)*rhograd(j)*gnormgrad(i)
+			tmp3=gnormhess(i,j)/rho**afac
+			hess(i,j) = -afac*tmp1 + tmp2 + tmp3
+		end do
+	end do
+	hess=hess*cfac
+end if
+end subroutine
+
+
+
+
+!!------------- Simultaneously calculate interaction region indicator and sign(lambda2)rho to reduce cost
 subroutine IRI_s2lr(x,y,z,sl2rval,IRIval)
 use util
 real*8 x,y,z,IRIval,sl2rval,rho,grad(3),hess(3,3)
@@ -4323,14 +4514,14 @@ end subroutine
 
 
 
-!!!----- Integrand of LSDA exchange functional
+!!----- Integrand of LSDA exchange functional
 real*8 function xLSDA(x,y,z)
 real*8 x,y,z
 call gendensgradab(x,y,z,adens,bdens,tdens,agrad,bgrad,tgrad,abgrad)
 xLSDA=-3D0/2D0*(3D0/4D0/pi)**(1D0/3D0)*(adens**(4D0/3D0)+bdens**(4D0/3D0))
 end function
 
-!!!----- Integrand of Becke88 exchange functional
+!!----- Integrand of Becke88 exchange functional
 real*8 function xBecke88(x,y,z)
 real*8 x,y,z
 call gendensgradab(x,y,z,adens,bdens,tdens,agrad,bgrad,tgrad,abgrad)
@@ -4350,7 +4541,7 @@ Beckex=-0.0042D0*(Beckexa+Beckexb)
 xBecke88=slaterx+Beckex
 end function
 
-!!!----- Integrand of LYP corelation functional
+!!------ Integrand of LYP corelation functional
 real*8 function cLYP(x,y,z)
 real*8 x,y,z
 call gendensgradab(x,y,z,adens,bdens,tdens,agrad,bgrad,tgrad,abgrad)
@@ -4373,8 +4564,10 @@ cLYP=tmp1-parma*parmb*parmw*(tmp2+tmp3)
 end function
 
 
-!!!--- Integrand of Weizsacker (steric energy)
-! DO NOT consider EDF, because the result outputted by quantum chemistry programs is always only for valence electrons!
+
+
+!!------ Integrand of Weizsacker kinetic functional (steric energy)
+! DO NOT consider EDF, because the kinetic energy outputted by quantum chemistry programs is always only for explicitly represented electrons!
 real*8 function weizsacker(x,y,z)
 real*8 x,y,z,wfnval(nmo),wfnderv(3,nmo),gradrho(3) !,EDFgrad(3)
 call orbderv(2,1,nmo,x,y,z,wfnval,wfnderv)
@@ -4396,7 +4589,7 @@ else
 	weizsacker=sum(gradrho(:)**2)/8/rho
 end if
 end function
-!!!--- Weizsacker potential, essentially identical to stericpot(x,y,z)
+!!----- Weizsacker potential, essentially identical to stericpot(x,y,z)
 real*8 function weizpot(x,y,z)
 real*8 x,y,z,wfnval(nmo),wfnderv(3,nmo),wfnhess(3,3,nmo),gradrho(3),laplx,laply,laplz,lapltot
 rho=0D0
@@ -4418,7 +4611,9 @@ weizpot=sum(gradrho(:)**2)/8D0/rho**2-lapltot/4D0/rho
 end function
 
 
-!!!--- Steric potential (J. Chem. Phys., 126, 244103), which negative value is one-electron potential, essentially identical to weizpot(x,y,z)
+
+
+!!------ Steric potential, whose negative value is one-electron potential, essentially identical to weizpot(x,y,z)
 real*8 function stericpot(x,y,z)
 real*8 x,y,z,gradrho(3),hessrho(3,3),lapltot
 call calchessmat_dens(2,x,y,z,rho,gradrho,hessrho)
@@ -4430,7 +4625,7 @@ end if
 stericpot=sum(gradrho**2)/(rho+steric_addminimal)**2/8D0-lapltot/(rho+steric_addminimal)/4D0
 end function
 
-!!!----- Calculate the first-order derivative of steric potential
+!!------ Calculate analytic first-order derivative of steric potential
 subroutine stericderv(x,y,z,derv)
 real*8 x,y,z,derv(3)
 real*8 eleval,elegrad(3),elehess(3,3),laplval,laplgrad(3),rhotens3(3,3,3)
@@ -4489,7 +4684,7 @@ do i=1,3 !x,y,z
 end do
 end subroutine
 
-!---- Magnitude of steric force
+!!---- Magnitude of steric force
 real*8 function stericforce(x,y,z)
 real*8 x,y,z,derv(3)
 call stericderv(x,y,z,derv)
@@ -4497,9 +4692,10 @@ stericforce=dsqrt(sum(derv**2))
 end function
 
 
+
 !memo: Shubin reported that steric potential/force is quite sensitive to steric_addminimal, &
 !so 2016-Sep-30 I devised another solution to solve the diverse behavior of steric potential/force via Becke's damping function
-!!!--- Steric potential with damping function to zero
+!!---- Steric potential with damping function to zero
 real*8 function stericpot_damp(x,y,z)
 real*8 x,y,z,gradrho(3),hessrho(3,3),lapltot
 call calchessmat_dens(2,x,y,z,rho,gradrho,hessrho)
@@ -4519,7 +4715,7 @@ else
 end if
 stericpot_damp=stericpotorg*consorg+steric_potcons*(1-consorg)
 end function
-!!!--- Steric force based on damped steric potential
+!!---- Steric force based on damped steric potential
 real*8 function stericforce_damp(x,y,z)
 real*8 x,y,z,derv(3)
 diffstep=2D-5
@@ -4528,7 +4724,7 @@ derv(2)=(stericpot_damp(x,y+diffstep,z)-stericpot_damp(x,y-diffstep,z))/(2*diffs
 derv(3)=(stericpot_damp(x,y,z+diffstep)-stericpot_damp(x,y,z-diffstep))/(2*diffstep)
 stericforce_damp=dsqrt(sum(derv**2))
 end function
-!!!--- Steric force directly damped to zero rather than based on damped steric potential
+!!---- Steric force directly damped to zero rather than based on damped steric potential
 real*8 function stericforce_directdamp(x,y,z)
 real*8 x,y,z
 weiwidth=2
@@ -4551,8 +4747,9 @@ end function
 
 
 
-!!!----- Steric charge, =lapl(steric potential)/(-4*pi)
-! Based on analytical first-order derivative, using finite difference to obtain d2v/dx2, d2v/dy2 and d2v/dz2
+
+!!------- Steric charge, =lapl(steric potential)/(-4*pi)
+!Based on analytical first-order derivative, using finite difference to obtain d2v/dx2, d2v/dy2 and d2v/dz2
 real*8 function stericcharge(x,y,z)
 real*8 x,y,z,derv1add(3),derv1min(3)
 if (fdens(x,y,z)<steric_potcutrho) then
@@ -4573,7 +4770,9 @@ stericcharge=-(derv2x+derv2y+derv2z)/4D0/pi
 end function
 
 
-!!!----- Calculate Fisher information density, see JCP,126,191107 for example
+
+
+!!------ Calculate Fisher information density
 !itype=1 Normal definition
 !itype=2 Second Fisher information density, Eq.5 of JCP,126,191107
 real*8 function Fisherinfo(itype,x,y,z)
@@ -4587,14 +4786,93 @@ if (itype==2) Fisherinfo=-flapl(x,y,z,'t')*log(eleval)
 end function
 
 
-!!!----- Ghosh entropy density, PNAS, 81, 8028
+
+
+!!--------- Calculate gradient and Hessian of Fisher information density
+subroutine Fisherinfo_gradhess(x,y,z,value,grad,hess)
+implicit real*8 (a-h,o-z)
+real*8 x,y,z,value,grad(3),hess(3,3),rhograd(3),rhohess(3,3),rhotens3(3,3,3)
+
+call rho_tensor(x,y,z,rho,rhograd,rhohess,rhotens3)
+
+rhograd2=sum(rhograd**2)
+value=rhograd2/rho
+
+tmp1=-rhograd2/rho**2
+do i=1,3 !dx, dy, dz
+	tmp2=0
+	do idir=1,3 !Loop x,y,z
+		tmp2=tmp2+rhograd(idir)*rhohess(idir,i)
+    end do
+    grad(i)=tmp1*rhograd(i)+2/rho*tmp2
+end do
+
+tmp1=2/rho**3*rhograd2
+do i=1,3 !dx, dy, dz
+	do j=1,3 !dx, dy, dz
+		tmp2=0
+		tmp3=0
+		tmp4=0
+		do idir=1,3 !Loop x,y,z
+			tmp2=tmp2+rhograd(idir)*rhohess(idir,j)
+			tmp3=tmp3+rhograd(idir)*rhohess(idir,i)
+			tmp4=tmp4+rhohess(idir,i)*rhohess(idir,j)+rhograd(idir)*rhotens3(idir,i,j)
+		end do
+        hess(i,j) = tmp1*rhograd(i)*rhograd(j) - 2/rho**2*rhograd(i)*tmp2 - rhograd2/rho**2*rhohess(i,j) - 2/rho**2*rhograd(j)*tmp3 + 2/rho*tmp4
+    end do
+end do
+end subroutine
+
+
+
+
+!!--------- Calculate gradient (analytically) and Hessian (semi-numerical) of second Fisher information density
+subroutine second_Fisherinfo_gradhess(x,y,z,value,grad,hess)
+implicit real*8 (a-h,o-z)
+real*8 x,y,z,value,grad(3),hess(3,3)
+real*8 gradaddx(3),gradminx(3),gradaddy(3),gradminy(3),gradaddz(3),gradminz(3)
+call second_Fisherinfo_grad(x,y,z,value,grad)
+diff=8D-4
+denom=2D0*diff
+call second_Fisherinfo_grad(x+diff,y,z,tmpval,gradaddx)
+call second_Fisherinfo_grad(x-diff,y,z,tmpval,gradminx)
+call second_Fisherinfo_grad(x,y+diff,z,tmpval,gradaddy)
+call second_Fisherinfo_grad(x,y-diff,z,tmpval,gradminy)
+call second_Fisherinfo_grad(x,y,z+diff,tmpval,gradaddz)
+call second_Fisherinfo_grad(x,y,z-diff,tmpval,gradminz)
+hess(1,1)=(gradaddx(1)-gradminx(1))/denom
+hess(2,2)=(gradaddy(2)-gradminy(2))/denom
+hess(3,3)=(gradaddz(3)-gradminz(3))/denom
+hess(1,2)=(gradaddy(1)-gradminy(1))/denom
+hess(2,3)=(gradaddz(2)-gradminz(2))/denom
+hess(1,3)=(gradaddz(1)-gradminz(1))/denom
+hess(2,1)=hess(1,2)
+hess(3,2)=hess(2,3)
+hess(3,1)=hess(1,3)
+end subroutine
+!!--------- Analytically calculate gradient of second Fisher information density
+subroutine second_Fisherinfo_grad(x,y,z,value,grad)
+implicit real*8 (a-h,o-z)
+real*8 x,y,z,value,grad(3),rhograd(3),rhohess(3,3),rhotens3(3,3,3)
+call rho_tensor(x,y,z,rho,rhograd,rhohess,rhotens3)
+rholapl=rhohess(1,1)+rhohess(2,2)+rhohess(3,3)
+value=-rholapl*log(rho)
+do i=1,3
+	grad(i)=-(rhotens3(1,1,i)+rhotens3(2,2,i)+rhotens3(3,3,i))*log(rho)-rholapl/rho*rhograd(i)
+end do
+end subroutine
+
+
+
+
+!!------ Ghosh entropy density
 !If itype==1, G(r) will be used as kinetic energy density
 !If itype==2, G(r)-der2rho/8 will be used instead, which is the kinetic energy density exactly corresponding to Eq. 22 of PNAS, 81, 8028.
 real*8 function Ghoshentro(x,y,z,itype)
 integer itype
 real*8 kintot,x,y,z,wfnval(nmo),wfnderv(3,nmo),wfnhess(3,3,nmo)
 if (itype==1) call orbderv(2,1,nmo,x,y,z,wfnval,wfnderv)
-if (itype==2) call orbderv(3,1,nmo,x,y,z,wfnval,wfnderv,wfnhess) !If K(r) is used, use this!!!
+if (itype==2) call orbderv(3,1,nmo,x,y,z,wfnval,wfnderv,wfnhess) !If K(r) is used, use this
 rho=0D0
 do i=1,nmo
 	rho=rho+MOocc(i)*wfnval(i)**2
@@ -4629,7 +4907,8 @@ end function
 
 
 
-!!!----- Relative Shannon entropy density, also known as information gain density
+
+!!------ Relative Shannon entropy density, also known as information gain density
 !Must call generate_promolwfn prior to using this function to make CO_pmol, MOocc_pmol, etc. available
 real*8 function relShannon(x,y,z)
 real*8 x,y,z,wfnval_pmol(nmo_pmol)
@@ -4655,6 +4934,7 @@ rho_0=sum( MOocc_pmol(1:nmo_pmol)*wfnval_pmol(1:nmo_pmol)**2 )
 
 relShannon=rho*log(rho/rho_0)
 end function
+
 
 
 
@@ -4684,7 +4964,8 @@ end subroutine
 
 
 
-!!!----- Pauli potential
+
+!!-------- Pauli potential
 !Only suitable for closed-shell cases
 real*8 function Paulipot(x,y,z)
 real*8 x,y,z
@@ -4695,7 +4976,7 @@ else if (ispecial==1) then !Strict definition
 end if
 end function
 
-!!!----- The magnitude of Pauli force, namely the gradient norm of negative Pauli potential
+!!------ The magnitude of Pauli force, namely the gradient norm of negative Pauli potential
 real*8 function pauliforce(x,y,z)
 real*8 x,y,z
 diff=2D-5
@@ -4705,7 +4986,7 @@ forcez=-(paulipot(x,y,z+diff)-paulipot(x,y,z-diff))/(2*diff)
 pauliforce=dsqrt(forcex**2+forcey**2+forcez**2)
 end function
 
-!!!----- Pauli charge, =lapl(Pauli potential)/(-4*pi)
+!!------ Pauli charge, =lapl(Pauli potential)/(-4*pi)
 real*8 function paulicharge(x,y,z)
 real*8 x,y,z
 diff=2D-4 !Should not be smaller, otherwise some dirty points will occur
@@ -4722,7 +5003,7 @@ zcomp=(valuezaddadd-2*value+valuezminmin)/(2*diff)**2
 paulicharge=(xcomp+ycomp+zcomp)/(-4*pi)
 end function
 
-!!!----- Quantum potential
+!!------ Quantum potential
 real*8 function quantumpot(x,y,z)
 real*8 x,y,z
 if (ispecial==0) then !Based on Pauli potential by assuming miu=0 (Eq. 17 of Comput. Theor. Chem., 1006, 92 (2013))
@@ -4732,7 +5013,7 @@ else if (ispecial==1) then !Based on strict definition of Pauli potential
 end if
 end function
 
-!!!----- The magnitude of quantum force, namely the gradient norm of quantum potential
+!!------ The magnitude of quantum force, namely the gradient norm of quantum potential
 real*8 function quantumforce(x,y,z)
 real*8 x,y,z
 diff=2D-5
@@ -4742,7 +5023,7 @@ forcez=-(quantumpot(x,y,z+diff)-quantumpot(x,y,z-diff))/(2*diff)
 quantumforce=dsqrt(forcex**2+forcey**2+forcez**2)
 end function
 
-!!!----- Quantum charge
+!!------ Quantum charge
 real*8 function quantumcharge(x,y,z)
 real*8 x,y,z
 diff=2D-4 !Should not be smaller, otherwise some dirty points will occur
@@ -4759,7 +5040,7 @@ zcomp=(valuezaddadd-2*value+valuezminmin)/(2*diff)**2
 quantumcharge=(xcomp+ycomp+zcomp)/(-4*pi)
 end function
 
-!!!----- The magnitude of electrostatic force, namely the gradient norm of electrostatic potential
+!!------ The magnitude of electrostatic force, namely the gradient norm of electrostatic potential
 real*8 function elestatforce(x,y,z)
 real*8 x,y,z
 diff=2D-5
@@ -4769,7 +5050,7 @@ forcez=-(-totesp(x,y,z+diff)+totesp(x,y,z-diff))/(2*diff)
 elestatforce=dsqrt(forcex**2+forcey**2+forcez**2)
 end function
 
-!!!----- Electrostatic charge
+!!------ Electrostatic charge
 real*8 function elestatcharge(x,y,z)
 real*8 x,y,z
 diff=2D-4 !Should not be smaller, otherwise some dirty points will be presented
@@ -4787,7 +5068,9 @@ elestatcharge=(xcomp+ycomp+zcomp)/(-4*pi)
 end function
 
 
-!!!----- Calculate magnitude of vector sum of steric force, electrostatic force and quantum force
+
+
+!!-------- Calculate magnitude of vector sum of steric force, electrostatic force and quantum force
 real*8 function SBLallforce(x,y,z)
 real*8 x,y,z,sterderv(3)
 call stericderv(x,y,z,sterderv)
@@ -4810,7 +5093,8 @@ end function
 
 
 
-!!!---- Use trilinear interpolation to obtain value at a given point by using cubmat
+
+!!------- Use trilinear interpolation to obtain value at a given point by using cubmat
 !itype==1: interpolate from cubmat, =2: from cubmattmp
 real*8 function linintp3d(x,y,z,itype)
 real*8 x,y,z
@@ -4850,7 +5134,9 @@ end if
 end function
 
 
-!!!---- Trilinear interpolation of 3D-vector field by using cubmatvec
+
+
+!!-------- Trilinear interpolation of 3D-vector field by using cubmatvec
 subroutine linintp3dvec(x,y,z,vecintp)
 real*8 x,y,z,vecintp(3),valxy1(3),valxy2(3)
 do ix=1,nx
@@ -4881,7 +5167,8 @@ end subroutine
 
 
 
-!!!---- Use cubic spline interpolation to obtain value at a given point by using cubmat
+
+!!-------- Use cubic spline interpolation to obtain value at a given point by using cubmat
 !itype==1: interpolate from cubmat, =2: from cubmattmp
 !If all grid points in cubmat are used in the interpolation, the cost will be extremely high if very large number of points are to be calculated, &
 !therefore I decide only takes a few grids around the present position for the interpolation, and this idea works well and the cost is significantly lowered
@@ -4956,7 +5243,8 @@ end function
 
 
 
-!!!---- Calculate various kinds of integrand of DFT exchange-correlation functionals
+
+!!-------- Calculate various kinds of integrand of DFT exchange-correlation functionals
 !The routines are provided by DFT repository (ftp://ftp.dl.ac.uk/qcg/dft_library/index.html)
 !The global variable "iDFTxcsel" is used to select the XC functional, see manual
 !Note that the inner core density represented by EDF field is not taken into account
@@ -4997,14 +5285,15 @@ end function
 
 
 
-!!--- Closed-shell form of DFTxcfunc routine
+
+!!----- Closed-shell form of DFTxcfunc routine
 real*8 function DFTxcfunc_close(x,y,z)
 real*8 x,y,z
 call gendensgradab(x,y,z,adens,bdens,tdens,agrad,bgrad,tgrad,abgrad)
 call getXCdata_close(0,tdens,tgrad**2,DFTxcfunc_close,rnouse,rnouse,rnouse,rnouse,rnouse)
 end function
 
-!!--- Closed-shell form of DFTxcpot routine
+!!----- Closed-shell form of DFTxcpot routine
 real*8 function DFTxcpot_close(x,y,z)
 real*8 x,y,z,wfnval(nmo),wfnderv(3,nmo),wfnhess(3,3,nmo),gradrho(3),hessrho(3,3),tmparr(3,1),tmpval(1,1),lapltot
 rho=0D0
@@ -5034,7 +5323,8 @@ end function
 
 
 
-!!!For closed-shell cases. Input rho and gradrho^2, return the value and its derivative of selected XC (or X/C only) functional
+
+!!---- For closed-shell cases. Input rho and gradrho^2, return the value and its derivative of selected XC (or X/C only) functional
 !The global variable "iDFTxcsel" is used to select the XC functional, see manual
 !ixcderv=0: only get value, =1: also get d1rho and d1sig, =2: also get d2rho, d2rhosig and d2sig
 !rho, sigma: inputted rho and gradrho^2
@@ -5112,7 +5402,7 @@ end subroutine
 
 
 
-!!--- Open-shell form of DFTxcfunc routine
+!!------ Open-shell form of DFTxcfunc routine
 real*8 function DFTxcfunc_open(x,y,z)
 real*8 x,y,z
 call gendensgradab(x,y,z,adens,bdens,tdens,agrad,bgrad,tgrad,abgrad)
@@ -5121,7 +5411,7 @@ sb,sb,sb,sb,sb,sb,sb,sb,sb,sb,sb,sb,sb,sb,sb,sb,sb,sb,sb,sb)
 end function
 
 
-!--- Open-shell form of DFTxcpot routine
+!!------ Open-shell form of DFTxcpot routine
 !For simplicity, this function uses numerical way to evaluate some intermediate derivatives
 !ispin=1: XC potential of alpha spin, =2: beta spin
 real*8 function DFTxcpot_open(x,y,z,ispin)
@@ -5193,7 +5483,7 @@ end if
 end function
 
 
-!!!For open-shell cases. Input rho and gradrho^2, return the value and its derivative of selected XC (or X/C only) functional
+!!---- For open-shell cases. Input rho and gradrho^2, return the value and its derivative of selected XC (or X/C only) functional
 !The global variable "iDFTxcsel" is used to select the XC functional, see manual
 !ixcderv=0: only get value, =1: also get 1st derv., =2: also get 2nd derv.
 !Input quantities:
@@ -5368,6 +5658,7 @@ end subroutine
 
 
 
+
 !!---- The distance in Angstrom from a point (x,y,z) to the nearest atom in the array
 real*8 function surfana_di(x,y,z,nlen,atmlist)
 real*8 x,y,z
@@ -5520,7 +5811,8 @@ end function
 
 
 
-!!----- Angle between the eigenvectors of rho and the plane defined by option 4 of main function 1000
+
+!!------- Angle between the eigenvectors of rho and the plane defined by option 4 of main function 1000
 ! The plane is represented by global variables pleA,pleB,pleC,pleD
 ! ivec=1/2/3 means the eigenvector corresponding to the first/second/third highest eigenvalue is calculated
 real*8 function Ang_rhoeigvec_ple(x,y,z,ivec)
@@ -5593,8 +5885,10 @@ end if
 end function
 
 
-!!------For visually examine functions used in DFRT2.0 project
-real*8 function funcvalLSB(x,y,z,itype)
+
+
+!!------ For visually examine functions used in DFRT2.0 project
+real*8 function funcvalLSB(itype,x,y,z)
 integer itype
 integer,parameter :: nfunc=8
 real*8 x,y,z,valarr(nfunc),rho,gradrho(3)
@@ -5606,10 +5900,13 @@ expcutoff=iexpcutoffold
 end function
 
 
+
+
 !!------ Orbital-weighted Fukui function or dual descriptor
 !itype=1: f+   =2: f-   =3: f0   =4: Dual descriptor
 !The delta parameter is defined by global variable "orbwei_delta"
 real*8 function orbwei_Fukui(itype,x,y,z)
+integer itype
 real*8 x,y,z,wfnval(nmo),expterm(nmo)
 
 idxHOMO=nint(naelec) !It is assumed that the occupation has not been altered
@@ -5663,11 +5960,9 @@ end function
 
 
 
-!!=================================================================================!!
-!! Below codes are contributed by Arshad Mehmood for calculating EDR(r;d) and D(r) !!
-!!=================================================================================!!
 
 !!----- For three-point numerical fit to evaluate D(r)
+!Contributed by Arshad Mehmood
 subroutine three_point_interpolation(n,x,y,xmax,ymax)
 integer, intent(in) :: n
 real*8, intent(in) :: x(max_edr_exponents),y(max_edr_exponents)
@@ -5705,6 +6000,7 @@ ymax = y2 - b**(2d0)/(4d0*a)
 end subroutine 
 
 !!----- Function to calculate EDR(r,d)
+!Contributed by Arshad Mehmood
 !J. Chem. Phys. 141, 144104(2014), J. Chem. Theory Comput. 12, 79(2016), Angew. Chem. Int. Ed. 56, 6878(2017)
 real*8 function edr(x,y,z)
 real*8 :: ed(max_edr_exponents),edrval(max_edr_exponents)
@@ -5715,6 +6011,7 @@ edr=edrval(1)
 end function
 
 !!----- Function to calculate D(r)
+!Contributed by Arshad Mehmood
 !J. Chem. Theory Comput. 12, 3185(2016), Phys. Chem. Chem. Phys. 17, 18305(2015)
 real*8 function edrdmax(x,y,z)	
 real*8 :: ed(max_edr_exponents),edrdmaxval,edrval(max_edr_exponents)
@@ -5730,6 +6027,7 @@ edrdmax=edrdmaxval
 end function
 
 !!----- Working routine used to evaluate EDR(r;d) and D(r)
+!Contributed by Arshad Mehmood
 subroutine EDRcal(runtype,x,y,z,nedr,ed,edrval,edrdmaxval) 
 real*8, intent(in) :: x,y,z,ed(max_edr_exponents)
 integer, intent(in) :: nedr
@@ -5845,10 +6143,10 @@ end subroutine
 
 
 
+
 !----------- Local Hartree-Fock exchange energy
 !genPprim must have been called so that density matrix is available
 real*8 function locHFexc(x,y,z)
-use defvar
 implicit real*8 (a-h,o-z)
 real*8 x,y,z,Vprim(nprims,nprims),GTFarr(nprims),Earr(nprims)
 
@@ -5892,7 +6190,8 @@ end function
 
 
 
-!!!--------- Obtain kinetic energy density (KED) at a point
+
+!!---------- Calculate kinetic energy density (KED)
 !The form of KED is determined by iform, the index definition is the same as iKEDsel, which is described in the manual
 real*8 function KED(x,y,z,iform)
 real*8 KEDarr(nKEDmax),x,y,z
@@ -5901,7 +6200,7 @@ call KEDall(x,y,z,KEDarr)
 KED=KEDarr(iform)
 end function
 
-!!!--------- Get difference between the KED selected by iform and specific KED
+!!---------- Get difference between the KED selected by iform and specific KED
 !idiff=1: selected KED - Weisacker KED, invoked by iuserfunc=1201
 !idiff=2: selected KED - Lagrangian KED, invoked by iuserfunc=1202
 !idiff=3: |selected KED - Lagrangian KED|, invoked by iuserfunc=1203
@@ -5915,7 +6214,7 @@ if (idiff==2) KEDdiff=selKED-KEDarr(2)
 if (idiff==3) KEDdiff=abs(selKED-KEDarr(2))
 end function
 
-!!!--------- Return all kinds of kinetic energy density (KED) as an array at a point
+!!---------- Return all kinds of kinetic energy density (KED) as an array
 !Most KEDs have general form, and need rho and reduced density gradient (rg)
 subroutine KEDall(x,y,z,KEDarr)
 implicit real*8 (a-h,o-z)
@@ -6213,10 +6512,9 @@ end subroutine
 
 
 
-!!!--------- Potential of kinetic energy functional at a point
+!!---------- Potential of kinetic energy functional
 !Using closed-shell form
 real*8 function KEDpot(x,y,z)
-use defvar
 implicit real*8 (a-h,o-z)
 real*8 x,y,z,gradrho(3),hessrho(3,3)
 real*8 :: C_TF=2.871234D0 !Fermi constant for closed-shell = (3/10)*(3*Pi^2)**(2/3)
@@ -6263,7 +6561,8 @@ end module
 
 
 
-!! ----------------- Show the list of all supported real space functions
+!! ----------- Show the list of all supported real space functions
+!When user will select a function, should use "selfunc_interface" instead
 subroutine funclist
 use defvar
 write(*,*) "            ----------- Available real space functions -----------"
@@ -6281,14 +6580,14 @@ if (allocated(b)) then
 	end if
 	if (ELFLOL_type==0) write(*,*) "9 Electron Localization Function (ELF)"
 	if (ELFLOL_type==1) write(*,*) "9 Electron Localization Function (ELF) defined by Tsirelson" 
-	if (ELFLOL_type==2) write(*,*) "9 Electron Localization Function (ELF) defined by Lu, Tian" 
+	if (ELFLOL_type==2) write(*,*) "9 Electron Localization Function (ELF) defined by Tian Lu" 
 	if (ELFLOL_type==0) write(*,*) "10 Localized orbital locator (LOL)"
 	if (ELFLOL_type==1) write(*,*) "10 Localized orbital locator (LOL) defined by Tsirelson" 
-	if (ELFLOL_type==2) write(*,*) "10 Localized orbital locator (LOL) defined by Lu, Tian" 
+	if (ELFLOL_type==2) write(*,*) "10 Localized orbital locator (LOL) defined by Tian Lu" 
 	write(*,*) "11 Local information entropy"
 	write(*,*) "12 Total electrostatic potential (ESP)"
-	write(*,*) "13 Reduced density gradient (RDG)     14 RDG with promolecular approximation"
-	write(*,*) "15 Sign(lambda2)*rho    16 Sign(lambda2)*rho with promolecular approximation"
+	write(*,*) "13 Reduced density gradient (RDG)       14 RDG with promolecular approximation"
+	write(*,*) "15 Sign(lambda2)*rho      16 Sign(lambda2)*rho with promolecular approximation"
 	!Fermi hole function only available to single-determinant wavefunction
 	if (pairfunctype==1) write(*,"(a,3f10.5)") " 17 Correlation hole for alpha, ref. point:",refx,refy,refz
 	if (pairfunctype==2) write(*,"(a,3f10.5)") " 17 Correlation hole for beta, ref. point:",refx,refy,refz
@@ -6301,9 +6600,9 @@ if (allocated(b)) then
 	if (pairfunctype==12) write(*,"(a,3f10.5)") " 17 Pair density for all electrons, ref. point:",refx,refy,refz
 	write(*,*) "18 Average local ionization energy (ALIE)"
 	write(*,"(a,i2,a,3f10.5)") " 19 Source function, mode:",srcfuncmode,", ref. point:",refx,refy,refz
-	write(*,*) "20 Electron delocalization range function EDR(r;d)"
-	write(*,*) "21 Orbital overlap distance function D(r)"
-	write(*,*) "22 Delta-g (promol. approx.)     23 Delta-g (Hirshfeld partition)"
+	write(*,*) "20 Electron delocal. range func. EDR(r;d)  21 Orbital overlap dist. func. D(r)"
+	write(*,*) "22 Delta-g (promolecular approximation)    23 Delta-g (Hirshfeld partition)"
+	write(*,*) "24 Interaction region indicator (IRI)"
 	write(*,"(a,i5,a)") " 100 User-defined function (iuserfunc=",iuserfunc,")  See Section 2.7 of manual"
 else !No wavefunction information is available
 	write(*,*) "1 Promolecular electron density "
@@ -6314,14 +6613,14 @@ else !No wavefunction information is available
 	end if
 	write(*,*) "14 Reduced density gradient (RDG) with promolecular approximation"
 	write(*,*) "16 Sign(lambda2)*rho with promolecular approximation"
-	write(*,*) "22 Delta-g (promol. approx.)"
+	write(*,*) "22 Delta-g (promolecular approximation)"
 	write(*,"(a,i5,a)") " 100 User-defined function (iuserfunc=",iuserfunc,")  See Section 2.7 of manual"
 end if
 end subroutine
 
 
 
-!---- Standard interface for selecting real space function
+!!------ Standard interface for selecting real space function
 !Note that iorbsel is a global variable
 !if itype=1, this routine will be used for normal case
 !if itype=2, this routine will be used for plotting plane map, where two orbitals can be selected
@@ -6330,6 +6629,7 @@ use defvar
 integer ifunc,edrmaxpara,wrtnumedr
 character c80tmp*80
 real*8 wrtstart
+
 call funclist
 read(*,*) ifunc
 
@@ -6347,33 +6647,33 @@ if (ifunc==4) then
 			if (iorbsel<0.and.allocated(CObasb)) iorbsel=abs(iorbsel)+nbasis
 			if (iorbsel<=0.or.iorbsel>nmo) then
 				write(*,"(' Error: Orbital index should be in the range of 1 to',i6)") nmo
-				write(*,*) "The orbital 1 is selected instead"
+				write(*,*) "Orbital 1 is selected instead"
 				iorbsel=1
 			end if
 		else !Input orbital label
 			call orblabsel(c80tmp,iorbsel)
 			if (iorbsel==0) then
 				write(*,*) "Error: The orbital label you inputted is wrong! Please double check"
-				write(*,*) "The orbital 1 is selected instead"
+				write(*,*) "Orbital 1 is selected instead"
 				iorbsel=1
 			else
-				write(*,"(a,i6)") " The orbital you selected is",iorbsel
+				write(*,"(a,i7)") " The orbital you selected is",iorbsel
 			end if
 		end if
     end if
 else if (ifunc==20) then !Read length scale to evaluate EDR(r;d)
 	write(*,*) "The EDR(r;d) computing code was contributed by Arshad Mehmood"
 	write(*,"(a,/)") " References: J. Chem. Phys., 141, 144104 (2014); J. Chem. Theory Comput., 12, 79 (2016); Angew. Chem. Int. Ed., 56, 6878 (2017)"
-	write(*,*) "Input length scale d (Bohr)   e.g. 0.85"
+	write(*,*) "Input length scale d (Bohr), e.g. 0.85"
 	read(*,*) dedr
 else if (ifunc==21) then 
 	write(*,*) "The D(r) computing code was contributed by Arshad Mehmood"
 	write(*,"(a,/)") " References: J. Chem. Theory Comput., 12, 3185 (2016); Phys. Chem. Chem. Phys., 17, 18305 (2015)"
 	write(*,*) "1 Manually input total number, start and increment in EDR exponents"
-	write(*,*) "2 Use default values   i.e. 20,2.50,1.50"
+	write(*,*) "2 Use default values, i.e. 20,2.50,1.50"
 	read(*,*) edrmaxpara
 	if (edrmaxpara==1) then  
-		write(*,*) "Please input in order: exponents start increment   e.g. 20 2.5 1.5"
+		write(*,*) "Please input in order: exponents start increment, e.g. 20 2.5 1.5"
 		write(*,*) "Note: Max. allowed exponents are 50 and min. allowed increment is 1.01"
 		read(*,*) nedr,edrastart,edrainc
 		if (nedr<1) then
@@ -6407,169 +6707,4 @@ else if (ifunc==21) then
 	end do
 	write(*,*)
 end if
-end subroutine
-
-
-
-!!--------- Calculate gradient and Hessian of Fisher information density
-subroutine Fisherinfo_gradhess(x,y,z,value,grad,hess)
-use defvar
-use functions
-implicit real*8 (a-h,o-z)
-real*8 x,y,z,value,grad(3),hess(3,3),rhograd(3),rhohess(3,3),rhotens3(3,3,3)
-call rho_tensor(x,y,z,rho,rhograd,rhohess,rhotens3)
-
-value=-rho*log(rho)
-
-rhograd2=sum(rhograd**2)
-tmp1=-rhograd2/rho**2
-do i=1,3 !dx, dy, dz
-	tmp2=0
-	do idir=1,3 !Loop x,y,z
-		tmp2=tmp2+rhograd(idir)*rhohess(idir,i)
-    end do
-    grad(i)=tmp1*rhograd(i)+2/rho*tmp2
-end do
-
-tmp1=2/rho**3*rhograd2
-do i=1,3 !dx, dy, dz
-	do j=1,3 !dx, dy, dz
-		tmp2=0
-		tmp3=0
-		tmp4=0
-		do idir=1,3 !Loop x,y,z
-			tmp2=tmp2+rhograd(idir)*rhohess(idir,j)
-			tmp3=tmp3+rhograd(idir)*rhohess(idir,i)
-			tmp4=tmp4+rhohess(idir,i)*rhohess(idir,j)+rhograd(idir)*rhotens3(idir,i,j)
-		end do
-        hess(i,j) = tmp1*rhograd(i)*rhograd(j) - 2/rho**2*rhograd(i)*tmp2 - rhograd2/rho**2*rhohess(i,j) - 2/rho**2*rhograd(j)*tmp3 + 2/rho*tmp4
-    end do
-end do
-end subroutine
-
-
-
-!!--------- Calculate gradient (analytically) and Hessian (semi-numerical) of second Fisher information density
-subroutine second_Fisherinfo_gradhess(x,y,z,value,grad,hess)
-implicit real*8 (a-h,o-z)
-real*8 x,y,z,value,grad(3),hess(3,3)
-real*8 gradaddx(3),gradminx(3),gradaddy(3),gradminy(3),gradaddz(3),gradminz(3)
-call second_Fisherinfo_grad(x,y,z,value,grad)
-diff=8D-4
-denom=2D0*diff
-call second_Fisherinfo_grad(x+diff,y,z,tmpval,gradaddx)
-call second_Fisherinfo_grad(x-diff,y,z,tmpval,gradminx)
-call second_Fisherinfo_grad(x,y+diff,z,tmpval,gradaddy)
-call second_Fisherinfo_grad(x,y-diff,z,tmpval,gradminy)
-call second_Fisherinfo_grad(x,y,z+diff,tmpval,gradaddz)
-call second_Fisherinfo_grad(x,y,z-diff,tmpval,gradminz)
-hess(1,1)=(gradaddx(1)-gradminx(1))/denom
-hess(2,2)=(gradaddy(2)-gradminy(2))/denom
-hess(3,3)=(gradaddz(3)-gradminz(3))/denom
-hess(1,2)=(gradaddy(1)-gradminy(1))/denom
-hess(2,3)=(gradaddz(2)-gradminz(2))/denom
-hess(1,3)=(gradaddz(1)-gradminz(1))/denom
-hess(2,1)=hess(1,2)
-hess(3,2)=hess(2,3)
-hess(3,1)=hess(1,3)
-end subroutine
-!!--------- Analytically calculate gradient of second Fisher information density
-subroutine second_Fisherinfo_grad(x,y,z,value,grad)
-use functions
-implicit real*8 (a-h,o-z)
-real*8 x,y,z,value,grad(3),rhograd(3),rhohess(3,3),rhotens3(3,3,3)
-call rho_tensor(x,y,z,rho,rhograd,rhohess,rhotens3)
-rholapl=rhohess(1,1)+rhohess(2,2)+rhohess(3,3)
-do i=1,3
-	grad(i)=-(rhotens3(1,1,i)+rhotens3(2,2,i)+rhotens3(3,3,i))*log(rho)-rholapl/rho*rhograd(i)
-end do
-end subroutine
-
-
-
-!!!----- Calculate electron density, its gradient, Hessian and 3rd derivative tensor
-!This is the most general and clever code
-subroutine rho_tensor(x,y,z,value,grad,hess,tens3)
-use defvar
-use functions
-implicit real*8 (a-h,o-z)
-real*8 x,y,z,value,grad(3),hess(3,3),tens3(3,3,3),wfnval(nmo),wfnderv(3,nmo),wfnhess(3,3,nmo),wfntens3(3,3,3,nmo),EDFgrad(3),EDFhess(3,3),EDFtens3(3,3,3)
-
-call orbderv(5,1,nmo,x,y,z,wfnval,wfnderv,wfnhess,wfntens3)
-!rho
-value=sum( MOocc(1:nmo)*wfnval(1:nmo)*wfnval(1:nmo) )
-!gradient of rho
-do i=1,3
-	grad(i)=2*sum( MOocc(1:nmo)*wfnval(1:nmo)*wfnderv(i,1:nmo) )
-end do
-!Hessian of rho
-hess=0
-do i=1,3
-	do j=i,3
-		tmpval=0
-		do imo=1,nmo
-			if (MOocc(i)==0) cycle
-			tmpval=tmpval+MOocc(imo)*(wfnderv(i,imo)*wfnderv(j,imo)+wfnval(imo)*wfnhess(i,j,imo))
-        end do
-        hess(i,j)=2*tmpval
-        hess(j,i)=hess(i,j)
-	end do
-end do
-
-!3rd derivative tensor of rho
-tens3=0D0
-do i=1,3
-	do j=i,3
-		do k=j,3
-			tmpval=0
-			do imo=1,nmo
-				if (MOocc(i)==0) cycle
-                tmpval=tmpval+MOocc(imo)*( wfnderv(j,imo)*wfnhess(i,k,imo) + wfnderv(i,imo)*wfnhess(j,k,imo) + &
-                wfnderv(k,imo)*wfnhess(i,j,imo) + wfnval(imo)*wfntens3(i,j,k,imo) )
-			end do
-            tens3(i,j,k)=2*tmpval
-            tens3(i,k,j)=tens3(i,j,k)
-            tens3(k,j,i)=tens3(i,j,k)
-            tens3(j,i,k)=tens3(i,j,k)
-            tens3(k,i,j)=tens3(i,j,k)
-            tens3(j,k,i)=tens3(i,j,k)
-        end do
-    end do
-end do
-
-!Add in contribution of electron density function, assume EDFs are S type
-if (allocated(b_EDF)) then
-	call EDFrho(5,x,y,z,EDFdens,EDFgrad,EDFhess,EDFtens3)
-	rho=rho+EDFdens
-	grad=grad+EDFgrad
-	hess=hess+EDFhess
-    tens3=tens3+EDFtens3
-end if
-
-!do i=1,3
-!	do j=1,3
-!		do k=1,3
-!			write(*,"(3i5,f16.10)") i,j,k,tens3(i,j,k)
-!        end do
-!    end do
-!end do
-end subroutine
-
-
-
-!!--------- Calculate gradient and Hessian of Shannon entropy density    
-subroutine Shannon_gradhess(x,y,z,value,grad,hess)
-use defvar
-use functions
-implicit real*8 (a-h,o-z)
-real*8 x,y,z,value,grad(3),hess(3,3),rhograd(3),rhohess(3,3)
-call calchessmat_dens(2,x,y,z,rho,rhograd,rhohess)
-value=-rho*log(rho)
-tmp=log(rho)+1
-grad(:)=-rhograd(:)*tmp
-do i=1,3
-	do j=1,3
-		hess(i,j)=-rhohess(i,j)*tmp-rhograd(i)*rhograd(j)/rho
-    end do
-end do
 end subroutine

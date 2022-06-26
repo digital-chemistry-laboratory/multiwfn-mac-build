@@ -414,7 +414,7 @@ else
 end if
 if (iselfunc1==15.or.iselfunc1==16) f1name="sign(lambda2)rho"
 if (iselfunc2==13.or.iselfunc2==14) f2name="RDG"
-if (iselfunc2==100.and.iuserfunc==99) f2name="IRI"
+if (iselfunc2==24.or.(iselfunc2==100.and.iuserfunc==99)) f2name="IRI"
 if (iselfunc2==100.and.iuserfunc==20) f2name="DORI"
 
 if (iselfunc1==0.and.iselfunc2==0) then !Directly load grid data
@@ -438,7 +438,7 @@ else !Calculate grid data
 		call savecubmat(1513,0,1)
 	else if (iselfunc1==16.and.iselfunc2==14) then 
 		call savecubmat(1614,0,1)
-	else if (iselfunc1==15.and.iselfunc2==100.and.iuserfunc==99) then !Combinedly calculate IRI and sign(lambda2)rho to reduce cost by double
+	else if (iselfunc1==15.and.(iselfunc2==24.or.(iselfunc2==100.and.iuserfunc==99))) then !Combinedly calculate IRI and sign(lambda2)rho to reduce cost by double
 		call savecubmat(1599,0,1)
 	else
 		write(*,"(a)") " Calculating "//trim(f2name)//"..."
@@ -489,7 +489,7 @@ else if (iselfunc1==16.and.iselfunc2==14) then !sign(lambda2)*rho vs. RDG based 
 	if (RDGprodens_maxrho==0D0) xmax=2D0
 	ymin=0D0
 	ymax=2D0
-else if (iselfunc1==15.and.iselfunc2==100.and.iuserfunc==99) then !sign(lambda2)*rho vs. IRI
+else if (iselfunc1==15.and.(iselfunc2==24.or.(iselfunc2==100.and.iuserfunc==99))) then !sign(lambda2)*rho vs. IRI
 	xmin=-0.4D0
 	xmax=0.1D0
 	ymin=0D0
@@ -537,8 +537,8 @@ do while (.true.)
 			call drawscatter(scatterx,scattery,nx*ny*nz,xmin,xmax,ymin,ymax,1,"$sign({\lambda}_2)\rho$ (a.u.)","Reduced density gradient")
 		else if (iselfunc1==15.and.iselfunc2==100.and.iuserfunc==20) then
 			call drawscatter(scatterx,scattery,nx*ny*nz,xmin,xmax,ymin,ymax,1,"$sign({\lambda}_2)\rho$ (a.u.)","DORI")
-		else if (iselfunc1==15.and.iselfunc2==100.and.iuserfunc==99) then
-			call drawscatter(scatterx,scattery,nx*ny*nz,xmin,xmax,ymin,ymax,1,"$sign({\lambda}_2)\rho$ (a.u.)","IRI")
+		else if (iselfunc1==15.and.(iselfunc2==24.or.(iselfunc2==100.and.iuserfunc==99))) then
+			call drawscatter(scatterx,scattery,nx*ny*nz,xmin,xmax,ymin,ymax,1,"$sign({\lambda}_2)\rho$ (a.u.)","IRI (a.u.)")
 		else
 			call drawscatter(scatterx,scattery,nx*ny*nz,xmin,xmax,ymin,ymax,1)
 		end if
@@ -552,8 +552,8 @@ do while (.true.)
 			call drawscatter(scatterx,scattery,nx*ny*nz,xmin,xmax,ymin,ymax,1,"$sign({\lambda}_2)\rho$ (a.u.)","Reduced density gradient")
 		else if (iselfunc1==15.and.iselfunc2==100.and.iuserfunc==20) then
 			call drawscatter(scatterx,scattery,nx*ny*nz,xmin,xmax,ymin,ymax,1,"$sign({\lambda}_2)\rho$ (a.u.)","DORI")
-		else if (iselfunc1==15.and.iselfunc2==100.and.iuserfunc==99) then
-			call drawscatter(scatterx,scattery,nx*ny*nz,xmin,xmax,ymin,ymax,1,"$sign({\lambda}_2)\rho$ (a.u.)","IRI")
+		else if (iselfunc1==15.and.(iselfunc2==24.or.(iselfunc2==100.and.iuserfunc==99))) then
+			call drawscatter(scatterx,scattery,nx*ny*nz,xmin,xmax,ymin,ymax,1,"$sign({\lambda}_2)\rho$ (a.u.)","IRI (a.u.)")
 		else
 			call drawscatter(scatterx,scattery,nx*ny*nz,xmin,xmax,ymin,ymax,1)
 		end if
@@ -1747,8 +1747,7 @@ if (itype==2) write(*,*) "Note: The integrand is |f_wfn1 - f_wfn2|"
 if (ifiletype/=2.and.ifiletype/=3) write(*,"(a)") " Hint: If you use .wfx or .wfn file as input instead, the calculation speed may be improved significantly!"
 write(*,*)
 write(*,*) "Select the function to be integrated over the whole space"
-call funclist
-read(*,*) ifunc
+call selfunc_interface(1,ifunc)
 write(*,*)
 write(*,*) "Input the filename of another wavefunction file, e.g. C:\yuri.wfn"
 read(*,"(a)") filename2
@@ -3303,6 +3302,7 @@ do while(.true.)
     write(*,*) "  Other commands:"
 	write(*,*) "Input ""size"" will report size information of the whole system"
 	write(*,*) "Input ""dist"" will report contact/distance between two specific fragments"
+	write(*,*) "Input ""cav"" will report diameter of cavity enclosed by specific atoms"
 	write(*,*) "Input ""ring"" will calculate area and perimeter of a specific ring"
 	write(*,"(a)") " Input ""MPP"" will calculate molecular planarity parameter (MPP) and span of deviation from plane (SDP) for a fragment"
 	read(*,"(a)") c2000tmp
@@ -3310,6 +3310,8 @@ do while(.true.)
 		exit
 	else if (c2000tmp(1:4)=='size') then
 		call calcmolsize
+	else if (c2000tmp(1:3)=='cav') then
+		call cavity_diameter
 	else if (c2000tmp(1:4)=='dist') then
 		call calcfragdist
 	else if (c2000tmp(1:4)=='ring') then
@@ -3706,6 +3708,7 @@ write(*,"(' Distance between the two mass centers:',f10.4,' Angstrom')") dsqrt((
 end subroutine
 
 
+
 !!------------ Calculate molecular planarity parameter (MPP) and span of deviation from plane (SDP)
 subroutine calcMPP
 use defvar
@@ -3894,8 +3897,191 @@ end subroutine
 
 
 
+!!------------ Calculate diameter of cavity consisting of specific atoms in the system    
+subroutine cavity_diameter
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+integer,allocatable :: testatom(:)
+character c2000tmp*2000
+real*8 radmin,diamax,disp(3),coord(3),gvec(3),gvec_old(3),coordtmp(3),LSdisp(3),fract(3)
+
+
+write(*,"(/,a)") " Input indices of a set of atoms to detect contact. e.g. 3-10,14,18-23"
+write(*,*) "If pressing ENTER button directly, all atoms will be selected"
+read(*,"(a)") c2000tmp
+if (c2000tmp==" ") then
+	ntestatom=ncenter
+	allocate(testatom(ntestatom))
+	forall(i=1:ncenter) testatom(i)=i
+else
+	call str2arr(c2000tmp,ntestatom)
+	allocate(testatom(ntestatom))
+	call str2arr(c2000tmp,ntestatom,testatom)
+end if
+
+write(*,*) "How to define initial sphere center?"
+write(*,*) "1 Use geometric center of the atoms inputted in last step"
+write(*,*) "2 Use a point by inputting its Cartesian coordinate"
+if (ifPBC/=0) then
+    write(*,*) "3 Use center of the cell"
+	write(*,*) "4 Use a point by inputting its fractional coordinate"
+end if
+read(*,*) initcen
+
+if (initcen==1) then
+	coord(1)=sum(a(testatom(:))%x)/ntestatom
+	coord(2)=sum(a(testatom(:))%y)/ntestatom
+	coord(3)=sum(a(testatom(:))%z)/ntestatom
+else if (initcen==2) then
+	write(*,*) "Input X,Y,Z of the point in Angstrom, e.g. 2.5,0.79,0.2"
+    read(*,*) coord(:)
+    coord=coord/b2a
+else if (initcen==3.or.initcen==4) then
+	if (initcen==3) then
+		fract=(/ 0.5D0,0.5D0,0.5D0 /)
+    else
+		write(*,*) "Input fractional coordinate of the point, e.g. 0,0.5,0.25"
+		read(*,*) fract
+    end if
+	call fract2Cart(fract,coord)
+end if
+
+write(*,*) "If automatically adjusting the initial sphere center?"
+write(*,*) "0 Do not adjust"
+write(*,*) "1 Adjust in all directions"
+write(*,*) "2 Adjust only in X"
+write(*,*) "3 Adjust only in Y"
+write(*,*) "4 Adjust only in Z"
+write(*,*) "5 Adjust only in XY"
+write(*,*) "6 Adjust only in XZ"
+write(*,*) "7 Adjust only in YZ"
+read(*,*) iadjust
+
+if (iadjust==0) then
+	write(*,"(' X/Y/Z of geometry center are',3f12.6,' Angstrom')") coord*b2a
+    call getradmin(coord,testatom,ntestatom,radmin)
+else
+	!Iteratively update sphere center to find a position where radmin can be maximized
+	!Barzilai¨CBorwein steepest ascent method cannot be used, because the object function is zigzag rather than smooth function
+	write(*,"(' X/Y/Z of initial geometry center are',3f12.6,' Angstrom')") coord*b2a
+	call getradmin(coord,testatom,ntestatom,radmin)
+	write(*,"(' Initial sphere radius is',f12.6,' Angstrom')") radmin*b2a
+
+	trustrad=0.3D0/b2a !Trust radius, 0.3 A
+	dispconv=0.01D0/b2a !Displacement Threshold, 0.01 A
+	stepscale=1D0
+	nstepmax=100 !Maximum number of steps
+	!Finite difference stepsize. Use a large value, not only because the object function is zigzag and thus derivative &
+	!is invariant to stepsize in specific range, but also large stepsize can make position of sphere center can overcome slight barrier
+	diff=0.3D0/b2a
+    do istep=1,nstepmax
+        write(*,*)
+	    write(*,"(' Step',i5)") istep
+    
+        !Calculate gradient
+        gvec=0
+        do idir=1,3
+            if ( (idir==1.and.(iadjust==1.or.iadjust==2.or.iadjust==5.or.iadjust==6)) &
+            .or. (idir==2.and.(iadjust==1.or.iadjust==3.or.iadjust==5.or.iadjust==7)) &
+            .or. (idir==3.and.(iadjust==1.or.iadjust==4.or.iadjust==6.or.iadjust==7)) ) then
+                coordtmp=coord
+                coordtmp(idir)=coord(idir)+diff
+                call getradmin(coordtmp,testatom,ntestatom,tmpadd)
+                coordtmp(idir)=coord(idir)-diff
+                call getradmin(coordtmp,testatom,ntestatom,tmpmin)
+                gvec(idir)=(tmpadd-tmpmin)/(2*diff)
+            end if
+        end do
+        write(*,"(' Current coordinate:',3f12.6,' Angstrom')") coord*b2a
+	    write(*,"(' Gradient:    ',3f12.6,'  Norm',f12.6)") gvec,dsqrt(sum(gvec**2))
+        
+        if (all(abs(gvec)<1D-6)) then
+            disp=0
+        else
+            !Line search
+            call getradmin(coord,testatom,ntestatom,radmin)
+            LSdisp=0.5D0*gvec !Due to object function character, gvec must be a unit vector. So first step is 0.5 Bohr
+            nmicro=0
+            do nmicro=1,25
+                coordtmp=coord+LSdisp
+                call getradmin(coordtmp,testatom,ntestatom,radmintmp)
+                !write(*,"(i4,2f12.6,3f16.10)") nmicro,radmin*b2a,radmintmp*b2a,LSdisp
+                if (radmintmp>radmin) then
+                    disp=coordtmp-coord
+                    exit
+                else
+                    LSdisp=LSdisp*0.5D0
+                end if
+            end do
+            if (nmicro==26) then !If finite difference stepsize is too large and thus inaccurate, then object functino cannot increase by following this direction
+                diff=diff/2
+				write(*,"(a,f10.6,' Bohr')") " Micro iteration in line search was not converged, reduce finite different stepsize by half to",diff
+                cycle
+            end if
+            !write(*,"(' Number of micro steps in line search:',i6)") nmicro
+        
+            !Apply trust radius
+            dispnorm=dsqrt(sum(disp**2))
+            if (dispnorm>trustrad) then
+                disp=disp*trustrad/dispnorm
+            end if
+    
+	        coord=coord+stepscale*disp !Move coordinate
+    
+            if (ifPBC>0) call move_to_cell(coord,coord) !If moved to a position out of box, move it to central cell
+        end if
+    
+        dispnorm=dsqrt(sum(disp**2))
+	    write(*,"(' Displacement:',3f12.6,'  Norm',f12.6,' Angstrom')") disp*b2a,dispnorm*b2a
+	    write(*,"(' Goal: displacement norm <',f12.8,' Angstrom')") dispconv*b2a
+        if (dispnorm>dispconv) then
+            write(*,"(' Not converged, new coordinate:',3f12.6,' Angstrom')") coord*b2a
+        else
+            write(*,"(/,' Converged after',i6,' iterations')") istep
+            exit
+        end if
+        call getradmin(coord,testatom,ntestatom,radmin)
+	    write(*,"(' Sphere radius at new coordinate:',f12.6,' Angstrom')") radmin*b2a
+    end do
+    write(*,"(/,' Final X/Y/Z of sphere center:',3f12.6,' Angstrom')") coord(:)*b2a
+end if
+
+diamax=2*radmin
+write(*,"(' Radius is',f12.6,' Angstrom')") radmin*b2a
+write(*,"(' Diameter is',f12.6,' Angstrom')") diamax*b2a
+write(*,"(' Volume is',f12.6,' Angstrom^3')") 4D0/3D0*pi*(radmin*b2a)**3
+write(*,*)
+write(*,*) "Commands of drawing a sphere in VMD to show the cavity:"
+write(*,*) "color Display Background white"
+write(*,*) "draw material Transparent"
+write(*,*) "draw color yellow"
+write(*,"(a,3f9.3,a,f8.3,a)") " draw sphere {",coord(:)*b2a," } radius",radmin*b2a," resolution 100"
+end subroutine
+
+!------- Get minimum contact distance (w.r.t. atomic vdW sphere surface) between a point and all atoms in the list
+subroutine getradmin(xyzA,testatom,ntestatom,radmin)
+use defvar
+implicit real*8 (a-h,o-z)
+integer ntestatom,testatom(ntestatom)
+real*8 radmin,xyzA(3),xyzB(3)
+radmin=1D10
+do idx=1,ntestatom
+    iatm=testatom(idx)
+    xyzB(1)=a(iatm)%x
+    xyzB(2)=a(iatm)%y
+    xyzB(3)=a(iatm)%z
+    call nearest_dist(xyzA,xyzB,dist)
+    contdist=dist-vdwr(a(iatm)%index)
+    if (contdist<radmin) radmin=contdist
+end do
+end subroutine
+
+
+
+
 !! ------------ Generate combined wavefunction by combining several fragment wavefunctions
-! Any format of wavefunction file can be used as input, all orbitals including the virtual ones are stored to _all arrays first
+!Any format of wavefunction file can be used as input, all orbitals including the virtual ones are stored to _all arrays first
 subroutine gencombwfn
 use defvar
 implicit real*8 (a-h,o-z)
