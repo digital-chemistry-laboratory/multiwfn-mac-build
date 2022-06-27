@@ -32,7 +32,7 @@ jobs:
         cmake --build build
         cmake --install build --prefix $PWD
       env:
-        FC: gfortran        
+        FC: gfortran-11
 
     - name: Test
       run: build/multiwfn phenol.xyz <<< "q"
