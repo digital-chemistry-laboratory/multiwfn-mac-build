@@ -30,6 +30,8 @@ if(WITH_GUI)
     NAMES Xm
     REQUIRED
   )
+  message("-- Found DISLIN: ${dislin}")
+  message("-- Found OpenMotif: ${Xm}")  
 endif()
 
 # Turn on preprocessor
