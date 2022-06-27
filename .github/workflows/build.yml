@@ -54,7 +54,7 @@ jobs:
 
     - name: Install libraries
       run: |
-        brew install openmotif
+        brew install openmotif mesa
         wget https://www.dislin.de/downloads/darwin/dislin-11.5.darwin.intel.64.tar.gz
         tar -xvf dislin-11.5.darwin.intel.64.tar.gz
         export DISLIN=$PWD/dislin
