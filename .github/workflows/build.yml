@@ -31,6 +31,8 @@ jobs:
         cmake -B build -DWITH_OpenMP=ON
         cmake --build build
         cmake --install build --prefix $PWD
+      env:
+        FC: gfortran        
 
     - name: Test
       run: build/multiwfn phenol.xyz <<< "q"
