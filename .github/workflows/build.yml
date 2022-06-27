@@ -1,0 +1,39 @@
+name: build
+
+on: 
+  workflow_dispatch:
+  push:
+    branches: [main, build]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build_no_gui:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Download source and settings
+      run: |
+        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_dev_src_Linux.zip
+        unzip Multiwfn_3.8_dev_src_Linux.zip
+        mv Multiwfn_3.8_dev_src_Linux/* . 
+        rmdir Multiwfn_3.8_dev_src_Linux
+        rm Multiwfn_3.8_dev_src_Linux.zip
+        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_dev_bin_Linux_noGUI.zip
+        unzip -o -j Multiwfn_3.8_dev_bin_Linux_noGUI.zip Multiwfn_3.8_dev_bin_Linux_noGUI/{settings.ini,LICENSE.txt,examples/phenol.xyz}
+        rm Multiwfn_3.8_dev_bin_Linux_noGUI.zip    
+
+    - name: Build
+      run: |
+        brew install openblas gcc cmake 
+        cmake -B build -DWITH_OpenMP=ON
+        cmake --build build
+        cmake --install build --prefix $PWD
+
+    - name: Test
+      run: build/multiwfn phenol.xyz <<< "q"
+      
+
+        
