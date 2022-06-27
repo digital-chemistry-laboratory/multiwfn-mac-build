@@ -62,6 +62,7 @@ jobs:
         ./INSTALL
         cd ..
         install_name_tool -id $DISLIN/libdislin_d.dylib $DISLIN/libdislin_d.dylib
+        install_name_tool -change /usr/X11/lib/libGL.1.dylib /usr/local/lib/libGL.dylib $DISLIN/libdislin_d.dylib
 
     - name: Build
       run: |
