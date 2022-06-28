@@ -1,0 +1,79 @@
+name: build
+
+on: 
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build_no_gui:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Download source and settings
+      run: |
+        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_dev_src_Linux.zip
+        unzip Multiwfn_3.8_dev_src_Linux.zip
+        mv Multiwfn_3.8_dev_src_Linux/* . 
+        rmdir Multiwfn_3.8_dev_src_Linux
+        rm Multiwfn_3.8_dev_src_Linux.zip
+        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_dev_bin_Linux_noGUI.zip
+        unzip -o -j Multiwfn_3.8_dev_bin_Linux_noGUI.zip Multiwfn_3.8_dev_bin_Linux_noGUI/{settings.ini,LICENSE.txt,examples/phenol.xyz}
+        rm Multiwfn_3.8_dev_bin_Linux_noGUI.zip    
+
+    - name: Build
+      run: |
+        cmake -B build -DWITH_OpenMP=ON
+        cmake --build build
+        cmake --install build --prefix $PWD
+      env:
+        FC: gfortran-11
+
+    - name: Test
+      run: build/multiwfn phenol.xyz <<< "q"
+  build_gui:
+    runs-on: macos-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+
+    - name: Download source and settings
+      run: |
+        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_dev_src_Linux.zip
+        unzip Multiwfn_3.8_dev_src_Linux.zip
+        mv Multiwfn_3.8_dev_src_Linux/* . 
+        rmdir Multiwfn_3.8_dev_src_Linux
+        rm Multiwfn_3.8_dev_src_Linux.zip
+        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_dev_bin_Linux_noGUI.zip
+        unzip -o -j Multiwfn_3.8_dev_bin_Linux_noGUI.zip Multiwfn_3.8_dev_bin_Linux_noGUI/{settings.ini,LICENSE.txt,examples/phenol.xyz}
+        rm Multiwfn_3.8_dev_bin_Linux_noGUI.zip    
+
+    - name: Install libraries
+      run: |
+        brew install openmotif mesa
+        wget https://www.dislin.de/downloads/darwin/dislin-11.5.darwin.intel.64.tar.gz
+        tar -xvf dislin-11.5.darwin.intel.64.tar.gz
+        export DISLIN=$PWD/dislin
+        cd dislin-11.5
+        ./INSTALL
+        cd ..
+        install_name_tool -id $DISLIN/libdislin_d.dylib $DISLIN/libdislin_d.dylib
+        install_name_tool -change /usr/X11/lib/libGL.1.dylib /usr/local/lib/libGL.dylib $DISLIN/libdislin_d.dylib
+
+    - name: Build
+      run: |
+        cmake -B build -DWITH_OpenMP=ON -DWITH_GUI=ON -DDISLIN_DIR=$PWD/dislin
+        cmake --build build
+        cmake --install build --prefix $PWD
+      env:
+        FC: gfortran-11
+
+    - name: Test
+      run: build/multiwfn phenol.xyz <<< "q"      
+      
+
+        
