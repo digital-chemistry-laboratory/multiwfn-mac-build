@@ -56,7 +56,7 @@ Use `cmake --install build` to install the `multiwfn` executable and `settings.i
 ## Building with GUI
 
 The GUI version can be built on Intel machines. It is currently not possible to build the GUI on Apple Silicon machines, due to lack of a [DISLIN](https://www.dislin.de) distribution. The required libraries can be installed with homebrew:
-- [openmotif](https://formulae.brew.sh/formula/openmotif)
+- [OpenMotif](https://formulae.brew.sh/formula/openmotif)
 - [XQuartz](https://formulae.brew.sh/cask/xquartz)
 
 ### Install DISLIN
@@ -66,13 +66,13 @@ The DISLIN package needs to be installed on the system. Follow these steps:
 2. Unpack the .tar.gz file and go into the folder
 3. Set the preferred install directory for DISLIN
 4. Run the installation script
-5. Patch the library install_name
+5. Patch the library install name
 
-An example on how to do this is:
+An example of how to do this is:
 ```shell
-wget https://www.dislin.de/downloads/darwin/dislin-11.5.darwin.intel.64.tagz
+wget https://www.dislin.de/downloads/darwin/dislin-11.5.darwin.intel.64.tar.gz
 tar -xvf dislin-11.5.darwin.intel.64.tar.gz
-export DISLIN=~/bin/dislin
+export DISLIN=$HOME/bin/dislin
 cd dislin-11.5
 ./INSTALL
 cd ..
@@ -81,10 +81,10 @@ install_name_tool -id $DISLIN/libdislin_d.dylib $DISLIN/libdislin_d.dylib
 
 ### Building
 
-To build with the GUI, specifiy the following options to CMake,
+To build with the GUI, specify the following options to CMake,
 
 ```shell
-$ cmake -B build -DWITH_GUI -DDISLIN_DIR=$DISLIN
+$ cmake -B build -DWITH_GUI=ON -DDISLIN_DIR=$DISLIN
 ```
 
-where `$DISLIN` points to the same directory as during the installation. These options can be combined with OpenMP and the release build type for optimal performance.
+where `$DISLIN` points to the same directory as during the installation. These options can be combined with OpenMP and the release build type for optimal performance (see above).
