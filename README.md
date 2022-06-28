@@ -1,6 +1,6 @@
 # Introduction
 
-[Multiwfn](http://sobereva.com/multiwfn/) is one of the most versatile software packages for electronic wave function analysis. Sadly, support for MacOS was dropped after version 3.7. This is an independent CMake-based build recipe which I have found to work reasonably well on an M1-based Mac running MacOS Monterey 12.4. No guarantees given for anything.
+[Multiwfn](http://sobereva.com/multiwfn/) is one of the most versatile software packages for electronic wave function analysis. Sadly, support for MacOS was dropped after version 3.7. This is an independent CMake-based build recipe which I have found to work reasonably well on an M1-based Mac running MacOS Monterey 12.4. Others have reproduced it on Intel Macs. No guarantees given for anything.
 
 # Homebrew tap
 
@@ -9,11 +9,11 @@ The easiest way to install is with the [Homebrew tap](https://github.com/kjelljo
 # Requirements
 
 The build has been tested with Homebrew-installed:
-- GFortran 
-- OpenBLAS
-- CMake
+- [GCC](https://formulae.brew.sh/formula/gcc) 
+- [OpenBLAS](https://formulae.brew.sh/formula/openblas)
+- [CMake](https://formulae.brew.sh/formula/cmake)
 
-No guarantees are given for other combinations of compilers and linear algebra backends. The build recipe might break with future versions of Multiwfn.
+Apple's Accelerate for BLAS/LAPACK also seems to work. No guarantees are given for other combinations of compilers and linear algebra backends. The build recipe might break with future versions of Multiwfn.
 
 # Building from source distribution
 
@@ -40,10 +40,51 @@ export Multiwfnpath=$HOME/bin/multiwfn-mac-build
 
 To build with OpenMP, set the flag `cmake -B build -DWITH_OpenMP=ON`. Then you need to specify the number of processors in `settings.ini` (see below).
 
+## Building with OpenBLAS
+
+To link against OpenBLAS rather than Apple's Accelerate, on Apple Silicon the following environment variables have to be set before calling CMake.
+
+```
+export LDFLAGS="-L/opt/homebrew/opt/openblas/lib"
+export PKG_CONFIG_PATH="/opt/homebrew/opt/openblas/lib/pkgconfig"
+```
+
 ## Install
 
 Use `cmake --install build` to install the `multiwfn` executable and `settings.ini`. Change install prefix with the flag `--prefix <dir>`
 
 ## Building with GUI
 
-Currently, it is not possible to build Multiwfn with a GUI on machines with an Apple Silicon processor, due to lack of a [DISLIN](https://www.dislin.de) distribution. If someone has an Intel Mac and would like to work out a recipe, please see the open issues on the question.
+The GUI version can be built on Intel machines. It is currently not possible to build the GUI on Apple Silicon machines, due to lack of a [DISLIN](https://www.dislin.de) distribution. The required libraries can be installed with homebrew:
+- [OpenMotif](https://formulae.brew.sh/formula/openmotif)
+- [XQuartz](https://formulae.brew.sh/cask/xquartz)
+
+### Install DISLIN
+
+The DISLIN package needs to be installed on the system. Follow these steps:
+1. Download the right distribution from the DISLIN download [page](https://www.dislin.de/darwin.html)
+2. Unpack the .tar.gz file and go into the folder
+3. Set the preferred install directory for DISLIN
+4. Run the installation script
+5. Patch the library install name
+
+An example of how to do this is:
+```shell
+wget https://www.dislin.de/downloads/darwin/dislin-11.5.darwin.intel.64.tar.gz
+tar -xvf dislin-11.5.darwin.intel.64.tar.gz
+export DISLIN=$HOME/bin/dislin
+cd dislin-11.5
+./INSTALL
+cd ..
+install_name_tool -id $DISLIN/libdislin_d.dylib $DISLIN/libdislin_d.dylib
+```
+
+### Building
+
+To build with the GUI, specify the following options to CMake,
+
+```shell
+$ cmake -B build -DWITH_GUI=ON -DDISLIN_DIR=$DISLIN
+```
+
+where `$DISLIN` points to the same directory as during the installation. These options can be combined with OpenMP and the release build type for optimal performance (see above).
