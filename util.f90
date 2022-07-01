@@ -2601,11 +2601,6 @@ subroutine showprog(inow,nall)
 integer inow,nall
 integer :: itmp=0
 character c80tmp*80
-!if (inow==nall) then
-!    write(*,*)
-!else if (inow>nall) then
-!    return
-!end if
 iprog=int(dfloat(inow)/nall*50)
 c80tmp=' Progress: ['
 c80tmp(13:62)=repeat('#',iprog)

@@ -29,7 +29,7 @@ if (YVU==90) YVU=89.999D0 !Temporarily modify YVU, otherwise when YVU equals to 
 if (YVU==-90) YVU=-89.999D0
 
 !Determine x/y/zlow, x/y/zhigh and plotlenx/y/z, which are lower, upper positions and length of the axis
-if (ifPBC>0) then !For PBC case, make the axis able to show all atoms
+if (ifPBC>0) then !For PBC case, make the axes large enough to show all atoms
     call cellminxyz(xmin,ymin,zmin)
     xlow=min(xmin-3,minval(a%x)-3)
     ylow=min(ymin-3,minval(a%y)-3)
@@ -56,8 +56,9 @@ else if (ifiletype==7.or.ifiletype==8) then !For cub/grd/cube/vti file, make the
 else !Other cases, determine displayed spatial scope by boundary atoms of the system
     !Determine axis range
     augplotlen=8D0 !Common augmentation of plotting axis length (the sum of both direction)
-    if (GUI_mode==5) augplotlen=12D0 !Because surface extreme points laying on vdW surface, the scatter region is large, so use larger value
-    if (GUI_mode==7) augplotlen=12D0 !Using GUI to set box, the case is complicated, so use larger value
+    if (GUI_mode==4.and.ifunctopo==25) augplotlen=22D0 !Minima of vdW potential are often very far from atoms, use larger augmentation
+    if (GUI_mode==5) augplotlen=12D0 !Because surface extreme points laying on vdW surface, the scatter region is large, so use larger augmentation
+    if (GUI_mode==7) augplotlen=12D0 !Using GUI to set box, the case is complicated, so use larger augmentation
     if ((idrawisosur==1.and.aug3D>4).or.GUI_mode==6) augplotlen=aug3D*2.2D0 !Shouldn't be 2.0 as expected, otherwise sometimes there will be a band occuring at boundary
 
     !Below comment and code are redundant, ignore them...

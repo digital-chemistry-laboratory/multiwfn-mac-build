@@ -3906,7 +3906,6 @@ integer,allocatable :: testatom(:)
 character c2000tmp*2000
 real*8 radmin,diamax,disp(3),coord(3),gvec(3),gvec_old(3),coordtmp(3),LSdisp(3),fract(3)
 
-
 write(*,"(/,a)") " Input indices of a set of atoms to detect contact. e.g. 3-10,14,18-23"
 write(*,*) "If pressing ENTER button directly, all atoms will be selected"
 read(*,"(a)") c2000tmp

@@ -21,7 +21,7 @@ integer,allocatable :: tmparr(:),tmparr2(:)
 real*8 :: hesstmp(3,3),gradtmp(3) !Temporarily used for calculating curvature
 integer :: ishowsearchpath=0
 
-!Don't need virtual orbitals (though some real space functions do need virtual orbitals), delete them for faster calculation
+!Do not need virtual orbitals, remove them for faster calculation
 if (iuserfunc/=27) call delvirorb(1) !Local electron affinity is related to virtual orbitals
 call gen_GTFuniq(0) !Generate unique GTFs, for faster evaluation in orbderv
 
@@ -47,10 +47,14 @@ ishowatmlab=0
 ishowpathlab=0
 ishowsearchlevel=0
 
+!Backup parameters related to IRI and RDG, because they may be modified. When leaving this module, restore
+tmp_IRI_rhocut=IRI_rhocut
+tmp_RDG_maxrho=RDG_maxrho
+
 call deallo_basinana(1) !If basin analysis has been performed, information should be dellocated otherwise attractors will be shown when visualizing CPs
+
 write(*,*)
 write(*,*) "         !!! Note: All length units in this module are Bohr !!!"
-
 do while(.true.)
 	write(*,*)
 	write(*,"(a)") "              ================ Topology analysis ==============="
@@ -95,10 +99,10 @@ do while(.true.)
 
 	if (isel==-11) then
         write(*,"(/,a)") "  The following functions support both analytical gradient and Hessian:"
-        write(*,"(a)") " Electron density, gradient norm of electron density, orbital wavefunction, IRI, RDG, Shannon entropy density, relative shannon entropy density, Fisher information density"
+        write(*,"(a)") " Electron density, gradient norm of electron density, orbital wavefunction, IRI, RDG, vdW potential, Shannon entropy density & local information entropy, relative shannon entropy density, Fisher information density"
         write(*,"(a)") "  The following functions support analytic gradient and semi-numerical Hessian:"
         write(*,"(a)") " Laplacian of electron density, ELF, LOL, second Fisher information density"
-        write(*,"(a)") "  All other functions do not have analytic derivative and thus their topology analysis may be slow and numerical accuracy cannot be well guaranteed"
+        write(*,"(a)") "  All other functions do not have analytic derivative and thus their topology analysis may be relatively slow and numerical accuracy cannot be well guaranteed"
         write(*,*)
 		write(*,*) "0 Return"
         call selfunc_interface(1,ifunctopo)
@@ -152,40 +156,39 @@ do while(.true.)
 			nsurfpathpercp=200
 			surfpathstpsiz=0.008D0
 		end if
-        !For topology analysis of IRI/IRI-pi, IRI_rhocut should be set to zero to avoid automatically setting it to 5 in low rho region, which will lead to huge number of artificial extrema
-        ichange_IRI_rhocut=0
-        if (ifunctopo==24.and.IRI_rhocut/=0) then
-			write(*,"(a)") " Note: IRI_rhocut parameter has been temporarily set to 0 during calculation"
-			tmp_IRI_rhocut=IRI_rhocut
-			IRI_rhocut=0
-            ichange_IRI_rhocut=1
-        end if
+        
         !For topology analysis of RDG, RDG_maxrho should be set to zero, otherwise steepest descent algorithm cannot be used
-        ichange_RDG_maxrho=0
         if (ifunctopo==13.and.RDG_maxrho/=0) then
-			write(*,"(a)") " Note: RDG_maxrho parameter has been temporarily set to 0 during calculation"
-			tmp_RDG_maxrho=RDG_maxrho
+			write(*,"(a)") " Note: RDG_maxrho parameter has been temporarily set to 0"
 			RDG_maxrho=0
-            ichange_RDG_maxrho=1
+        end if
+        !For topology analysis of IRI/IRI-pi, IRI_rhocut should be set to zero to avoid automatically setting it to 5 in low rho region, which will lead to huge number of artificial extrema
+        if (ifunctopo==24.and.IRI_rhocut/=0) then
+			write(*,"(a)") " Note: IRI_rhocut parameter has been temporarily set to 0"
+			IRI_rhocut=0
         end if
 		if (ifunctopo==13.or.ifunctopo==24) then
-			write(*,"(a)") " Note: CP searching method has been changed to steepest descent method, because it is suitable for this case. &
+			write(*,"(a)") " Note: CP searching method has been changed to steepest descent method, because it is most suitable for this case. &
             In addition, gradient convergence criterion has been changed to a very large value (1000) to deactivate its effect, &
             because for IRI or RDG, it is almost impossible to use steepest descent method to converge very accurately to a position with small enough gradient"
 			itopomethod=4
             dispconv=0.0001D0
             gradconv=1000
             numsearchpt=1000
+        else if (ifunctopo==25) then !vdW potential
+			write(*,"(a)") " Note: CP searching method has been changed to steepest descent method, because it is most suitable for this case"
+			itopomethod=4
+            numsearchpt=50
 		end if
         
 	else if (isel==-10) then
 		call del_GTFuniq !Destory unique GTF informtaion
         call delvirorb_back(1)
-        if (ichange_IRI_rhocut==1) then
+        if (IRI_rhocut/=tmp_IRI_rhocut) then
 			write(*,*) "Note: Original IRI_rhocut parameter has been restored"
 			IRI_rhocut=tmp_IRI_rhocut
         end if
-        if (ichange_RDG_maxrho==1) then
+        if (RDG_maxrho/=tmp_RDG_maxrho) then
 			write(*,*) "Note: Original RDG_maxrho parameter has been restored"
 			RDG_maxrho=tmp_RDG_maxrho
         end if
@@ -1243,6 +1246,9 @@ do while(.true.)
 				numcpold=numcp
 				numsearchpt_tmp=nint(8D0/4.189D0*numsearchpt)
 				allocate(randptx(numsearchpt_tmp),randpty(numsearchpt_tmp),randptz(numsearchpt_tmp))
+                sphcenx_old=sphcenx
+                sphceny_old=sphceny
+                sphcenz_old=sphcenz
 				itime=0
 				ioutcount=0
 				call walltime(iwalltime1)
@@ -1280,9 +1286,12 @@ do while(.true.)
                 call showprog(numsearchpt*nsearchcen,numsearchpt*nsearchcen)
 				call walltime(iwalltime2)
 				write(*,"(' Searching CPs took up',i8,' seconds wall clock time')") iwalltime2-iwalltime1
+                sphcenx=sphcenx_old
+                sphceny=sphceny_old
+                sphcenz=sphcenz_old
 				
 				if ((numcp-numcpold)/=0) then
-! 					call sortCP(numcpold+1) !Senseless here, because the starting points occur randomly
+! 					call sortCP(numcpold+1) !Nonsense here, because the starting points occur randomly
 					write(*,*)
 					write(*,*) "                            ---- Summary ----"
 					write(*,*) " Index                       Coordinate               Type"
@@ -1974,7 +1983,12 @@ if (ifPBC>0) call move_to_cell(coord,coord) !Initial position may already be out
 if (ishowsearchlevel>1) write(*,"(' Starting point:',3f12.6)") coord(1:3,1)
 
 do i=1,topomaxcyc
-	!Determine displacement and gradient vectors
+	if (ishowsearchlevel==3) then
+		write(*,"(/,' Iteration',i5)") i
+        write(*,"(' Coordinate:',3f16.10)") coord
+    end if
+    
+	!Determine function value and gradient at present geometry, and calculate raw displacement
     if (itopomethod==1) then !Newton method
 	    call gencalchessmat(2,ifunc,coord(1,1),coord(2,1),coord(3,1),value,grad(1:3,1),hess) !Obtain gradient and Hessian
 	    singulartest=abs(detmat(hess))
@@ -2009,75 +2023,72 @@ do i=1,topomaxcyc
         end if
         grad(:,1)=gvec(:)
     else if (itopomethod==3.or.itopomethod==4) then !Steepest ascent/descent
-        call gencalchessmat(1,ifunc,coord(1,1),coord(2,1),coord(3,1),value,gvec(:),hess) !Obtain gradient
-		graderr=dsqrt(sum(gvec**2))
-   !     if (graderr<gradconv) then !If gradient is already converged, simply regarded as converged. This is not a good idea...
-			!disp(:,1)=0D0
-   !     else
-			tmpvec=gvec(:)/graderr !Unit vector along gradient
-			sclfac=0.1D0 !First step is 0.1 Bohr
-            micromax=30
-            if (ishowsearchlevel==3) then
-				write(*,*)
-				write(*,*) "Start micro iterations in line search"
-				write(*,"(' Initial value:',f24.13)") value
-				write(*,"(' Coordinate:   ',3f16.10)") coord(:,1)
-				write(*,"(' Gradient:     ',3f16.10)") gvec(:)
-                write(*,*) "Iter.             X,Y,Z of attempt displacement                 New value"
+        call gencalchessmat(1,ifunc,coord(1,1),coord(2,1),coord(3,1),value,gvec(:),hess(:,:)) !Obtain gradient
+		gradnorm=dsqrt(sum(gvec**2))
+		tmpvec=gvec(:)/gradnorm !Unit vector along gradient
+		sclfac=0.1D0 !First stepsize
+        micromax=30
+        if (ishowsearchlevel==3) then
+			write(*,*) "** Start micro iterations of line search"
+			write(*,"(' Initial function value:',f24.13)") value
+			write(*,"(' Gradient:     ',3f16.10)") gvec(:)
+            write(*,*) "Iter.             X,Y,Z of attempt displacement                 New value"
+        end if
+		do imicro=1,micromax
+			if (itopomethod==3) then !Steepest ascent
+				disptmp(:)=sclfac*tmpvec(:)
+            else !Steepest descent
+				disptmp(:)=-sclfac*tmpvec(:)
             end if
-			do imicro=1,micromax
-				if (itopomethod==3) then
-					disptmp(:)=sclfac*tmpvec(:)
-                else
-					disptmp(:)=-sclfac*tmpvec(:)
-                end if
-				xtest=coord(1,1)+disptmp(1)
-				ytest=coord(2,1)+disptmp(2)
-				ztest=coord(3,1)+disptmp(3)
-				tmpval=calcfuncall(ifunc,xtest,ytest,ztest)
-                if (ishowsearchlevel==3) write(*,"(i3,3f19.14,1PE18.10)") imicro,sclfac*tmpvec(:),tmpval
-				if ((itopomethod==3.and.tmpval>value).or.(itopomethod==4.and.tmpval<value)) then
-					disp(:,1)=disptmp(:)
-					exit
-				else
-					sclfac=sclfac/2.5D0
-				end if
-			end do
-			if (imicro==micromax+1) then !Usually when line search was failed, displacement is already quite small, while gradient is not quite small
-				disp(:,1)=0D0
-                gvec(:)=0D0
-				if (ishowsearchlevel==3) write(*,*) "Warning: Line search was failed, assumed to be converged"
+			xtest=coord(1,1)+disptmp(1)
+			ytest=coord(2,1)+disptmp(2)
+			ztest=coord(3,1)+disptmp(3)
+			tmpval=calcfuncall(ifunc,xtest,ytest,ztest)
+            if (ishowsearchlevel==3) write(*,"(i3,3f19.14,1PE18.10)") imicro,sclfac*tmpvec(:),tmpval
+			if ((itopomethod==3.and.tmpval>value).or.(itopomethod==4.and.tmpval<value)) then
+				if (ishowsearchlevel==3) write(*,*) "** Displacement accepted!"
+				disp(:,1)=disptmp(:)
+				exit
+			else
+				sclfac=sclfac/2.5D0
 			end if
-        !end if
+		end do
+		if (imicro==micromax+1) then !Usually when line search was failed, displacement is already quite small, while gradient is not quite small
+			disp(:,1)=0D0
+            gvec(:)=0D0
+			if (ishowsearchlevel==3) write(*,*) "Warning: Line search was failed, assumed to be converged"
+		end if
         grad(:,1)=gvec(:)
     end if
     
-    !Trust radius
+	gradnorm=dsqrt(sum(grad**2))
+	if (ishowsearchlevel==3) then
+		write(*,"(' Function value:',f24.13)") value
+		write(*,"(' Grad:',3f16.10,'  Norm:',f18.10)") grad,gradnorm
+	end if
+    
+    !Apply scale factor
+    disp=CPstepscale*disp
+    !Apply trust radius
     if (topotrustrad>0) then
         dispnorm=dsqrt(sum(disp**2))
         if (dispnorm>topotrustrad) disp=disp*topotrustrad/dispnorm
     end if
+	dispnorm=dsqrt(sum(disp**2))
     
-    !Move coordinate
-	coord=coord+CPstepscale*disp
-    
+    !Update coordinate
+	coord=coord+disp
     if (ifPBC>0) call move_to_cell(coord,coord) !If moved to a position out of box, move it to central cell
     
-	disperr=dsqrt(sum(disp**2))
-	graderr=dsqrt(sum(grad**2))
-
 	if (ishowsearchlevel==3) then
-		write(*,"(/,' Step',i5,'    Function value:',f24.13)") i,value
-		write(*,"(' Gradient:           ',3f18.10)") grad
-		write(*,"(' Displacement vector:',3f18.10)") disp
-		write(*,"(' Norm of displacement:',f16.10,'  Norm of gradient:',E18.8)") disperr,graderr
+		write(*,"(' Disp:',3f16.10,'  Norm:',f18.10)") disp,dispnorm
 		write(*,"(' Goal: |disp|<',E18.8,'    |grad|<',E18.8)") dispconv,gradconv
-        if (disperr>dispconv.or.graderr>gradconv) write(*,"(' Not converged, new coordinate:',3f16.12)") coord
+        if (dispnorm>dispconv.or.gradnorm>gradconv) write(*,*) "Not converged"
 	end if
-
-	if (disperr<dispconv.and.graderr<gradconv) then
+    
+	if (dispnorm<dispconv.and.gradnorm<gradconv) then
 		if (ishowsearchlevel>1) write(*,"(' Converged after',i6,' iterations')") i
-		if (ishowsearchlevel==3) write(*,*) "        ---------------------- Iteration ended ----------------------"
+		if (ishowsearchlevel==3) write(*,"(/,a)") "         ---------------------- Iteration ended ----------------------"
 		if (itopomethod==2.or.itopomethod==3.or.itopomethod==4) then !When using methods other than Newton, only gradient is calculated, here we calculate Hessian for determining CP type
 			call gencalchessmat(2,ifunc,coord(1,1),coord(2,1),coord(3,1),value,gvec(:),hess)
 		end if
@@ -2085,8 +2096,8 @@ do i=1,topomaxcyc
 		inewcp=1
 		do icp=1,numcp
             if (ifPBC==0) then
-    			r=dsqrt(sum( (coord(:,1)-CPpos(:,icp))**2 ))
-            else if (ifPBC>0) then
+    				r=dsqrt(sum( (coord(:,1)-CPpos(:,icp))**2 ))
+            else
                 call nearest_dist(coord(:,1),CPpos(:,icp),r)
             end if
 			if (r<=minicpdis) then
@@ -2145,7 +2156,7 @@ do i=1,topomaxcyc
         !$OMP end CRITICAL
 		exit
 	end if
-	if (i==topomaxcyc.and.(ishowsearchlevel>1)) write(*,*) "!! Exceeded maximal cycles until find a stationary point !!"
+	if (i==topomaxcyc.and.(ishowsearchlevel>1)) write(*,"(/,a)") "          !! Exceeded maximal cycles until find a stationary point !!"
 end do
 if (ishowsearchlevel>1) write(*,*)
 end subroutine

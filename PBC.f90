@@ -240,6 +240,12 @@ real*8 xyzA(3),xyzB(3),xyzB2(3),dist
 call nearest_mirror(xyzA,xyzB,xyzB2)
 dist=dsqrt(sum((xyzA-xyzB2)**2))
 end subroutine
+!!!-------- The same as above, but return vector A->B
+subroutine nearest_distvec(xyzA,xyzB,distvec)
+real*8 xyzA(3),xyzB(3),xyzB2(3),distvec(3)
+call nearest_mirror(xyzA,xyzB,xyzB2)
+distvec(:)=xyzB2(:)-xyzA(:)
+end subroutine
 
 
 

@@ -66,6 +66,8 @@ else if (ifunc==23) then
 	calcfuncall=delta_g_Hirsh(x,y,z)
 else if (ifunc==24) then
     calcfuncall=IRIfunc(x,y,z)
+else if (ifunc==25) then
+    calcfuncall=vdwpotfunc(x,y,z,1)
 else if (ifunc==100) then
 	calcfuncall=userfunc(x,y,z)
 end if
@@ -1621,12 +1623,11 @@ real*8 x,y,z,value,grad(3),hess(3,3),tens3(3,3,3)
 real*8 gradaddx(3),gradminx(3),gradaddy(3),gradminy(3),gradaddz(3),gradminz(3)
 character selELFLOL*3
 diff=8D-4
-!if (ifunc==12.and.(iESPcode==2.or.iESPcode==3)) diff=1D-2 !ESP by libreta needs larger stepsize otherwise gradient acccuracy is unsatisfactory
 denom=2D0*diff
 if (ifunc==9) selELFLOL="ELF"
 if (ifunc==10) selELFLOL="LOL"
 
-!For a few functions whose both analytic gradient and Hessian are available, evaluate them and then return
+!For functions whose both analytic gradient and Hessian are available, evaluate them and then return
 !If comment one of them, then the gradient and Hessian of corresponding function will be calculated numerically
 if (ifunc==1) then
 	call calchessmat_dens(itype,x,y,z,value,grad,hess)
@@ -1637,33 +1638,43 @@ else if (ifunc==2) then
 else if (ifunc==4) then
 	call calchessmat_orb(itype,iorbsel,x,y,z,value,grad,hess)
 	return
+else if (ifunc==11) then !Local information entropy
+    call calchessmat_Shannon(1,x,y,z,value,grad,hess)
+	return
 else if (ifunc==13) then !RDG
     call calchessmat_IRI_RDG(itype,2,x,y,z,value,grad,hess)
 	return
 else if (ifunc==24) then !IRI
     call calchessmat_IRI_RDG(itype,1,x,y,z,value,grad,hess)
 	return
+else if (ifunc==25) then !van der Waals potential
+    call calchessmat_vdWpot(itype,x,y,z,value,grad,hess)
+	return
 else if (ifunc==100) then
 	if (iuserfunc==49) then !Relative Shannon entropy density
-		call relShannon_gradhess(x,y,z,value,grad,hess)
+		call calchessmat_relShannon(x,y,z,value,grad,hess)
+		return
 	else if (iuserfunc==50) then !Shannon entropy density
-		call Shannon_gradhess(x,y,z,value,grad,hess)
+		call calchessmat_Shannon(2,x,y,z,value,grad,hess)
+		return
 	else if (iuserfunc==51) then !Fisher information density
-		call Fisherinfo_gradhess(x,y,z,value,grad,hess)
+		call calchessmat_Fisherinfo(x,y,z,value,grad,hess)
+		return
 	else if (iuserfunc==52) then !Second Fisher information density
-		call second_Fisherinfo_gradhess(x,y,z,value,grad,hess)
+		call calchessmat_second_Fisherinfo(x,y,z,value,grad,hess)
+		return
 	else if (iuserfunc==99) then !IRI
 		call calchessmat_IRI_RDG(itype,1,x,y,z,value,grad,hess)
+		return
     end if
-	return
 end if
 	
-!Calculate gradient
-!For other functions aside from above ones, analytical Hessian or even gradient has not been realized
+!Calculate gradient and meantime value
+!For other functions aside from above ones, analytic Hessian or even gradient has not been realized
 if (ifunc==3) then
 	call calchessmat_lapl(1,x,y,z,value,grad,hess)
 else if (ifunc==9.or.ifunc==10) then
-	if (ELFLOL_type==0) then !Analytical gradient for original ELF/LOL
+	if (ELFLOL_type==0) then !Analytic gradient for original ELF/LOL
 		call calchessmat_ELF_LOL(1,x,y,z,value,grad,hess,selELFLOL)
 	else !Numerical gradient for other definitions of ELF/LOL
 		value=ELF_LOL(x,y,z,selELFLOL)
@@ -1690,9 +1701,9 @@ else !User general interface to calculate value for all other functions
 	grad(3)=(zadd-zmin)/denom
 end if
 
-!Calculate Hessian semi (namely based on analyical gradient) or pure (based on function value) numerically
+!Calculate Hessian semi (namely based on analyic gradient) or pure (based on function value) numerically
 if (itype==2) then
-	if (ifunc==3) then !Use semi-analytical for Hessian of laplacian
+	if (ifunc==3) then !Use semi-analytic for Hessian of Laplacian
 		call calchessmat_lapl(1,x+diff,y,z,tmpval,gradaddx,hess)
 		call calchessmat_lapl(1,x-diff,y,z,tmpval,gradminx,hess)
 		call calchessmat_lapl(1,x,y+diff,z,tmpval,gradaddy,hess)
@@ -1710,7 +1721,7 @@ if (itype==2) then
 		hess(3,1)=hess(1,3)
 		return !Do not do below procedures to generate pure numerical Hessian
 	else if (ifunc==9.or.ifunc==10) then !ELF, LOL
-		if (ELFLOL_type==0) then !Use semi-analytical for Hessian of original ELF/LOL
+		if (ELFLOL_type==0) then !Use semi-analytic for Hessian of original ELF/LOL
 			call calchessmat_ELF_LOL(1,x+diff,y,z,tmpval,gradaddx,hess,selELFLOL)
 			call calchessmat_ELF_LOL(1,x-diff,y,z,tmpval,gradminx,hess,selELFLOL)
 			call calchessmat_ELF_LOL(1,x,y+diff,z,tmpval,gradaddy,hess,selELFLOL)
@@ -1789,7 +1800,7 @@ end subroutine
 
 
 
-!!----------- Calculate orbital wavefunction value (fmo=function for outputting MO)
+!!----------- Calculate orbital wavefunction value (fmo=function for outputting orbital (not necessarily MO))
 real*8 function fmo(x,y,z,id)
 real*8 x,y,z,orbval(nmo)
 integer id
@@ -1806,12 +1817,16 @@ end function
 subroutine calchessmat_orb(itype,id,x,y,z,value,grad,hess)
 integer id,itype
 real*8 x,y,z,grad(3),hess(3,3),value,wfnval(nmo),wfnderv(3,nmo),wfnhess(3,3,nmo)
-if (itype==1) call orbderv(2,id,id,x,y,z,wfnval,wfnderv,wfnhess)
-if (itype==2) call orbderv(4,id,id,x,y,z,wfnval,wfnderv,wfnhess)
+if (itype==1) then
+	call orbderv(2,id,id,x,y,z,wfnval,wfnderv,wfnhess)
+else if (itype==2) then
+	call orbderv(4,id,id,x,y,z,wfnval,wfnderv,wfnhess)
+end if
 value=wfnval(id)
 grad=wfnderv(:,id)
 hess=wfnhess(:,:,id)
 end subroutine
+
 
 
 !-------- Calculate electron density
@@ -2452,6 +2467,99 @@ end function
 
 
 
+!!------ Calculate van der Waals potential, its gradient and Hessian matrix
+!itype=1 Only calculate value and gradient, not Hessian
+!itype=2 Calculate value, gradient and Hessian
+subroutine calchessmat_vdWpot(itype,x,y,z,value,grad,hess)
+integer itype
+real*8 x,y,z,value,grad(3),hess(3,3),distvec(3),distgrad(3),disthess(3,3),xyzA(3),rvec(3),tmpgrad(3),tmphess(3,3),tvec(3)
+real*8 parmA(ncenter),parmB(ncenter),UFF_A(103),UFF_B(103)
+
+call defineUFFparm(UFF_A,UFF_B)
+do iatm=1,ncenter
+    parmA(iatm)=UFF_A(a(iatm)%index)
+    parmB(iatm)=UFF_B(a(iatm)%index)
+end do
+parmAj=UFF_A(ivdwprobe)
+parmBj=UFF_B(ivdwprobe)
+
+value=0
+grad=0
+hess=0
+rvec(1)=x;rvec(2)=y;rvec(3)=z
+
+ilow=1;ihigh=1
+jlow=1;jhigh=1
+klow=1;khigh=1
+if (ifPBC>0) then
+	call getpointcell(x,y,z,ic,jc,kc)
+    ilow=ic-PBCnx
+    ihigh=ic+PBCnx
+    jlow=jc-PBCny
+    jhigh=jc+PBCny
+    klow=kc-PBCnz
+    khigh=kc+PBCnz
+end if
+do icell=ilow,ihigh
+	do jcell=jlow,jhigh
+		do kcell=klow,khigh
+			tvec=0
+            if (ifPBC>0) call tvec_PBC(icell,jcell,kcell,tvec)
+			do iatm=1,ncenter
+				!Get (R_A - r) vector and norm
+				xyzA(1)=a(iatm)%x+tvec(1)
+				xyzA(2)=a(iatm)%y+tvec(2)
+				xyzA(3)=a(iatm)%z+tvec(3)
+				distvec(:)=(xyzA(:)-rvec(:))*b2a
+				dist=dsqrt(sum(distvec**2))
+    
+				if (dist>25) cycle
+				if (dist==0) dist=1E-10 !Avoid singular when grid point happens at nucleus
+				eps=dsqrt(parmA(iatm)*parmAj) !Well depth (epsilon)
+				R0=dsqrt(parmB(iatm)*parmBj) !vdW distance (R0)
+				R0_6=R0**6
+				R0_12=R0_6**2
+    
+				tmpval = R0_12*dist**(-12) - 2*R0_6*dist**(-6)
+				value = value + eps*tmpval
+    
+				!Get gradient of |R_A - r|
+				distgrad(:)=-distvec(:)/dist
+				!Calculate gradient of vdW potential
+				tmp1= R0_6*dist**(-7) - R0_12*dist**(-13)
+				grad(:) = grad(:) + eps*distgrad(:)*tmp1
+    
+				if (itype==2) then
+					!Get Hessian of |R_A - r|
+					dist3=dist**3
+					do i=1,3
+						do j=1,3
+							disthess(i,j)=-distvec(i)*distvec(j)/dist3
+							if (i==j) disthess(i,j)=disthess(i,j)+1D0/dist
+						end do
+					end do
+					!Calculate Hessian of vdW potential
+					tmp2=-7*R0_6*dist**(-8) + 13*R0_12*dist**(-14)
+					do i=1,3
+						do j=1,3
+							tmphess(i,j) = disthess(i,j)*tmp1 + distgrad(i)*distgrad(j)*tmp2
+						end do
+					end do
+					hess(:,:) = hess(:,:) + eps*tmphess(:,:)
+				end if
+			end do
+		end do
+	end do
+end do
+
+!Gradient and Hessian obtained above are derivatives w.r.t. Angstrom, convert to w.r.t. Bohr
+grad=grad*12*b2a
+hess=hess*12*b2a*b2a
+end subroutine
+
+
+
+
 !!------- Calculate sign(lambda2)*rho, this is a wrapper used to convert subroutine to function form
 real*8 function signlambda2rho(x,y,z)
 real*8 x,y,z,sl2r,RDG,rho
@@ -2616,8 +2724,7 @@ end function
 
 
 
-!!------ Calculate ELF/LOL, its gradient and Hessian matrix, store to hess 
-! Currently can not calculate Hessian!
+!!------ Calculate ELF/LOL, its gradient and Hessian matrix (not supported yet)
 !funsel="ELF" or "LOL"
 !itype=1 Only calculate value and gradient, not Hessian
 !itype=2 Calculate value, gradient and Hessian (Not available)
@@ -2628,16 +2735,15 @@ real*8 x,y,z,value,grad(3),hess(3,3),MOoccnow
 real*8 wfnval(nmo),wfnderv(3,nmo),wfnhess(3,3,nmo),wfntens3(3,3,3,nmo)
 real*8 rho,gradrho(3),hessrho(3,3),Dh,gradDh(3),hessDh(3,3),Ts,gradTs(3),hessTs(3,3),Wei,gradWei(3),hessWei(3,3)
 real*8 rhoa,rhob,gradrhoa(3),gradrhob(3),hessrhoa(3,3),hessrhob(3,3),Dha,Dhb,gradDha(3),gradDhb(3),Weia,Weib,gradWeia(3),gradWeib(3)
-! real*8 hessDha(3,3),hessDhb(3,3),hessWeia(3,3),hessWeib(3,3)
-real*8 :: Fc=2.871234000D0 ! Fermi constant = (3/10)*(3*Pi^2)**(2/3) = 2.871234, 1/2.871234=0.34828
-real*8 :: Fc_pol=4.557799872D0 ! Fermi constant for spin polarized = (3/10)*(6*Pi^2)**(2/3) = 4.5578, 1/4.5578=0.2194
+real*8 :: Fc=2.871234000D0 !Fermi constant = (3/10)*(3*Pi^2)**(2/3) = 2.871234, 1/2.871234=0.34828
+real*8 :: Fc_pol=4.557799872D0 !Fermi constant for spin polarized = (3/10)*(6*Pi^2)**(2/3) = 4.5578, 1/4.5578=0.2194
 real*8 :: corrELF=1D-5
 character funsel*3
 
 if (itype==1) call orbderv(4,1,nmo,x,y,z,wfnval,wfnderv,wfnhess) !Get Hessian of GTF, needn't 3-order tensor
 if (itype==2) call orbderv(5,1,nmo,x,y,z,wfnval,wfnderv,wfnhess,wfntens3)
 
-!spin-unpolarized case
+!Spin-unpolarized case
 if (wfntype==0.or.wfntype==3) then
 	rho=0D0
 	gradrho=0D0
@@ -2689,7 +2795,7 @@ if (wfntype==0.or.wfntype==3) then
 		grad(2)=tmp*(gradTs(2)-Ts/Dh*gradDh(2))
 		grad(3)=tmp*(gradTs(3)-Ts/Dh*gradDh(3))
 	end if
-!spin-polarized case
+!Spin-polarized case
 else if (wfntype==1.or.wfntype==2.or.wfntype==4) then
 	rhoa=0D0
 	rhob=0D0
@@ -2785,66 +2891,6 @@ else if (wfntype==1.or.wfntype==2.or.wfntype==4) then
 		grad(3)=tmp*(gradTs(3)-Ts/Dh*gradDh(3))
 	end if
 end if
-
-! if (itype==1) return
-! ! Calculate Hessian for LOL, also need Hessian for rho
-! hessrho(1,1)=2*sum( MOocc(1:nmo)*( wfnderv(1,1:nmo)**2 + wfnval(1:nmo)*wfnhess(1,1,1:nmo) ) )
-! hessrho(2,2)=2*sum( MOocc(1:nmo)*( wfnderv(2,1:nmo)**2 + wfnval(1:nmo)*wfnhess(2,2,1:nmo) ) )
-! hessrho(3,3)=2*sum( MOocc(1:nmo)*( wfnderv(3,1:nmo)**2 + wfnval(1:nmo)*wfnhess(3,3,1:nmo) ) )
-! hessrho(1,2)=2*sum( MOocc(1:nmo)*( wfnderv(1,1:nmo)*wfnderv(2,1:nmo)+wfnhess(1,2,1:nmo)*wfnval(1:nmo) ) )
-! hessrho(2,3)=2*sum( MOocc(1:nmo)*( wfnderv(2,1:nmo)*wfnderv(3,1:nmo)+wfnhess(2,3,1:nmo)*wfnval(1:nmo) ) )
-! hessrho(1,3)=2*sum( MOocc(1:nmo)*( wfnderv(1,1:nmo)*wfnderv(3,1:nmo)+wfnhess(1,3,1:nmo)*wfnval(1:nmo) ) )
-! hessrho(2,1)=hessrho(1,2)
-! hessrho(3,1)=hessrho(1,3)
-! hessrho(3,2)=hessrho(2,3)
-! 
-! hessTs=0D0
-! do i=1,nmo
-! 	hessTs(1,1)=hessTs(1,1)+MOocc(i)*( wfnhess(1,1,i)**2 + wfnderv(1,i)*wfntens3(1,1,1,i) + wfnhess(1,2,i)**2 + wfnderv(2,i)*wfntens3(1,1,2,i) + wfnhess(1,3,i)**2 + wfnderv(3,i)*wfntens3(1,1,3,i) )
-! 	hessTs(2,2)=hessTs(2,2)+MOocc(i)*( wfnhess(2,2,i)**2 + wfnderv(2,i)*wfntens3(2,2,2,i) + wfnhess(2,1,i)**2 + wfnderv(1,i)*wfntens3(2,2,1,i) + wfnhess(2,3,i)**2 + wfnderv(3,i)*wfntens3(2,2,3,i) )
-! 	hessTs(3,3)=hessTs(3,3)+MOocc(i)*( wfnhess(3,3,i)**2 + wfnderv(3,i)*wfntens3(3,3,3,i) + wfnhess(3,2,i)**2 + wfnderv(2,i)*wfntens3(3,3,2,i) + wfnhess(3,1,i)**2 + wfnderv(1,i)*wfntens3(3,3,1,i) )
-! 	hessTs(1,2)=hessTs(1,2)+MOocc(i)*( wfnhess(1,2,i)*wfnhess(1,1,i) + wfnderv(1,i)*wfntens3(1,1,2,i) + wfnhess(2,2,i)*wfnhess(1,2,i) + wfnderv(2,i)*wfntens3(1,2,2,i) + wfnhess(2,3,i)*wfnhess(1,3,i) + wfnderv(3,i)*wfntens3(1,2,3,i) )
-! 	hessTs(2,3)=hessTs(2,3)+MOocc(i)*( wfnhess(2,3,i)*wfnhess(2,2,i) + wfnderv(2,i)*wfntens3(2,2,3,i) + wfnhess(3,3,i)*wfnhess(2,3,i) + wfnderv(3,i)*wfntens3(2,3,3,i) + wfnhess(3,1,i)*wfnhess(2,1,i) + wfnderv(1,i)*wfntens3(2,3,1,i) )
-! 	hessTs(1,3)=hessTs(1,3)+MOocc(i)*( wfnhess(1,3,i)*wfnhess(1,1,i) + wfnderv(1,i)*wfntens3(1,1,3,i) + wfnhess(3,3,i)*wfnhess(1,3,i) + wfnderv(3,i)*wfntens3(1,3,3,i) + wfnhess(3,2,i)*wfnhess(1,2,i) + wfnderv(2,i)*wfntens3(1,3,2,i) )
-! end do
-! hessTs(2,1)=hessTs(1,2)
-! hessTs(3,1)=hessTs(1,3)
-! hessTs(3,2)=hessTs(2,3)
-! 
-! tmp1=10D0/9D0*Fc/rho**(1D0/3D0)
-! tmp2=5D0/3D0*Fc*rho**(2D0/3D0)
-! hessDh(1,1)=tmp1*gradrho(1)**2 + tmp2*hessrho(1,1)
-! hessDh(2,2)=tmp1*gradrho(2)**2 + tmp2*hessrho(2,2)
-! hessDh(3,3)=tmp1*gradrho(3)**2 + tmp2*hessrho(3,3)
-! hessDh(1,2)=tmp1*gradrho(1)*gradrho(2) + tmp2*hessrho(1,2)
-! hessDh(2,3)=tmp1*gradrho(2)*gradrho(3) + tmp2*hessrho(2,3)
-! hessDh(1,3)=tmp1*gradrho(1)*gradrho(3) + tmp2*hessrho(1,3)
-! hessDh(2,1)=hessDh(1,2)
-! hessDh(3,1)=hessDh(1,3)
-! hessDh(3,2)=hessDh(2,3)
-! 
-! !Diagonal of Hessian of LOL
-! apre=1/Dh**2/(1+Ts/Dh)**3
-! bpre=-1/Dh/(1+Ts/Dh)**2
-! apartxx=(gradDh(1)+2*gradTs(1)-Ts/Dh*gradDh(1)) * (gradTs(1)-Ts/Dh*gradDh(1))
-! bpartxx=hessTs(1,1)-( gradDh(1)*gradTs(1)-Ts/Dh*gradDh(1)**2+Ts*hessDh(1,1) )/Dh
-! hess(1,1)=apre*apartxx+bpre*bpartxx
-! apartyy=(gradDh(2)+2*gradTs(2)-Ts/Dh*gradDh(2)) * (gradTs(2)-Ts/Dh*gradDh(2))
-! bpartyy=hessTs(2,2)-( gradDh(2)*gradTs(2)-Ts/Dh*gradDh(2)**2+Ts*hessDh(2,2) )/Dh
-! hess(2,2)=apre*apartyy+bpre*bpartyy
-! apartzz=(gradDh(3)+2*gradTs(3)-Ts/Dh*gradDh(3)) * (gradTs(3)-Ts/Dh*gradDh(3))
-! bpartzz=hessTs(3,3)-( gradDh(3)*gradTs(3)-Ts/Dh*gradDh(3)**2+Ts*hessDh(3,3) )/Dh
-! hess(3,3)=apre*apartzz+bpre*bpartzz
-! !Non-diagonal of Hessian of LOL
-! bpartxy=hessTs(1,2)-( gradDh(1)*gradTs(2)-Ts/Dh*gradDh(1)*gradDh(2)+Ts*hessDh(1,2) )/Dh
-! hess(1,2)=apre*apartxx+bpre*bpartxy
-! bpartyz=hessTs(2,3)-( gradDh(2)*gradTs(3)-Ts/Dh*gradDh(2)*gradDh(3)+Ts*hessDh(2,3) )/Dh
-! hess(2,3)=apre*apartyy+bpre*bpartyz
-! bpartxz=hessTs(1,3)-( gradDh(1)*gradTs(3)-Ts/Dh*gradDh(1)*gradDh(3)+Ts*hessDh(1,3) )/Dh
-! hess(1,3)=apre*apartxx+bpre*bpartxz
-! hess(2,1)=hess(1,2)
-! hess(3,1)=hess(1,3)
-! hess(3,2)=hess(2,3)
 end subroutine
 
 
@@ -3471,10 +3517,15 @@ end function
 
 
 
-!!--------- Calculate gradient and Hessian of Shannon entropy density, rho*ln(rho)
-subroutine Shannon_gradhess(x,y,z,value,grad,hess)
+!!--------- Calculate gradient and Hessian of local information entropy or Shannon entropy density
+!itype=1: -rho/N*ln(rho/N)  local information entropy
+!itype=2: -rho*ln(rho)  Shannon entropy density
+subroutine calchessmat_Shannon(itype,x,y,z,value,grad,hess)
 implicit real*8 (a-h,o-z)
+integer itype
 real*8 x,y,z,value,grad(3),hess(3,3),rhograd(3),rhohess(3,3)
+
+!Calculate -rho*ln(rho) and its derivatives
 call calchessmat_dens(2,x,y,z,rho,rhograd,rhohess)
 value=-rho*log(rho)
 tmp=log(rho)+1
@@ -3484,6 +3535,13 @@ do i=1,3
 		hess(i,j)=-rhohess(i,j)*tmp-rhograd(i)*rhograd(j)/rho
     end do
 end do
+
+!Calculate -rho/N*ln(rho/N) and its derivatives based on data above
+if (itype==1) then
+	grad(:)=grad(:)/nelec + log(nelec)/nelec*rhograd(:)
+    hess(:,:)=hess(:,:)/nelec + log(nelec)/nelec*rhohess(:,:)
+end if
+
 end subroutine
 
 
@@ -4749,7 +4807,7 @@ end function
 
 
 !!------- Steric charge, =lapl(steric potential)/(-4*pi)
-!Based on analytical first-order derivative, using finite difference to obtain d2v/dx2, d2v/dy2 and d2v/dz2
+!Based on analytic first-order derivative, using finite difference to obtain d2v/dx2, d2v/dy2 and d2v/dz2
 real*8 function stericcharge(x,y,z)
 real*8 x,y,z,derv1add(3),derv1min(3)
 if (fdens(x,y,z)<steric_potcutrho) then
@@ -4789,7 +4847,7 @@ end function
 
 
 !!--------- Calculate gradient and Hessian of Fisher information density
-subroutine Fisherinfo_gradhess(x,y,z,value,grad,hess)
+subroutine calchessmat_Fisherinfo(x,y,z,value,grad,hess)
 implicit real*8 (a-h,o-z)
 real*8 x,y,z,value,grad(3),hess(3,3),rhograd(3),rhohess(3,3),rhotens3(3,3,3)
 
@@ -4827,7 +4885,7 @@ end subroutine
 
 
 !!--------- Calculate gradient (analytically) and Hessian (semi-numerical) of second Fisher information density
-subroutine second_Fisherinfo_gradhess(x,y,z,value,grad,hess)
+subroutine calchessmat_second_Fisherinfo(x,y,z,value,grad,hess)
 implicit real*8 (a-h,o-z)
 real*8 x,y,z,value,grad(3),hess(3,3)
 real*8 gradaddx(3),gradminx(3),gradaddy(3),gradminy(3),gradaddz(3),gradminz(3)
@@ -4940,7 +4998,7 @@ end function
 
 !!--------- Calculate gradient and Hessian of relative Shannon entropy density (information gain)
 !Must call generate_promolwfn prior to using this function to make CO_pmol, MOocc_pmol, etc. available
-subroutine relShannon_gradhess(x,y,z,value,grad,hess)
+subroutine calchessmat_relShannon(x,y,z,value,grad,hess)
 real*8 x,y,z,value,grad(3),hess(3,3)
 real*8 rhograd(3),rhohess(3,3),prhograd(3),prhohess(3,3)
 call calchessmat_dens(2,x,y,z,rho,rhograd,rhohess)
@@ -6602,8 +6660,8 @@ if (allocated(b)) then
 	write(*,"(a,i2,a,3f10.5)") " 19 Source function, mode:",srcfuncmode,", ref. point:",refx,refy,refz
 	write(*,*) "20 Electron delocal. range func. EDR(r;d)  21 Orbital overlap dist. func. D(r)"
 	write(*,*) "22 Delta-g (promolecular approximation)    23 Delta-g (Hirshfeld partition)"
-	write(*,*) "24 Interaction region indicator (IRI)"
-	write(*,"(a,i5,a)") " 100 User-defined function (iuserfunc=",iuserfunc,")  See Section 2.7 of manual"
+	write(*,"(a,a,a)") " 24 Interaction region indicator (IRI)    25 van der Waals potential (probe=",ind2name(ivdwprobe),')'
+	write(*,"(a,i5,a)") " 100 User-defined function (iuserfunc=",iuserfunc,"), see Section 2.7 of manual"
 else !No wavefunction information is available
 	write(*,*) "1 Promolecular electron density "
 	if (ifiletype==4) then
@@ -6614,6 +6672,7 @@ else !No wavefunction information is available
 	write(*,*) "14 Reduced density gradient (RDG) with promolecular approximation"
 	write(*,*) "16 Sign(lambda2)*rho with promolecular approximation"
 	write(*,*) "22 Delta-g (promolecular approximation)"
+	write(*,"(a,a,a)") " 25 van der Waals potential (probe=",ind2name(ivdwprobe),')'
 	write(*,"(a,i5,a)") " 100 User-defined function (iuserfunc=",iuserfunc,")  See Section 2.7 of manual"
 end if
 end subroutine

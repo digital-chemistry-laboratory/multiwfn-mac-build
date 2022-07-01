@@ -626,7 +626,7 @@ end if
 call SWGSTP(2D0)
 call wgscl(idisright,"Size of labels",20D0,100D0,textheigh,0,idislabelsize)
 call SWGSTP(0.05D0)
-call wgscl(idisright,"Ratio of CP size",0D0,2D0,ratioCPsphere,2,idisCPsize)
+call wgscl(idisright,"Ratio of CP size",0D0,2.5D0,ratioCPsphere,2,idisCPsize)
 call SWGCBK(idissetangle,setviewangle)
 call SWGCBK(idissetcamrot,setcamrot)
 call SWGCBK(idissetzoom,setzoom)

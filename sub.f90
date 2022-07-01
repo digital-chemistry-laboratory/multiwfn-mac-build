@@ -1382,6 +1382,7 @@ end subroutine
 
 
 
+
 !!!------------------ Generate distance matrix between atoms (in Bohr)
 !To avoid complicating thing, PBC is not taken into account
 subroutine gendistmat
@@ -1411,6 +1412,7 @@ distmat=0D0
 !	!$OMP END PARALLEL DO
 !end if
 end subroutine
+
 
 
 
@@ -1466,6 +1468,7 @@ if (swaptype=="all".or.swaptype=="MO ") then
 	end do
 end if
 end subroutine
+
 
 
 
@@ -1539,6 +1542,7 @@ end subroutine
 
 
 
+
 !!!----------- Resize number of orbitals of CO, MOene, MOtype, MOocc to "newnmo", also resize number of GTFs of CO to "newnprims"
 subroutine resizebynmo(newnmo,newnprims)
 use defvar
@@ -1570,6 +1574,7 @@ else if (newnmo<oldnmo) then !Reduce array size
 end if
 deallocate(CO_bk,MOene_bk,MOocc_bk,MOtype_bk)
 end subroutine
+
 
 
 
@@ -1865,6 +1870,7 @@ end subroutine
 
 
 
+
 !!------- Generate a promolecular wavefunction by calculating and then combining atomic .wfn files, store to global arrays with _pmol
 !  The basis set for evaluating atoms must be identical to present system  
 !  Mainly used to calculate information gain at a batch of points, which needs evaluation of promolecular density frequently
@@ -1921,6 +1927,7 @@ call readinfile(firstfilename,1)
 !MOtype=MOtype_pmol
 !CO=CO_pmol
 end subroutine
+
 
 
 
@@ -1983,6 +1990,7 @@ else if (wfntype==4.or.(wfntype==1.and.imodwfn==1)) then !Unrestricted post-HF
 	Ptot=Palpha+Pbeta
 end if
 end subroutine
+
 
 
 
@@ -2065,6 +2073,7 @@ end subroutine
 
 
 
+
 !!!------ Show system one-electron properties based on density matrix and integral matrix between basis functions
 subroutine sys1eprop
 use defvar
@@ -2084,6 +2093,7 @@ if (.not.allocated(Velbas)) allocate(Velbas(3,nbasis,nbasis))
 call genVelbas_curr
 write(*,"(' Linear momentum in X/Y/Z:       ',3f13.7,' a.u.')") sum(Ptot*Velbas(1,:,:)),sum(Ptot*Velbas(2,:,:)),sum(Ptot*Velbas(3,:,:))
 end subroutine
+
 
 
 
@@ -2125,6 +2135,7 @@ if (allocated(b)) then !If loaded file contains wavefuntion information
 	write(ifileid,"(' Electron localization function (ELF):',E18.10)") ELF_LOL(inx,iny,inz,"ELF")
 	write(ifileid,"(' Localized orbital locator (LOL):',E18.10)") ELF_LOL(inx,iny,inz,"LOL")
 	write(ifileid,"(' Local information entropy:',E18.10)") infoentro(1,inx,iny,inz)
+	write(ifileid,"(' Interaction region indicator (IRI):',E18.10)") IRIfunc(inx,iny,inz)
 	write(ifileid,"(' Reduced density gradient (RDG):',E18.10)") fgrad(inx,iny,inz,'r')
 	write(ifileid,"(' Reduced density gradient with promolecular approximation:',E18.10)") RDGprodens(inx,iny,inz)
 	write(ifileid,"(' Sign(lambda2)*rho:',E18.10)") signlambda2rho(inx,iny,inz)
@@ -2136,12 +2147,13 @@ if (allocated(b)) then !If loaded file contains wavefuntion information
 	if (pairfunctype==7) write(ifileid,"(a,3f10.5,' :',E18.10)") " Exc.-corr. dens. for alpha, ref:",refx,refy,refz,pairfunc(refx,refy,refz,inx,iny,inz)
 	if (pairfunctype==8) write(ifileid,"(a,3f10.5,' :',E18.10)") " Exc.-corr. dens. for beta, ref:",refx,refy,refz,pairfunc(refx,refy,refz,inx,iny,inz)
 	write(ifileid,"(' Source function, ref.:',3f10.5,' :',E18.10)") refx,refy,refz,srcfunc(inx,iny,inz,srcfuncmode)
-	if (nmo/=0) write(ifileid,"(' Wavefunction value for orbital',i10,' :',E18.10)") iorbsel,fmo(inx,iny,inz,iorbsel)
+	if (nmo/=0) write(ifileid,"(' Wavefunction value for orbital',i8,' :',E18.10)") iorbsel,fmo(inx,iny,inz,iorbsel)
 	if (iALIEdecomp==0) then
 		write(ifileid,"(' Average local ionization energy (ALIE):',E18.10)") avglocion(inx,iny,inz)
 	else if (iALIEdecomp==1) then
 		call avglociondecomp(ifileid,inx,iny,inz)
 	end if
+	write(ifileid,"(' van der Waals potential (probe atom: ',a,'):',E18.10,' kcal/mol')") ind2name(ivdwprobe),vdwpotfunc(inx,iny,inz,1)
 	write(ifileid,"(' Delta-g (under promolecular approximation):',E18.10)") delta_g_promol(inx,iny,inz)
 	write(ifileid,"(' Delta-g (under Hirshfeld partition):',E18.10)") delta_g_Hirsh(inx,iny,inz)
 	write(ifileid,"(' User-defined real space function:',E18.10)") userfunc(inx,iny,inz)
@@ -2217,17 +2229,17 @@ if (allocated(b)) then !If loaded file contains wavefuntion information
 	end if
 
 else !Only loaded structure, use YWT promolecule density
+	call calchessmat_prodens(inx,iny,inz,elerho,elegrad,elehess)
+	write(ifileid,"(/,a,/)") " Note: The input file does not contain wavefunction information, so the following quantities that related to wavefunction are evaluated based on promolecular density"
+	write(ifileid,"(' Density of electrons:',E18.10)") elerho
+	write(ifileid,"(' Reduced density gradient:',E18.10)") RDGprodens(inx,iny,inz)
+	write(ifileid,"(' Sign(lambda2)*rho:',E18.10)") signlambda2rho_prodens(inx,iny,inz)
 	if (ifiletype==4) then
 		write(ifileid,"(' ESP from atomic charges:',E18.10)") nucesp(inx,iny,inz)
 	else
 		write(ifileid,"(' ESP from nuclear charges:',E18.10)") nucesp(inx,iny,inz)
 	end if
-	write(ifileid,*)
-	call calchessmat_prodens(inx,iny,inz,elerho,elegrad,elehess)
-	write(ifileid,"(a)") " Note: The loaded file does not contain wavefunction information, below results are evaluated from promolecule density"
-	write(ifileid,"(' Density of electrons:',E18.10)") elerho
-	write(ifileid,"(' Reduced density gradient:',E18.10)") RDGprodens(inx,iny,inz)
-	write(ifileid,"(' Sign(lambda2)*rho:',E18.10)") signlambda2rho_prodens(inx,iny,inz)
+	write(ifileid,"(' van der Waals potential (probe atom: ',a,'):',E18.10,' kcal/mol')") ind2name(ivdwprobe),vdwpotfunc(inx,iny,inz,1)
 	write(ifileid,"(' User-defined real space function:',E18.10)") userfunc(inx,iny,inz)
 	write(ifileid,*)
 	write(ifileid,*) "Components of gradient in x/y/z are:"
@@ -2246,6 +2258,7 @@ else !Only loaded structure, use YWT promolecule density
 	write(ifileid,"(3E18.10)") ((eigvecmat(i,j),j=1,3),i=1,3)
 end if
 end subroutine
+
 
 
 
@@ -2316,6 +2329,7 @@ else
 	write(*,"(' Exact value:',1E16.8,' a.u.')") totval
 end if
 end subroutine
+
 
 
 
