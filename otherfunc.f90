@@ -4049,7 +4049,7 @@ end if
 diamax=2*radmin
 write(*,"(' Radius is',f12.6,' Angstrom')") radmin*b2a
 write(*,"(' Diameter is',f12.6,' Angstrom')") diamax*b2a
-write(*,"(' Volume is',f12.6,' Angstrom^3')") 4D0/3D0*pi*(radmin*b2a)**3
+write(*,"(' Volume is',f14.6,' Angstrom^3')") 4D0/3D0*pi*(radmin*b2a)**3
 write(*,*)
 write(*,*) "Commands of drawing a sphere in VMD to show the cavity:"
 write(*,*) "color Display Background white"

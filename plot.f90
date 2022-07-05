@@ -56,7 +56,7 @@ else if (ifiletype==7.or.ifiletype==8) then !For cub/grd/cube/vti file, make the
 else !Other cases, determine displayed spatial scope by boundary atoms of the system
     !Determine axis range
     augplotlen=8D0 !Common augmentation of plotting axis length (the sum of both direction)
-    if (GUI_mode==4.and.ifunctopo==25) augplotlen=22D0 !Minima of vdW potential are often very far from atoms, use larger augmentation
+    if (GUI_mode==4.and.ifunctopo==25) augplotlen=24D0 !Minima of vdW potential are often very far from atoms, use larger augmentation
     if (GUI_mode==5) augplotlen=12D0 !Because surface extreme points laying on vdW surface, the scatter region is large, so use larger augmentation
     if (GUI_mode==7) augplotlen=12D0 !Using GUI to set box, the case is complicated, so use larger augmentation
     if ((idrawisosur==1.and.aug3D>4).or.GUI_mode==6) augplotlen=aug3D*2.2D0 !Shouldn't be 2.0 as expected, otherwise sometimes there will be a band occuring at boundary

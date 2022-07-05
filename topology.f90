@@ -93,6 +93,18 @@ do while(.true.)
     if (c80tmp=="00") then !Special case
 		call showtoposummary
         cycle
+    else if (c80tmp=="vmin".or.c80tmp=="Vmin") then !Set most suitable setting for searching ESP minima via steepest descent
+		ifunctopo=12
+		itopomethod=4
+		numsearchpt=10
+		gradconv=1D-4
+		dispconv=1D-5
+		if (iESPcode==2.or.iESPcode==3) then
+			call doinitlibreta(1)
+			iaccurateESP=1
+			if (isys==1.and.nthreads>10) nthreads=10
+		end if
+        isel=6
     else
 		read(c80tmp,*) isel
     end if
@@ -108,7 +120,7 @@ do while(.true.)
         call selfunc_interface(1,ifunctopo)
         if (ifunctopo==0) cycle
 		if (ifunctopo==12) then
-			if (ifdoESP(ifunctopo).and.(iESPcode==2.or.iESPcode==3)) then
+			if (iESPcode==2.or.iESPcode==3) then
 				call doinitlibreta(1)
 				iaccurateESP=1 !Ask libreta to calculate boys function in high precision, otherwise numerical gradient/Hessian will be too poor to converge
 				if (isys==1.and.nthreads>10) nthreads=10
@@ -167,7 +179,7 @@ do while(.true.)
 			write(*,"(a)") " Note: IRI_rhocut parameter has been temporarily set to 0"
 			IRI_rhocut=0
         end if
-		if (ifunctopo==13.or.ifunctopo==24) then
+		if (ifunctopo==13.or.ifunctopo==24) then !RDG and IRI
 			write(*,"(a)") " Note: CP searching method has been changed to steepest descent method, because it is most suitable for this case. &
             In addition, gradient convergence criterion has been changed to a very large value (1000) to deactivate its effect, &
             because for IRI or RDG, it is almost impossible to use steepest descent method to converge very accurately to a position with small enough gradient"
@@ -178,7 +190,7 @@ do while(.true.)
         else if (ifunctopo==25) then !vdW potential
 			write(*,"(a)") " Note: CP searching method has been changed to steepest descent method, because it is most suitable for this case"
 			itopomethod=4
-            numsearchpt=50
+            numsearchpt=100
 		end if
         
 	else if (isel==-10) then
@@ -917,12 +929,18 @@ do while(.true.)
                 else if (isel2==4) then
                     write(*,*) "Input path of the .txt file, e.g. C:\maki.txt"
                     write(*,*) "Each line of this file should contain X,Y,Z of a starting point in Bohr"
+                    write(*,"(a)") " If pressing ENTER button directly, attractors.txt in current folder will be loaded if it exists"
                 end if
                 do while(.true.)
 	                read(*,"(a)") c200
-	                inquire(file=c200,exist=alive)
-	                if (alive) exit
-	                write(*,*) "Cannot find the file, input again!"
+                    if (c200==" ") then
+						c200="attractors.txt"
+                        exit
+                    else
+						inquire(file=c200,exist=alive)
+						if (alive) exit
+						write(*,*) "Cannot find the file, input again!"
+                    end if
                 end do
                 open(10,file=c200,status="old")
                 ncalc=0
@@ -932,12 +950,12 @@ do while(.true.)
                     if (isel2==3.and.(c200(1:6)=="HETATM".or.c200(1:6)=="ATOM  ")) then
                         ncalc=ncalc+1
 		                read(c200,"(30x,3f8.3)") x,y,z
-                        write(*,"(' Starting point:',i6,'   X,Y,Z:',3f8.3,' Angstrom')") ncalc,x,y,z
+                        write(*,"(' Doing starting point:',i6,'   X,Y,Z:',3f8.3,' Angstrom')") ncalc,x,y,z
 		                call findcp(x/b2a,y/b2a,z/b2a,ifunctopo)
                     else if (isel2==4.and.c200/=" ") then
                         ncalc=ncalc+1
 		                read(c200,*) x,y,z
-                        write(*,"(' Starting point:',i6,'   X,Y,Z:',3f12.6,' Bohr')") ncalc,x,y,z
+                        write(*,"(' Doing starting point:',i6,'   X,Y,Z:',3f12.6,' Bohr')") ncalc,x,y,z
 		                call findcp(x,y,z,ifunctopo)
                     end if
                 end do
