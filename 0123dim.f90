@@ -1112,7 +1112,8 @@ else !Start calculation of plane data
             call doinitlibreta(1)
             if (isys==1.and.nthreads>10) nthreads=10
         end if
-	    !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(planemat,d1add,d1min,d2add,d2min) schedule(dynamic) NUM_THREADS(nthreads)
+        iprog=0
+	    !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(iprog,planemat,d1add,d1min,d2add,d2min) schedule(dynamic) NUM_THREADS(nthreads)
 		do i=1,ngridnum1
 			do j=1,ngridnum2
 				rnowx=orgx2D+(i-1)*v1x+(j-1)*v2x
@@ -1131,6 +1132,10 @@ else !Start calculation of plane data
 					d2min(i,j)=calcfuncall(ifuncsel,rnowx-diffv2x,rnowy-diffv2y,rnowz-diffv2z)
 				end if
 			end do
+			!$OMP CRITICAL
+            iprog=iprog+1
+			call showprog(iprog,ngridnum1)
+            !$OMP END CRITICAL
 		end do
 	    !$OMP END PARALLEL DO
         nthreads=nthreads_old
@@ -1291,7 +1296,7 @@ else if (ifuncsel==111.or.ifuncsel==112) then !Becke/Hirshfeld weight
 else if (ifuncsel==100) then
 	if (iuserfunc==20.or.iuserfunc==99) then !DORI/IRI
 		drawlowlim=0D0
-		drawuplim=1D0
+		drawuplim=2D0
 	else if (iuserfunc>=910.and.iuserfunc<=914) then !Atomic weighting functions
 		drawlowlim=0D0
 		drawuplim=1.000001D0

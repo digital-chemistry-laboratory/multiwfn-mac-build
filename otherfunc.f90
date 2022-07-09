@@ -2276,8 +2276,8 @@ end subroutine
 
 
 !!---- Yoshizawa's electron transport route analysis
-!!Based on Eqs. 2 and 3 of Account of chemical research, 45, 1612
-!Use Gaussian output file as input, should specify pop=(full,nboread). Only closed-shell is supported
+!Based on Eqs. 2 and 3 of Account of chemical research, 45, 1612
+!Only closed-shell is supported
 subroutine Yoshieletrans
 use defvar
 use util
@@ -2350,19 +2350,19 @@ if (ifiletype==0) then
 	    ilow=(itime-1)*5+1
 	    ihigh=itime*5
 	    if (ihigh>=iHOMO) ihigh=iHOMO
-	    read(c80tmp(29:),*) MOene(ilow:ihigh)
+	    read(c80tmp(29:),"(5f10.5)") MOene(ilow:ihigh)
     end do
     do itime=1,ceiling((nmo-iHOMO)/5D0) !Load unoccupied orbital energies
 	    read(10,"(a)") c80tmp
 	    ilow=(itime-1)*5+1+iHOMO
 	    ihigh=itime*5+iHOMO
 	    if (ihigh>=nmo) ihigh=nmo
-	    read(c80tmp(29:),*) MOene(ilow:ihigh)
+	    read(c80tmp(29:),"(5f10.5)") MOene(ilow:ihigh)
     end do
-    ! write(*,*) "Energies of occupied MOs (a.u.):"
-    ! write(*,"(7f11.5)") MOene(:iHOMO)
-    ! write(*,*) "Energies of unoccupied MOs (a.u.):"
-    ! write(*,"(7f11.5)") MOene(iLUMO:)
+     !write(*,*) "Energies of occupied MOs (a.u.):"
+     !write(*,"(7f11.5)") MOene(:iHOMO)
+     !write(*,*) "Energies of unoccupied MOs (a.u.):"
+     !write(*,"(7f11.5)") MOene(iLUMO:)
 else
     if (wfntype/=0) then
 	    write(*,*) "Error: Only closed-shell wavefunction is supported!"
@@ -2382,6 +2382,7 @@ end if
 
 write(*,*)
 write(*,*) "The molecule is in which plane?  1=XY  2=YZ  3=XZ"
+write(*,"(a)") " Note: This function cannot be used if all atoms are not in the same Cartesian plane"
 read(*,*) iplesel
 
 !Load information outputted by NBO program

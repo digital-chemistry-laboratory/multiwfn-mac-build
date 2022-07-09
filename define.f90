@@ -338,6 +338,7 @@ real*8,allocatable :: atmradrho(:,:) !(iatm,j) corresponds to density value at j
 !---------- Used for passing data of spectrum plotting, as well as used by DOS
 real*8,allocatable :: datax(:),str(:),FWHM(:) !Transition energy, strength and FWHM loaded from only one file
 integer iROAtype !Type of ROA spectrum
+integer iUVdir !Direction of UV-Vis
 integer :: istrtype=0 !Strength type. Avoid selecting the type every time when loading multiple files
 
 

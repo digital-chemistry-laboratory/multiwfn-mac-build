@@ -127,10 +127,24 @@ iramantype=1 !1=Raman activities  2=Raman intensities
 iROAtype=2   !1=Raman SCP(180)  2=ROA SCP(180)  3=Raman SCP(90)  4=ROA SCP(90)  5=Raman DCP(180)  6=ROA DCP(180)
 graphformat_old=graphformat  !User may change format, backup the old
 PVSnterm(:)=0
+iUVdir=0
 
 write(*,*) "Select type of the spectrum to plot"
 write(*,*) "1:IR  2:Raman (or pre-resonance Raman)  3:UV-Vis  4:ECD  5:VCD  6:ROA  7:NMR"
+write(*,*) "-3: Directional UV-Vis"
 read(*,*) ispectrum
+if (ispectrum==-3) then
+	ispectrum=3
+    write(*,*) "Take which direction(s) into account?"
+    write(*,*) "0 XYZ (standard UV-Vis spectrum)"
+    write(*,*) "1 X"
+    write(*,*) "2 Y"
+    write(*,*) "3 Z"
+    write(*,*) "4 XY"
+    write(*,*) "5 XZ"
+    write(*,*) "6 YZ"
+    read(*,*) iUVdir
+end if
 if (ispectrum==7) then
     call NMRplot
     return
@@ -2878,6 +2892,12 @@ open(10,file=loadspecname,status="old")
 !Check if is sTDA output file
 if (index(loadspecname,".dat")/=0) then
 	if (imode==0) write(*,*) "Recognized as sTDA program output file"
+    if (ispectrum==3.and.iUVdir/=0) then
+		write(*,*) "Error: Plotting directional UV-Vis spectrum does not support sTDA code"
+        write(*,*) "Press ENTER button to exit"
+        read(*,*)
+        stop
+    end if
 	if (ispectrum==4.and.istrtype==0.and.imode==0) then
 		write(*,*)
 		write(*,*) "Read the rotatory strengths in which representation?"
@@ -3100,9 +3120,13 @@ if (igauout==1) then
 		
 		!Load anharmonic data. Current Gaussian is unable to calculate anharmonic ROA data
 		if (ispectrum==1.or.ispectrum==2.or.ispectrum==5) then  
-			if (ispectrum==1) call loclabel(10,"Anharmonic Infrared Spectroscopy",ifound,0)
-			if (ispectrum==2) call loclabel(10,"Anharmonic Raman Spectroscopy",ifound,0)
-			if (ispectrum==5) call loclabel(10,"Anharmonic VCD Spectroscopy",ifound,0)
+			if (ispectrum==1) then
+				call loclabel(10,"Anharmonic Infrared Spectroscopy",ifound,0)
+			else if (ispectrum==2) then
+				call loclabel(10,"Anharmonic Raman Spectroscopy",ifound,0)
+			else if (ispectrum==5) then
+				call loclabel(10,"Anharmonic VCD Spectroscopy",ifound,0)
+            end if
 			if (ifound==1) then
 				write(*,"(a)") " Found anharmonic data, if load them instead of the harmonic one? (y/n)"
 				read(*,*) ctest
@@ -3143,9 +3167,13 @@ if (igauout==1) then
 					
 					deallocate(datax,str,FWHM)
 					allocate(datax(numdata),str(numdata),FWHM(numdata))
-			        if (ispectrum==1) call loclabel(10,"Anharmonic Infrared Spectroscopy")
-			        if (ispectrum==2) call loclabel(10,"Anharmonic Raman Spectroscopy")
-			        if (ispectrum==5) call loclabel(10,"Anharmonic VCD Spectroscopy")
+			        if (ispectrum==1) then
+						call loclabel(10,"Anharmonic Infrared Spectroscopy")
+			        else if (ispectrum==2) then
+						call loclabel(10,"Anharmonic Raman Spectroscopy")
+			        else if (ispectrum==5) then
+						call loclabel(10,"Anharmonic VCD Spectroscopy")
+                    end if
 					FWHM=8D0
 					idata=0
 					call loclabel(10,"Fundamental Bands",ifound,0)
@@ -3235,6 +3263,31 @@ if (igauout==1) then
 			end do
 			read(10,*) str(i) !Read oscillator strength
 		end do
+        if (iUVdir/=0) then !Load transition dipole moments and calculate Cartesian component of oscillator strength
+			rewind(10)
+			do i=1,numopt
+				call loclabel(10,"Ground to excited state transition electric dipole moments",ifound,0)
+				read(10,*)
+			end do
+			read(10,*)
+            do i=1,numdata
+				read(10,*) itmp,xdip,ydip,zdip
+                if (iUVdir==1) then
+					tmp=xdip**2
+                else if (iUVdir==2) then
+					tmp=ydip**2
+                else if (iUVdir==3) then
+					tmp=zdip**2
+                else if (iUVdir==4) then
+					tmp=xdip**2+ydip**2
+                else if (iUVdir==5) then
+					tmp=xdip**2+zdip**2
+                else if (iUVdir==6) then
+					tmp=ydip**2+zdip**2
+                end if
+                str(i)=2D0/3D0*tmp*datax(i)/au2eV
+            end do
+        end if
 		if (ispectrum==4) then !Read ECD rotatory strength
 			if (istrtype==0) then
 				write(*,*) "Read the rotatory strengths in which representation?"
@@ -3328,15 +3381,34 @@ if (iORCAout==1) then
 					return
 				end if
 				allocate(datax(numdata),str(numdata),FWHM(numdata))
-				if (ispectrum==3) call loclabel(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",ifound,0)
-				if (ispectrum==4) call loclabel(10,"CD SPECTRUM",ifound,0)
+				if (ispectrum==3) then
+					call loclabel(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",ifound,0)
+                else if (ispectrum==4) then
+					call loclabel(10,"CD SPECTRUM",ifound,0)
+                end if
 				call skiplines(10,5)
                 datax=0;str=0
 				do i=1,numdata
-					read(10,*,iostat=ierror) itmp,t1,rnouse,t2
+					read(10,*,iostat=ierror) itmp,t1,rnouse,t2,t3,xdip,ydip,zdip
                     if (ierror/=0) exit !For SF-TDDFT, number of states recorded in this field is less than nstates by 1, because one of SF-TDDFT states is viewed as ground state
                     datax(itmp)=t1
                     str(itmp)=t2
+                    if (iUVdir/=0.and.ispectrum==3) then
+						if (iUVdir==1) then
+							tmp=xdip**2
+						else if (iUVdir==2) then
+							tmp=ydip**2
+						else if (iUVdir==3) then
+							tmp=zdip**2
+						else if (iUVdir==4) then
+							tmp=xdip**2+ydip**2
+						else if (iUVdir==5) then
+							tmp=xdip**2+zdip**2
+						else if (iUVdir==6) then
+							tmp=ydip**2+zdip**2
+						end if
+						str(itmp)=2D0/3D0*tmp*datax(itmp)/219474.6363D0
+                    end if
 				end do
 				call loclabel(10,"SOC CORRECTED ABSORPTION",ifound,0)
 				if (ifound==1) then
@@ -3344,16 +3416,11 @@ if (iORCAout==1) then
 					would you like to plot this kind of spectrum instead of the one without correction? (y/n)"
 					read(*,*) ctest
 					if (ctest=='y'.or.ctest=='Y') then
-						numdata=4*numdata !if root=n, then there will be n singlet states and 3n triplet sublevels
+						numdata=4*numdata !If root=n, then there will be n singlet states and 3n triplet sublevels
 						deallocate(datax,str,FWHM)
 						allocate(datax(numdata),str(numdata),FWHM(numdata))
-						if (ispectrum==3) continue
 						if (ispectrum==4) call loclabel(10,"CD SPECTRUM",ifound,0)
-						read(10,*)
-						read(10,*)
-						read(10,*)
-						read(10,*)
-						read(10,*)
+						call skiplines(10,5)
 						do i=1,numdata
 							read(10,*) tmp1,tmp2,tmp3,tmp4,tmp5 !Since 5.0, the first column is always 0, strange!
 							if (tmp1==0) then !ORCA >=5.0
@@ -3362,6 +3429,36 @@ if (iORCAout==1) then
 							else !ORCA 4.x
 								datax(i)=tmp2
 								str(i)=tmp4
+							end if
+							if (iUVdir/=0.and.ispectrum==3) then
+								backspace(10)
+                                read(10,"(a)") c200tmp
+                                i1=strcharpos(c200tmp,'(',1)+1
+                                i2=strcharpos(c200tmp,')',1)-1
+                                read(c200tmp(i1:i2),*) xdipr,xdipi !Real and imaginary parts of transition dipole moment in X
+                                xdipsq=xdipr**2+xdipi**2
+                                i1=strcharpos(c200tmp,'(',2)+1
+                                i2=strcharpos(c200tmp,')',2)-1
+                                read(c200tmp(i1:i2),*) ydipr,ydipi !Real and imaginary parts of transition dipole moment in Y
+                                ydipsq=ydipr**2+ydipi**2
+                                i1=strcharpos(c200tmp,'(',3)+1
+                                i2=strcharpos(c200tmp,')',3)-1
+                                read(c200tmp(i1:i2),*) zdipr,zdipi !Real and imaginary parts of transition dipole moment in Z
+                                zdipsq=zdipr**2+zdipi**2
+								if (iUVdir==1) then
+									tmp=xdipsq
+								else if (iUVdir==2) then
+									tmp=ydipsq
+								else if (iUVdir==3) then
+									tmp=zdipsq
+								else if (iUVdir==4) then
+									tmp=xdipsq+ydipsq
+								else if (iUVdir==5) then
+									tmp=xdipsq+zdipsq
+								else if (iUVdir==6) then
+									tmp=ydipsq+zdipsq
+								end if
+								str(i)=2D0/3D0*tmp*datax(i)/219474.6363D0
 							end if
 						end do
 					end if
@@ -3377,15 +3474,34 @@ if (iORCAout==1) then
 					numdata=numdata+1
                 end do
 				allocate(datax(numdata),str(numdata),FWHM(numdata))
-				if (ispectrum==3) call loclabel(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS")
-				if (ispectrum==4) call loclabel(10,"CD SPECTRUM")
+				if (ispectrum==3) then
+					call loclabel(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS")
+				else if (ispectrum==4) then
+					call loclabel(10,"CD SPECTRUM")
+                end if
 				call skiplines(10,5)
 				do i=1,numdata
-					read(10,*) rnouse,datax(i),tmpval,str(i)
-                    if (tmpval>datax(i)) then !I noticed ORCA 5.0.1 has a bug, the values in cm-1 and nm are inversed
+					read(10,*) rnouse,datax(i),tmpval,str(i),tmpval,xdip,ydip,zdip
+                    if (tmpval>datax(i)) then !I noticed ORCA at least 5.0.1~5.0.3 has a bug, in output of CD SPECTRUM, the values in cm-1 and nm are inversed
 						ttt=tmpval
                         datax(i)=tmpval
                         tmpval=ttt
+                    end if
+                    if (iUVdir/=0.and.ispectrum==3) then
+						if (iUVdir==1) then
+							tmp=xdip**2
+						else if (iUVdir==2) then
+							tmp=ydip**2
+						else if (iUVdir==3) then
+							tmp=zdip**2
+						else if (iUVdir==4) then
+							tmp=xdip**2+ydip**2
+						else if (iUVdir==5) then
+							tmp=xdip**2+zdip**2
+						else if (iUVdir==6) then
+							tmp=ydip**2+zdip**2
+						end if
+						str(i)=2D0/3D0*tmp*datax(i)/219474.6363D0
                     end if
 				end do
             end if
@@ -3425,8 +3541,32 @@ if (iORCAout==1) then
 				end if
 			end if
 		end do
-		if (ispectrum==3) FWHM=2D0/3D0
-		if (ispectrum==4) FWHM=0.2D0
+		if (ispectrum==3) then
+			FWHM=2D0/3D0
+		else if (ispectrum==4) then
+			FWHM=0.2D0
+        end if
+		if (ispectrum==3.and.iUVdir/=0) then
+			call loclabel(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",ifound,0)
+			call skiplines(10,5)
+			do i=1,numdata
+				read(10,*) rnouse,tmpene,tmpval,tmpval,tmpval,xdip,ydip,zdip
+				if (iUVdir==1) then
+					tmp=xdip**2
+				else if (iUVdir==2) then
+					tmp=ydip**2
+				else if (iUVdir==3) then
+					tmp=zdip**2
+				else if (iUVdir==4) then
+					tmp=xdip**2+ydip**2
+				else if (iUVdir==5) then
+					tmp=xdip**2+zdip**2
+				else if (iUVdir==6) then
+					tmp=ydip**2+zdip**2
+				end if
+				str(i)=2D0/3D0*tmp*tmpene/219474.6363D0
+			end do
+        end if
 	end if
     close(10)
     return
@@ -3496,7 +3636,23 @@ if (iCP2K==1) then
 			backspace(10)
         end do
 		do i=1,numdata !Read excitation energy (eV) and oscillator strength
-			read(10,*) c80tmp,c80tmp,datax(i),c80tmp,c80tmp,c80tmp,str(i)
+			read(10,*) c80tmp,c80tmp,datax(i),xdip,ydip,zdip,str(i)
+            if (iUVdir/=0) then
+                if (iUVdir==1) then
+					tmp=xdip**2
+                else if (iUVdir==2) then
+					tmp=ydip**2
+                else if (iUVdir==3) then
+					tmp=zdip**2
+                else if (iUVdir==4) then
+					tmp=xdip**2+ydip**2
+                else if (iUVdir==5) then
+					tmp=xdip**2+zdip**2
+                else if (iUVdir==6) then
+					tmp=ydip**2+zdip**2
+                end if
+                str(i)=2D0/3D0*tmp*datax(i)/au2eV
+            end if
 		end do
     
     else if (ispectrum==1) then !IR
