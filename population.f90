@@ -3528,10 +3528,10 @@ end do
 
 !Generate single center integration grid
 call gen1cintgrid(gridatmorg,iradcut)
-write(*,"(' Radial grids:',i4,'  Angular grids:',i5,'  Total:',i7,'  After pruning:',i7)") radpot,sphpot,radpot*sphpot,radpot*sphpot-iradcut*sphpot
+write(*,"(' Radial grids:',i5,'  Angular grids:',i5,'  Total:',i7,'  After pruning:',i7)") radpot,sphpot,radpot*sphpot,radpot*sphpot-iradcut*sphpot
 
 !Calculate molecular density
-write(*,*) "Calculating actual density of molecule at all grids..."
+write(*,*) "Calculating actual density of system at all grids..."
 do iatm=1,ncenter
 	gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
 	gridatm%y=gridatmorg%y+a(iatm)%y
@@ -3546,7 +3546,7 @@ end do
 
 if (allocated(atmradnpt)) deallocate(atmradnpt)
 if (allocated(atmradrho)) deallocate(atmradrho)
-allocate(atmradnpt(ncenter),atmradrho(ncenter,200))
+allocate(atmradnpt(ncenter),atmradrho(200,ncenter))
 sep='/' !Separation symbol of directory
 if (isys==1) sep='\'
 
@@ -3556,7 +3556,7 @@ ichgmax=3
 if (imode==2) then
 	allocate(atmstatgrid(ncenter,ntotpot,ncenter,ichgmin:ichgmax))
 	atmstatgrid=0
-    rmem=ncenter*ntotpot*ncenter*(ichgmax-ichgmin+1)*8/1024D0/1024D0
+    rmem=dfloat(ncenter)**2*dfloat(ntotpot)*(ichgmax-ichgmin+1)*8/1024D0/1024D0 !Must change integer to float, otherwise intermediate integer may exceed upper limit of recording
     write(*,"(a,f10.1,a)") " Memory requirement for storing atomic densities on grids:",rmem," MB"
 	write(*,*) "Calculating atomic density contribution to grids..."
 	do iatm=1,ncenter !The center of grids
@@ -3576,7 +3576,7 @@ if (imode==2) then
 				open(10,file=c80tmp,status="old")
 				read(10,*) atmradnpt(jatm)
 				do ipt=1,atmradnpt(jatm)
-					read(10,*) rnouse,atmradrho(jatm,ipt)
+					read(10,*) rnouse,atmradrho(ipt,jatm)
 				end do
 				close(10)
                 !I have made great effort to try to parallelize this part, however after doing this, the speed is even significantly lowered
@@ -3605,7 +3605,7 @@ do iatm=1,ncenter
 	open(10,file=c80tmp,status="old")
 	read(10,*) atmradnpt(iatm)
 	do ipt=1,atmradnpt(iatm)
-		read(10,*) rnouse,atmradrho(iatm,ipt)
+		read(10,*) rnouse,atmradrho(ipt,iatm)
 	end do
 	close(10)
 end do
@@ -3725,7 +3725,7 @@ do icyc=1,maxcyc
 		end do
 		close(10)
 		!Update current radial density
-		atmradrho(iatm,:)=(charge(iatm)-ichglow)*radrhohigh(:) + (ichghigh-charge(iatm))*radrholow(:)
+		atmradrho(:,iatm)=(charge(iatm)-ichglow)*radrhohigh(:) + (ichghigh-charge(iatm))*radrholow(:)
 		atmradnpt(iatm)=max(npthigh,nptlow)
 	end do
 	
@@ -4079,7 +4079,7 @@ integer iatm,npt
 real*8 x,y,z,r,rnouse
 npt=atmradnpt(iatm)
 r=dsqrt((a(iatm)%x-x)**2+(a(iatm)%y-y)**2+(a(iatm)%z-z)**2)
-call lagintpol(atmradpos(1:npt),atmradrho(iatm,1:npt),npt,r,fdens_rad,rnouse,rnouse,1)
+call lagintpol(atmradpos(1:npt),atmradrho(1:npt,iatm),npt,r,fdens_rad,rnouse,rnouse,1)
 end function
 
 

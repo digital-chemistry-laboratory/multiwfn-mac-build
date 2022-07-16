@@ -438,10 +438,10 @@ end subroutine
 
 
 !!------ Integrate real space function in Hirshfeld space with molecular grid (i.e. the grid is the same as integating over the whole space)
-!! The grid used in function 1 of fuzzy space analysis is only the grid centered at the atom to be studied, this lead to inaccurate integration result
-!! when the integrand varies fast at the tail region of the Hirshfeld atom (commonly close to the other nuclei). In this case we must use the molecular grid.
-!! Because incorporate molecular grid integration into "intatomspace" routine will break the structure of the routine, I decide to write this new routine
-!! dedicated to this purpose. This routine is mainly used in shubin's study.
+! The grid used in function 1 of fuzzy space analysis is only the grid centered at the atom to be studied, this lead to inaccurate integration result
+! when the integrand varies fast at the tail region of the Hirshfeld atom (commonly close to the other nuclei). In this case we must use the molecular grid.
+! Because incorporate molecular grid integration into "intatomspace" routine will break the structure of the routine, I decide to write this new routine
+! dedicated to this purpose. This routine is mainly used in Shubin's study.
 subroutine intHirsh_molgrid
 use defvar
 use functions
@@ -457,7 +457,6 @@ call setpromol
 call gen1cintgrid(gridatmorg,iradcut)
 
 !funcval: real space function at all grid of current center
-!weival: Becke * single-center integraton weight at all grid of current center
 !atmdens: Free-state density of every atom at all grid of current center
 write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
 

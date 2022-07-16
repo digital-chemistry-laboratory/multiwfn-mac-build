@@ -82,6 +82,8 @@ real*8 x,y,z,vec(3),mat(3,3)
 userfunc=1D0 !Default value
 
 select case(iuserfunc)
+case (-10) !For test purpose
+	userfunc=fmo(x,y,z,13)*fmo(x,y,z,20)
 case (-3) !The function value evaluated by cubic spline interpolation from cubmat
     userfunc=splineintp3d(x,y,z,1)
 case (-2) !Promolecular density

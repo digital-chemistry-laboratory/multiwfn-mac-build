@@ -1729,7 +1729,7 @@ if (MO == 0) deallocate( INDX, TEMP )
 end subroutine
 
 
-!------- Calculate how much is a matrix deviates from identity matrix
+!------- Calculate how much is a square matrix deviates from identity matrix
 !error=∑[i,j]abs( abs(mat(i,j))-δ(i,j) )
 real*8 function identmaterr(mat)
 implicit real*8 (a-h,o-z)
@@ -1746,6 +1746,39 @@ do i=1,nsize
 	end do
 end do
 end function
+
+
+!------- Return maximal deviation of given square matrix from identity matrix
+!errdiag is maximum absolute deviation of diagonal elements from 1, idiag is its index
+!errndiag is maximum absolute deviation of non-diagonal elements from 0, indiag,jndiag are its row and column indices
+subroutine identmatmaxerr(mat,errdiag,idiag,errndiag,indiag,jndiag)
+implicit real*8 (a-h,o-z)
+real*8 mat(:,:)
+nsize=size(mat,1)
+errdiag=0D0
+idiag=1
+errndiag=0D0
+indiag=1
+jndiag=1
+do i=1,nsize
+	do j=1,nsize
+		if (i==j) then
+			absdev=abs(mat(i,j)-1)
+            if (absdev>errdiag) then
+				idiag=i
+                errdiag=absdev
+            end if
+		else
+			absdev=abs(mat(i,j))
+            if (absdev>errndiag) then
+				indiag=i
+				jndiag=j
+                errndiag=absdev
+            end if
+		end if
+	end do
+end do
+end subroutine
 
 
 !----- Convert a square matrix to an array. imode=1/2/3: Full matrix; Lower half matrix; Upper half matrix

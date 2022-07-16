@@ -1225,13 +1225,17 @@ else !Start calculation of plane data
 	call walltime(iwalltime2)
 	write(*,"(/,' Calculation took up wall clock time',i10,' s',/)") iwalltime2-iwalltime1
 end if
-	
-write(*,*) "The minimum of data:",minval(planemat)
-write(*,*) "The maximum of data:",maxval(planemat)
+
+valmin=minval(planemat)
+valmax=maxval(planemat)
+write(*,*) "The minimum of data:",valmin
+write(*,*) "The maximum of data:",valmax
 
 ! Set default lower and upper of color scale (Z-axis) for plot
 surcolorzmin=-3
 surcolorzmax=3
+drawlowlim=valmin
+drawuplim=valmax
 if (ifuncsel==1) then
 	drawlowlim=0D0
 	drawuplim=0.65D0
@@ -1301,9 +1305,6 @@ else if (ifuncsel==100) then
 		drawlowlim=0D0
 		drawuplim=1.000001D0
     end if
-else !Including ifuncsel==100
-	drawlowlim=0D0
-	drawuplim=5D0
 end if
 !Set up range of X and Y axes
 if (plesel==1) then
