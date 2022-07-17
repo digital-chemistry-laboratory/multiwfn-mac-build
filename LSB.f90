@@ -436,7 +436,7 @@ end subroutine
 
 
 
-
+!***** This code is fully useless now, because integrating a function in fuzzy analysis module has already used molecular grid by default
 !!------ Integrate real space function in Hirshfeld space with molecular grid (i.e. the grid is the same as integating over the whole space)
 ! The grid used in function 1 of fuzzy space analysis is only the grid centered at the atom to be studied, this lead to inaccurate integration result
 ! when the integrand varies fast at the tail region of the Hirshfeld atom (commonly close to the other nuclei). In this case we must use the molecular grid.

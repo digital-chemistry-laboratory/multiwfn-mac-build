@@ -3571,7 +3571,7 @@ end subroutine
 
 !!-------- Randomly generate name of Sobereva's lover
 subroutine mylover(outname)
-integer,parameter :: nlovers=60
+integer,parameter :: nlovers=61
 character(len=80) lovername(nlovers),outname
 CALL RANDOM_SEED()
 CALL RANDOM_NUMBER(tmp)
@@ -3635,7 +3635,8 @@ lovername(56)="Don't_Toy_with_Me,_Miss_Nagatoro\Hayase_Nagatoro"
 lovername(57)="Super_Cub\Reiko"
 lovername(58)="LoveLive!_Superstar!!\Sumire_Heanna"
 lovername(59)="Jahy-sama_wa_Kujikenai!\Jahy"
-lovername(60)="Kawaii Dake ja Nai Shikimori-san\Shikimori"
+lovername(60)="Kawaii_Dake_ja_Nai_Shikimori-san\Shikimori"
+lovername(61)="Sono_Bisque_Doll_wa_Koi_wo_Suru\Marin_Kitagawa"
 
 !Dear Kanan,
 !

@@ -7314,10 +7314,9 @@ do while(.true.)
         write(*,*) "7 B3LYP      -7 B3LYP with ADMM"
         write(*,*) "8 HSE06      -8 HSE06 with ADMM"
         write(*,*) "9 BEEF-vdW"
-        !write(*,*) "11 PBEsol (via &LIBXC)" !I found the result is identical to native implementation, so do not appear here
-        write(*,*) "11 B97M-rV (via &LIBXC)       12 MN15L (via &LIBXC)"
-        write(*,*) "13 SCAN (via &LIBXC)          14 r2SCAN (via &LIBXC)"
-        write(*,*) "15 RPBE (via &LIBXC)"
+        write(*,*) "11 B97M-rV (via LibXC)       12 MN15L (via LibXC)"
+        write(*,*) "13 SCAN (via LibXC)          14 r2SCAN (via LibXC)"
+        write(*,*) "15 RPBE (via LibXC)"
         write(*,*) "20 RI-MP2        21 RI-SCS-MP2"
         write(*,*) "25 RI-B2PLYP     26 RI-B2GP-PLYP     27 RI-DSD-BLYP"
         write(*,*) "30 GFN1-xTB      40 PM6"
@@ -7340,7 +7339,6 @@ do while(.true.)
             method="BEEFVDW"
             idispcorr=0
         end if
-        !if (isel2==11) method="PBEsol_LIBXC"
         if (isel2==11) then
             method="B97M-rV_LIBXC"
             idispcorr=5
@@ -7871,22 +7869,31 @@ if (method=="PM6".or.method=="GFN1-xTB") goto 100
 write(ifileid,"(a)") "    &XC"
 if (index(method,"LIBXC")/=0) then
     write(ifileid,"(a)") "      &XC_FUNCTIONAL"
-    write(ifileid,"(a)") "        &LIBXC"
-    !if (method=="PBEsol_LIBXC") write(ifileid,"(a)") "          FUNCTIONAL  GGA_X_PBE_SOL"
-    if (method=="B97M-rV_LIBXC") write(ifileid,"(a)") "          FUNCTIONAL  MGGA_XC_B97M_V"
-    if (method=="MN15L_LIBXC") write(ifileid,"(a)") "          FUNCTIONAL  MGGA_X_MN15_L"
-    if (method=="SCAN_LIBXC") write(ifileid,"(a)") "          FUNCTIONAL  MGGA_X_SCAN"
-    if (method=="r2SCAN_LIBXC") write(ifileid,"(a)") "          FUNCTIONAL  MGGA_X_R2SCAN"
-    if (method=="RPBE_LIBXC") write(ifileid,"(a)") "          FUNCTIONAL  GGA_X_RPBE"
-    write(ifileid,"(a)") "        &END LIBXC"
-    if (method/="B97M-rV_LIBXC") then !Also need to define correlation part
-        write(ifileid,"(a)") "        &LIBXC"
-        !if (method=="PBEsol_LIBXC") write(ifileid,"(a)") "          FUNCTIONAL  GGA_C_PBE_SOL"
-        if (method=="MN15L_LIBXC") write(ifileid,"(a)") "          FUNCTIONAL  MGGA_C_MN15_L"
-        if (method=="SCAN_LIBXC") write(ifileid,"(a)") "          FUNCTIONAL  MGGA_C_SCAN"
-        if (method=="r2SCAN_LIBXC") write(ifileid,"(a)") "          FUNCTIONAL  MGGA_C_R2SCAN"
-        if (method=="RPBE_LIBXC") write(ifileid,"(a)") "          FUNCTIONAL  GGA_C_PBE"
-        write(ifileid,"(a)") "        &END LIBXC"
+    if (method=="B97M-rV_LIBXC") then !Non-separable XC
+        write(ifileid,"(a)") "        &MGGA_XC_B97M_V"
+        write(ifileid,"(a)") "        &END MGGA_XC_B97M_V"
+    else !X-C separable
+        if (method=="MN15L_LIBXC") then
+            write(ifileid,"(a)") "        &MGGA_X_MN15_L"
+            write(ifileid,"(a)") "        &END MGGA_X_MN15_L"
+            write(ifileid,"(a)") "        &MGGA_C_MN15_L"
+            write(ifileid,"(a)") "        &END MGGA_C_MN15_L"
+        else if (method=="SCAN_LIBXC") then
+            write(ifileid,"(a)") "        &MGGA_X_SCAN"
+            write(ifileid,"(a)") "        &END MGGA_X_SCAN"
+            write(ifileid,"(a)") "        &MGGA_C_SCAN"
+            write(ifileid,"(a)") "        &END MGGA_C_SCAN"
+        else if (method=="r2SCAN_LIBXC") then
+            write(ifileid,"(a)") "        &MGGA_X_R2SCAN"
+            write(ifileid,"(a)") "        &END MGGA_X_R2SCAN"
+            write(ifileid,"(a)") "        &MGGA_C_R2SCAN"
+            write(ifileid,"(a)") "        &END MGGA_C_R2SCAN"
+        else if (method=="RPBE_LIBXC") then
+            write(ifileid,"(a)") "        &GGA_X_RPBE"
+            write(ifileid,"(a)") "        &END GGA_X_RPBE"
+            write(ifileid,"(a)") "        &GGA_C_PBE"
+            write(ifileid,"(a)") "        &END GGA_C_PBE"
+        end if
     end if
     write(ifileid,"(a)") "      &END XC_FUNCTIONAL"
 else if (method=="GFN1-xTB".or.method=="PM6") then
@@ -8054,11 +8061,9 @@ if (idispcorr>0.or.method=="BEEFVDW") then
         !See qs_dispersion_pairpot.F on how to write functional name
         if (method=="BP") then
             write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL BP86"
-        else if (method=="PBEsol_LIBXC") then
-            write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL PBEsol"
-        else if (method=="MN15L_LIBXC") then
+        else if (method=="MN15L_LIBXC") then !Remove _LIBXC suffix
             write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL MN15L"
-        else if (method=="SCAN_LIBXC") then
+        else if (method=="SCAN_LIBXC") then !Remove _LIBXC suffix
             write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL SCAN"
         else if (index(method,"B2PLYP")/=0) then
             write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL B2PLYP"
