@@ -1729,16 +1729,16 @@ subroutine displace_geom
 use defvar
 use util
 implicit real*8 (a-h,o-z)
-character c2000tmp*2000
+character c2000tmp*2000,c80tmp*80
 integer atmlist(ncenter)
 
 write(*,*)
 write(*,*) " ------------------ Generate randomly displaced geometries ------------------"
 write(*,*) "Input index of the atoms that you want to randomly displace, e.g. 2,3,7-10"
-write(*,*) "To choose the whole system, input ""a"""
+write(*,*) "To choose the whole system, press ENTER button directly"
 write(*,*) "To exit, input ""q"""
 read(*,"(a)") c2000tmp
-if (index(c2000tmp,'a')/=0) then
+if (c2000tmp==" ".or.index(c2000tmp,'a')/=0) then
     nsel=ncenter
     forall(i=1:nsel) atmlist(i)=i
 else if (c2000tmp=='q') then
@@ -1758,11 +1758,23 @@ write(*,*) "7 X, Y and Z coordinates"
 read(*,*) itype
 
 write(*,*) "Input standard variation of displacement in Angstrom, e.g. 0.01"
-read(*,*) stdvar
+write(*,*) "If you press ENTER button directly, 0.03 Angstrom will be used"
+read(*,"(a)") c80tmp
+if (c80tmp==" ") then
+    stdvar=0.03D0
+else
+    read(c80tmp,*) stdvar
+end if
 stdvar=stdvar/b2a
 
 write(*,*) "Generate how many geometries? e.g. 4"
-read(*,*) numgen
+write(*,*) "If you press ENTER button directly, only one geometry will be generated"
+read(*,"(a)") c80tmp
+if (c80tmp==" ") then
+    numgen=1
+else
+    read(c80tmp,*) numgen
+end if
 
 open(10,file="new.xyz",status="replace")
 do igen=1,numgen

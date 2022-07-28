@@ -6210,7 +6210,7 @@ do while(.true.)
     if (itask==3) write(*,*) " 0 Select task, current: Frequency analysis"
     write(*,*) " 1 PM6"
     write(*,*) " 2 PM6-DH+"
-    write(*,*) " 3 PM6-D3H4"
+    write(*,*) " 3 PM6-D3H4X"
     write(*,*) " 4 PM7"
     read(*,*) isel
     
@@ -6253,7 +6253,7 @@ open(ifileid,file=outname,status="replace")
 
 if (isel==1) keyword="PM6"
 if (isel==2) keyword="PM6-DH+"
-if (isel==3) keyword="PM6-D3H4"
+if (isel==3) keyword="PM6-D3H4X"
 if (isel==4) keyword="PM7"
 if (iMOZYME==1) keyword=trim(keyword)//" MOZYME"
 

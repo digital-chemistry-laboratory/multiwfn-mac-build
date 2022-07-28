@@ -1412,7 +1412,7 @@ use defvar
 use functions
 use util
 implicit real*8 (a-h,o-z)
-real*8 intval,intvalold,funcval1(radpot*sphpot),funcval2(radpot*sphpot),beckeweigrid(radpot*sphpot)
+real*8 intval,intvalold,intvalneg,intvaloldneg,funcval1(radpot*sphpot),funcval2(radpot*sphpot),beckeweigrid(radpot*sphpot)
 type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
 character c80tmp*80,filename2*200,sep
 character(len=2) :: statname(-4:4)=(/ "-4","-3","-2","-1","_0","+1","+2","+3","+4" /)
@@ -1502,10 +1502,12 @@ call gen1cintgrid(gridatmorg,iradcut)
 call walltime(iwalltime1)
 intval=0
 intvalold=0
+intvalneg=0
+intvaloldneg=0
 izero=0
 ineg=0
 do iatm=1,ncenter
-	write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
+	write(*,"(/,' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
 	gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
 	gridatm%y=gridatmorg%y+a(iatm)%y
 	gridatm%z=gridatmorg%z+a(iatm)%z
@@ -1539,30 +1541,36 @@ do iatm=1,ncenter
             inquire(file="zero_rhodiff.txt",number=ifilezero)
             if (ifilezero==-1) open(12,file="zero_rhodiff.txt",status="replace")
             write(12,"(i7,3f12.5,4(1PE16.8))") i,gridatm(i)%x,gridatm(i)%y,gridatm(i)%z,accum,rhodiff,gridatmorg(i)%value,beckeweigrid(i) 
-        else if (rhodiff<0) then
+        else if (rhodiff<0) then !Negative delta rho
 			ineg=ineg+1
+			if (itype==1) tmpval=-abs(rhodiff)*log(abs(rhodiff))
+			accum=tmpval*gridatmorg(i)%value*beckeweigrid(i)
+			intvalneg=intvalneg+accum
             inquire(file="neg_rhodiff.txt",number=ifileneg)
             if (ifileneg==-1) open(13,file="neg_rhodiff.txt",status="replace")
             write(13,"(i7,3f12.5,4(1PE16.8))") i,gridatm(i)%x,gridatm(i)%y,gridatm(i)%z,accum,rhodiff,gridatmorg(i)%value,beckeweigrid(i) 
-        else
+        else !Positive delta rho
 			if (itype==1) tmpval=-rhodiff*log(rhodiff)
 			accum=tmpval*gridatmorg(i)%value*beckeweigrid(i)
 			intval=intval+accum
 			write(11,"(i7,3f12.5,4(1PE16.8))") i,gridatm(i)%x,gridatm(i)%y,gridatm(i)%z,accum,rhodiff,gridatmorg(i)%value,beckeweigrid(i)
 		end if
 	end do
-	write(*,"(' Accumulated value:',f20.10,'  Current center:',f20.10)") intval,intval-intvalold
+	write(*,"(' Accumulated (+ delta_rho):',f20.10,'  This cen.:',f20.10)") intval,intval-intvalold
+	write(*,"(' Accumulated (- delta_rho):',f20.10,'  This cen.:',f20.10)") intvalneg,intvalneg-intvaloldneg
 	intvalold=intval
+	intvaloldneg=intvalneg
 end do
 
 call walltime(iwalltime2)
-write(*,"(' Calculation took up wall clock time',i10,'s',/)") iwalltime2-iwalltime1
-write(*,"(' Final result:',f24.12)") intval
+write(*,"(/,' Calculation took up wall clock time',i10,'s',/)") iwalltime2-iwalltime1
+write(*,"(' Final result (based on positive delta_rho):       ',f24.12)") intval
+if (ineg>0) write(*,"(' Final result (based on abs of negative delta_rho):',f24.12)") intvalneg
 write(*,*)
 write(*,*) "integrate.txt has been exported to current folder"
 write(*,*) "Column 1: Index of integration points"
 write(*,*) "Columns 2~4: X, Y, Z of integration points in Bohr"
-write(*,*) "Column 5: Function value"
+write(*,*) "Column 5: Contribution of this point to integral"
 write(*,*) "Column 6: Density difference"
 write(*,*) "Column 7: Lebedev integration weighting"
 write(*,*) "Column 8: Atom weighting function"
@@ -1570,12 +1578,12 @@ write(*,*)
 close(11)
 if (izero>0) then
 	close(12)
-	write(*,"(a,i7,a)") " Note:",izero," points have zero density difference, these points were skipped &
+	write(*,"(a,i9,a)") " Note:",izero," points have zero density difference, these points were skipped &
 	during calculation. Please check zero_rhodiff.txt in current folder for information of these points"
 end if
 if (ineg>0) then
 	close(13)
-	write(*,"(a,i7,a)") " Note:",ineg," points have negative density difference, these points were skipped &
-	during calculation. Please check neg_rhodiff.txt in current folder for information of these points"
+	write(*,"(a,i9,a)") " Note:",ineg," points have negative density difference, their absolute values were considered &
+	during integration. Please check neg_rhodiff.txt in current folder for information of these points"
 end if
 end subroutine
