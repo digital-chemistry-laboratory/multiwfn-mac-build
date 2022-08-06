@@ -30,7 +30,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2022-Jul-27"
+write(*,*) "Version 3.8(dev), release date: 2022-Aug-6"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -249,7 +249,6 @@ if (allocated(a)) then
 end if
 
 !Special treatment and test new code
-!call cavity_diameter
 
 !!!--------------------- Now everything start ---------------------!!!
 do while(.true.) !Main loop

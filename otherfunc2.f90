@@ -2440,10 +2440,17 @@ integer :: cenind(2000)
 
 write(*,*) "Input atom indices in the chain (the sequence is arbitrary)"
 write(*,*) "e.g. 2,14,16-17,19,21,23-24"
+write(*,*) "If pressing enter button directly, all atoms will be selected"
 read(*,"(a)") c2000tmp
-call str2arr(c2000tmp,nchainatm)
-allocate(chainatm(nchainatm),atmseq(nchainatm),atmtmp(ncenter))
-call str2arr(c2000tmp,nchainatm,chainatm)
+if (c2000tmp==" ") then
+	nchainatm=ncenter
+	allocate(chainatm(nchainatm),atmseq(nchainatm),atmtmp(ncenter))
+    forall(i=1:ncenter) chainatm(i)=i
+else
+	call str2arr(c2000tmp,nchainatm)
+	allocate(chainatm(nchainatm),atmseq(nchainatm),atmtmp(ncenter))
+	call str2arr(c2000tmp,nchainatm,chainatm)
+end if
 
 write(*,*) "Input index of the two atoms at the two ends of the path, e.g. 13,24"
 write(*,"(a)") " If the path is a closed path (e.g. a ring), input twice of starting atom index, e.g. 5,5"
@@ -2524,7 +2531,7 @@ do idx=1,idxend
     if (mod(idx,2)==1) then !odd
         avglen_odd=avglen_odd+dist
         n_odd=n_odd+1
-    else
+    else !even
         avglen_even=avglen_even+dist
         n_even=n_even+1
     end if
@@ -2576,9 +2583,16 @@ read(*,*) selectyn
 if (selectyn=='y'.or.selectyn=='Y') then
     write(*,*) "Note The unit of printed values is degree"
     write(*,*)
+    !Angles
+	avgang_even=0
+	avgang_odd=0
+	n_even=0
+	n_odd=0
+    iangle=0
     idxend=nchainatm
     if (ibeg==iend) idxend=nchainatm+2
     do itmp=3,idxend
+		iangle=iangle+1
         idx=itmp-2
         iatm=atmseq(idx)
         jdx=itmp-1
@@ -2588,11 +2602,28 @@ if (selectyn=='y'.or.selectyn=='Y') then
         if (kdx>nchainatm) kdx=kdx-nchainatm
         katm=atmseq(kdx)
         angle=xyz2angle(a(iatm)%x,a(iatm)%y,a(iatm)%z,a(jatm)%x,a(jatm)%y,a(jatm)%z,a(katm)%x,a(katm)%y,a(katm)%z)
-        write(*,"(' Atoms:',3i6,'  Angle:',f10.3)") iatm,jatm,katm,angle
+        write(*,"(' #',i5,'  Atoms:',3i6,'  Angle:',f10.3)") iangle,iatm,jatm,katm,angle
+		if (mod(iangle,2)==1) then !odd
+			avgang_odd=avgang_odd+angle
+			n_odd=n_odd+1
+		else !even
+			avgang_even=avgang_even+angle
+			n_even=n_even+1
+		end if
     end do
+	write(*,"(a,i6)") " The number of even angles:",n_even
+	write(*,"(a,i6)") " The number of odd angles: ",n_odd
+	avgang_even=avgang_even/n_even
+	avgang_odd=avgang_odd/n_odd
+	write(*,"(a,f12.4)") " Average degree of even angles: ",avgang_even
+	write(*,"(a,f12.4)") " Average degree of odd angles:  ",avgang_odd
+    
+    !Dihedral
     write(*,*)
+    idih=0
     if (ibeg==iend) idxend=nchainatm+3
     do itmp=4,idxend
+		idih=idih+1
         idx=itmp-3
         iatm=atmseq(idx)
         jdx=itmp-2
@@ -2607,7 +2638,7 @@ if (selectyn=='y'.or.selectyn=='Y') then
         dih=abs(atomdih(iatm,jatm,katm,latm,1)) !Note that the returned value of is [0,180]
         dev=dih
         if (dih>90) dev=180-dih
-        write(*,"(' Atoms:',4i6,'  Dihedral:',f7.2,', deviation to planar:',f7.2)") iatm,jatm,katm,latm,dih,dev
+        write(*,"(' #',i5,'  Atoms:',4i6,'  Dih.:',f7.2,', dev. to planar:',f7.2)") idih,iatm,jatm,katm,latm,dih,dev
     end do
 end if
 

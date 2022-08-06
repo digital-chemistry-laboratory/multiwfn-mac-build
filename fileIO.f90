@@ -6760,7 +6760,6 @@ if (outname==" ") outname=trim(c200tmp)//".inp"
 call outCP2Kinp(outname,10)
 end subroutine
 !!---------- Output current coordinate to CP2K input file
-!TODO: Support BSSE, BAND, TDDFTPT
 subroutine outCP2Kinp(outname,ifileid)
 use defvar
 use util
@@ -6918,6 +6917,7 @@ do while(.true.)
     if (itask==11) write(*,*) "-1 Choose task, current: BSSE"
     if (itask==12) write(*,*) "-1 Choose task, current: BAND"
     if (itask==13) write(*,*) "-1 Choose task, current: Real-time propagation for electron dynamics"
+    if (itask==14) write(*,*) "-1 Choose task, current: Path-integral molecular dynamics (PIMD)"
     write(*,*) " 0 Generate input file now!"
     write(*,*) " 1 Choose theoretical method, current: "//trim(method)
     if (method/="GFN1-xTB".and.method/="PM6") write(*,*) " 2 Choose basis set and pseudopotential, current: "//trim(basname(ibas))
@@ -7205,7 +7205,7 @@ do while(.true.)
         read(*,*) nMDsavefreq
     else if (isel==-5) then
         if (itask==4) write(*,*) "Choose the format for recording trajectory of optimization"
-        if (itask==6) write(*,*) "Choose the format for recording trajectory of molecular dynamics"
+        if (itask==6.or.itask==14) write(*,*) "Choose the format for recording trajectory of molecular dynamics"
         write(*,*) "1 xyz (Simplest. Does not contain cell information)"
         write(*,*) "2 dcd (Binary file, smallest size. Containing cell information)"
         write(*,*) "3 pdb (Containing cell information, but accuracy of coordinates is limited)"
@@ -7271,6 +7271,7 @@ do while(.true.)
         write(*,*) "11 Correct for basis set superposition error (BSSE)"
         !write(*,*) "12 BAND"
         write(*,*) "13 Real-time propagation for electron dynamics"
+        write(*,*) "14 Path-integral molecular dynamics (PIMD)"
         read(*,*) itask
         if (itask==9.and.ibas<=5) then
             ibas=10 !Use 6-31G* if current basis set is pseudopotential basis set
@@ -7614,6 +7615,7 @@ if (itask==9.or.itask==10) write(ifileid,"(a)") "  RUN_TYPE LR"
 if (itask==11) write(ifileid,"(a)") "  RUN_TYPE BSSE"
 if (itask==12) write(ifileid,"(a)") "  RUN_TYPE BAND"
 if (itask==13) write(ifileid,"(a)") "  RUN_TYPE RT_PROPAGATION"
+if (itask==14) write(ifileid,"(a)") "  RUN_TYPE PINT"
 write(ifileid,"(a)") "&END GLOBAL"
 write(ifileid,"(/,a)") "&FORCE_EVAL"
 write(ifileid,"(a)") "  METHOD Quickstep"
@@ -8117,7 +8119,7 @@ if (method/="GFN1-xTB".and.method/="PM6") then
         if (itask==1) then !Single point, medicore accuracy
             write(ifileid,"(a)") "      CUTOFF 350"
             write(ifileid,"(a)") "      REL_CUTOFF 50"
-        else if (itask==6) then !MD, do not need high accuracy
+        else if (itask==6.or.itask==14) then !MD, do not need high accuracy
             write(ifileid,"(a)") "      CUTOFF 300" !Default is 280
             write(ifileid,"(a)") "      REL_CUTOFF 40" !Default is 40
         else !If task involves energy derivative, or TDDFT, use higher cutoff
@@ -8149,7 +8151,7 @@ if (itask==1) then !Single point, do not need high accuracy
     eps_scf=5D-6
 else if (itask==5) then !Vibration analysis is realized based on finite difference, so use tighter convergence as suggested by manual
     eps_scf=1D-7
-else if (itask==6) then !For faster MD, use even looser threshold
+else if (itask==6.or.itask==14) then !For faster MD, use even looser threshold
     eps_scf=1D-5
 else if (itask==9.and.itask==10) then !NMR and polar may need pretty tight threshold
     eps_scf=1D-8
@@ -8223,9 +8225,9 @@ if (idiagOT==1) then
     end if
 end if
 
-if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7) then
+if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==14) then
     write(ifileid,"(a)") "      &PRINT"
-    if (itask==5.or.itask==6) then !Freq, MD
+    if (itask==5.or.itask==6.or.itask==14) then !Freq, MD
         write(ifileid,"(a)") "        &RESTART OFF #Do not generate wfn file to suppress meaningless I/O cost"
         write(ifileid,"(a)") "        &END RESTART"
     else
@@ -8515,7 +8517,7 @@ end if
 write(ifileid,"(a)") "&END FORCE_EVAL"
 
 !--- &MOTION
-if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13) then
+if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.itask==14) then
     write(ifileid,"(/,a)") "&MOTION"
     if (itask==3.or.itask==7) then !Optimizing atoms for minimum or TS
         write(ifileid,"(a)") "  &GEO_OPT"
@@ -8637,6 +8639,11 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13) then
             write(ifileid,"(a)") "    TIMESTEP 0.025 #Step size in fs"
         end if
         write(ifileid,"(a)") "    TEMPERATURE 298.15 #Initial and maintained temperature (K)"
+        write(ifileid,"(a)") "#   COMVEL_TOL 0 #Uncomment this can remove translation motion of center-of-mass every step"
+        if (ifPBC==0) then
+            write(ifileid,"(a)") "#   ANGVEL_TOL 0 #Uncomment this can remove overall rotation every step"
+            write(ifileid,"(a)") "    ANGVEL_ZERO T #Eliminate overall rotation component from initial velocity"
+        end if
         if (ithermostat>0) then
             write(ifileid,"(a)") "    &THERMOSTAT"
             if (ithermostat==1) write(ifileid,"(a)") "      TYPE AD_LANGEVIN"
@@ -8662,6 +8669,21 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13) then
             write(ifileid,"(a)") "    &END BAROSTAT"
         end if
         write(ifileid,"(a)") "  &END MD"
+    else if (itask==14) then !PINT
+        write(ifileid,"(a)") "  &PINT"
+        write(ifileid,"(a)") "    PROPAGATOR PIMD #Type of propagator: PIMD, CMD, RPMD"
+        write(ifileid,"(a)") "    DT 0.5 #Stepsize in fs"
+        write(ifileid,"(a)") "    P 8 #Number of beads"
+        write(ifileid,"(a)") "    NUM_STEPS 1000 #Number of dynamics steps"
+        write(ifileid,"(a)") "    TEMP 298.15 #Simulation temperature (K)"
+        write(ifileid,"(a)") "    T_TOL 50.0 #Threshold for the oscillations of the temperature excedeed which the temperature is rescaled. 0 means no rescaling"
+        write(ifileid,"(a)") "    TRANSFORMATION NORMAL #Coordinate transformation method: NORMAL or STAGE"
+        write(ifileid,"(a)") "    HARM_INT NUMERIC #Integrator scheme for integrating the harmonic bead springs: EXACT or NUMERIC"
+        write(ifileid,"(a)") "    NRESPA 1 #Number of respa steps for the bead for each MD step"
+        write(ifileid,"(a)") "    &NOSE #Use Nose-Hoover chain thermostat"
+        write(ifileid,"(a)") "      NNOS 3 #Nose-Hoover chain length"
+        write(ifileid,"(a)") "    &END NOSE"
+        write(ifileid,"(a)") "  &END PINT"
     end if
     if (natmcons>0) then
         write(ifileid,"(a)") "  &CONSTRAINT"
@@ -8682,10 +8704,11 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13) then
         if (iMDformat==2) write(ifileid,"(a)") "      FORMAT dcd"
         if (iMDformat==3) write(ifileid,"(a)") "      FORMAT pdb"
         write(ifileid,"(a)") "    &END TRAJECTORY"
-    else if (itask==6) then !MD
+    else if (itask==6.or.itask==14) then !MD or PIMD
         write(ifileid,"(a)") "    &TRAJECTORY"
         write(ifileid,"(a)") "      &EACH"
-        write(ifileid,"(a,i6,a)") "        MD",nMDsavefreq," #Output frequency of coordinate"
+        if (itask==6) write(ifileid,"(a,i6,a)") "        MD",nMDsavefreq," #Output frequency of coordinate"
+        if (itask==14) write(ifileid,"(a,i6,a)") "        PINT",nMDsavefreq," #Output frequency of coordinate"
         write(ifileid,"(a)") "      &END EACH"
         if (iMDformat==1) write(ifileid,"(a)") "      FORMAT xyz"
         if (iMDformat==2) write(ifileid,"(a)") "      FORMAT dcd"
@@ -8693,7 +8716,8 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13) then
         write(ifileid,"(a)") "    &END TRAJECTORY"
         write(ifileid,"(a)") "    &VELOCITIES"
         write(ifileid,"(a)") "      &EACH"
-        write(ifileid,"(a,i6,a)") "        MD",nMDsavefreq," #Output frequency of velocity"
+        if (itask==6) write(ifileid,"(a,i6,a)") "        MD",nMDsavefreq," #Output frequency of velocity"
+        if (itask==14) write(ifileid,"(a,i6,a)") "        PINT",nMDsavefreq," #Output frequency of velocity"
         write(ifileid,"(a)") "      &END EACH"
         write(ifileid,"(a)") "    &END VELOCITIES"
     end if
@@ -8701,9 +8725,10 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13) then
     write(ifileid,"(a)") "    &RESTART"
     write(ifileid,"(a)") "      BACKUP_COPIES 0 #Maximum number of backing up restart file, 0 means never" !Do not generate annoying .restart.bak file
     !For other tasks, by default, restart file is updated every step. Only for MD it is default to 20, we explicitly provide option to change it
-    if (itask==6) then
+    if (itask==6.or.itask==14) then
         write(ifileid,"(a)") "      &EACH"
-        write(ifileid,"(a)") "        MD 10 #Frequency of updating last restart file. Default is 20"
+        if (itask==6) write(ifileid,"(a)") "        MD 10 #Frequency of updating last restart file. Default is 20"
+        if (itask==14) write(ifileid,"(a)") "        PINT 10 #Frequency of updating last restart file"
         write(ifileid,"(a)") "      &END EACH"
     end if
     write(ifileid,"(a)") "    &END RESTART"
@@ -8716,10 +8741,11 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13) then
         write(ifileid,"(a)") "        CELL_OPT 0 #How often a history .restart file is generated, 0 means never"
         write(ifileid,"(a)") "      &END EACH"
         write(ifileid,"(a)") "    &END RESTART_HISTORY"
-    else if (itask==6) then !MD. Convenient for users to change
+    else if (itask==6.or.itask==14) then !MD. Convenient for users to change
         write(ifileid,"(a)") "    &RESTART_HISTORY"
         write(ifileid,"(a)") "      &EACH"
-        write(ifileid,"(a)") "        MD 500 #How many steps a history .restart file is generated. Default is 500"
+        if (itask==6) write(ifileid,"(a)") "        MD 500 #How many steps a history .restart file is generated. Default is 500"
+        if (itask==14) write(ifileid,"(a)") "        PINT 500 #How many steps a history .restart file is generated"
         write(ifileid,"(a)") "      &END EACH"
         write(ifileid,"(a)") "    &END RESTART_HISTORY"
     end if

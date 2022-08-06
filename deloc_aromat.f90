@@ -215,7 +215,14 @@ do ifile=1,nfile
 	end if
 	write(*,"(' Loading ',a,'...')") trim(c200tmp)
 	open(10,file=c200tmp,status="old")
-	call loclabel(10,"GIAO Magnetic shielding tensor")
+	call loclabel(10,"GIAO Magnetic shielding tensor",ifound)
+    if (ifound==0) then
+		write(*,*) "Error: Unable to find ""GIAO Magnetic shielding tensor"" field!"
+        write(*,*) "Please check this file to make sure that the task has normally finished"
+        write(*,*) "Press ENTER button to exit"
+        read(*,*)
+        return
+    end if
 	read(10,*)
 	!Detect format. The NMR output format changes since G09 D.01 to leave more space for atomic index
 	read(10,"(a80)") c200tmp
@@ -250,7 +257,8 @@ do ifile=1,nfile
 					if (ierror/=0) then
 						write(*,"(' Error: Unable to load the',i7,'th Bq in this file!')") iloadthis
 						write(*,"(' This Bq should correspond to the',i7,'th center in this file')") ncenter+iloadthis
-						write(*,*) "Please double check your grid setting. Press ENTER button to exit"
+						write(*,*) "Please double check your grid setting and ""NICSnptlim"" in settings.ini"
+                        write(*,*) "Press ENTER button to exit"
 						read(*,*)
 						return
 					end if
