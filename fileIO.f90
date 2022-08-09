@@ -1295,7 +1295,7 @@ use util
 implicit real*8 (a-h,o-z)
 integer infomode,iopen
 character(len=*) name
-character titleline*200,pdbpath*200,teststr*6
+character titleline*200,pdbpath*200,teststr*6,c200tmp*200
 
 ifiletype=5
 if (iopen==1) open(10,file=name,status="old")
@@ -1357,8 +1357,13 @@ end if
 do i=1,ncenter
 	read(10,*) a(i)%name,a(i)%x,a(i)%y,a(i)%z
     if (alive) then
-        read(11,"(76x,a2)") teststr(1:2) !Load element from pdb file
-        if (teststr(1:2)/=" ") a(i)%name=adjustl(teststr(1:2)) !If pdb file doesn't provide element name, still use name in .xyz 
+        do while(.true.) !Read next atom from pdb (the line must have HETATM or ATOM)
+            read(11,"(a)") c200tmp
+            if (index(c200tmp,"HETATM")==0.and.index(c200tmp,"ATOM")==0) cycle
+            read(c200tmp,"(76x,a2)") teststr(1:2) !Load element from pdb file
+            if (teststr(1:2)/=" ") a(i)%name=adjustl(teststr(1:2)) !If pdb file doesn't provide element name, still use name in .xyz
+            exit
+        end do
     end if
     call elename2idx(a(i)%name,idx)
     if (idx/=0) then
@@ -8646,15 +8651,18 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
         end if
         if (ithermostat>0) then
             write(ifileid,"(a)") "    &THERMOSTAT"
-            if (ithermostat==1) write(ifileid,"(a)") "      TYPE AD_LANGEVIN"
-            if (ithermostat==2) then
+            if (ithermostat==1) then
+                write(ifileid,"(a)") "      TYPE AD_LANGEVIN"
+            else if (ithermostat==2) then
                 write(ifileid,"(a)") "      TYPE CSVR"
                 write(ifileid,"(a)") "      &CSVR"
                 write(ifileid,"(a)") "        TIMECON 200 #Time constant in fs. Smaller/larger results in stronger/weaker temperature coupling"
                 write(ifileid,"(a)") "      &END CSVR"
+            else if (ithermostat==3) then
+                write(ifileid,"(a)") "      TYPE GLE"
+            else if (ithermostat==4) then
+                write(ifileid,"(a)") "      TYPE NOSE"
             end if
-            if (ithermostat==3) write(ifileid,"(a)") "      TYPE GLE"
-            if (ithermostat==4) write(ifileid,"(a)") "      TYPE NOSE"
             if (nthermoatm<ncenter) then
                 write(ifileid,"(a)") "      &DEFINE_REGION"
                 call outCP2K_LIST(ifileid,thermoatm(1:nthermoatm),nthermoatm,"        ")
@@ -8665,7 +8673,8 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
         if (ibarostat/=0) then
             write(ifileid,"(a)") "    &BAROSTAT"
             write(ifileid,"(a)") "      PRESSURE 1.01325 #Initial and maintained pressure (bar)"
-            write(ifileid,"(a)") "      VIRIAL XYZ #Relax the cell along which cartesian axes"
+            write(ifileid,"(a)") "      TIMECON 1000 #Barostat time constant (fs)"
+            if (ibarostat==1) write(ifileid,"(a)") "      VIRIAL XYZ #Relax the cell along which cartesian axes"
             write(ifileid,"(a)") "    &END BAROSTAT"
         end if
         write(ifileid,"(a)") "  &END MD"
@@ -8679,7 +8688,7 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
         write(ifileid,"(a)") "    T_TOL 50.0 #Threshold for the oscillations of the temperature excedeed which the temperature is rescaled. 0 means no rescaling"
         write(ifileid,"(a)") "    TRANSFORMATION NORMAL #Coordinate transformation method: NORMAL or STAGE"
         write(ifileid,"(a)") "    HARM_INT NUMERIC #Integrator scheme for integrating the harmonic bead springs: EXACT or NUMERIC"
-        write(ifileid,"(a)") "    NRESPA 1 #Number of respa steps for the bead for each MD step"
+        write(ifileid,"(a)") "    NRESPA 1 #Number of RESPA steps for the bead for each MD step"
         write(ifileid,"(a)") "    &NOSE #Use Nose-Hoover chain thermostat"
         write(ifileid,"(a)") "      NNOS 3 #Nose-Hoover chain length"
         write(ifileid,"(a)") "    &END NOSE"
@@ -8724,31 +8733,27 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
     
     write(ifileid,"(a)") "    &RESTART"
     write(ifileid,"(a)") "      BACKUP_COPIES 0 #Maximum number of backing up restart file, 0 means never" !Do not generate annoying .restart.bak file
-    !For other tasks, by default, restart file is updated every step. Only for MD it is default to 20, we explicitly provide option to change it
+    !For other tasks, by default, restart file is updated every step. Only for MD it is default to 20, I explicitly provide option to change it
     if (itask==6.or.itask==14) then
         write(ifileid,"(a)") "      &EACH"
-        if (itask==6) write(ifileid,"(a)") "        MD 10 #Frequency of updating last restart file. Default is 20"
-        if (itask==14) write(ifileid,"(a)") "        PINT 10 #Frequency of updating last restart file"
+        if (itask==6) write(ifileid,"(a)") "        MD 1 #Frequency of updating last restart file"
+        if (itask==14) write(ifileid,"(a)") "        PINT 1 #Frequency of updating last restart file"
         write(ifileid,"(a)") "      &END EACH"
     end if
     write(ifileid,"(a)") "    &END RESTART"
     
     !Control how to generate history .restart files
     !For GEO_OPT and MD, default is 500. For other tasks, default is every step
-    if (itask==4) then !Cell opt. Output history .restart file every step is too frequent, so suppress this
-        write(ifileid,"(a)") "    &RESTART_HISTORY"
-        write(ifileid,"(a)") "      &EACH"
-        write(ifileid,"(a)") "        CELL_OPT 0 #How often a history .restart file is generated, 0 means never"
-        write(ifileid,"(a)") "      &END EACH"
-        write(ifileid,"(a)") "    &END RESTART_HISTORY"
-    else if (itask==6.or.itask==14) then !MD. Convenient for users to change
-        write(ifileid,"(a)") "    &RESTART_HISTORY"
-        write(ifileid,"(a)") "      &EACH"
-        if (itask==6) write(ifileid,"(a)") "        MD 500 #How many steps a history .restart file is generated. Default is 500"
-        if (itask==14) write(ifileid,"(a)") "        PINT 500 #How many steps a history .restart file is generated"
-        write(ifileid,"(a)") "      &END EACH"
+    !Because it is useless, so I completely suppress it
+    if (itask==4.or.itask==6.or.itask==14) then !Cell opt, MD, PINT
+        write(ifileid,"(a)") "    &RESTART_HISTORY OFF "
         write(ifileid,"(a)") "    &END RESTART_HISTORY"
     end if
+    !write(ifileid,"(a)") "    &RESTART_HISTORY"
+    !write(ifileid,"(a)") "      &EACH"
+    !write(ifileid,"(a)") "        CELL_OPT 0 #How often a history .restart file is generated, 0 means never"
+    !write(ifileid,"(a)") "      &END EACH"
+    !write(ifileid,"(a)") "    &END RESTART_HISTORY"
     write(ifileid,"(a)") "  &END PRINT"
     write(ifileid,"(a)") "&END MOTION"
 end if
