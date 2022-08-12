@@ -186,6 +186,7 @@ write(*,*) "9 Output current wavefunction as old Molekel input file (.mkl)"
 write(*,*) "31 Output current structure to .cml file"
 write(*,*) "32 Output current wavefunction as .mwfn file"
 if (ifPBC==3) write(*,*) "33 Output current structure and cell information as .cif file"
+if (ifPBC==3) write(*,*) "34 Output current structure and cell information as .gro file"
 if (allocated(cubmat)) then
     write(*,*) "35 Output current grid data to Gaussian-type .cub file"
     write(*,*) "36 Output current grid data to .vti file"
@@ -346,6 +347,8 @@ else if (isel==32) then
     call outmwfn_wrapper
 else if (isel==33) then
     call outcif_wrapper
+else if (isel==34) then
+    call outgro_wrapper
 else if (isel==35) then
     call outcube_wrapper
 else if (isel==36) then

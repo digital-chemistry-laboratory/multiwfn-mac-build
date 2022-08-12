@@ -441,14 +441,17 @@ if (index(levelstr,"  ZDO")/=0) then
 end if
 if (levelstr(11:11)=="R") wfntype=0
 if (levelstr(11:11)=="U") wfntype=1
-if (levelstr(11:12)=="RO") then
-    wfntype=2
-    if (levelstr(13:13)=='3') wfntype=0 !RO3LYP means R form of O3LYP
-end if
+if (levelstr(11:12)=="RO") wfntype=2
+
 call loclabel(10,'Number of electrons')
 read(10,"(49x,f12.0)") nelec
 read(10,"(49x,f12.0)") naelec
 read(10,"(49x,f12.0)") nbelec
+
+!Because closed-shell calculation of OPBE, O3LYP, etc. also has RO prefix, so need to check spin multiplicity. &
+!RO must correspond to naelec>nbelec
+if (naelec==nbelec.and.wfntype==2) wfntype=0 !Should change to restricted form
+
 if (naelec/=nbelec.and.wfntype==0) wfntype=1 !This is often redundant, but considering that sometimes U is not properly recognized, this maybe useful
 if (index(levelstr,"CASSCF")/=0.and.naelec/=nbelec.and.isaveNO/=1) then !Suitable for CASSCF calculation of spin multiplicity >1
     wfntype=2
@@ -7268,7 +7271,7 @@ do while(.true.)
         write(*,*) "3 Optimizing structure (cell is fixed)"
         write(*,*) "4 Optimizing both structure and cell"
         write(*,*) "5 Vibrational analysis"
-        write(*,*) "6 Molecular dynamics"
+        write(*,*) "6 Molecular dynamics (MD)"
         write(*,*) "7 Searching transition state using dimer algorithm"
         !write(*,*) "8 Nudge-elastic band (NEB)"
         write(*,*) "9 NMR"
@@ -8158,8 +8161,8 @@ else if (itask==5) then !Vibration analysis is realized based on finite differen
     eps_scf=1D-7
 else if (itask==6.or.itask==14) then !For faster MD, use even looser threshold
     eps_scf=1D-5
-else if (itask==9.and.itask==10) then !NMR and polar may need pretty tight threshold
-    eps_scf=1D-8
+else if (itask==9.or.itask==10) then !NMR and polar may need pretty tight threshold
+    eps_scf=2D-8
 else !Other tasks involving energy derivative, use marginally tighter convergence
     eps_scf=2D-6
 end if
@@ -8176,7 +8179,7 @@ else if (idiagOT==2) then
     if (method=="GFN1-xTB".or.method=="PM6") then !Semi-empirical cannot use FULL_KINETIC. For large system FULL_SINGLE_INVERSE is the only good choice
         write(ifileid,"(a)") "        PRECONDITIONER FULL_SINGLE_INVERSE"
     else
-        if (ncenter>150) then !Large system, using FULL_ALL will cause too high cost at the first step
+        if (ncenter>300) then !Large system, using FULL_ALL will cause too high cost at the first step
             write(ifileid,"(a)") "        PRECONDITIONER FULL_KINETIC #FULL_SINGLE_INVERSE is also worth to try. FULL_ALL is better but quite expensive for large system"
         else
             write(ifileid,"(a)") "        PRECONDITIONER FULL_ALL #Usually best but expensive for large system. Cheaper: FULL_SINGLE_INVERSE and FULL_KINETIC (default)"
@@ -8382,12 +8385,16 @@ if (itask==9.or.itask==10.or.iTDDFT==1) then !NMR, polar, TDDFT
     write(ifileid,"(a)") "  &PROPERTIES"
     if (itask==9.or.itask==10) then !NMR, polar
         write(ifileid,"(a)") "    &LINRES #Activate linear response calculation"
-        if (ncenter>150) then
+        if (ncenter>500) then
             write(ifileid,"(a)") "      PRECONDITIONER FULL_KINETIC #Preconditioner to be used with all minimization schemes"
         else
             write(ifileid,"(a)") "      PRECONDITIONER FULL_ALL #Preconditioner to be used with all minimization schemes"
         end if
-        write(ifileid,"(a)") "      EPS 1E-10 #Target accuracy for the convergence of the conjugate gradient" !Tigher than default 1E-6
+        if (itask==9) then !NMR will do response calculation 3*Natoms times, quite expensive, so use relatively looser criterion
+            write(ifileid,"(a)") "      EPS 1E-8 #Target accuracy for the convergence of the conjugate gradient" !Tigher than default 1E-6
+        else
+            write(ifileid,"(a)") "      EPS 1E-10 #Target accuracy for the convergence of the conjugate gradient" !Tigher than default 1E-6
+        end if
         write(ifileid,"(a)") "      MAX_ITER 300 #Maximum number of conjugate gradient iteration to be performed for one optimization"
         if (itask==9) then
             write(ifileid,"(a)") "      &CURRENT"
@@ -10846,6 +10853,37 @@ end do
 
 close(ifileid)
 write(*,*) "Exporting cif file finished!"
+end subroutine
+
+
+
+!!---------- Interface of outputting gro file
+subroutine outgro_wrapper
+use util
+use defvar
+character(len=200) outname,c200tmp
+call path2filename(filename,c200tmp)
+write(*,*) "Input path for outputting gro file, e.g. C:\ltwd.gro"
+write(*,"(a)") " If press ENTER button directly,the system will be exported to "//trim(c200tmp)//".gro in current folder"
+read(*,"(a)") outname
+if (outname==" ") outname=trim(c200tmp)//".gro"
+call outgro(outname,10)
+end subroutine
+!!---------- Output current coordinate to gro file
+subroutine outgro(outgroname,ifileid)
+use defvar
+implicit real*8 (a-h,o-z)
+character(len=*) outgroname
+integer ifileid
+open(ifileid,file=outgroname,status="replace")
+write(ifileid,"(a)") "Generated by Multiwfn"
+write(ifileid,*) ncenter
+do i=1,ncenter
+	write(ifileid,"(i5,'MOL',a7,i5,3f8.3)") 1,a(i)%name,i,a(i)%x*b2a/10,a(i)%y*b2a/10,a(i)%z*b2a/10
+end do
+write(ifileid,"(9f12.6)") cellv1(1)/10,cellv2(2)/10,cellv3(3)/10,cellv1(2)/10,cellv1(3)/10,cellv2(1)/10,cellv2(3)/10,cellv3(1)/10,cellv3(2)/10
+close(ifileid)
+write(*,*) "Exporting gro file finished!"
 end subroutine
 
 
