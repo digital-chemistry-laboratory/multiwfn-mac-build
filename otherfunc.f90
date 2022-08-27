@@ -3302,7 +3302,7 @@ integer,allocatable :: calcatom(:)
 do while(.true.)
 	write(*,*) "Input indices of the atoms for which geometry information will be calculated"
 	write(*,*) "e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 will be considered"
-	write(*,*) "Input ""all"" will analyze the whole system, input ""q"" will exit"
+	write(*,*) "Press ENTER button directly will analyze the whole system, input ""q"" will exit"
     write(*,*) "  Other commands:"
 	write(*,*) "Input ""size"" will report size information of the whole system"
 	write(*,*) "Input ""dist"" will report contact/distance between two specific fragments"
@@ -3325,7 +3325,7 @@ do while(.true.)
 		call calcMPP
 	else
 		if (allocated(calcatom)) deallocate(calcatom)
-		if (index(c2000tmp,"all")/=0) then
+		if (c2000tmp==" ".or.index(c2000tmp,"all")/=0) then
 			ncalcatom=ncenter
 			allocate(calcatom(ncalcatom))
 			do itmp=1,ncalcatom

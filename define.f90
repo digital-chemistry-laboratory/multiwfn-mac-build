@@ -184,8 +184,9 @@ real*8 :: atmrhocut(1:nelesupp)=(/7.80D0,5.89D0,14.37D0,11.30D0,10.10D0,8.20D0,7
 11.97D0,11.97D0,12.70D0,11.97D0,11.30D0,11.30D0,11.30D0,14.37D0,12.70D0,11.30D0,11.30D0,10.68D0,10.10D0,17.53D0,15.33D0,14.37D0,14.37D0,14.37D0,&
 15.33D0,15.33D0,14.37D0,14.37D0,13.50D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,12.70D0,(14D0,i=104,nelesupp) /)
 
-!Computed from abundance and isotope masses, the data was obtained from https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl?ele=&ascii=ascii2&isotype=all
+!Standard atomic weight. Computed from abundance and isotope masses, the data was obtained from https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl?ele=&ascii=ascii2&isotype=all
 !For radioactive elements, the mass corresponds to longest-living isotope
+!Unit is Da, or simply be regarded as relative atomic mass (dimensionless)
 real*8 :: atmwei(0:nelesupp)=(/0D0,&
   1.0079407541D0,  4.0026019321D0,  6.9400366029D0,  9.0121830650D0, 10.8110280464D0,&
  12.0107358967D0, 14.0067032114D0, 15.9994049243D0, 18.9984031627D0, 20.1800463805D0,&

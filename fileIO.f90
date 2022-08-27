@@ -6778,13 +6778,13 @@ character :: method*20="PBE",PBCdir*4="XYZ ",cellfix*4="NONE"
 character(len=30) :: basname(-10:30)=" "
 integer :: itask=1,idispcorr=0,imolden=0,ioutvibmol=1,ithermostat=0,ibarostat=0,iSCCS=0,idipcorr=0,iMP2=0,imoment=0,ioptmethod=1,iprintlevel=1
 integer :: iTDDFT=0,nstates_TD=3,iTDtriplet=0,isTDA=0,iNTO=0,nADDED_MOS=0,icentering=0
-integer :: iMDformat=1,nMDsavefreq=1,ioutcube=0,idiagOT=1,imixing=2,ismear=0,iatomcharge=0,ifineXCgrid=0,iouterSCF=0,iDFTplusU=0,NHOMO=0,NLUMO=0
+integer :: iMDformat=1,nMDsavefreq=1,ioutcube=0,idiagOT=1,imixing=2,ismear=0,iatomcharge=0,ifineXCgrid=0,iouterSCF=1,iDFTplusU=0,NHOMO=0,NLUMO=0
 integer :: natmcons=0,nthermoatm=0,ikpoint1=1,ikpoint2=1,ikpoint3=1,nrep1=1,nrep2=1,nrep3=1
 integer,allocatable :: atmcons(:),thermoatm(:)
 real*8 :: efieldvec(3)=0
 real*8 :: frag1chg,frag2chg
 integer :: frag1multi,frag2multi,totalmulti
-integer :: iprestype=1,ioutSbas=0
+integer :: iprestype=1,ioutSbas=0,ioutorbene=0
 !real*8 :: Piso=1.01325D0,Ptens(3,3)=(/ 1.01325D0,0D0,0D0, 0D0,1.01325D0,0D0, 0D0,0D0,1.01325D0 /) !Incompatible with gfortran
 real*8 :: Piso=1.01325D0,Ptens(3,3)=reshape( [1.01325D0,0D0,0D0, 0D0,1.01325D0,0D0, 0D0,0D0,1.01325D0], shape=shape(Ptens))
 
@@ -6928,8 +6928,8 @@ do while(.true.)
     if (itask==14) write(*,*) "-1 Choose task, current: Path-integral molecular dynamics (PIMD)"
     write(*,*) " 0 Generate input file now!"
     write(*,*) " 1 Choose theoretical method, current: "//trim(method)
-    if (method/="GFN1-xTB".and.method/="PM6") write(*,*) " 2 Choose basis set and pseudopotential, current: "//trim(basname(ibas))
-    if (method/="MP2".and.method/="GFN1-xTB".and.method/="PM6".and.method/="BEEFVDW") then
+    if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") write(*,*) " 2 Choose basis set and pseudopotential, current: "//trim(basname(ibas))
+    if (method/="MP2".and.method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB".and.method/="BEEFVDW") then
         if (idispcorr==0) write(*,*) " 3 Set dispersion correction, current: None"
         if (idispcorr==1) write(*,*) " 3 Set dispersion correction, current: DFT-D3"
         if (idispcorr==2) write(*,*) " 3 Set dispersion correction, current: DFT-D3(BJ)"
@@ -7066,8 +7066,10 @@ do while(.true.)
             end if
             if (icentering==0) write(*,*) "13 Toggle centering the coordinates of the system in the box, current: No"
             if (icentering==1) write(*,*) "13 Toggle centering the coordinates of the system in the box, current: Yes"
-            !if (ioutSbas==0) write(*,*) "14 Toggle outputting overlap matrix to a file, current: No"
-            !if (ioutSbas==1) write(*,*) "14 Toggle outputting overlap matrix to a file, current: Yes"
+            if (ioutorbene==0) write(*,*) "14 Toggle printing orbital energies after SCF convergence, current: No"
+            if (ioutorbene==1) write(*,*) "14 Toggle printing orbital energies after SCF convergence, current: Yes"
+            !if (ioutSbas==0) write(*,*) "15 Toggle outputting overlap matrix to a file, current: No"
+            !if (ioutSbas==1) write(*,*) "15 Toggle outputting overlap matrix to a file, current: Yes"
             read(*,*) isel2
             if (isel2==0) then
                 exit
@@ -7196,6 +7198,12 @@ do while(.true.)
                     icentering=0
                 end if
             else if (isel2==14) then
+                if (ioutorbene==0) then
+                    ioutorbene=1
+                else
+                    ioutorbene=0
+                end if
+            else if (isel2==15) then
                 if (ioutSbas==0) then
                     ioutSbas=1
                 else
@@ -7325,10 +7333,10 @@ do while(.true.)
         write(*,*) "9 BEEF-vdW"
         write(*,*) "11 B97M-rV (via LibXC)       12 MN15L (via LibXC)"
         write(*,*) "13 SCAN (via LibXC)          14 r2SCAN (via LibXC)"
-        write(*,*) "15 RPBE (via LibXC)"
+        write(*,*) "15 RPBE (via LibXC)          16 revTPSS (via LibXC)"
         write(*,*) "20 RI-MP2        21 RI-SCS-MP2"
         write(*,*) "25 RI-B2PLYP     26 RI-B2GP-PLYP     27 RI-DSD-BLYP"
-        write(*,*) "30 GFN1-xTB      40 PM6"
+        write(*,*) "30 GFN1-xTB      40 PM6      50 SCC-DFTB"
         read(*,*) isel2
         iMP2=0 !Do not involve MP2 part
         if (isel2==1) method="Pade"
@@ -7356,6 +7364,7 @@ do while(.true.)
         if (isel2==13) method="SCAN_LIBXC"
         if (isel2==14) method="r2SCAN_LIBXC"
         if (isel2==15) method="RPBE_LIBXC"
+        if (isel2==16) method="revTPSS_LIBXC"
         if (isel2>=20.and.isel2<30) then !Involve MP2
             if (isel2==20) method="RI-MP2"
             if (isel2==21) method="RI-SCS-MP2"
@@ -7367,7 +7376,8 @@ do while(.true.)
         end if
         if (isel2==30) method="GFN1-xTB"
         if (isel2==40) method="PM6"
-        if (isel2==-6.or.isel2==-7.or.isel2==30) idiagOT=2 !When ADMM is used, OT must also be used. OT is suggested for xTB dealing with large system
+        if (isel2==50) method="SCC-DFTB"
+        if (isel2==-6.or.isel2==-7.or.isel2==30.or.isel2==40.or.isel2==50) idiagOT=2 !When ADMM is used, OT must also be used. OT is suggested for GFN-xTB and PM6 dealing with large system
         if (isel2==40) imixing=1
         if (index(method,"SCAN")/=0) then
             write(*,"(a)") " NOTE: If you are using CP2K >=9.1, in the generated CP2K input file, it is highly suggested to replace &
@@ -7627,6 +7637,7 @@ if (itask==14) write(ifileid,"(a)") "  RUN_TYPE PINT"
 write(ifileid,"(a)") "&END GLOBAL"
 write(ifileid,"(/,a)") "&FORCE_EVAL"
 write(ifileid,"(a)") "  METHOD Quickstep"
+
 write(ifileid,"(a)") "  &SUBSYS"
 if (nrep1/=1.or.nrep2/=1.or.nrep3/=1) then
     write(ifileid,"(a)") "    &TOPOLOGY"
@@ -7674,11 +7685,7 @@ if (itask==6) then
 end if
 
 !---- &KIND
-if (method=="GFN1-xTB".or.method=="PM6") then
-    !write(ifileid,"(a)") "    &KIND"
-    !write(ifileid,"(a)") "      BASIS_SET"
-    !write(ifileid,"(a)") "    &END KIND"
-else
+if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") then !Semi-empirical methods do not need to define these
     ntime=1
     if (itask==11) ntime=2 !For BSSE task, the second time write same kinds but with _ghost suffix
     do itime=1,ntime
@@ -7741,11 +7748,12 @@ else
         end do
     end do
 end if
+
 write(ifileid,"(a)") "  &END SUBSYS"
 
 !---- &DFT
 write(ifileid,"(/,a)") "  &DFT"
-if (method/="GFN1-xTB".and.method/="PM6") then
+if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") then
     if (ibas<0) then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  GTH_BASIS_SETS"
     else if (ibas<=5) then
@@ -7803,13 +7811,26 @@ if (iDFTplusU==1) write(ifileid,"(a)") "    PLUS_U_METHOD MULLIKEN #The method u
 
 !---- &QS
 write(ifileid,"(a)") "    &QS"
-if (itask==9.or.itask==10) then !Very accurate evaluation for NMR and polar
-    write(ifileid,"(a)") "      EPS_DEFAULT 1E-14 #Set all EPS_xxx to values such that the energy will be correct up to this value"
-else if (itask==5) then !More accurate evaluation than default for vibration, because accuracy of force is important
-    write(ifileid,"(a)") "      EPS_DEFAULT 1E-13 #Set all EPS_xxx to values such that the energy will be correct up to this value"
-else
-    write(ifileid,"(a)") "      EPS_DEFAULT 1E-10 #This is default. Set all EPS_xxx to values such that the energy will be correct up to this value"
+
+!Set proper EPS_SCF (default is 1E-5) and EPS_DEFAULT (default is 1E-10)
+if (itask==1) then !Single point, do not need high accuracy
+    eps_scf=5D-6
+    eps_def=1D-11
+else if (itask==5) then !Vibration analysis is realized based on finite difference of force
+    eps_scf=1D-7
+    eps_def=1D-14
+else if (itask==6.or.itask==14) then !For faster MD/PIMD, use even looser threshold
+    eps_scf=1D-5
+    eps_def=1D-10
+else if (itask==9.or.itask==10) then !NMR and polar may need pretty tight threshold
+    eps_scf=2D-8
+    eps_def=1D-14
+else !Other tasks involving energy derivative, use marginally tighter convergence
+    eps_scf=1D-6
+    eps_def=1D-12
 end if
+write(ifileid,"(a,1PE8.1,a)") "      EPS_DEFAULT",eps_def," #Set all EPS_xxx to values such that the energy will be correct up to this value"
+
 if (index(method,"B3LYP")/=0.or.index(method,"PBE0")/=0.or.index(method,"HSE06")/=0.or.index(method,"MP2")/=0) then
     write(ifileid,"(a)") "    # EPS_PGF_ORB 1E-8 #If seeing ""Kohn Sham matrix not 100% occupied"" when using HF, MP2 or hybrid functional, uncomment this"
 end if
@@ -7834,6 +7855,18 @@ else if (method=="PM6") then
         write(ifileid,"(a)") "        PERIODIC EWALD"
         write(ifileid,"(a)") "      &END SE"
     end if
+else if (method=="SCC-DFTB") then
+    write(ifileid,"(a)") "      METHOD DFTB"
+    write(ifileid,"(a)") "      &DFTB"
+    write(ifileid,"(a)") "        SELF_CONSISTENT  T"
+    write(ifileid,"(a)") "        DISPERSION       T"
+    if (ifPBC>0) write(ifileid,"(a)") "        DO_EWALD         T"
+    write(ifileid,"(a)") "        &PARAMETER"
+    write(ifileid,"(a)") "          PARAM_FILE_PATH  DFTB/scc"
+    write(ifileid,"(a)") "          PARAM_FILE_NAME  scc_parameter"
+    write(ifileid,"(a)") "          UFF_FORCE_FIELD  uff_table"
+    write(ifileid,"(a)") "        &END PARAMETER"
+    write(ifileid,"(a)") "      &END DFTB"
 else if (ibas>=10.and.ibas<=19) then !These are all-electron basis sets
     write(ifileid,"(a)") "      METHOD GAPW"
 else !Default is GPW using GTH pseudopotential, do no need to explicitly write
@@ -7843,14 +7876,28 @@ write(ifileid,"(a)") "    &END QS"
 
 !---- &POISSON
 write(ifileid,"(a)") "    &POISSON" !How to deal with electrostatic part
-if (method=="PM6") then !Very special
+if (method=="PM6") then !Special for semi-empirical
     write(ifileid,"(a)") "      &EWALD"
     write(ifileid,"(a)") "        &MULTIPOLES"
     write(ifileid,"(a)") "          MAX_MULTIPOLE_EXPANSION QUADRUPOLE"
     write(ifileid,"(a)") "        &END MULTIPOLES"
-    write(ifileid,"(a)") "        EWALD_TYPE ewald"
-    write(ifileid,"(a)") "        ALPHA  .5" !See e.g. https://github.com/misteliy/cp2k/blob/master/tests/SE/regtest-3/Al2O3.inp
-    write(ifileid,"(a)") "        GMAX   31"
+    write(ifileid,"(a)") "        EWALD_TYPE EWALD"
+    !write(ifileid,"(a)") "        ALPHA  0.5" !See e.g. https://github.com/misteliy/cp2k/blob/master/tests/SE/regtest-3/Al2O3.inp
+    ngmax1=nint(cellv1(1)*nrep1*b2a) !Make gmax approximately 1 pt/Angstrom in each direction
+    if (mod(ngmax1,2)==0) ngmax1=ngmax1+1 !Must be odd number
+    ngmax2=nint(cellv2(2)*nrep2*b2a)
+    if (mod(ngmax2,2)==0) ngmax2=ngmax2+1 !Must be odd number
+    ngmax3=nint(cellv3(3)*nrep3*b2a)
+    if (mod(ngmax3,2)==0) ngmax3=ngmax3+1
+    write(ifileid,"(a,3i4)") "        GMAX",ngmax1,ngmax2,ngmax3
+    write(ifileid,"(a)") "      &END EWALD"
+else if (method=="SCC-DFTB") then !Special for DFTB
+    write(ifileid,"(a)") "      &EWALD"
+    write(ifileid,"(a)") "        EWALD_TYPE SPME"
+    ngmax1=2*nint(cellv1(1)*nrep1*b2a) !Make gmax approximately 1 pt/Angstrom in each direction
+    ngmax2=2*nint(cellv2(2)*nrep2*b2a)
+    ngmax3=2*nint(cellv3(3)*nrep3*b2a)
+    write(ifileid,"(a,3i4)") "        GMAX",ngmax1,ngmax2,ngmax3
     write(ifileid,"(a)") "      &END EWALD"
 else !Common case
     write(ifileid,"(a)") "      PERIODIC "//trim(PBCdir)//" #Direction(s) of PBC for calculating electrostatics"
@@ -7875,7 +7922,7 @@ if (index(method,"ADMM")/=0) then !Use ADMM
 end if
 
 !---- &XC
-if (method=="PM6".or.method=="GFN1-xTB") goto 100
+if (method=="PM6".or.method=="GFN1-xTB".or.method=="SCC-DFTB") goto 100
 write(ifileid,"(a)") "    &XC"
 if (index(method,"LIBXC")/=0) then
     write(ifileid,"(a)") "      &XC_FUNCTIONAL"
@@ -7903,10 +7950,15 @@ if (index(method,"LIBXC")/=0) then
             write(ifileid,"(a)") "        &END GGA_X_RPBE"
             write(ifileid,"(a)") "        &GGA_C_PBE"
             write(ifileid,"(a)") "        &END GGA_C_PBE"
+        else if (method=="revTPSS_LIBXC") then
+            write(ifileid,"(a)") "        &MGGA_X_REVTPSS"
+            write(ifileid,"(a)") "        &END MGGA_X_REVTPSS"
+            write(ifileid,"(a)") "        &MGGA_C_REVTPSS"
+            write(ifileid,"(a)") "        &END MGGA_C_REVTPSS"
         end if
     end if
     write(ifileid,"(a)") "      &END XC_FUNCTIONAL"
-else if (method=="GFN1-xTB".or.method=="PM6") then
+else if (method=="GFN1-xTB".or.method=="PM6".or.method=="SCC-DFTB") then
     continue
 else if (index(method,"PBE0")/=0) then
         !write(ifileid,"(a)") "      &XC_FUNCTIONAL PBE0" !In fact simply writing this is adequate, and "FRACTION 0.25" can be ignored
@@ -8118,7 +8170,9 @@ write(ifileid,"(a)") "    &END XC"
 100 continue
 
 !--- &MGRID
-if (method/="GFN1-xTB".and.method/="PM6") then
+if (method=="GFN1-xTB".or.method=="PM6".or.method=="SCC-DFTB") then
+    continue !Semi-empirical methods do not need to set CUTOFF
+else
     write(ifileid,"(a)") "    &MGRID"
     if (iconvtest==1) then
         write(ifileid,"(a)") "      CUTOFF LT_cutoff"
@@ -8148,26 +8202,18 @@ else
         write(ifileid,"(a)") "      MAX_SCF 128"
     else !OT, usually use more cycles
         if (iouterSCF==0) write(ifileid,"(a)") "      MAX_SCF 200 #Should be set to a small value (e.g. 20) if enabling outer SCF"
-        if (iouterSCF==1) write(ifileid,"(a)") "      MAX_SCF 20 #Maximum number of steps of inner SCF"
+        if (iouterSCF==1) write(ifileid,"(a)") "      MAX_SCF 25 #Maximum number of steps of inner SCF"
     end if
 end if
 if (imixing==1) then
     write(ifileid,"(a)") "      MAX_DIIS 7 #Maximum number of DIIS vectors to be used" !The default 4 is too small
     write(ifileid,"(a)") "      EPS_DIIS 0.3 #Threshold on the convergence to start using DIAG/DIIS" !The default 0.1 is too small
 end if
-if (itask==1) then !Single point, do not need high accuracy
-    eps_scf=5D-6
-else if (itask==5) then !Vibration analysis is realized based on finite difference, so use tighter convergence as suggested by manual
-    eps_scf=1D-7
-else if (itask==6.or.itask==14) then !For faster MD, use even looser threshold
-    eps_scf=1D-5
-else if (itask==9.or.itask==10) then !NMR and polar may need pretty tight threshold
-    eps_scf=2D-8
-else !Other tasks involving energy derivative, use marginally tighter convergence
-    eps_scf=2D-6
+if (iouterSCF==0) then
+    write(ifileid,"(a,1PE8.1,a)") "      EPS_SCF",eps_scf," #Convergence threshold of density matrix during SCF"
+else if (iouterSCF==1) then
+    write(ifileid,"(a,1PE8.1,a)") "      EPS_SCF",eps_scf," #Convergence threshold of density matrix of inner SCF"
 end if
-if (iouterSCF==0) write(ifileid,"(a,1PE8.1,a)") "      EPS_SCF",eps_scf," #Convergence threshold of density matrix during SCF"
-if (iouterSCF==1) write(ifileid,"(a,1PE8.1,a)") "      EPS_SCF",eps_scf," #Convergence threshold of density matrix of inner SCF"
 !if (method=="GFN1-xTB".or.method=="PM6") write(ifileid,"(a)") "      SCF_GUESS MOPAC" !Seems they benefit from this
 write(ifileid,"(a)") "#     SCF_GUESS RESTART #Use wavefunction from WFN_RESTART_FILE_NAME file as initial guess"
 if (idiagOT==1) then
@@ -8176,7 +8222,7 @@ if (idiagOT==1) then
     write(ifileid,"(a)") "      &END DIAGONALIZATION"
 else if (idiagOT==2) then
     write(ifileid,"(a)") "      &OT"
-    if (method=="GFN1-xTB".or.method=="PM6") then !Semi-empirical cannot use FULL_KINETIC. For large system FULL_SINGLE_INVERSE is the only good choice
+    if (method=="GFN1-xTB".or.method=="PM6".or.method=="SCC-DFTB") then !Semi-empirical cannot use FULL_KINETIC. For large system FULL_SINGLE_INVERSE is the only good choice
         write(ifileid,"(a)") "        PRECONDITIONER FULL_SINGLE_INVERSE"
     else
         if (ncenter>300) then !Large system, using FULL_ALL will cause too high cost at the first step
@@ -8195,10 +8241,10 @@ else if (idiagOT==2) then
         write(ifileid,"(a,1PE8.1,a)") "      #  EPS_SCF",eps_scf," #Convergence threshold of outer SCF"
         write(ifileid,"(a)") "      #&END OUTER_SCF"
     else if (iouterSCF==1) then
-        write(ifileid,"(a)") "       &OUTER_SCF"
-        write(ifileid,"(a)") "         MAX_SCF 20 #Maximum number of steps of outer SCF"
-        write(ifileid,"(a,1PE8.1,a)") "         EPS_SCF",eps_scf," #Convergence threshold of outer SCF"
-        write(ifileid,"(a)") "       &END OUTER_SCF"
+        write(ifileid,"(a)") "      &OUTER_SCF"
+        write(ifileid,"(a)") "        MAX_SCF 20 #Maximum number of steps of outer SCF"
+        write(ifileid,"(a,1PE8.1,a)") "        EPS_SCF",eps_scf," #Convergence threshold of outer SCF"
+        write(ifileid,"(a)") "      &END OUTER_SCF"
     end if
 end if
 
@@ -8248,12 +8294,18 @@ end if
 write(ifileid,"(a)") "    &END SCF"
 
 !--- &PRINT of DFT level
-if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imoment==1) then
+if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imoment==1.or.ioutorbene==1) then
     write(ifileid,"(a)") "    &PRINT"
     if (ioutSbas==1) then
         write(ifileid,"(a)") "      &S_CSR_WRITE #Exporting .csr file containing overlap matrix"
         write(ifileid,"(a)") "        REAL_SPACE T #Print the overlap matrix in real-space instead of k-space"
         write(ifileid,"(a)") "      &END S_CSR_WRITE"
+    end if
+    if (ioutorbene==1.and.ioutcube/=6) then
+        write(ifileid,"(a)") "      &MO_CUBES #Export cube files and meantime print energies for orbital wavefunctions"
+        write(ifileid,"(a,i5,a)") "        NLUMO",nADDED_MOS," #Set number of virtual orbitals to print"
+        write(ifileid,"(a)") "        WRITE_CUBE F #If generating cube files"
+        write(ifileid,"(a)") "      &END MO_CUBES"
     end if
     if (imolden==1) then
         write(ifileid,"(a)") "      &MO_MOLDEN #Exporting .molden file containing wavefunction information"
@@ -8399,8 +8451,7 @@ if (itask==9.or.itask==10.or.iTDDFT==1) then !NMR, polar, TDDFT
         if (itask==9) then
             write(ifileid,"(a)") "      &CURRENT"
             !write(ifileid,"(a)") "        GAUGE R_AND_STEP_FUNCTION #Default. The gauge used to compute the induced current within GAPW" !I found the default is the only useful choice
-            !Use ATOM can keep shielding tensor symmetry much better than WANNIER
-            write(ifileid,"(a)") "        ORBITAL_CENTER ATOM #The orbital center. Can also be WANNIER (default)"
+            write(ifileid,"(a)") "        ORBITAL_CENTER WANNIER #The orbital center. Can also be ATOM"
             write(ifileid,"(a)") "      &END CURRENT"
             write(ifileid,"(a)") "      &LOCALIZE"
             !I found CRAZY doesn't properly work, so do not explicitly mention, just use default JACOBI
@@ -8723,8 +8774,8 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
     else if (itask==6.or.itask==14) then !MD or PIMD
         write(ifileid,"(a)") "    &TRAJECTORY"
         write(ifileid,"(a)") "      &EACH"
-        if (itask==6) write(ifileid,"(a,i6,a)") "        MD",nMDsavefreq," #Output frequency of coordinate"
-        if (itask==14) write(ifileid,"(a,i6,a)") "        PINT",nMDsavefreq," #Output frequency of coordinate"
+        if (itask==6) write(ifileid,"(a,i4,a)") "        MD",nMDsavefreq," #Output frequency of coordinate"
+        if (itask==14) write(ifileid,"(a,i4,a)") "        PINT",nMDsavefreq," #Output frequency of coordinate"
         write(ifileid,"(a)") "      &END EACH"
         if (iMDformat==1) write(ifileid,"(a)") "      FORMAT xyz"
         if (iMDformat==2) write(ifileid,"(a)") "      FORMAT dcd"
@@ -10624,7 +10675,7 @@ end do
 if (allocated(a_tmp)) deallocate(a_tmp)
 allocate(a_tmp(ncenter_tmp),atmocc(ncenter_tmp))
 atmocc=1
-write(*,"(a,i4)") " Number of symmetrically unique atoms:",ncenter_tmp
+write(*,"(a,i7)") " Number of symmetrically unique atoms:",ncenter_tmp
 
 !Locate to "loop_" just before _atom_site_label
 call loclabel(10,"_atom_site_label",ifound)

@@ -1074,34 +1074,36 @@ endz=orgz+1.8D0/b2a
 
 if (.not.allocated(b)) then
     write(*,"(a)") " Error: In order to use this function, the input file must at least contain GTF information! See Section 2.5 of manual for detail."
-    write(*,*) "Input ENTER button to return"
-    read(*,*)
-    return
-end if
-if (wfntype==3.or.wfntype==4) then
-    write(*,"(a)") " Error: This function does not support multiconfiguration state wavefunction!"
-    write(*,*) "Input ENTER button to return"
+    write(*,*) "Press ENTER button to return"
     read(*,*)
     return
 end if
 
-if (allocated(CObasa)) then
-    call getHOMOidx
-    Ef=(MOene(idxHOMO)+MOene(idxHOMO+1))/2
-    bias=MOene(idxHOMO)-Ef
+if (wfntype==3.or.wfntype==4) then
+    write(*,"(a)") " Warning: This function does not formally support wavefunction with non-integer orbital occupancy!"
+    write(*,"(a)") " However, if your wavefunction indeed recorded correct orbital energy information, you may still use this function, &
+    but you need to manually specify a proper Fermi level via option 3 and set a bias voltage via option 2"
+    write(*,*) "Press ENTER button to continue"
+    read(*,*)
+else !Single-determinant wavefunction
+    if (allocated(CObasa)) then
+        call getHOMOidx
+        Ef=(MOene(idxHOMO)+MOene(idxHOMO+1))/2
+        bias=MOene(idxHOMO)-Ef
     
-    if (wfntype==0) then
-        write(*,*) "Note: The default Fermi level has been set to average of E(HOMO) and E(LUMO)"
+        if (wfntype==0) then
+            write(*,*) "Note: The default Fermi level has been set to average of E(HOMO) and E(LUMO)"
+        else
+            write(*,*) "Note: The default Fermi level has been set to average of E(HOMO) and E(LUMO) of alpha spin. In this case, &
+            the result will be problematic if bias voltage is set to positive value (electron flows from tip to sample)"
+        end if
+        write(*,"(a)") " The default bias voltage has been set to the difference between E(HOMO) and Fermi level, &
+        therefore under default setting only HOMO will be imaged"
     else
-        write(*,*) "Note: The default Fermi level has been set to average of E(HOMO) and E(LUMO) of alpha spin. In this case, &
-        the result will be problematic if bias voltage is set to positive value (electron flows from tip to sample)"
+        Ef=maxval(MOene)
+        write(*,*) "Note: The default Fermi level has been set to HOMO"
+        write(*,"(a)") " Note: Since there is no unoccupied MO, the bias voltage must be set to negative value (electron flows from sample to tip)"
     end if
-    write(*,"(a)") " The default bias voltage has been set to the difference between E(HOMO) and Fermi level, &
-    therefore under default setting only HOMO will be imaged"
-else
-    Ef=maxval(MOene)
-    write(*,*) "Note: The default Fermi level has been set to HOMO"
-    write(*,"(a)") " Note: Since there is no unoccupied MO, the bias voltage must be set to negative value (electron flows from sample to tip)"
 end if
 
 do while(.true.)
