@@ -118,7 +118,7 @@ do while(.true.)
         wfnfile(1)="N.wfn"
         inquire(file=wfnfile(1),exist=alive)
         if (.not.alive) then
-            write(*,"(/,a)") " Unable to find N.wfn in current folder. Please input path of .wfn/wfx/fch/mwfn file of N electrons state, e.g. /sob/N.fch"
+            write(*,"(/,a)") " Unable to find N.wfn in current folder. Please input path of .wfn/wfx/fch/mwfn file of N electrons state, e.g. /sob/N.fch (Note that molden file should not be used, as it does not record system energy)"
             read(*,"(a)") c200tmp
             inquire(file=c200tmp,exist=alive)
             if (.not.alive) then

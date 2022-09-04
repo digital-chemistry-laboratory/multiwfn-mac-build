@@ -30,7 +30,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2022-Aug-25"
+write(*,*) "Version 3.8(dev), release date: 2022-Sep-3"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -249,7 +249,7 @@ if (allocated(a)) then
 end if
 
 !Special treatment and test new code
-
+!call CP2K_BS
 !!!--------------------- Now everything start ---------------------!!!
 do while(.true.) !Main loop
 
@@ -312,6 +312,8 @@ do while(.true.) !Main loop
         read(*,*) iuserfunc
         call init_func
         write(*,*) "Done!"
+    else if (c200tmp=="cp2kbs".or.c200tmp=="bs") then
+		call CP2K_BS
     else if (c200tmp=="geomparm") then
 		iallowPBC=0
 		if (ifPBC>0) then

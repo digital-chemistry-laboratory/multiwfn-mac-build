@@ -2323,7 +2323,7 @@ end subroutine
 subroutine inputprog(ifileid,iprog)
 integer ifileid,iprog
 iprog=0
-call loclabel(ifileid,"&FORCE_EVAL",ifound,maxline=500)
+call loclabel(ifileid,"&COORD ",ifound,maxline=500)
 if (ifound==1) then
     iprog=1
     return

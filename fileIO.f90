@@ -1746,6 +1746,8 @@ implicit real*8 (a-h,o-z)
 integer infomode
 character(len=*) name
 character c40tmp*40,c200tmp*200
+real*8 vec1(3),vec2(3)
+
 ifiletype=16
 open(10,file=name,status="old")
 
@@ -1753,6 +1755,15 @@ call loclabel(10,"&CELL ",ifound) !Must be "&CELL " rather than "&CELL", the lat
 do while(.true.)
     read(10,"(a)") c200tmp
     if (index(c200tmp,'&END')/=0) exit
+    if (index(c200tmp,'&CELL_REF')/=0) then !Skip &CELL_REF part
+        do while(.true.)
+            read(10,"(a)") c200tmp
+            if (index(c200tmp,'&END')/=0) then
+                read(10,"(a)") c200tmp
+                exit
+            end if
+        end do
+    end if
     if (index(trim(c200tmp),'A ')/=0) read(c200tmp,*) c40tmp,cellv1
     if (index(trim(c200tmp),'B ')/=0) read(c200tmp,*) c40tmp,cellv2
     if (index(trim(c200tmp),'C ')/=0.and.index(c200tmp,'PERIODIC')==0) read(c200tmp,*) c40tmp,cellv3
@@ -1770,9 +1781,12 @@ cellv2=cellv2/b2a
 cellv3=cellv3/b2a
 ifPBC=3
 
-
-call loclabel(10,"&SUBSYS")
-call loclabel(10,"&COORD",ifound,0)
+call loclabel(10,"&SUBSYS",ifound)
+if (ifound==1) then !Load &COORD within &SUBSYS
+    call loclabel(10,"&COORD",ifound,0)
+else !Locate to &COORD (may be a native CP2K input file, only containing geometry and cell information)
+    call loclabel(10,"&COORD",ifound,1)
+end if
 if (ifound==0) then
     write(*,*) "Error: Unable to find &COORD field, this file cannot be loaded!"
     write(*,*) "Press ENTER button to exit"
@@ -1791,12 +1805,23 @@ end do
 if (allocated(a)) deallocate(a)
 allocate(a(ncenter))
 
-call loclabel(10,"&SUBSYS")
-call loclabel(10,"&COORD",ifound,0)
+call loclabel(10,"&SUBSYS",ifound)
+if (ifound==1) then !Load &COORD within &SUBSYS
+    call loclabel(10,"&COORD",ifound,0)
+else !Locate to &COORD (may be a native CP2K input file, only containing geometry and cell information)
+    call loclabel(10,"&COORD",ifound,1)
+end if
 read(10,*)
+iscale=0
 do i=1,ncenter
     read(10,"(a)") c200tmp
-	read(c200tmp,*,iostat=ierror) a(i)%name,xtmp,ytmp,ztmp
+    if (index(c200tmp,"scaled")/=0.or.index(c200tmp,"SCALED")/=0) then
+        if (index(c200tmp,"f")==0.and.index(c200tmp,"F")==0) then !Not set to false
+            iscale=1
+            read(10,"(a)") c200tmp
+        end if
+    end if
+	read(c200tmp,*,iostat=ierror) a(i)%name,a(i)%x,a(i)%y,a(i)%z
 	call lc2uc(a(i)%name(1:1)) !Convert to upper case
 	call uc2lc(a(i)%name(2:2)) !Convert to lower case
 	do j=0,nelesupp
@@ -1805,13 +1830,35 @@ do i=1,ncenter
 			exit
 		end if
 	end do
-    a(i)%x=xtmp/b2a
-    a(i)%y=ytmp/b2a
-    a(i)%z=ztmp/b2a
 end do
-
+do while(.true.) !User may put SCALED after coordinates
+    read(10,"(a)") c200tmp
+    if (index(c200tmp,'&')/=0) exit
+    if (index(c200tmp,"scaled")/=0.or.index(c200tmp,"SCALED")/=0) then
+        if (index(c200tmp,"f")==0.and.index(c200tmp,"F")==0) then !Not set to false
+            iscale=1
+            exit
+        end if
+    end if
+end do
 close(10)
 
+if (iscale==1) then !Fractional coordinate to Cartesian coordinate
+    do iatm=1,ncenter
+        vec1(1)=a(iatm)%x
+        vec1(2)=a(iatm)%y
+        vec1(3)=a(iatm)%z
+        call fract2Cart(vec1,vec2)
+        a(iatm)%x=vec2(1)
+        a(iatm)%y=vec2(2)
+        a(iatm)%z=vec2(3)
+    end do
+else !Directly loaded Cartesian coordinate in Angstrom, convert to Bohr
+    a(:)%x=a(:)%x/b2a
+    a(:)%y=a(:)%y/b2a
+    a(:)%z=a(:)%z/b2a
+end if
+    
 a%charge=a%index
 a%name=ind2name(a%index)
 call guessnelec
@@ -6776,7 +6823,7 @@ integer :: ifileid,ibas=2,tmparr(ncenter)
 character selectyn,c80tmp*80,c80tmp2*80,c200tmp*200,c2000tmp*2000
 character :: method*20="PBE",PBCdir*4="XYZ ",cellfix*4="NONE"
 character(len=30) :: basname(-10:30)=" "
-integer :: itask=1,idispcorr=0,imolden=0,ioutvibmol=1,ithermostat=0,ibarostat=0,iSCCS=0,idipcorr=0,iMP2=0,imoment=0,ioptmethod=1,iprintlevel=1
+integer :: itask=1,idispcorr=0,imolden=0,ioutvibmol=1,ithermostat=0,ibarostat=0,inoSCFinfo=0,iSCCS=0,idipcorr=0,iMP2=0,imoment=0,ioptmethod=1,iprintlevel=1
 integer :: iTDDFT=0,nstates_TD=3,iTDtriplet=0,isTDA=0,iNTO=0,nADDED_MOS=0,icentering=0
 integer :: iMDformat=1,nMDsavefreq=1,ioutcube=0,idiagOT=1,imixing=2,ismear=0,iatomcharge=0,ifineXCgrid=0,iouterSCF=1,iDFTplusU=0,NHOMO=0,NLUMO=0
 integer :: natmcons=0,nthermoatm=0,ikpoint1=1,ikpoint2=1,ikpoint3=1,nrep1=1,nrep2=1,nrep3=1
@@ -6980,6 +7027,8 @@ do while(.true.)
         if (ibarostat==0) write(*,*) "12 Set barostat, current: None"
         if (ibarostat==1) write(*,*) "12 Set barostat, current: Yes, flexible cell"
         if (ibarostat==2) write(*,*) "12 Set barostat, current: Yes, isotropic cell"
+        if (inoSCFinfo==0) write(*,*) "13 Toggle suppressing printing SCF information during MD, current: No"
+        if (inoSCFinfo==1) write(*,*) "13 Toggle suppressing printing SCF information during MD, current: Yes"
     else if (itask==3.or.itask==4) then
         if (ioptmethod==1) write(*,*) "10 Set optimization method, current: BFGS"
         if (ioptmethod==2) write(*,*) "10 Set optimization method, current: LBFGS"
@@ -7291,7 +7340,7 @@ do while(.true.)
         read(*,*) itask
         if (itask==9.and.ibas<=5) then
             ibas=10 !Use 6-31G* if current basis set is pseudopotential basis set
-        else if (itask==4) then !Use pdb to records variable cell optimization
+        else if (itask==4) then !Use pdb to record variable cell during cell optimization
             iMDformat=3
         else if (itask==5) then !Vibrational analysis
             iprintlevel=2 !Use medium printing level
@@ -7536,6 +7585,7 @@ do while(.true.)
             write(*,*) "1 Use barostat, flexible cell"
             write(*,*) "2 Use barostat, isotropic cell"
             read(*,*) ibarostat
+            if (ibarostat>0) iMDformat=2 !Use dcd format to record variable cell size during MD
         else if (itask==4) then
             write(*,*) "0 Return"
             write(*,*) "1 Set isotropic external pressure"
@@ -7567,6 +7617,14 @@ do while(.true.)
                         Ptens(idx,jdx)=presval
                     end if
                 end do
+            end if
+        end if
+    else if (isel==13) then
+        if (itask==6) then
+            if (inoSCFinfo==0) then
+                inoSCFinfo=1
+            else
+                inoSCFinfo=0
             end if
         end if
     else if (isel==15) then
@@ -8121,12 +8179,17 @@ if (idispcorr>0.or.method=="BEEFVDW") then
         if (idispcorr==1) write(ifileid,"(a)") "          TYPE DFTD3"
         if (idispcorr==2) write(ifileid,"(a)") "          TYPE DFTD3(BJ)"
         !See qs_dispersion_pairpot.F on how to write functional name
+        !Special cases are explicitly list here, used to change name, remove RI-, remove _LIBXC, etc.
         if (method=="BP") then
             write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL BP86"
-        else if (method=="MN15L_LIBXC") then !Remove _LIBXC suffix
+        else if (method=="MN15L_LIBXC") then !i.e. Remove _LIBXC suffix
             write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL MN15L"
-        else if (method=="SCAN_LIBXC") then !Remove _LIBXC suffix
+        else if (method=="SCAN_LIBXC") then !i.e. Remove _LIBXC suffix
             write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL SCAN"
+        else if (method=="RPBE_LIBXC") then !i.e. Remove _LIBXC suffix
+            write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL RPBE"
+        else if (method=="revTPSS_LIBXC") then !i.e. Remove _LIBXC suffix
+            write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL revTPSS"
         else if (index(method,"B2PLYP")/=0) then
             write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL B2PLYP"
         else if (index(method,"B2GP-PLYP")/=0) then
@@ -8136,10 +8199,11 @@ if (idispcorr>0.or.method=="BEEFVDW") then
         else
             c80tmp=trim(method)
             ipos=index(c80tmp,"_ADMM")
-            if (ipos/=0) c80tmp(ipos:ipos+4)=""
+            if (ipos/=0) c80tmp(ipos:ipos+4)="" !Remove _ADMM suffix
             write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL "//trim(c80tmp)
         end if
         !write(ifileid,"(a)") "          R_CUTOFF 10.5835442" !Default DFT-D potential range, cutoff will be 2 times this value
+        write(ifileid,"(a)") "          #CALCULATE_C9_TERM T #Calculate C9-related three-body term, more accurate for large system"
         write(ifileid,"(a)") "        &END PAIR_POTENTIAL"
     else if (idispcorr==5.or.method=="BEEFVDW") then         
         write(ifileid,"(a)") "        POTENTIAL_TYPE NON_LOCAL"
@@ -8149,7 +8213,7 @@ if (idispcorr>0.or.method=="BEEFVDW") then
             if (method=="B97M-rV_LIBXC") then !See: Ab initio molecular dynamics simulations of liquid water using high quality meta-GGA functionals
                 write(ifileid,"(a)") "          PARAMETERS 6.0 0.01"
             else
-                write(ifileid,"(a)") "    #The default rVV10 b and c parameters are given below. They should be replaced by proper values for current XC functional"
+                write(ifileid,"(a)") "    #The default rVV10 b and C parameters are given below. They should be replaced by proper values for current XC functional"
                 write(ifileid,"(a)") "          PARAMETERS 6.3 9.3E-3"
             end if
             write(ifileid,"(a)") "          KERNEL_FILE_NAME rVV10_kernel_table.dat"
@@ -8279,7 +8343,7 @@ if (idiagOT==1) then
     end if
 end if
 
-if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==14) then
+if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==14.or.inoSCFinfo==1) then
     write(ifileid,"(a)") "      &PRINT"
     if (itask==5.or.itask==6.or.itask==14) then !Freq, MD
         write(ifileid,"(a)") "        &RESTART OFF #Do not generate wfn file to suppress meaningless I/O cost"
@@ -8289,11 +8353,18 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==14) then
         write(ifileid,"(a)") "          BACKUP_COPIES 0 #Maximum number of backup copies of wfn file. 0 means never"
         write(ifileid,"(a)") "        &END RESTART"
     end if
+    if (itask==6.and.inoSCFinfo==1) then
+        write(ifileid,"(a)") "        &PROGRAM_RUN_INFO"
+        write(ifileid,"(a)") "          &EACH"
+        write(ifileid,"(a)") "            MD 0 #Frequency of printing SCF process during MD. 0 means never"
+        write(ifileid,"(a)") "          &END EACH"
+        write(ifileid,"(a)") "        &END PROGRAM_RUN_INFO"
+    end if
     write(ifileid,"(a)") "      &END PRINT"
 end if
 write(ifileid,"(a)") "    &END SCF"
 
-!--- &PRINT of DFT level
+!--- &PRINT of DFT level, FORCE_EVAL/DFT/PRINT
 if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imoment==1.or.ioutorbene==1) then
     write(ifileid,"(a)") "    &PRINT"
     if (ioutSbas==1) then
@@ -8301,16 +8372,18 @@ if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imom
         write(ifileid,"(a)") "        REAL_SPACE T #Print the overlap matrix in real-space instead of k-space"
         write(ifileid,"(a)") "      &END S_CSR_WRITE"
     end if
-    if (ioutorbene==1.and.ioutcube/=6) then
-        write(ifileid,"(a)") "      &MO_CUBES #Export cube files and meantime print energies for orbital wavefunctions"
-        write(ifileid,"(a,i5,a)") "        NLUMO",nADDED_MOS," #Set number of virtual orbitals to print"
-        write(ifileid,"(a)") "        WRITE_CUBE F #If generating cube files"
-        write(ifileid,"(a)") "      &END MO_CUBES"
+    if (ioutorbene==1) then
+        write(ifileid,"(a)") "      &MO"
+        write(ifileid,"(a)") "        ENERGIES T"
+        write(ifileid,"(a)") "        OCCUPATION_NUMBERS T"
+        write(ifileid,"(a)") "        &EACH"
+        write(ifileid,"(a)") "          QS_SCF 0"
+        write(ifileid,"(a)") "        &END EACH"
+        write(ifileid,"(a)") "      &END MO"
     end if
     if (imolden==1) then
         write(ifileid,"(a)") "      &MO_MOLDEN #Exporting .molden file containing wavefunction information"
         write(ifileid,"(a)") "        NDIGITS 9 #Output orbital coefficients if absolute value is larger than 1E-9"
-        write(ifileid,"(a)") "        GTO_KIND SPHERICAL #Spherical-harmonic type of basis functions"
         write(ifileid,"(a)") "      &END MO_MOLDEN"
     end if
     if (ioutcube>0) then
@@ -8426,12 +8499,22 @@ if (itask==13) then !Real-time propagation
 end if
 write(ifileid,"(a)") "  &END DFT"
 
-if (itask==2) then
+if (itask==2.or.inoSCFinfo==1) then !FORCE_EVAL/PRINT
     write(ifileid,"(a)") "  &PRINT"
-    write(ifileid,"(a)") "    &FORCES ON"
-    write(ifileid,"(a)") "    &END FORCES"
+    if (itask==2) then
+        write(ifileid,"(a)") "    &FORCES ON"
+        write(ifileid,"(a)") "    &END FORCES"
+    end if
+    if (inoSCFinfo==1) then
+        write(ifileid,"(a)") "    &PROGRAM_RUN_INFO"
+        write(ifileid,"(a)") "      &EACH"
+        write(ifileid,"(a)") "        MD 0 #Frequency of printing evaluated energies during MD. 0 means never"
+        write(ifileid,"(a)") "      &END EACH"
+        write(ifileid,"(a)") "    &END PROGRAM_RUN_INFO"
+    end if
     write(ifileid,"(a)") "  &END PRINT"
 end if
+
 if (itask==4.or.ibarostat>0) write(ifileid,"(a)") "  STRESS_TENSOR ANALYTICAL #Compute full stress tensor analytically" !By default not compute
 if (itask==9.or.itask==10.or.iTDDFT==1) then !NMR, polar, TDDFT
     write(ifileid,"(a)") "  &PROPERTIES"
@@ -8501,7 +8584,6 @@ if (itask==9.or.itask==10.or.iTDDFT==1) then !NMR, polar, TDDFT
             write(ifileid,"(a)") "        &END NTO_ANALYSIS"
             write(ifileid,"(a)") "        &MOS_MOLDEN #Output .molden file containing NTO of the ""NSTATES""th state"
             write(ifileid,"(a)") "          NDIGITS 8"
-            write(ifileid,"(a)") "          GTO_KIND SPHERICAL"
             write(ifileid,"(a)") "          FILENAME NTO #Filename of NTO .molden file"
             write(ifileid,"(a)") "        &END MOS_MOLDEN"
             write(ifileid,"(a)") "      &END PRINT"
@@ -8735,6 +8817,15 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
             if (ibarostat==1) write(ifileid,"(a)") "      VIRIAL XYZ #Relax the cell along which cartesian axes"
             write(ifileid,"(a)") "    &END BAROSTAT"
         end if
+        if (itask==6) then
+            write(ifileid,"(a)") "    &PRINT"
+            write(ifileid,"(a)") "      &PROGRAM_RUN_INFO"
+            write(ifileid,"(a)") "        &EACH"
+            write(ifileid,"(a,i6,a)") "          MD",1," #Output frequency of MD information, 0 means never"
+            write(ifileid,"(a)") "        &END EACH"
+            write(ifileid,"(a)") "      &END PROGRAM_RUN_INFO"
+            write(ifileid,"(a)") "    &END PRINT"
+        end if
         write(ifileid,"(a)") "  &END MD"
     else if (itask==14) then !PINT
         write(ifileid,"(a)") "  &PINT"
@@ -8774,8 +8865,8 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
     else if (itask==6.or.itask==14) then !MD or PIMD
         write(ifileid,"(a)") "    &TRAJECTORY"
         write(ifileid,"(a)") "      &EACH"
-        if (itask==6) write(ifileid,"(a,i4,a)") "        MD",nMDsavefreq," #Output frequency of coordinate"
-        if (itask==14) write(ifileid,"(a,i4,a)") "        PINT",nMDsavefreq," #Output frequency of coordinate"
+        if (itask==6) write(ifileid,"(a,i4,a)") "        MD",nMDsavefreq," #Output frequency of coordinates, 0 means never"
+        if (itask==14) write(ifileid,"(a,i4,a)") "        PINT",nMDsavefreq," #Output frequency of coordinates, 0 means never"
         write(ifileid,"(a)") "      &END EACH"
         if (iMDformat==1) write(ifileid,"(a)") "      FORMAT xyz"
         if (iMDformat==2) write(ifileid,"(a)") "      FORMAT dcd"
@@ -8783,10 +8874,16 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
         write(ifileid,"(a)") "    &END TRAJECTORY"
         write(ifileid,"(a)") "    &VELOCITIES"
         write(ifileid,"(a)") "      &EACH"
-        if (itask==6) write(ifileid,"(a,i6,a)") "        MD",nMDsavefreq," #Output frequency of velocity"
-        if (itask==14) write(ifileid,"(a,i6,a)") "        PINT",nMDsavefreq," #Output frequency of velocity"
+        if (itask==6) write(ifileid,"(a,i6,a)") "        MD",0," #Output frequency of velocities, 0 means never"
+        if (itask==14) write(ifileid,"(a,i6,a)") "        PINT",0," #Output frequency of velocities, 0 means never"
         write(ifileid,"(a)") "      &END EACH"
         write(ifileid,"(a)") "    &END VELOCITIES"
+        write(ifileid,"(a)") "    &FORCES"
+        write(ifileid,"(a)") "      &EACH"
+        if (itask==6) write(ifileid,"(a,i6,a)") "        MD",0," #Output frequency of forces, 0 means never"
+        if (itask==14) write(ifileid,"(a,i6,a)") "        PINT",0," #Output frequency of forces, 0 means never"
+        write(ifileid,"(a)") "      &END EACH"
+        write(ifileid,"(a)") "    &END FORCES"
     end if
     
     write(ifileid,"(a)") "    &RESTART"
@@ -8794,8 +8891,8 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
     !For other tasks, by default, restart file is updated every step. Only for MD it is default to 20, I explicitly provide option to change it
     if (itask==6.or.itask==14) then
         write(ifileid,"(a)") "      &EACH"
-        if (itask==6) write(ifileid,"(a)") "        MD 1 #Frequency of updating last restart file"
-        if (itask==14) write(ifileid,"(a)") "        PINT 1 #Frequency of updating last restart file"
+        if (itask==6) write(ifileid,"(a)") "        MD  1 #Frequency of updating last restart file, 0 means never"
+        if (itask==14) write(ifileid,"(a)") "        PINT  1 #Frequency of updating last restart file, 0 means never"
         write(ifileid,"(a)") "      &END EACH"
     end if
     write(ifileid,"(a)") "    &END RESTART"
@@ -10932,7 +11029,8 @@ write(ifileid,*) ncenter
 do i=1,ncenter
 	write(ifileid,"(i5,'MOL',a7,i5,3f8.3)") 1,a(i)%name,i,a(i)%x*b2a/10,a(i)%y*b2a/10,a(i)%z*b2a/10
 end do
-write(ifileid,"(9f12.6)") cellv1(1)/10,cellv2(2)/10,cellv3(3)/10,cellv1(2)/10,cellv1(3)/10,cellv2(1)/10,cellv2(3)/10,cellv3(1)/10,cellv3(2)/10
+write(ifileid,"(9f12.6)") cellv1(1)*b2a/10,cellv2(2)*b2a/10,cellv3(3)*b2a/10,cellv1(2)*b2a/10,cellv1(3)*b2a/10,&
+cellv2(1)*b2a/10,cellv2(3)*b2a/10,cellv3(1)*b2a/10,cellv3(2)*b2a/10
 close(ifileid)
 write(*,*) "Exporting gro file finished!"
 end subroutine
