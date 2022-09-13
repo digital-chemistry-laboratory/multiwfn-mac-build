@@ -8576,6 +8576,68 @@ if (itask==9.or.itask==10.or.iTDDFT==1) then !NMR, polar, TDDFT
         write(ifileid,"(a)") "        &XC_GRID"
         write(ifileid,"(a)") "          XC_DERIV SPLINE2_SMOOTH #The method used to compute the derivatives"
         write(ifileid,"(a)") "        &END XC_GRID"
+        !XC functional for TDDFT
+        if (index(method,"LIBXC")/=0) then
+            write(ifileid,"(a)") "        &XC_FUNCTIONAL"
+            if (method=="B97M-rV_LIBXC") then !Non-separable XC
+                write(ifileid,"(a)") "          &MGGA_XC_B97M_V"
+                write(ifileid,"(a)") "          &END MGGA_XC_B97M_V"
+            else !X-C separable
+                if (method=="MN15L_LIBXC") then
+                    write(ifileid,"(a)") "          &MGGA_X_MN15_L"
+                    write(ifileid,"(a)") "          &END MGGA_X_MN15_L"
+                    write(ifileid,"(a)") "          &MGGA_C_MN15_L"
+                    write(ifileid,"(a)") "          &END MGGA_C_MN15_L"
+                else if (method=="SCAN_LIBXC") then
+                    write(ifileid,"(a)") "          &MGGA_X_SCAN"
+                    write(ifileid,"(a)") "          &END MGGA_X_SCAN"
+                    write(ifileid,"(a)") "          &MGGA_C_SCAN"
+                    write(ifileid,"(a)") "          &END MGGA_C_SCAN"
+                else if (method=="r2SCAN_LIBXC") then
+                    write(ifileid,"(a)") "          &MGGA_X_R2SCAN"
+                    write(ifileid,"(a)") "          &END MGGA_X_R2SCAN"
+                    write(ifileid,"(a)") "          &MGGA_C_R2SCAN"
+                    write(ifileid,"(a)") "          &END MGGA_C_R2SCAN"
+                else if (method=="RPBE_LIBXC") then
+                    write(ifileid,"(a)") "          &GGA_X_RPBE"
+                    write(ifileid,"(a)") "          &END GGA_X_RPBE"
+                    write(ifileid,"(a)") "          &GGA_C_PBE"
+                    write(ifileid,"(a)") "          &END GGA_C_PBE"
+                else if (method=="revTPSS_LIBXC") then
+                    write(ifileid,"(a)") "          &MGGA_X_REVTPSS"
+                    write(ifileid,"(a)") "          &END MGGA_X_REVTPSS"
+                    write(ifileid,"(a)") "          &MGGA_C_REVTPSS"
+                    write(ifileid,"(a)") "          &END MGGA_C_REVTPSS"
+                end if
+            end if
+            write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
+        else if (index(method,"PBE0")/=0) then
+            write(ifileid,"(a)") "        &XC_FUNCTIONAL PBE0"
+        else if (index(method,"B3LYP")/=0) then
+            write(ifileid,"(a)") "        &XC_FUNCTIONAL B3LYP"
+        else if (method=="revPBE".or.method=="PBEsol") then
+            write(ifileid,"(a)") "        &XC_FUNCTIONAL PBE"
+            write(ifileid,"(a)") "          &PBE"
+            if (method=="revPBE") write(ifileid,"(a)") "          PARAMETRIZATION REVPBE"
+            if (method=="PBEsol") write(ifileid,"(a)") "          PARAMETRIZATION PBESOL"
+            write(ifileid,"(a)") "          &END PBE"
+            write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
+        else if (index(method,"HSE")/=0) then
+            write(ifileid,"(a)") "        &XC_FUNCTIONAL"
+            write(ifileid,"(a)") "          &XWPBE"
+            write(ifileid,"(a)") "            SCALE_X -0.25"
+            write(ifileid,"(a)") "            SCALE_X0 1.0"
+            write(ifileid,"(a)") "            OMEGA 0.11"
+            write(ifileid,"(a)") "          &END XWPBE"
+            write(ifileid,"(a)") "          &PBE"
+            write(ifileid,"(a)") "            SCALE_X 0.0"
+            write(ifileid,"(a)") "            SCALE_C 1.0"
+            write(ifileid,"(a)") "          &END PBE"
+            write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
+        else !Common native GGA functionals
+            write(ifileid,"(a)") "        &XC_FUNCTIONAL "//trim(method)
+            write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
+        end if
         write(ifileid,"(a)") "      &END XC"
         if (iNTO==1) then
             write(ifileid,"(a)") "      &PRINT"
