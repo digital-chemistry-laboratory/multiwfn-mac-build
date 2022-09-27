@@ -975,7 +975,8 @@ do icen=1,ncenter
                             t2=realrho/prorho*atmprograd(idir,iatm)
                             t3=-realrho*atmprorho(iatm)/prorho**2 * prograd(idir)
                         end if
-                        atmgrad(idir,iatm)=t1+t2+t3
+                        !atmgrad(idir,iatm)=t1+t2+t3 !Mathematically correct free-state atomic gradient but poor effect for IGMH. Older than 2022-Sep-18
+                        atmgrad(idir,iatm)=t1-t2-t3 !IGMH-type "special" free-state atomic gradient
                     end do
                 end if
             end do

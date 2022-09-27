@@ -3182,9 +3182,12 @@ do icell=ic-PBCnx,ic+PBCnx
             do i=1,nfragatm
 	            iatm=fragatm(i)
 	            ind=a(iatm)%index
-	            rx=a(iatm)%x+tvec(1)-xin !Relative x
-	            ry=a(iatm)%y+tvec(2)-yin
-	            rz=a(iatm)%z+tvec(3)-zin
+	            !rx=a(iatm)%x+tvec(1)-xin !Wrong code, older than 2022-Sep-18
+	            !ry=a(iatm)%y+tvec(2)-yin
+	            !rz=a(iatm)%z+tvec(3)-zin
+	            rx=xin+tvec(1)-a(iatm)%x !Relative x
+	            ry=yin+tvec(2)-a(iatm)%y
+	            rz=zin+tvec(3)-a(iatm)%z
 	            rx2=rx*rx
 	            ry2=ry*ry
 	            rz2=rz*rz
@@ -3236,8 +3239,11 @@ do icell=ic-PBCnx,ic+PBCnx
 	            else !Heavier than Ar
                     if (r>atmrhocut(ind)) cycle
 		            call genatmraddens(ind,posarr,rhoarr,npt) !Extract spherically averaged radial density of corresponding element
-		            if (idohess==0) call lagintpol(posarr(1:npt),rhoarr(1:npt),npt,r,term,der1r,der2r,2)
-		            if (idohess==1) call lagintpol(posarr(1:npt),rhoarr(1:npt),npt,r,term,der1r,der2r,3)
+		            if (idohess==0) then
+						call lagintpol(posarr(1:npt),rhoarr(1:npt),npt,r,term,der1r,der2r,2)
+		            else if (idohess==1) then
+						call lagintpol(posarr(1:npt),rhoarr(1:npt),npt,r,term,der1r,der2r,3)
+                    end if
 		            elerho=elerho+term
 		            der1rdr=der1r/r
 		            derx=derx+der1rdr*rx
@@ -3375,9 +3381,12 @@ do icell=ic-PBCnx,ic+PBCnx
     do jcell=jc-PBCny,jc+PBCny
         do kcell=kc-PBCnz,kc+PBCnz
             call tvec_PBC(icell,jcell,kcell,tvec)
-            rx=a(iatm)%x+tvec(1)-x
-            ry=a(iatm)%y+tvec(2)-y
-            rz=a(iatm)%z+tvec(3)-z
+            !rx=a(iatm)%x+tvec(1)-x !Wrong code, older than 2022-Sep-18
+            !ry=a(iatm)%y+tvec(2)-y
+            !rz=a(iatm)%z+tvec(3)-z
+            rx=x+tvec(1)-a(iatm)%x
+            ry=y+tvec(2)-a(iatm)%y
+            rz=z+tvec(3)-a(iatm)%z
             rx2=rx*rx
             ry2=ry*ry
             rz2=rz*rz
@@ -3417,6 +3426,7 @@ call IGMgrad_Hirsh(x,y,z,frag2,grad2,IGM_gradnorm2)
 grad=grad1+grad2
 IGM_gradnorm=dsqrt(sum(grad1**2))+dsqrt(sum(grad2**2))
 delta_g_inter_Hirsh=IGM_gradnorm-dsqrt(sum(grad**2))
+!write(15,"(3f12.6,2f16.10)") x,y,z,IGM_gradnorm,dsqrt(sum(grad**2))
 end function
 
 
@@ -3485,7 +3495,11 @@ do i=1,size(atmlist)
             t2=realrho/prorho*atmprograd(idir,iatm)
             t3=-realrho*atmprorho(iatm)/prorho**2 * prograd(idir)
         end if
-        atmgrad(idir)=t1+t2+t3
+        !atmgrad(idir)=t1+t2+t3 !Mathematically correct free-state atomic gradient but poor effect for IGMH. Older than 2022-Sep-18
+        atmgrad(idir)=t1-t2-t3 !IGMH-type "special free-state atomic gradient
+        !if (iatm==1.and.idir==3) write(11,"(2f16.10)") t1,t2+t3
+        !if (iatm==2.and.idir==3) write(12,"(2f16.10)") t1,t2+t3
+        !if (iatm==2.and.idir==2) write(13,"(2f16.10)") t1,t2+t3
     end do
     
     rho=rho+atmrho

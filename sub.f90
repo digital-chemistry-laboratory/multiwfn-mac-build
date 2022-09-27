@@ -2108,6 +2108,7 @@ implicit real*8 (a-h,o-z)
 real*8 inx,iny,inz
 real*8 eigvecmat(3,3),eigval(3),elegrad(3),elehess(3,3),funcgrad(3),funchess(3,3),tmparr(3,1),tmpmat(3,3),tmpgrad1(3),tmpgrad2(3)
 integer ifuncsel,ifileid
+
 if (allocated(b)) then !If loaded file contains wavefuntion information
 	call gencalchessmat(2,1,inx,iny,inz,elerho,elegrad,elehess) !Generate electron density, gradient and hessian
 	write(ifileid,"(' Density of all electrons:',E18.10)") elerho
@@ -2178,59 +2179,10 @@ if (allocated(b)) then !If loaded file contains wavefuntion information
     else if (ifPBC>0) then
         write(ifileid,"(a)") " Electrostatic potential (ESP) information is not shown because it cannot be calculated for periodic systems currently"
 	end if
-	write(ifileid,*)
-	if (ifuncsel==1) then
-		write(ifileid,*) "Note: Below information are for electron density"
-		funchess=elehess
-		funcgrad=elegrad
-	else
-		if (ifuncsel==3) then
-            write(ifileid,*) "Note: Below information are for Laplacian of electron density"
-		else if (ifuncsel==4) then
-            write(ifileid,*) "Note: Below information are for value of orbital wavefunction"
-		else if (ifuncsel==9) then
-            write(ifileid,*) "Note: Below information are for electron localization function"
-		else if (ifuncsel==10) then
-            write(ifileid,*) "Note: Below information are for localized orbital locator"
-		else if (ifuncsel==12) then
-            write(ifileid,*) "Note: Below information are for total ESP"
-		else if (ifuncsel==100) then
-            write(ifileid,*) "Note: Below information are for user-defined real space function"
-		else
-            write(ifileid,"(a,i4)") " Note: Below information are for real space function",ifuncsel
-        end if
-		call gencalchessmat(2,ifuncsel,inx,iny,inz,funcvalue,funcgrad,funchess)
-	end if
-	write(ifileid,*)
-	write(ifileid,*) "Components of gradient in x/y/z are:"
-	write(ifileid,"(3E18.10)") funcgrad(1),funcgrad(2),funcgrad(3)
-	write(ifileid,"(' Norm of gradient is:',E18.10)") dsqrt(sum(funcgrad**2))
-	write(ifileid,*)
-	write(ifileid,*) "Components of Laplacian in x/y/z are:"
-	write(ifileid,"(3E18.10)") funchess(1,1),funchess(2,2),funchess(3,3)
-	write(ifileid,"(' Total:',E18.10)") funchess(1,1)+funchess(2,2)+funchess(3,3)
-	write(ifileid,*)
-	write(ifileid,*) "Hessian matrix:"
-	write(ifileid,"(3E18.10)") funchess
-	!call diagmat(funchess,eigvecmat,eigval,300,1D-12)
- 	call diagsymat(funchess,eigvecmat,eigval,idiagok) !More robust
- 	if (idiagok/=0) write(*,*) "Note: Diagonization of Hessian matrix failed!"
-	write(ifileid,"(' Eigenvalues of Hessian:',3E18.10)") eigval(1:3)
-	write(ifileid,*) "Eigenvectors(columns) of Hessian:"
-	write(ifileid,"(3E18.10)") ((eigvecmat(i,j),j=1,3),i=1,3)
-	write(ifileid,"(' Determinant of Hessian:',E18.10)") detmat(funchess)
-	if (ifuncsel==1) then !Output ellipticity for rho
-		call sort(eigval)
-		eigmax=eigval(3)
-		eigmed=eigval(2)
-		eigmin=eigval(1)
-		write(ifileid,"(a,f12.6)") " Ellipticity of electron density:",eigmin/eigmed-1
-		write(ifileid,"(a,f12.6)") " eta index:",abs(eigmin)/eigmax
-	end if
 
 else !Only loaded structure, use YWT promolecule density
 	call calchessmat_prodens(inx,iny,inz,elerho,elegrad,elehess)
-	write(ifileid,"(/,a,/)") " Note: The input file does not contain wavefunction information, so the following quantities that related to wavefunction are evaluated based on promolecular density"
+	write(ifileid,"(/,a,/)") " Note: The input file does not contain wavefunction information, so the following quantities that related to electron density are evaluated based on promolecular density"
 	write(ifileid,"(' Density of electrons:',E18.10)") elerho
 	write(ifileid,"(' Reduced density gradient:',E18.10)") RDGprodens(inx,iny,inz)
 	write(ifileid,"(' Sign(lambda2)*rho:',E18.10)") signlambda2rho_prodens(inx,iny,inz)
@@ -2241,21 +2193,56 @@ else !Only loaded structure, use YWT promolecule density
 	end if
 	write(ifileid,"(' van der Waals potential (probe atom: ',a,'):',E18.10,' kcal/mol')") ind2name(ivdwprobe),vdwpotfunc(inx,iny,inz,1)
 	write(ifileid,"(' User-defined real space function:',E18.10)") userfunc(inx,iny,inz)
-	write(ifileid,*)
-	write(ifileid,*) "Components of gradient in x/y/z are:"
-	write(ifileid,"(3E18.10)") elegrad(1),elegrad(2),elegrad(3)
-	write(ifileid,"(' Norm of gradient is:',E18.10)") dsqrt(sum(elegrad**2))
-	write(ifileid,*)
-	write(ifileid,*) "Components of Laplacian in x/y/z are:"
-	write(ifileid,"(3E18.10)") elehess(1,1),elehess(2,2),elehess(3,3)
-	write(ifileid,"(' Total:',E18.10)") elehess(1,1)+elehess(2,2)+elehess(3,3)
-	write(ifileid,*)
-	write(ifileid,*) "Hessian matrix:"
-	write(ifileid,"(3E18.10)") elehess
-	call diagmat(elehess,eigvecmat,eigval,300,1D-12)
-	write(ifileid,"(' Eigenvalues of Hessian:',3E18.10)") eigval(1:3)
-	write(ifileid,*) "Eigenvectors (columns) of Hessian:"
-	write(ifileid,"(3E18.10)") ((eigvecmat(i,j),j=1,3),i=1,3)
+end if
+
+write(ifileid,*)
+if (ifuncsel==1) then
+	write(ifileid,*) "Note: Below information are for electron density"
+	funchess=elehess
+	funcgrad=elegrad
+else
+	if (ifuncsel==3) then
+        write(ifileid,*) "Note: Below information are for Laplacian of electron density"
+	else if (ifuncsel==4) then
+        write(ifileid,*) "Note: Below information are for value of orbital wavefunction"
+	else if (ifuncsel==9) then
+        write(ifileid,*) "Note: Below information are for electron localization function"
+	else if (ifuncsel==10) then
+        write(ifileid,*) "Note: Below information are for localized orbital locator"
+	else if (ifuncsel==12) then
+        write(ifileid,*) "Note: Below information are for total ESP"
+	else if (ifuncsel==100) then
+        write(ifileid,*) "Note: Below information are for user-defined real space function"
+	else
+        write(ifileid,"(a,i4)") " Note: Below information are for real space function",ifuncsel
+    end if
+	call gencalchessmat(2,ifuncsel,inx,iny,inz,funcvalue,funcgrad,funchess)
+end if
+write(ifileid,*)
+write(ifileid,*) "Components of gradient in x/y/z are:"
+write(ifileid,"(3E18.10)") funcgrad(1),funcgrad(2),funcgrad(3)
+write(ifileid,"(' Norm of gradient is:',E18.10)") dsqrt(sum(funcgrad**2))
+write(ifileid,*)
+write(ifileid,*) "Components of Laplacian in x/y/z are:"
+write(ifileid,"(3E18.10)") funchess(1,1),funchess(2,2),funchess(3,3)
+write(ifileid,"(' Total:',E18.10)") funchess(1,1)+funchess(2,2)+funchess(3,3)
+write(ifileid,*)
+write(ifileid,*) "Hessian matrix:"
+write(ifileid,"(3E18.10)") funchess
+!call diagmat(funchess,eigvecmat,eigval,300,1D-12)
+call diagsymat(funchess,eigvecmat,eigval,idiagok) !More robust
+if (idiagok/=0) write(*,*) "Note: Diagonization of Hessian matrix failed!"
+write(ifileid,"(' Eigenvalues of Hessian:',3E18.10)") eigval(1:3)
+write(ifileid,*) "Eigenvectors (columns) of Hessian:"
+write(ifileid,"(3E18.10)") ((eigvecmat(i,j),j=1,3),i=1,3)
+write(ifileid,"(' Determinant of Hessian:',E18.10)") detmat(funchess)
+if (ifuncsel==1) then !Output ellipticity for rho
+	call sort(eigval)
+	eigmax=eigval(3)
+	eigmed=eigval(2)
+	eigmin=eigval(1)
+	write(ifileid,"(a,f12.6)") " Ellipticity of electron density:",eigmin/eigmed-1
+	write(ifileid,"(a,f12.6)") " eta index:",abs(eigmin)/eigmax
 end if
 end subroutine
 

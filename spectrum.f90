@@ -3373,13 +3373,14 @@ if (iORCAout==1) then
 			end do
 			FWHM=8D0
 		else if (ispectrum==3.or.ispectrum==4) then !UV-Vis, ECD
-			call loclabel(10,"Number of roots to be determined",ifound)
-            if (ifound==1) then !TDDFT/TDA-DFT
+			call loclabelfinal(10,"Number of roots to be determined",nfound)
+            if (nfound>=1) then !TDDFT/TDA-DFT
 				read(10,"(50x,i7)") numdata
 				if (imode==1) then !Have obtained number of data, return
 					close(10)
 					return
 				end if
+                if (nfound>1) write(*,"(a)") " Note: Excited state information was outputted by ORCA multiple times, the finally outputted ones will be loaded"
 				allocate(datax(numdata),str(numdata),FWHM(numdata))
 				if (ispectrum==3) then
 					call loclabel(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",ifound,0)
@@ -3465,7 +3466,8 @@ if (iORCAout==1) then
 				end if
             else !Should be (DLPNO-)(ST)EOM-CCSD or others
 				!Count how many data are there
-				call loclabel(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS")
+				call loclabelfinal(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",nfound)
+                if (nfound>1) write(*,"(a)") " Note: Excited state information was outputted by ORCA multiple times, the finally outputted ones will be loaded"
                 call skiplines(10,5)
                 numdata=0
                 do while(.true.)
