@@ -3702,13 +3702,15 @@ do iatm=1,ncenter
 	if (infomode==0) write(*,"(1x,a,'(',i5,')      Core electrons:',i3,'     EDF primitive GTFs:',i3)") a(iatm)%name,iatm,natmcore,nfun
 	if (nfun==0.and.infomode==0) then
 		write(*,*) "Warning: Unable to find proper EDF information for this atom!"
-		write(*,*) "Pressing ENTER button to skip loading EDF information for this atom"
-		read(*,*)
+		!write(*,*) "Pressing ENTER button to skip loading EDF information for this atom"
+		!read(*,*)
 	end if
 	nEDFprims=nEDFprims+nfun
 end do
-if (infomode==0) write(*,"(' The number of total inner-core electrons:',i6)") nEDFelec
-if (infomode==0) write(*,"(' The number of total EDF primitive GTFs:',i6)") nEDFprims
+if (infomode==0) then
+    write(*,"(' The number of total inner-core electrons:',i6)") nEDFelec
+    write(*,"(' The number of total EDF primitive GTFs:',i6)") nEDFprims
+end if
 
 allocate(b_EDF(nEDFprims),CO_EDF(nEDFprims))
 ifun=0
@@ -8613,8 +8615,10 @@ if (itask==9.or.itask==10.or.iTDDFT==1) then !NMR, polar, TDDFT
             write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
         else if (index(method,"PBE0")/=0) then
             write(ifileid,"(a)") "        &XC_FUNCTIONAL PBE0"
+            write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
         else if (index(method,"B3LYP")/=0) then
             write(ifileid,"(a)") "        &XC_FUNCTIONAL B3LYP"
+            write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
         else if (method=="revPBE".or.method=="PBEsol") then
             write(ifileid,"(a)") "        &XC_FUNCTIONAL PBE"
             write(ifileid,"(a)") "          &PBE"
@@ -8781,7 +8785,7 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
             write(ifileid,"(a)") "      &END DIMER"
             write(ifileid,"(a)") "    &END TRANSITION_STATE"
         end if
-        write(ifileid,"(a)") "    MAX_ITER 250 #Maximum number of geometry optimization"
+        write(ifileid,"(a)") "    MAX_ITER 400 #Maximum number of geometry optimization"
         write(ifileid,"(a)") "    #The following thresholds of geometry convergence are the default ones"
         write(ifileid,"(a)") "    MAX_DR 3E-3 #Maximum geometry change"
         write(ifileid,"(a)") "    RMS_DR 1.5E-3 #RMS geometry change"
@@ -8790,7 +8794,7 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
         write(ifileid,"(a)") "  &END GEO_OPT"
     else if (itask==4) then
         write(ifileid,"(a)") "  &CELL_OPT"
-        write(ifileid,"(a)") "    MAX_ITER 250 #Maximum number of geometry optimization"
+        write(ifileid,"(a)") "    MAX_ITER 400 #Maximum number of geometry optimization"
         if (iprestype==1) then
             write(ifileid,"(a,1PE13.5,a)") "    EXTERNAL_PRESSURE",Piso," #External pressure for cell optimization (bar)"
         else if (iprestype==2) then
