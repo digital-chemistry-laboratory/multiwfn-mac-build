@@ -15,7 +15,7 @@ objects = define.o util.o plot.o Bspline.o sym.o libreta.o function.o GUI.o sub.
 DFTxclib.o edflib.o fparser.o fileIO.o spectrum.o DOS.o Multiwfn.o 0123dim.o LSB.o \
 population.o orbcomp.o bondorder.o topology.o excittrans.o otherfunc.o \
 otherfunc2.o otherfunc3.o O1.o surfana.o procgriddata.o AdNDP.o fuzzy.o CDA.o basin.o \
-orbloc.o visweak.o EDA.o CDFT.o ETS_NOCV.o atmraddens.o NAONBO.o grid.o PBC.o hyper_polar.o deloc_aromat.o \
+orbloc.o visweak.o EDA.o CDFT.o ETS_NOCV.o atmraddens.o NAONBO.o grid.o PBC.o hyper_polar.o deloc_aromat.o cp2kmate.o\
 minpack.o blockhrr_012345.o ean.o hrr_012345.o eanvrr_012345.o boysfunc.o naiveeri.o ryspoly.o
 
 objects_noGUI = noGUI/dislin_d_empty.o
@@ -201,6 +201,9 @@ hyper_polar.o : hyper_polar.f90 $(modules)
 	
 deloc_aromat.o : deloc_aromat.f90 $(modules)
 	$(FC) $(OPT) -c deloc_aromat.f90
+	
+cp2kmate.o : cp2kmate.f90 $(modules)
+	$(FC) $(OPT) -c cp2kmate.f90
 
 
 noGUI/dislin_d_empty.o : noGUI/dislin_d_empty.f90

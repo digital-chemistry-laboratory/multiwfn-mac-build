@@ -30,7 +30,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2022-Oct-2"
+write(*,*) "Version 3.8(dev), release date: 2022-Oct-4"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -303,6 +303,8 @@ do while(.true.) !Main loop
         call outgjf_wrapper
     else if (c200tmp=="pi") then
         call outPSI4inp_wrapper
+    else if (c200tmp=="cp") then
+        call cp2kmate
     else if (c200tmp=="cp2k") then
         call outCP2Kinp_wrapper
     else if (c200tmp=="QE") then
