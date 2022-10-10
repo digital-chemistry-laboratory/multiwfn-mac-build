@@ -501,7 +501,7 @@ do while(.true.)
 		deallocate(cubmattmp)
 		
 	else if (isel==13) then
-		write(*,*) "Input the value for scaling vdW radius  e.g. 1.3"
+		write(*,*) "Input the value for scaling vdW radius, e.g. 1.3"
 		write(*,"(a)") " Note: Inputting a positive(negative) value means the grid points outside(inside) the distance cutoff will be set to a given value"
 		read(*,*) vdwscale
 		write(*,*) "Set to what value? e.g. 100"

@@ -1587,3 +1587,20 @@ if (ineg>0) then
 	during integration. Please check neg_rhodiff.txt in current folder for information of these points"
 end if
 end subroutine
+
+
+
+!------ Calculate Fukui Shannon density as |¦¤¦Ñ|*ln(|¦¤¦Ñ|) and store to cubmat. cubmat must contain ¦¤¦Ñ before entering this subroutine
+subroutine info_rhodiff_grid
+use defvar
+implicit real*8 (a-h,o-z)
+do k=1,nz
+	do j=1,ny
+		do i=1,nx
+			absrho=abs(cubmat(i,j,k))
+			cubmat(i,j,k)=-absrho*log(absrho)
+		end do
+	end do
+end do
+write(*,*) "Done!"
+end subroutine

@@ -332,8 +332,8 @@ do while(.true.)
             end if
             if (icentering==0) write(*,*) "13 Toggle centering the coordinates of the system in the box, current: No"
             if (icentering==1) write(*,*) "13 Toggle centering the coordinates of the system in the box, current: Yes"
-            if (ioutorbene==0) write(*,*) "14 Toggle printing orbital energies after SCF convergence, current: No"
-            if (ioutorbene==1) write(*,*) "14 Toggle printing orbital energies after SCF convergence, current: Yes"
+            if (ioutorbene==0) write(*,*) "14 Toggle printing orbital energies and occupancies after SCF, current: No"
+            if (ioutorbene==1) write(*,*) "14 Toggle printing orbital energies and occupancies after SCF, current: Yes"
             !if (ioutSbas==0) write(*,*) "15 Toggle outputting overlap matrix to a file, current: No"
             !if (ioutSbas==1) write(*,*) "15 Toggle outputting overlap matrix to a file, current: Yes"
             read(*,*) isel2

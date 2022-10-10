@@ -32,8 +32,9 @@ do while(.true.)
 	write(*,*) "24 Obtain NICS_ZZ value for non-planar or tilted system"
 	read(*,*) c80tmp
 
-    if (c80tmp=="4a") then
-		call info_rhodiff
+    if (c80tmp=="4a".or.c80tmp=="4b") then !For Chunying Rong's Fukui Shannon project
+		if (c80tmp=="4a") call info_rhodiff
+		if (c80tmp=="4b") call info_rhodiff_grid
         cycle
     else
 		read(c80tmp,*) isel

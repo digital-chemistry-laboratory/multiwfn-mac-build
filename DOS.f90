@@ -176,14 +176,8 @@ if (ifiletype==0) then
         end if
 	end if
 	close(10)
-	allocate(DOSlinex(3*nmo),TDOSliney(3*nmo),TDOSliney_unocc(3*nmo))
 else if (allocated(CObasa)) then !For ispin=1 or 2, only 1:nbasis is used, while for ispin==3 (both spin), all nmo slots will be used
 	allocate(str(nmo),FWHM(nmo))
-	!Allocate all arrays that may be used, don't consider if they will actually be used, because memory consuming is very little
-	allocate(DOSlinex(3*nmo),TDOSliney(3*nmo),TDOSliney_unocc(3*nmo),PDOSliney(3*nmo,nfragmax),OPDOSliney(3*nmo),LDOSliney(3*nmo))
-	allocate(compfrag(nmo,0:nfragmax),OPfrag12(nmo))
-	allocate(fragDOS(nbasis,nfragmax+1)) !The last slot is used to exchange fragment
-	allocate(LDOScomp(nmo))
 	str=1D0
 	FWHM=defFWHM
 else
@@ -192,6 +186,12 @@ else
 	read(*,*)
 	return
 end if
+
+!Allocate all arrays that may be used, don't consider if they will actually be used, because memory consuming is very little
+allocate(DOSlinex(3*nmo),TDOSliney(3*nmo),TDOSliney_unocc(3*nmo),PDOSliney(3*nmo,nfragmax),OPDOSliney(3*nmo),LDOSliney(3*nmo))
+allocate(compfrag(nmo,0:nfragmax),OPfrag12(nmo))
+allocate(fragDOS(nbasis,nfragmax+1)) !The last slot is used to exchange fragment
+allocate(LDOScomp(nmo))
 
 !======Set from where to where are active energy levels
 if (ispin==0.or.ispin==3) imoend=nmo !Text file or restricted .fch, or unrestricted but consider both spins
