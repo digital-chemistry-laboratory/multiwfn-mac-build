@@ -3390,7 +3390,8 @@ if (iORCAout==1) then
 				call skiplines(10,5)
                 datax=0;str=0
 				do i=1,numdata
-					read(10,*,iostat=ierror) itmp,t1,rnouse,t2,t3,xdip,ydip,zdip
+					if (ispectrum==3) read(10,*,iostat=ierror) itmp,t1,rnouse,t2,t3,xdip,ydip,zdip
+					if (ispectrum==4) read(10,*,iostat=ierror) itmp,t1,rnouse,t2
                     if (ierror/=0) exit !For SF-TDDFT, number of states recorded in this field is less than nstates by 1, because one of SF-TDDFT states is viewed as ground state
                     datax(itmp)=t1
                     str(itmp)=t2

@@ -4406,6 +4406,7 @@ do while (.true.)
 	if (any(fraghole<0).or.any(fragele<0)) then
 		write(*,"(a)") " Warning: There are unphysical negative contributions, &
 		they are regarded as zero during the calculation of interfragment charger-transfer matrix"
+        if (icompmethod==1) write(*,"(a)") " Using Hirshfeld partition instead of Mulliken partition may be able to obtain more reliable result"
 		where (fraghole<0) fraghole=0
 		where (fragele<0) fragele=0
 	end if
