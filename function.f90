@@ -1232,7 +1232,7 @@ end subroutine
 
 
 
-!!--------- The same as subroutine orbderv, but calculate for promolecular wavefunction (CO_promol ...), up to Hessian
+!!--------- The same as subroutine orbderv, but calculate for promolecular wavefunction (CO_pmol ...), up to Hessian
 !! istart and iend is the range of the orbitals will be calculated, to calculate all orbitals, use 1,nmo_pmol
 !! runtype=1: value  =2: value+dx/y/z  =3: value+dxx/yy/zz(diagonal of hess)  =4: value+dx/y/z+Hessian
 subroutine orbderv_pmol(runtype,istart,iend,x,y,z,wfnval,grad,hess)

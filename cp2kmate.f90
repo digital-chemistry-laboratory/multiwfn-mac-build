@@ -48,7 +48,7 @@ integer,allocatable :: atmcons(:),thermoatm(:)
 real*8 :: efieldvec(3)=0
 real*8 :: frag1chg,frag2chg
 integer :: frag1multi,frag2multi,totalmulti
-integer :: iprestype=1,ioutSbas=0,ioutorbene=0
+integer :: iprestype=1,ioutSbas=0,ioutorbene=0,istate_force=1
 !real*8 :: Piso=1.01325D0,Ptens(3,3)=(/ 1.01325D0,0D0,0D0, 0D0,1.01325D0,0D0, 0D0,0D0,1.01325D0 /) !Incompatible with gfortran
 real*8 :: Piso=1.01325D0,Ptens(3,3)=reshape( [1.01325D0,0D0,0D0, 0D0,1.01325D0,0D0, 0D0,0D0,1.01325D0], shape=shape(Ptens))
 
@@ -273,6 +273,9 @@ do while(.true.)
         !At least for CP2K 8.1, 9.1, the occupied NTOs are wrong, so do not let user know this feature
         !if (iNTO==0) write(*,*) "19 Toggle if performing NTO analysis, current: No"
         !if (iNTO==1) write(*,*) "19 Toggle if performing NTO analysis, current: Yes"
+        if (itask==2.or.itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==8) then !Need force
+            write(*,"(a,i5)") " 20 Choose the state to evaluate force, current:",istate_force
+        end if
     end if
     read(*,*) isel
     
@@ -847,7 +850,8 @@ do while(.true.)
     else if (isel==15) then
         if (iTDDFT==0) then
             iTDDFT=1
-            write(*,"(a)") " If outputting .molden file containing all occupied and a batch of virtual orbitals for post-processing analysis? (y/n)"
+            write(*,*) "Note: The TDDFT realized by CP2K employs Tamm-Dancoff approximation"
+            write(*,"(/,a)") " If outputting .molden file containing all occupied and a batch of virtual orbitals for post-processing analysis? (y/n)"
             read(*,*) selectyn
             if (selectyn=='y') then
                 write(*,"(a)") " How many virtual orbitals to solve and record in the .molden file? e.g. 40"
@@ -880,6 +884,11 @@ do while(.true.)
             iNTO=1
         else
             iNTO=0
+        end if
+    else if (isel==20) then
+        if (itask==2.or.itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==8) then !Need force
+            write(*,*) "Input the index of the excited state for which force will be evaluated, e.g. 2"
+            read(*,*) istate_force
         end if
     
     else if (isel==0) then
@@ -1083,6 +1092,11 @@ else if (ikpoint1/=1.or.ikpoint2/=1.or.ikpoint3/=1) then
     write(ifileid,"(a)") "    &END KPOINTS"
 end if
 if (iDFTplusU==1) write(ifileid,"(a)") "    PLUS_U_METHOD MULLIKEN #The method used in DFT+U. Can also be Lowdin"
+if (iTDDFT==1.and.(itask==2.or.itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==8)) then !Evaluate force for excited state
+    write(ifileid,"(a)") "    &EXCITED_STATES"
+    write(ifileid,"(a,i5,a)") "      STATE",istate_force," #For which excited state the force will be evaluated. Negative value indicates state following"
+    write(ifileid,"(a)") "    &END EXCITED_STATES"
+end if
 
 !---- &QS
 write(ifileid,"(a)") "    &QS"
@@ -1107,7 +1121,7 @@ end if
 write(ifileid,"(a,1PE8.1,a)") "      EPS_DEFAULT",eps_def," #Set all EPS_xxx to values such that the energy will be correct up to this value"
 
 if (index(method,"B3LYP")/=0.or.index(method,"PBE0")/=0.or.index(method,"HSE06")/=0.or.index(method,"MP2")/=0) then
-    write(ifileid,"(a)") "    # EPS_PGF_ORB 1E-8 #If seeing ""Kohn Sham matrix not 100% occupied"" when using HF, MP2 or hybrid functional, uncomment this"
+    write(ifileid,"(a)") "    # EPS_PGF_ORB 1E-12 #If seeing ""Kohn Sham matrix not 100% occupied"" when using HF, MP2 or hybrid functional, uncomment this"
 end if
 if (itask==6) then
     write(ifileid,"(a)") "      EXTRAPOLATION ASPC #Extrapolation for wavefunction during e.g. MD. ASPC is default, PS also be used"
@@ -1191,8 +1205,20 @@ write(ifileid,"(a)") "    &END POISSON"
 
 if (index(method,"ADMM")/=0) then !Use ADMM
     write(ifileid,"(a)") "    &AUXILIARY_DENSITY_MATRIX_METHOD"
-    write(ifileid,"(a)") "      METHOD BASIS_PROJECTION"
-    write(ifileid,"(a)") "      ADMM_PURIFICATION_METHOD MO_DIAG"
+    write(ifileid,"(a)") "      METHOD BASIS_PROJECTION #Method used for wavefunction fitting"
+    if (iTDDFT==1) then
+        write(ifileid,"(a)") "      ADMM_PURIFICATION_METHOD NONE #NONE is the only choice for TDDFT with ADMM"
+    else
+        write(ifileid,"(a)") "      ADMM_PURIFICATION_METHOD MO_DIAG"
+    end if
+    if (iTDDFT==1.and.index(method,"_ADMM")/=0) then !Needed otherwise cannot run. Suggested by https://www.cp2k.org/howto:tddft
+        write(ifileid,"(a)") "      EXCH_SCALING_MODEL NONE"
+        if (method=="B3LYP_ADMM") then
+            write(ifileid,"(a)") "      EXCH_CORRECTION_FUNC BECKE88X"
+        else
+            write(ifileid,"(a)") "      EXCH_CORRECTION_FUNC PBEX"
+        end if
+    end if
     write(ifileid,"(a)") "    &END AUXILIARY_DENSITY_MATRIX_METHOD"
 end if
 
@@ -1771,13 +1797,13 @@ if (itask==9.or.itask==10.or.iTDDFT==1) then !NMR, polar, TDDFT
         write(ifileid,"(a)") "    &END LINRES"
     end if
     if (iTDDFT==1) then !TDDFT
-        write(ifileid,"(a)") "    &TDDFPT #TDDFT calculation"
-        write(ifileid,"(a,i5)") "      NSTATES",nstates_TD
+        write(ifileid,"(a)") "    &TDDFPT #TDDFT calculation with Tamm-Dancoff approximation"
+        write(ifileid,"(a,i5,a)") "      NSTATES",nstates_TD," #Number of excited states to solve"
         if (isTDA==1) then
             write(ifileid,"(a)") "      KERNEL STDA #Using sTDA approximation"
             write(ifileid,"(a)") "      &STDA"
-            if (ifPBC>0) write(ifileid,"(a)") "        DO_EWALD .T. #Use Ewald type method for Coulomb interaction"
-            write(ifileid,"(a)") "        FRACTION 0.0 #Fraction of TB Hartree-Fock exchange to use in the kernel"
+            if (ifPBC>0) write(ifileid,"(a)") "        DO_EWALD .T. #Use Ewald type method for periodic Coulomb interaction"
+            write(ifileid,"(a)") "        FRACTION 0.2 #Fraction of TB Hartree-Fock exchange to use in the kernel"
             write(ifileid,"(a)") "      &END STDA"
         end if
         if (iTDtriplet==1) then
@@ -1789,75 +1815,85 @@ if (itask==9.or.itask==10.or.iTDDFT==1) then !NMR, polar, TDDFT
         write(ifileid,"(a)") "      MIN_AMPLITUDE 0.01 #The smallest excitation amplitude to print"
         write(ifileid,"(a)") "#     RESTART .T. #If restarting TDDFT calculation. If true, WFN_RESTART_FILE_NAME should be set to previous .tdwfn file"
         write(ifileid,"(a)") "#     WFN_RESTART_FILE_NAME "//trim(c200tmp)//"-RESTART.tdwfn"
-        write(ifileid,"(a)") "      &XC"
-        write(ifileid,"(a)") "        &XC_GRID"
-        write(ifileid,"(a)") "          XC_DERIV SPLINE2_SMOOTH #The method used to compute the derivatives"
-        write(ifileid,"(a)") "        &END XC_GRID"
-        !XC functional for TDDFT
-        if (index(method,"LIBXC")/=0) then
-            write(ifileid,"(a)") "        &XC_FUNCTIONAL"
-            if (method=="B97M-rV_LIBXC") then !Non-separable XC
-                write(ifileid,"(a)") "          &MGGA_XC_B97M_V"
-                write(ifileid,"(a)") "          &END MGGA_XC_B97M_V"
-            else !X-C separable
-                if (method=="MN15L_LIBXC") then
-                    write(ifileid,"(a)") "          &MGGA_X_MN15_L"
-                    write(ifileid,"(a)") "          &END MGGA_X_MN15_L"
-                    write(ifileid,"(a)") "          &MGGA_C_MN15_L"
-                    write(ifileid,"(a)") "          &END MGGA_C_MN15_L"
-                else if (method=="SCAN_LIBXC") then
-                    write(ifileid,"(a)") "          &MGGA_X_SCAN"
-                    write(ifileid,"(a)") "          &END MGGA_X_SCAN"
-                    write(ifileid,"(a)") "          &MGGA_C_SCAN"
-                    write(ifileid,"(a)") "          &END MGGA_C_SCAN"
-                else if (method=="r2SCAN_LIBXC") then
-                    write(ifileid,"(a)") "          &MGGA_X_R2SCAN"
-                    write(ifileid,"(a)") "          &END MGGA_X_R2SCAN"
-                    write(ifileid,"(a)") "          &MGGA_C_R2SCAN"
-                    write(ifileid,"(a)") "          &END MGGA_C_R2SCAN"
-                else if (method=="RPBE_LIBXC") then
-                    write(ifileid,"(a)") "          &GGA_X_RPBE"
-                    write(ifileid,"(a)") "          &END GGA_X_RPBE"
-                    write(ifileid,"(a)") "          &GGA_C_PBE"
-                    write(ifileid,"(a)") "          &END GGA_C_PBE"
-                else if (method=="revTPSS_LIBXC") then
-                    write(ifileid,"(a)") "          &MGGA_X_REVTPSS"
-                    write(ifileid,"(a)") "          &END MGGA_X_REVTPSS"
-                    write(ifileid,"(a)") "          &MGGA_C_REVTPSS"
-                    write(ifileid,"(a)") "          &END MGGA_C_REVTPSS"
-                end if
-            end if
-            write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
-        else if (index(method,"PBE0")/=0) then
-            write(ifileid,"(a)") "        &XC_FUNCTIONAL PBE0"
-            write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
-        else if (index(method,"B3LYP")/=0) then
-            write(ifileid,"(a)") "        &XC_FUNCTIONAL B3LYP"
-            write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
-        else if (method=="revPBE".or.method=="PBEsol") then
-            write(ifileid,"(a)") "        &XC_FUNCTIONAL PBE"
-            write(ifileid,"(a)") "          &PBE"
-            if (method=="revPBE") write(ifileid,"(a)") "          PARAMETRIZATION REVPBE"
-            if (method=="PBEsol") write(ifileid,"(a)") "          PARAMETRIZATION PBESOL"
-            write(ifileid,"(a)") "          &END PBE"
-            write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
-        else if (index(method,"HSE")/=0) then
-            write(ifileid,"(a)") "        &XC_FUNCTIONAL"
-            write(ifileid,"(a)") "          &XWPBE"
-            write(ifileid,"(a)") "            SCALE_X -0.25"
-            write(ifileid,"(a)") "            SCALE_X0 1.0"
-            write(ifileid,"(a)") "            OMEGA 0.11"
-            write(ifileid,"(a)") "          &END XWPBE"
-            write(ifileid,"(a)") "          &PBE"
-            write(ifileid,"(a)") "            SCALE_X 0.0"
-            write(ifileid,"(a)") "            SCALE_C 1.0"
-            write(ifileid,"(a)") "          &END PBE"
-            write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
-        else !Common native GGA functionals
-            write(ifileid,"(a)") "        &XC_FUNCTIONAL "//trim(method)
-            write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
+        !if (ifPBC==3) then !The default VELOCITY is also correct for both periodic and isolated systems
+        !    write(ifileid,"(a)") "      &DIPOLE_MOMENTS"
+        !    write(ifileid,"(a)") "        DIPOLE_FORM BERRY"
+        !    write(ifileid,"(a)") "      &END DIPOLE_MOMENTS"
+        !end if
+        if (index(method,"_ADMM")/=0.and.(itask==2.or.itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==8)) then !Need force
+            write(ifileid,"(a)") "      ADMM_KERNEL_CORRECTION_SYMMETRIC T"
         end if
-        write(ifileid,"(a)") "      &END XC"
+        if (index(method,"_ADMM")==0) then !When ADMM is used for TDDFT, &XC should not appear, otherwise error shows: "ADMM is not implemented for a TDDFT kernel XC-functional which is different from the one used for the ground-state calculation"
+            write(ifileid,"(a)") "      &XC"
+            write(ifileid,"(a)") "        &XC_GRID"
+            write(ifileid,"(a)") "          XC_DERIV SPLINE2_SMOOTH #The method used to compute the derivatives"
+            write(ifileid,"(a)") "        &END XC_GRID"
+            !XC functional for TDDFT
+            if (index(method,"LIBXC")/=0) then
+                write(ifileid,"(a)") "        &XC_FUNCTIONAL"
+                if (method=="B97M-rV_LIBXC") then !Non-separable XC
+                    write(ifileid,"(a)") "          &MGGA_XC_B97M_V"
+                    write(ifileid,"(a)") "          &END MGGA_XC_B97M_V"
+                else !X-C separable
+                    if (method=="MN15L_LIBXC") then
+                        write(ifileid,"(a)") "          &MGGA_X_MN15_L"
+                        write(ifileid,"(a)") "          &END MGGA_X_MN15_L"
+                        write(ifileid,"(a)") "          &MGGA_C_MN15_L"
+                        write(ifileid,"(a)") "          &END MGGA_C_MN15_L"
+                    else if (method=="SCAN_LIBXC") then
+                        write(ifileid,"(a)") "          &MGGA_X_SCAN"
+                        write(ifileid,"(a)") "          &END MGGA_X_SCAN"
+                        write(ifileid,"(a)") "          &MGGA_C_SCAN"
+                        write(ifileid,"(a)") "          &END MGGA_C_SCAN"
+                    else if (method=="r2SCAN_LIBXC") then
+                        write(ifileid,"(a)") "          &MGGA_X_R2SCAN"
+                        write(ifileid,"(a)") "          &END MGGA_X_R2SCAN"
+                        write(ifileid,"(a)") "          &MGGA_C_R2SCAN"
+                        write(ifileid,"(a)") "          &END MGGA_C_R2SCAN"
+                    else if (method=="RPBE_LIBXC") then
+                        write(ifileid,"(a)") "          &GGA_X_RPBE"
+                        write(ifileid,"(a)") "          &END GGA_X_RPBE"
+                        write(ifileid,"(a)") "          &GGA_C_PBE"
+                        write(ifileid,"(a)") "          &END GGA_C_PBE"
+                    else if (method=="revTPSS_LIBXC") then
+                        write(ifileid,"(a)") "          &MGGA_X_REVTPSS"
+                        write(ifileid,"(a)") "          &END MGGA_X_REVTPSS"
+                        write(ifileid,"(a)") "          &MGGA_C_REVTPSS"
+                        write(ifileid,"(a)") "          &END MGGA_C_REVTPSS"
+                    end if
+                end if
+                write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
+            else if (index(method,"PBE0")/=0) then
+                write(ifileid,"(a)") "        &XC_FUNCTIONAL PBE0"
+                write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
+            else if (index(method,"B3LYP")/=0) then
+                write(ifileid,"(a)") "        &XC_FUNCTIONAL B3LYP"
+                write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
+            else if (method=="revPBE".or.method=="PBEsol") then
+                write(ifileid,"(a)") "        &XC_FUNCTIONAL PBE"
+                write(ifileid,"(a)") "          &PBE"
+                if (method=="revPBE") write(ifileid,"(a)") "          PARAMETRIZATION REVPBE"
+                if (method=="PBEsol") write(ifileid,"(a)") "          PARAMETRIZATION PBESOL"
+                write(ifileid,"(a)") "          &END PBE"
+                write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
+            else if (index(method,"HSE")/=0) then
+                write(ifileid,"(a)") "        &XC_FUNCTIONAL"
+                write(ifileid,"(a)") "          &XWPBE"
+                write(ifileid,"(a)") "            SCALE_X -0.25"
+                write(ifileid,"(a)") "            SCALE_X0 1.0"
+                write(ifileid,"(a)") "            OMEGA 0.11"
+                write(ifileid,"(a)") "          &END XWPBE"
+                write(ifileid,"(a)") "          &PBE"
+                write(ifileid,"(a)") "            SCALE_X 0.0"
+                write(ifileid,"(a)") "            SCALE_C 1.0"
+                write(ifileid,"(a)") "          &END PBE"
+                write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
+            else !Common native GGA functionals
+                write(ifileid,"(a)") "        &XC_FUNCTIONAL "//trim(method)
+                write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
+            end if
+            write(ifileid,"(a)") "      &END XC"
+        end if
         if (iNTO==1) then
             write(ifileid,"(a)") "      &PRINT"
             write(ifileid,"(a)") "        &NTO_ANALYSIS ON #Do NTO analysis for all excited states"
