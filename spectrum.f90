@@ -967,8 +967,8 @@ do while(.true.)
                 write(*,"(a,i3)") " 10 Set text size of legend, current:",legtextsize
                 write(*,*) "11 Set position of legends"
             end if
-            if (iYeq0==0) write(*,*) "12 Toggle drawing a line corresponding to Y-axis, current: No"
-            if (iYeq0==1) write(*,*) "12 Toggle drawing a line corresponding to Y-axis, current: Yes"
+            if (iYeq0==0) write(*,*) "12 Toggle drawing a line corresponding to Y=0, current: No"
+            if (iYeq0==1) write(*,*) "12 Toggle drawing a line corresponding to Y=0, current: Yes"
             if (nsystem>1.and.ishowweicurve/=1) write(*,*) "13 Set color of line and curve of different systems"
             read(*,*) isel2
             if (isel2==0) then

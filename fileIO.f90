@@ -51,6 +51,8 @@ else if (thisfilename(inamelen-3:inamelen)=="mol2") then
 	call readmol2(thisfilename,infomode)
 else if (thisfilename(inamelen-2:inamelen)=="gjf".or.thisfilename(inamelen-2:inamelen)=="com") then
 	call readgjf(thisfilename,infomode)
+else if (thisfilename(inamelen-2:inamelen)=="mop".or.thisfilename(inamelen-2:inamelen)=="MOP") then
+	call readmop(thisfilename,infomode)
 else if (thisfilename(inamelen-2:inamelen)=="cif") then
 	call readcif(thisfilename,infomode)
 else if (index(thisfilename,".molden")/=0.or.index(thisfilename,".molden.input")/=0.or.index(thisfilename,"molden.inp")/=0.or.filenameonly=="MOLDEN") then
@@ -317,16 +319,9 @@ if (iloadORCAgeom>0) then
         end do
         call loclabel(ifileid,locstr,ifound,0)
         call skiplines(ifileid,2)
-        do iatm=1,ncenter
-            read(ifileid,*) a(iatm)%name,a(iatm)%x,a(iatm)%y,a(iatm)%z
-	        call lc2uc(a(iatm)%name(1:1)) !Convert to upper case
-	        call uc2lc(a(iatm)%name(2:2)) !Convert to lower case
-	        do iele=0,nelesupp
-		        if ( a(iatm)%name==ind2name(iele) ) then
-			        a(iatm)%index=iele
-			        exit
-		        end if
-	        end do
+        do i=1,ncenter
+            read(ifileid,*) a(i)%name,a(i)%x,a(i)%y,a(i)%z
+			call elename2idx(a(i)%name,a(i)%index)
         end do
         a%charge=a%index !Incompatible with ECP case
         a%x=a%x/b2a
@@ -1150,13 +1145,7 @@ ncenter=totlinenum(10,1)
 allocate(a(ncenter))
 do i=1,ncenter
 	read(10,*) a(i)%name,a(i)%x,a(i)%y,a(i)%z,a(i)%charge
-	do j=0,nelesupp
-		if (a(i)%name==ind2name(j)) then
-			a(i)%index=j
-			exit
-		end if
-		if (j==nelesupp) write(*,*) "Warning: Found unknown element!"
-	end do
+    call elename2idx(a(i)%name,a(i)%index)
 end do
 close(10)
 a%x=a%x/b2a
@@ -1617,14 +1606,9 @@ do i=1,ncenter
 		call uc2lc(a(i)%name(2:2)) !Convert to lower case
         if (a(i)%name(1:2)=='X ') then !Dummy atom will be finally recognized as Bq
             a(i)%index=0
-            cycle
+        else
+			call elename2idx(a(i)%name,a(i)%index)
         end if
-		do j=0,nelesupp
-			if ( a(i)%name==ind2name(j) ) then
-				a(i)%index=j
-				exit
-			end if
-		end do
 	end if
 end do
 !Try to load translation vector (Tv)
@@ -1710,14 +1694,84 @@ do i=1,ncenter
         a(i)%index=0
         cycle
     end if
-	call lc2uc(a(i)%name(1:1)) !Convert to upper case
-	call uc2lc(a(i)%name(2:2)) !Convert to lower case
-	do j=0,nelesupp
-		if ( a(i)%name==ind2name(j) ) then
-			a(i)%index=j
-			exit
-		end if
-	end do
+    call elename2idx(a(i)%name,a(i)%index)
+end do
+close(10)
+a%x=a%x/b2a
+a%y=a%y/b2a
+a%z=a%z/b2a
+a%charge=a%index
+a%name=ind2name(a%index)
+nelec=sum(a%index)-loadcharge
+naelec=(nint(nelec)+loadmulti-1)/2
+nbelec=nelec-naelec
+if (infomode==0) then
+	write(*,"(' Totally',i8,' atoms')") ncenter
+	write(*,"(' The number of alpha and beta electrons:',2i8)") nint(naelec),nint(nbelec)
+end if
+end subroutine
+
+
+
+!!--------------------------------------------------------
+!!------------------- Read MOPAC .mop file ---------------
+! Only support Cartesian coordinate currently
+! infomode=0: Output summary, =1: Do not
+subroutine readmop(name,infomode) 
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+integer infomode
+character(len=*) name
+character c40tmp*40,c200tmp*200
+
+ifiletype=12
+open(10,file=name,status="old")
+read(10,"(a)") c200tmp
+
+!Load net charge
+loadcharge=0
+i1=index(c200tmp,"charge")
+if (i1/=0) then
+	read(c200tmp(i1+7:),*) loadcharge
+else
+	i2=index(c200tmp,"CHARGE")
+    if (i2/=0) read(c200tmp(i2+7:),*) loadcharge
+end if
+
+!Load spin multiplicity
+loadmulti=1
+if (index(c200tmp,"doublet")/=0.or.index(c200tmp,"DOUBLET")/=0) loadmulti=2
+if (index(c200tmp,"triplet")/=0.or.index(c200tmp,"TRIPLET")/=0) loadmulti=3
+if (index(c200tmp,"quartet")/=0.or.index(c200tmp,"QUARTET")/=0) loadmulti=4
+if (index(c200tmp,"quintet")/=0.or.index(c200tmp,"QUINTET")/=0) loadmulti=5
+if (index(c200tmp,"sextet")/=0 .or.index(c200tmp,"SEXTET")/=0 ) loadmulti=6
+
+!Test how many centers
+call skiplines(10,2)
+ncenter=0
+do while(.true.)
+	read(10,"(a)",iostat=ierror) c200tmp
+	if (c200tmp==" ".or.ierror/=0) exit
+	ncenter=ncenter+1
+end do
+if (allocated(a)) deallocate(a)
+allocate(a(ncenter))
+
+!Load atom information
+rewind(10)
+call skiplines(10,3)
+do i=1,ncenter
+    read(10,"(a)") c200tmp
+    read(c200tmp,*,iostat=ierror) a(i)%name,a(i)%x,i1,a(i)%y,i2,a(i)%z,i3 !The line may contain integer for controlling optimization
+    if (ierror/=0) read(c200tmp,*,iostat=ierror) a(i)%name,a(i)%x,a(i)%y,a(i)%z
+	if (ierror/=0) then
+		write(*,"(a)") " Error: Unable to successfully load atom information. The input file may be too non-standard"
+		write(*,*) "Press ENTER button to exit program"
+		read(*,*)
+		stop
+	end if
+    call elename2idx(a(i)%name,a(i)%index)
 end do
 close(10)
 a%x=a%x/b2a
@@ -1822,14 +1876,7 @@ do i=1,ncenter
         end if
     end if
 	read(c200tmp,*,iostat=ierror) a(i)%name,a(i)%x,a(i)%y,a(i)%z
-	call lc2uc(a(i)%name(1:1)) !Convert to upper case
-	call uc2lc(a(i)%name(2:2)) !Convert to lower case
-	do j=0,nelesupp
-		if ( a(i)%name==ind2name(j) ) then
-			a(i)%index=j
-			exit
-		end if
-	end do
+    call elename2idx(a(i)%name,a(i)%index)
 end do
 do while(.true.) !User may put SCALED after coordinates
     read(10,"(a)") c200tmp
@@ -3178,22 +3225,15 @@ allocate(MOocc(nmo),MOene(nmo),MOtype(nmo),orbidx(nmo))
 do i=1,ncenter
 	read(10,"(a24,3f12.8,10x,f5.1)") c80tmp,a(i)%x,a(i)%y,a(i)%z,a(i)%charge
 	read(c80tmp,*) a(i)%name
-	call lc2uc(a(i)%name(1:1))
-	call uc2lc(a(i)%name(2:2))
-	do j=0,nelesupp
-		if (a(i)%name==ind2name(j)) then
-			a(i)%index=j
-			exit
-		end if
-		if (j==nelesupp) then
-            if (infomode==0) then
-			    write(*,"(/,3a,i5,'!')") " Warning: Found unknown element ",a(i)%name," with atom index of",i
-			    write(*,*) "This atom now is recognized as Bq (ghost atom)"
-            end if
-			a(i)%index=0
-            a(i)%name=ind2name(0)
-		end if
-	end do
+    call elename2idx(a(i)%name,a(i)%index)
+	if (a(i)%index==0) then
+        if (infomode==0) then
+			write(*,"(/,3a,i5,'!')") " Warning: Found unknown element ",a(i)%name," with atom index of",i
+			write(*,*) "This atom now is recognized as Bq (ghost atom)"
+        end if
+		a(i)%index=0
+        a(i)%name=ind2name(0)
+	end if
 end do
 read(10,"(20x,20i3)") (b(i)%center,i=1,nprims)
 read(10,"(20x,20i3)") (b(i)%type,i=1,nprims)
@@ -5286,8 +5326,8 @@ do while(.true.)
         end if
     end if
     write(*,"(a)") " Hint: If template.gjf is presented in current folder, &
-    then it will be used as template file and the line containing [geometry] or [GEOMETRY] will be replaced with the present coordinate, &
-    and [name] will be replaced with name (without suffix) of the new input file"
+    then it will be used as template file, the line containing [geometry] or [GEOMETRY] will be replaced with the present coordinate, &
+    [name] will be replaced with name of the new input file (without suffix), net charge and spin multiplicity will correspond to present system"
     read(*,"(a)") outname
     if (outname=="zmat".or.outname=="zmat1") then
         icoordtype=2
@@ -5334,22 +5374,44 @@ end if
 call path2filename(outgjfname,tmpname)
 open(ifileid,file=outgjfname,status="replace")
 
+!Determine net charge and spin multiplicity
+if (loadcharge==-99) then !Not loaded from input file
+    netcharge=nint(sum(a%charge)-nelec)
+    if (nelec==0) netcharge=0 !nelec==0 means no electron informations, e.g. pdb file
+else
+    netcharge=loadcharge
+end if
+if (loadmulti==-99) then !Not loaded from input file
+    multi=nint(naelec-nbelec)+1
+else
+    multi=loadmulti
+end if
+
+!Write information before atomic coordinates
 inquire(file="template.gjf",exist=alive)
 if (alive) then !Write information in template.gjf to current gjf file except for coordinate part
     write(*,"(a)") " Note: template.gjf was found in current folder, it will be used as template file to generate new .gjf file"
     open(ifileid+1,file="template.gjf",status="old")
+    nspace=0
     do while(.true.)
         read(ifileid+1,"(a)",iostat=ierror) c200tmp
-        if (index(c200tmp,"[geometry]")==0.and.index(c200tmp,"[GEOMETRY]")==0) then
-            itmp=index(c200tmp,"[name]")
-            if (itmp/=0) then
-                call path2filename(outgjfname,tmpname)
-                c200tmp=c200tmp(1:itmp-1)//trim(tmpname)//trim(c200tmp(itmp+6:))
-            end if
-            write(ifileid,"(a)") trim(c200tmp)
-        else
-            exit !Encountered [geometry] or [GEOMETRY]
+        if (c200tmp==" ".and.nspace<2) nspace=nspace+1
+        if (nspace==2) then !Write charge and spin multiplicity of present system
+			read(ifileid+1,*) !Skip charge and spin multiplicity line
+            write(ifileid,"(/,2i3)") netcharge,multi
+            nspace=nspace+1
+            cycle
         end if
+		if (index(c200tmp,"[geometry]")==0.and.index(c200tmp,"[GEOMETRY]")==0) then
+			itmp=index(c200tmp,"[name]")
+			if (itmp/=0) then
+				call path2filename(outgjfname,tmpname)
+				c200tmp=c200tmp(1:itmp-1)//trim(tmpname)//trim(c200tmp(itmp+6:))
+			end if
+			write(ifileid,"(a)") trim(c200tmp)
+		else
+			exit !Encountered [geometry] or [GEOMETRY]
+		end if
     end do
 else !Common case
     write(ifileid,"(a)") "%chk="//trim(tmpname)//".chk"
@@ -5358,20 +5420,10 @@ else !Common case
     else
         write(ifileid,"(a,/,/,a,/)") "#P B3LYP/6-31G*","Generated by Multiwfn"
     end if
-    if (loadcharge==-99) then !Not loaded from input file
-        netcharge=nint(sum(a%charge)-nelec)
-        if (nelec==0) netcharge=0 !nelec==0 means no electron informations, e.g. pdb file
-    else
-        netcharge=loadcharge
-    end if
-    if (loadmulti==-99) then !Not loaded from input file
-        multi=nint(naelec-nbelec)+1
-    else
-        multi=loadmulti
-    end if
     write(ifileid,"(2i3)") netcharge,multi
 end if
 
+!Write atomic coordinates
 if (icoordtype==1) then !Cartesian
     do i=1,ncenter
 	    write(ifileid,"(a,1x,3f14.8)") a(i)%name,a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a
@@ -5437,9 +5489,12 @@ else if (icoordtype==-2) then !Z-matrix directly with geometry parameters
     end do
 end if
 
+!Write translation vectors
 if (any(cellv1/=0)) write(ifileid,"('Tv',3f12.6)") cellv1*b2a
 if (any(cellv2/=0)) write(ifileid,"('Tv',3f12.6)") cellv2*b2a
 if (any(cellv3/=0)) write(ifileid,"('Tv',3f12.6)") cellv3*b2a
+
+!Write initial guess
 if (selectyn=='y') then
     write(ifileid,"(/,'(5E16.9)',/,'-1')")
     do i=1,nbasis
