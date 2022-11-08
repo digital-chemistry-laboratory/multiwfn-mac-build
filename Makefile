@@ -4,9 +4,12 @@ OPT1 = -O1 -qopenmp -qopenmp-link=static -threads $(SIMD) -diag-disable 8290,829
 #Options in the next line is for debugging purpose
 #OPTDBG = -O0 -qopenmp -diag-disable 8290,8291,6371 -threads -qopenmp-link=static -debug all -g -traceback -check all -fstack-protector -fpp -mkl -static-intel
 
-LIB_GUI = ./dislin_d-11.0.a -lXm -lXt -lX11 -lGL   #At least works for CentOS 7.x
-LIB_noGUI =
+LIB_base =
+LIB_GUI = $(LIB_base) ./dislin_d-11.0.a -lXm -lXt -lX11 -lGL   #At least works for CentOS 7.x
+LIB_noGUI = $(LIB_base)
+INCLUDE = -I./ -I./ext
 FC = ifort
+CC = gcc
 EXE = Multiwfn
 EXE_noGUI = Multiwfn_noGUI
 LIBRETAPATH = ./libreta_hybrid
@@ -16,9 +19,21 @@ DFTxclib.o edflib.o fparser.o fileIO.o spectrum.o DOS.o Multiwfn.o 0123dim.o LSB
 population.o orbcomp.o bondorder.o topology.o excittrans.o otherfunc.o \
 otherfunc2.o otherfunc3.o O1.o surfana.o procgriddata.o AdNDP.o fuzzy.o CDA.o basin.o \
 orbloc.o visweak.o EDA.o CDFT.o ETS_NOCV.o atmraddens.o NAONBO.o grid.o PBC.o hyper_polar.o deloc_aromat.o cp2kmate.o\
-minpack.o blockhrr_012345.o ean.o hrr_012345.o eanvrr_012345.o boysfunc.o naiveeri.o ryspoly.o
+minpack.o blockhrr_012345.o ean.o hrr_012345.o eanvrr_012345.o boysfunc.o naiveeri.o ryspoly.o 2F2.f90.o
 
-objects_noGUI = noGUI/dislin_d_empty.o
+objects_noGUI = noGUI/dislin_d_empty.o #Dummy dislin subroutines
+
+ifeq ($(WITH_FD),1)
+  objects += 2F2.c.o
+  ifeq ($(OS),Ubuntu) # for Ubuntu
+    LIB_base += -lflint -lflint-arb
+  else ifeq ($(OS),RHEL) # for Fedora, CentOS, RHEL
+    INCLUDE += -I/usr/include/arb
+    LIB_base += -lflint -larb
+  endif
+else
+  objects += no2F2.c.o
+endif
 
 default : $(objects)
 	$(MAKE) noGUI
@@ -74,7 +89,10 @@ plot.o : plot.f90 define.o util.o
 GUI.o : GUI.f90 define.o plot.o function.o
 	$(FC) $(OPT) -c GUI.f90
 
-modules = define.o util.o function.o plot.o GUI.o libreta.o
+2F2.f90.o : ext/2F2.f90 util.o Bspline.o
+	$(FC) $(OPT) -c ext/2F2.f90 -o 2F2.f90.o
+
+modules = define.o util.o function.o plot.o GUI.o libreta.o 2F2.f90.o
 
 
 #Library or adpated third-part codes
@@ -100,6 +118,11 @@ minpack.o : minpack.f90
 fparser.o : fparser.f90
 	$(FC) $(OPT) -c fparser.f90
 	
+2F2.c.o : ext/2F2.c
+	$(CC) $(INCLUDE) -c ext/2F2.c -o 2F2.c.o
+
+no2F2.c.o : ext/no2F2.c
+	$(CC) -c ext/no2F2.c -o no2F2.c.o
 
 #Others
 
@@ -239,3 +262,4 @@ naiveeri.o: ${LIBRETAPATH}/naiveeri.f90 ryspoly.o
 	
 ryspoly.o: ${LIBRETAPATH}/ryspoly.f90
 	$(FC) $(OPT) -c ${LIBRETAPATH}/ryspoly.f90
+

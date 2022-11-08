@@ -197,7 +197,7 @@ allocate(parmA(ncenter),parmB(ncenter))
 					c200tmp=c200tmp(:isep-1)
 					inquire(file=c200tmp,exist=alive)
 					if (.not.alive) then
-						write(*,"(' Error: Unable to find ',a)") trim(c200tmp)
+						write(*,"(' Error: Unable to find ',a,', which was specified in the loaded molecular list file')") trim(c200tmp)
 						write(*,*) "Press ENTER button to return"
 						read(*,*)
 						close(10)

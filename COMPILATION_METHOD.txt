@@ -28,3 +28,19 @@ If this is the first time you use Linux version of Multiwfn, do not forget to re
 ============ Compile Multiwfn without GUI and plotting functionalities ============
 
 If you encountered difficulties when compiling or running Multiwfn due to missing or incompatibility of some graphical library files, and in the meantime you do not need visualization functions of Multiwfn, you can compile Multiwfn without GUI supported, all functions irrelevant to GUI and plotting will still work normally. The compilation steps is simply running "make noGUI -j" instead of the "make -j" mentioned above.
+
+
+============ Compile Multiwfn with fractional derivatives support ============
+
+1) Be sure that you have installed arb (https://arblib.org/) and flint (http://flintlib.org/) libraries
+   for Fedora (I suppose, for RHEL/CentOS the same command will work):
+     dnf install arb-devel
+    or
+     yum install arb-devel
+   for Ubuntu:
+     apt install libflint-arb-dev
+
+2) provide `WITH_FD=1` to your `make` command and `OS=Ubuntu` (For Ubuntu) or `OS=RHEL` (for Fedora, CentOS, RHEL)
+   So, on my PC with Fedora 35: `make noGUI WITH_FD=1 OS=RHEL -j 6`
+      on Ubuntu 22.04: `make noGUI WITH_FD=1 OS=Ubuntu -j 24`
+3) If there is some problem with compilation, please, revise `Makefile` about libraries and include directories below line containing `ifeq ($(WITH_FD),1)`

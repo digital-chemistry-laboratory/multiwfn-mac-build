@@ -257,23 +257,26 @@ real*8 :: totenergy=0,virialratio=2,nelec=0,naelec=0,nbelec=0
 integer :: loadmulti=-99,loadcharge=-99 !Spin multiplicity and net charge, loaded directly from input file (e.g. from .gjf or .xyz), only utilized in rare cases. -99 means unloaded
 !-------- Variables for nuclei & GTF & Orbitals. Note: Row and column of CO(:,:) correspond to orbital and GTF, respectively, in contrary to convention
 type(atomtype),allocatable :: a(:),a_org(:),a_tmp(:) !a_tmp is only used in local temporary operation, should be destoried immediatedly after using
-type(primtype),allocatable :: b(:),b_org(:),b_tmp(:)
+type(primtype),allocatable,target :: b(:)
+type(primtype),allocatable :: b_org(:),b_tmp(:)
 real*8,allocatable :: MOocc(:),MOocc_org(:),MOene(:),MOene_org(:) !Occupation number & energy of orbital
 integer,allocatable :: MOtype(:) !The type of orbitals, (alpha&beta)=0/alpha=1/beta=2, not read from .wfn directly
 character(len=10) :: orbtypename(0:2)=(/ character(len=10) :: "Alpha&Beta","Alpha","Beta" /)
 character(len=4),allocatable :: MOsym(:) !The symmetry of orbitals, meaningful when .mwfn/molden/gms is used
-real*8,allocatable :: CO(:,:),CO_org(:,:),CO_tmp(:,:) !Coefficient matrix of primitive basis functions, including both normalization and contraction coefficients
+real*8,allocatable, target :: CO(:,:) !Coefficient matrix of primitive basis functions, including both normalization and contraction coefficients
+real*8,allocatable :: CO_org(:,:),CO_tmp(:,:)
 real*8,allocatable :: COtr(:,:) !Transposed CO matrix, which is used in some routines for faster calculation than using CO. Must be deallocated after using
 !Unique GTFs (the GTFs with identical center, type and exponent are combined together and leave only one). Can be activated after running gen_GTFuniq
 integer :: nprims_uniq=0 !0 means uninitialized
-type(primtype),allocatable :: b_uniq(:) !b of unique GTFs
-real*8,allocatable :: CO_uniq(:,:) !CO of b_uniq. The coefficients of duplicated GTFs are summed together
+type(primtype),allocatable,target :: b_uniq(:) !b of unique GTFs
+real*8,allocatable,target :: CO_uniq(:,:) !CO of b_uniq. The coefficients of duplicated GTFs are summed together
 !-------- Describe inner electron density in EDF section
 type(primtype),allocatable :: b_EDF(:)
 real*8,allocatable :: CO_EDF(:)
 integer :: nEDFprims=0,nEDFelec=0 !Electrons represented by EDF
 !-------- Promolecular wavefunction. Share same "a" and "b"
-real*8,allocatable :: CO_pmol(:,:),MOocc_pmol(:),MOene_pmol(:)
+real*8,allocatable,target :: CO_pmol(:,:)
+real*8,allocatable :: MOocc_pmol(:),MOene_pmol(:)
 integer,allocatable :: MOtype_pmol(:)
 integer :: nmo_pmol=0
 !-------- Variables when basis functions are basis rather than primitive function as basis

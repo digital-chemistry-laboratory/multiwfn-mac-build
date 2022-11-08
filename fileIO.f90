@@ -184,6 +184,7 @@ end if
 call genfragatm !Generate fragatm array containing all atoms
 
 call init_PBC !Initialize some PBC information and settings
+if (ifPBC/=0) ishowcell=1 !Show cell
 
 call init_func !Some user-defined real space functions need special initialization for an system
 

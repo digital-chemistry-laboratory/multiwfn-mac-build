@@ -352,6 +352,18 @@ end do
 end subroutine
 
 
+!!!------- Return size of x,y,z of current box
+subroutine cellxyzsize(xsize,ysize,zsize)
+implicit real*8 (a-h,o-z)
+real*8 xsize,ysize,zsize
+call cellminxyz(xmin,ymin,zmin)
+call cellmaxxyz(xmax,ymax,zmax)
+xsize=xmax-xmin
+ysize=ymax-ymin
+zsize=zmax-zmin
+end subroutine
+
+
 
 !!!----- Return cell volume according to cell information
 subroutine calc_cellvol(cellvol)
