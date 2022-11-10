@@ -425,8 +425,8 @@ real*8,allocatable :: gridxyz(:,:) !XYZ coordinate of grid that statisfied crite
 integer,allocatable :: domainsize(:) !The number of grids contained in each domain
 integer,allocatable :: domaingrid(:,:) !The grid indices contained in each domain
 !For passing ploting parameter from GUI routine to their call-back routine
-!sur_value: The value of isosurface will be plot by drawmol routine when idrawisosur=1 as well as drawisosurgui
-real*8 :: dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,sur_value=0.05D0
+!sur_value: The value of isosurface will be plotted by drawmol routine when idrawisosur=1 as well as drawisosurgui. sur_value_orb is specific for orbital isovalue
+real*8 :: dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,sur_value=0.05D0,sur_value_orb=0.05D0
 
 !!! Other external parameter !!!
 integer :: iautointgrid=1,radpot=75,sphpot=434 !sphpot=230/302/434/590/770, low is 50*434, high is 100*590

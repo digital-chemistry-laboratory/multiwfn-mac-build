@@ -6934,6 +6934,13 @@ subroutine outPOSCAR_wrapper
 use util
 use defvar
 character outname*200,c200tmp*200
+if (ifPBC==0) then
+	write(*,"(a)") " Error: POSCAR cannot be generated, because the loaded file does not contain cell information!"
+    write(*,"(a)") " See Section 2.9.3 of Multiwfn manual on which format can provide cell information to Multiwfn"
+    write(*,*) "Press ENTER button to return"
+    read(*,*)
+	return
+end if
 call path2filename(filename,c200tmp)
 write(*,*) "Input path for generating VASP POSCAR file, e.g. C:\ltwd.poscar"
 write(*,"(a)") " If press ENTER button directly, will export to POSCAR in current folder"
@@ -6987,8 +6994,6 @@ end do
 close(ifileid)
 
 write(*,"(a)") " VASP POSCAR file has been exported to "//trim(outname)//" in current folder"
-if (ifPBC==0) write(*,"(a)") " Warning: Since the file loaded when Multiwfn booted up does not contain cell information, &
-all cell vectors in the created POSCAR file are set to be 0, and fractional coordinates are all zero!"
 end subroutine
 
 

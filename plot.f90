@@ -493,15 +493,23 @@ if (idrawisosur==1) then
 	end do
 	if (isosur1style==5) CALL TPRVAL(opacitycub1)
 	nplottime=1
-	if (isosurshowboth==1) nplottime=2 !Show both positive and negative region
+	if (isosurshowboth==1) nplottime=2 !Show both positive and negative regions
 	do iplottime=1,nplottime
 		CALL MATOP3(clrRcub1same,clrGcub1same,clrBcub1same,'diffuse') !Set color for solid isosurface 1 with the same sign of set isovalue
 		call setrgb(clrRcub1samemeshpt,clrGcub1samemeshpt,clrBcub1samemeshpt)
-		sur_valuenow=sur_value
+        if (GUI_mode==1) then
+			sur_valuenow=sur_value_orb
+        else
+			sur_valuenow=sur_value
+        end if
 		if (iplottime==2) then
 			CALL MATOP3(clrRcub1oppo,clrGcub1oppo,clrBcub1oppo,'diffuse') !Set color for solid isosurface 1 with the opposite sign of set isovalue
 			call setrgb(clrRcub1oppomeshpt,clrGcub1oppomeshpt,clrBcub1oppomeshpt)
-			sur_valuenow=-sur_value
+			if (GUI_mode==1) then
+				sur_valuenow=-sur_value_orb
+			else
+				sur_valuenow=-sur_value
+			end if
 		end if
 		if (isosur1style==2) then !Plotted as mesh rather than solid face
             call surmsh("LINES")
@@ -528,11 +536,19 @@ if (idrawisosur==1) then
 		do iplottime=1,nplottime
 			CALL MATOP3(clrRcub2same,clrGcub2same,clrBcub2same,'diffuse') !Set color for solid isosurface 2 with the same sign of set isovalue
 			call setrgb(clrRcub2samemeshpt,clrGcub2samemeshpt,clrBcub2samemeshpt)
-			sur_valuenow=sur_value
+			if (GUI_mode==1) then
+				sur_valuenow=sur_value_orb
+			else
+				sur_valuenow=sur_value
+			end if
 			if (iplottime==2) then
 				CALL MATOP3(clrRcub2oppo,clrGcub2oppo,clrBcub2oppo,'diffuse') !Set color for solid isosurface 2 with the opposite sign of set isovalue
 				call setrgb(clrRcub2oppomeshpt,clrGcub2oppomeshpt,clrBcub2oppomeshpt)
-				sur_valuenow=-sur_value
+				if (GUI_mode==1) then
+					sur_valuenow=-sur_value_orb
+				else
+					sur_valuenow=-sur_value
+				end if
 			end if
 			if (isosur2style==2) call surmsh("LINES") !Plotted as mesh rather than solid face
 			if (isosur2style==3) call surmsh("POINTS") !Plotted as points rather than solid face

@@ -377,6 +377,8 @@ case (1204) !Local Temperature(Kelvin), PNAS,81,8028, but using user-defined KED
     end if
 case (1210) !Potential of KED
     userfunc=KEDpot(x,y,z)
+case (1303) !\xi^\alpha Fractional integrals/derivatives, close to Lagkin, fdens routines
+    userfunc=fracderiv(x,y,z)
 end select
 !Below are other examples
 ! userfunc=hamkin(x,y,z,3)-0.5D0*(hamkin(x,y,z,1)+hamkin(x,y,z,2)) !Anisotropy of Hamiltonian kinetic energy in Z, namely K_Z-0.5*(K_X+K_Y)
@@ -1331,6 +1333,216 @@ do j=1,nprims
 	end if !end runtype>=2
 end do
 end subroutine
+
+
+
+
+!!-------- This subroutine was contributed by i.s.ger
+! istart  - first index of processing orbital
+! iend    - last  index of processing orbital
+! x, y, z - point's coordinates
+! a0      - fractional integrals when p = 0
+! a1      - fractional derivatives when p = 1
+! promol  - for using promolecular wavefunction
+subroutine orbfracderiv(istart, iend, x, y, z, a0, a1, promol)
+  use mod_2F2, only: GTO_fractional_integral
+  implicit none
+  ! in variables
+  integer, intent(in)  :: istart, iend
+  real(8), intent(in)  :: x, y, z
+  logical, intent(in), optional :: promol
+  ! out variables
+  real(8), intent(out), optional :: a0(nmo)
+  real(8), intent(out), optional :: a1(3, nmo)
+  ! internal variables
+  integer :: last_center         ! index of atom in previous step
+  integer :: ipmax               ! ipmax is a number of GTOs borned by differentiation (now, 1 is max)
+  ! pointer's variables
+  logical :: promol_
+  integer :: nprims_tmp
+  type(primtype), pointer :: b_p(:)
+  real(8), pointer :: CO_p(:,:)
+  !
+  real(8) :: tvec(3)
+  integer :: icell, jcell, kcell, ic, jc, kc
+  !
+  promol_ = .false.
+  if (present(promol)) promol_ = promol
+  !
+  if (present(a0)) then
+    a0 = 0._8
+    ipmax = 0
+  else if (present(a1)) then
+    a1 = 0._8
+    ipmax = 1
+  end if
+  !
+  last_center = -1
+  tvec = 0._8
+
+  !calculate orbderv for promolecular wavefunction
+  if (promol_) then
+    nprims_tmp = nprims
+    b_p => b
+    CO_p => CO_pmol
+  !If the center/exp of current GTF is the same as previous, then we do not need to recalculate them
+  else if (nprims_uniq == 0) then !Unique GTF information is not available
+    nprims_tmp = nprims
+    b_p => b
+    CO_p => CO
+  else !Unique GTF information has been constructed by gen_GTFuniq
+    nprims_tmp = nprims_uniq
+    b_p => b_uniq
+    CO_p => CO_uniq
+  end if
+
+  if (ifPBC > 0) then !Consider PBC
+    call getpointcell(x,y,z,ic,jc,kc)
+    do icell=ic-PBCnx,ic+PBCnx
+      do jcell=jc-PBCny,jc+PBCny
+        do kcell=kc-PBCnz,kc+PBCnz
+          last_center=-1 !Arbitrary value
+          call tvec_PBC(icell,jcell,kcell,tvec)
+          call orbfracderiv_eval(b_p, CO_p, nprims_tmp, tvec)
+        end do
+      end do
+    end do
+  else
+    call orbfracderiv_eval(b_p, CO_p, nprims_tmp, tvec)
+  end if
+
+contains
+  subroutine orbfracderiv_eval(b_t, CO_t, nprims_t, tvec)
+    type(primtype), intent(in) :: b_t(:)
+    real(8), intent(in) :: CO_t(:,:)
+    integer, intent(in) :: nprims_t
+    real(8), intent(in) :: tvec(3)
+    ! internal variables
+    integer :: j, imo, ip
+    integer :: ix, iy, iz, it      ! decomposition of azimutal quantum number of shell to x,y,z and their sum
+    real(8) :: ep                  ! zeta of GTF
+    real(8) :: sftx1, sfty1, sftz1 ! X^1, Y^1, Z^1  from center of atom to point
+    real(8) :: sftx2, sfty2, sftz2 ! X^2, Y^2, Z^2  from center of atom to point
+    real(8) :: rr                  ! R^2 from center of atom to point
+    real(8) :: GTFval              ! fractional integral of GTF
+    real(8) :: GTFdx, GTFdy, GTFdz ! fractional derivatives of GTF
+    real(8) :: t(0:1)              ! 2F2 values (1 is a maximum of ipmax)
+    !
+    real(8) :: xmove, ymove, zmove
+
+    xmove = tvec(1)
+    ymove = tvec(2)
+    zmove = tvec(3)
+
+    ! main cycle over shells
+    do j = 1, nprims_t
+      ix = type2ix(b_t(j)%type)
+      iy = type2iy(b_t(j)%type)
+      iz = type2iz(b_t(j)%type)
+      it = ix + iy + iz
+      ep = b_t(j)%exp
+
+      if (b_t(j)%center /= last_center) then
+        last_center = b_t(j)%center
+        sftx1 = x - (a(b_t(j)%center)%x + xmove)
+        sfty1 = y - (a(b_t(j)%center)%y + ymove)
+        sftz1 = z - (a(b_t(j)%center)%z + zmove)
+        sftx2 = sftx1 * sftx1
+        sfty2 = sfty1 * sfty1
+        sftz2 = sftz1 * sftz1
+        rr    = sftx2 + sfty2 + sftz2
+      end if
+
+! commented out since cutoff should depend on p-alpha
+! Fox example, when p-alpha = 0, expcutoff can be -40 and results are fine
+!          but when p-alpha = 2, expcutoff should be more than 20000 for avoiding numerical problems
+!      if (expcutoff>0._8 .or. -ep*rr>-20000._8) then
+      if (expcutoff>0._8 .or. .true.) then ! all orbitals are important
+      else
+        cycle ! just skip it
+      end if
+
+      do ip = 0, ipmax
+        t(ip) = GTO_fractional_integral(it + ip * 2, -ep*rr)
+      end do
+
+      if (present(a0)) then
+        ! Calculate fractional integral
+        GTFval = sftx1**ix * sfty1**iy * sftz1**iz * t(0)
+        ! Calculate fractional integral for orbitals
+        do imo=istart,iend
+          a0(imo) = a0(imo) + CO_t(imo,j) * GTFval
+        end do
+      else if (present(a1)) then
+        ! Calculate fractional derivatives for current GTF
+        ! x-direction derivative
+        GTFdx = differentiate_1st(sftx1, ix, ep, t) * sfty1**iy * sftz1**iz
+        ! y-direction derivative
+        GTFdy = differentiate_1st(sfty1, iy, ep, t) * sftx1**ix * sftz1**iz
+        ! z-direction derivative
+        GTFdz = differentiate_1st(sftz1, iz, ep, t) * sftx1**ix * sfty1**iy
+
+        !Calculate fractional derivatives for orbitals
+        do imo=istart,iend
+          a1(1,imo) = a1(1,imo) + CO_t(imo,j) * GTFdx
+          a1(2,imo) = a1(2,imo) + CO_t(imo,j) * GTFdy
+          a1(3,imo) = a1(3,imo) + CO_t(imo,j) * GTFdz
+        end do
+      end if
+
+    end do
+  end subroutine orbfracderiv_eval
+  real(8) function differentiate_1st(u, iu, ep, t)
+    real(8), intent(in) :: u, ep, t(0:1)
+    integer, intent(in) :: iu
+    ! internal variables
+    real(8) :: du
+    real(8) :: dum1, dup1
+    ! initially, we define derivatives over p, then, apply 2F2 function
+    ! d^p /d u^p GTO(u, [v, w])
+    ! first part of derivative
+    ! by definition, we need first evaluate d^p GTO / d u^p, then integrate
+    ! integrate u^(iu-1) part
+    dum1 = 0._8
+    if (iu >= 1) dum1 = iu * u**(iu - 1) * t(0)
+    ! integrate u^(iu+1) part
+    dup1 = - 2 * ep * u**(iu + 1) * t(1)
+    du = dum1 + dup1
+    differentiate_1st = du
+  end function differentiate_1st
+end subroutine orbfracderiv
+
+
+
+
+!!------------- Calculate \xi(r). Contributed by i.s.ger
+! the definition is close to local kinetic energy
+! if p = 0, compare with fdens routine (without EDF)
+! if p = 1, compare with Lagkin routine when idir = 0
+real(8) function fracderiv(x, y, z)
+  use mod_2F2, only : p
+  implicit none
+  real(8), intent(in) :: x, y, z
+  real(8) :: a0(nmo)
+  real(8) :: a1(3, nmo)
+  integer :: imo
+  fracderiv = 0._8
+  select case (p)
+    case(0)
+      call orbfracderiv(1, nmo, x, y, z, a0=a0)
+      do imo = 1, nmo
+        fracderiv = fracderiv + MOocc(imo) * a0(imo)**2
+      end do
+    case(1)
+      call orbfracderiv(1, nmo, x, y, z, a1=a1)
+      do imo = 1, nmo
+        fracderiv = fracderiv + MOocc(imo) * sum(a1(:, imo)**2)
+       end do
+    case default
+      error stop "p can be only 0 or 1"
+  end select
+  fracderiv = fracderiv / 2._8
+end function
 
 
 

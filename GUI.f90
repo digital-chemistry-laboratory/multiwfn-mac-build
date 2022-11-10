@@ -179,7 +179,7 @@ if (isys==1.and.(imodlayout==0.or.imodlayout==2)) then
 	call swgwin(100,5,70,115)
 	call swgtyp("VERT","SCALE")
 	call swgstp(0.002D0)
-	call wgscl(idisbotrig,"Isovalue",0D0,0.4D0,sur_value,3,idisisosurscl)
+	call wgscl(idisbotrig,"Isovalue",0D0,0.4D0,sur_value_orb,3,idisisosurscl)
 else if ((isys==1.and.imodlayout==1).or.isys==2) then !Use different layout for linux, since the sizes of widgets relative to Windows version are different
 	CALL SWGSPC(0D0,0.5D0)
 	call WGLAB(idisright2,"Orbitals:",iorbseltext)
@@ -191,7 +191,7 @@ else if ((isys==1.and.imodlayout==1).or.isys==2) then !Use different layout for 
 	call swgtyp("HORI","PBAR")
 	call swgtyp("HORI","SCALE")
 	call swgstp(0.002D0)
-	call wgscl(idisright2,"Isovalue of orbital",0D0,0.4D0,sur_value,3,idisisosurscl)
+	call wgscl(idisright2,"Isovalue of orbital",0D0,0.4D0,sur_value_orb,3,idisisosurscl)
 end if
 
 call SWGCBK(idisorbinfo,showorbinfo1)
@@ -1316,9 +1316,9 @@ if (GUI_mode==1.or.GUI_mode==3) then
 	call swgbut(idisshowatmlab,ishowatmlab)
 	call swgbut(idisshowaxis,ishowaxis)
 	if (GUI_mode==1) then
-		sur_value=0.05D0
+		sur_value_orb=0.05D0
 		ZVU=6D0
-		call swgscl(idisisosurscl,sur_value)
+		call swgscl(idisisosurscl,sur_value_orb)
 		if (imodlayout/=2) call swgscl(idisbondradius,bondradius)
 		call swgscl(idisatmsize,ratioatmsphere)
 		if (imodlayout/=2) call swgscl(idisbondcrit,bondcrit)
@@ -1737,8 +1737,10 @@ end subroutine
 subroutine setisosurscl(id) !Drag scale bar, change sur_value & text
 integer,intent (in) :: id
 character temp*20
-call GWGSCL(id,sur_value)
-if (GUI_mode==3) then
+if (GUI_mode==1) then
+	call GWGSCL(id,sur_value_orb)
+else if (GUI_mode==3) then
+	call GWGSCL(id,sur_value)
 	write(temp,"(f8.3)") sur_value
 	call SWGTXT(idisscrval,temp)
 end if
@@ -2087,10 +2089,10 @@ use defvar
 integer,intent (in) :: id
 character inpstring*30
 CALL SWGWTH(60)
-write(inpstring,"(f10.5)") sur_value
+write(inpstring,"(f10.5)") sur_value_orb
 CALL swgtit("Set orbital isovalue")
 call dwgtxt("Input isovalue for showing orbitals",inpstring)
-read(inpstring,*) sur_value
+read(inpstring,*) sur_value_orb
 call drawmol
 CALL SWGWTH(20) !Recover default
 end subroutine
@@ -2962,6 +2964,7 @@ write(10,*) "YFOC              ",YFOC
 write(10,*) "ZFOC              ",ZFOC
 write(10,*) "VANG3DANG         ",VANG3DANG
 write(10,*) "camrotang         ",camrotang
+write(10,*) "sur_value_orb     ",sur_value_orb
 close(10)
 end subroutine
 
@@ -2972,7 +2975,7 @@ subroutine loadGUIsetting(id)
 use defvar
 integer,intent (in) :: id
 character c30tmp*30,c200tmp*200
-logical alive1,alive2
+logical :: alive1,alive2=.false.
 call getenv("Multiwfnpath",c200tmp)
 inquire(file=trim(c200tmp)//"/GUIsettings.ini",exist=alive1)
 if (alive1) then
@@ -3038,6 +3041,7 @@ if (alive1.or.alive2) then
 	read(10,*) c30tmp,ZFOC
 	read(10,*) c30tmp,VANG3DANG
 	read(10,*) c30tmp,camrotang
+    read(10,*) c30tmp,sur_value_orb
     close(10)
     call drawmol
     if (alive1) then
@@ -3053,7 +3057,7 @@ if (alive1.or.alive2) then
 		call swgscl(idisbondradius,bondradius)
 		call swgscl(idisbondcrit,bondcrit)
     end if
-    call swgscl(idisisosurscl,sur_value)
+    call swgscl(idisisosurscl,sur_value_orb)
 else
     call dwgmsg("Error: Cannot find GUIsettings.ini in either current folder or the folder defined by ""Multiwfnpath""")
 end if
@@ -3123,7 +3127,7 @@ subroutine load_isosur_setting(id)
 use defvar
 integer,intent (in) :: id
 character c30tmp*30,c200tmp*200
-logical alive1,alive2
+logical :: alive1,alive2=.false.
 call getenv("Multiwfnpath",c200tmp)
 inquire(file=trim(c200tmp)//"/isosur.ini",exist=alive1)
 if (alive1) then

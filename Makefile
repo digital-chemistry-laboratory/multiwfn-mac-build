@@ -1,6 +1,6 @@
 SIMD = -msse3
-OPT = -O2 -qopenmp -qopenmp-link=static -threads -qopt-matmul $(SIMD) -diag-disable 8290,8291,6371,10316 -fpp -mkl -static-intel -DINTEL_MKL
-OPT1 = -O1 -qopenmp -qopenmp-link=static -threads $(SIMD) -diag-disable 8290,8291,6371,10316 -fpp -mkl -static-intel -DINTEL_MKL
+OPT = -O2 -qopenmp -qopenmp-link=static -threads -qopt-matmul $(SIMD) -diag-disable 8290,8291,6371,10316,6178 -fpp -mkl -static-intel -DINTEL_MKL
+OPT1 = -O1 -qopenmp -qopenmp-link=static -threads $(SIMD) -diag-disable 8290,8291,6371,10316,6178 -fpp -mkl -static-intel -DINTEL_MKL
 #Options in the next line is for debugging purpose
 #OPTDBG = -O0 -qopenmp -diag-disable 8290,8291,6371 -threads -qopenmp-link=static -debug all -g -traceback -check all -fstack-protector -fpp -mkl -static-intel
 

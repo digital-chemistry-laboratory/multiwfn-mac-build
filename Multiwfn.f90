@@ -2,9 +2,7 @@ program multiwfn
 use defvar
 use util
 use GUI
-#ifdef __linux__
 use mod_2F2, only: set_alpha_level
-#endif
 !use libreta
 !use function
 implicit real*8 (a-h,o-z)
@@ -33,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2022-Nov-7"
+write(*,*) "Version 3.8(dev), release date: 2022-Nov-9"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -589,7 +587,6 @@ do while(.true.) !Main loop
             write(*,*) "15 Make orbitals equivalent to basis functions"
 		    write(*,*) "16 Define one or two fragments for special purpose"
             write(*,*) "17 Generate promolecular wavefunction by calculating and combining atomic ones"
-            write(*,*) "26 Setup fractional calculus"
 		    write(*,*) "90 Calculate nuclear attractive energy between a fragment and an orbital"
 		    write(*,*) "91 Exchange orbital energies and occupations"
 		    write(*,*) "92 Calculate result of various kinetic energy functionals"
@@ -597,6 +594,7 @@ do while(.true.) !Main loop
 		    write(*,*) "97 Generate natural orbitals based on density matrix outputted by MRCC program"
 		    write(*,*) "99 Show EDF information (if any)"
 		    write(*,*) "100 Check the sanity of present wavefunction"
+            write(*,*) "1303 Setup fractional calculus"
             !write(*,*) "201 Ring-ring distance&angle statistical analysis for a trajectory" !Only used by Sobereva in C18 work
             !write(*,*) "202 Ring rotation statistical analysis for a trajectory" !Only used by Sobereva in C18 work
 		    read(*,*) i
@@ -740,10 +738,6 @@ do while(.true.) !Main loop
                 end do
             else if (i==17) then
 				call generate_promolwfn
-		    else if (i==26) then
-#ifdef __linux__
-			    call set_alpha_level()
-#endif
 		    else if (i==90) then
 			    call attene_orb_fragnuc
 		    else if (i==91) then
@@ -786,6 +780,8 @@ do while(.true.) !Main loop
                 call ringring_geom
             else if (i==202) then
                 call ring_rotate
+            else if (i==1303) then
+				call set_alpha_level()
 		    end if
 	    end if
     end if
