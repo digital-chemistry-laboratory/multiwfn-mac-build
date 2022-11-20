@@ -57,13 +57,16 @@ if (ifPBC==0) then !Isolated system
 else if (ifPBC==1) then !1D system
     ifdoPBCy=0
     ifdoPBCz=0
-    !Set temporary cellv2 and cellv3 orthogonal to v1, otherwise e.g. fractional coordinate cannot be generated
-    call vecprod(cellv1(1),cellv1(2),cellv1(3),5D0,7D0,-4D0,cellv2(1),cellv2(2),cellv2(3)) !(5,7,-4) is arbitrarily selected vector
+    !Set temporary cellv2 and cellv3 orthogonal to v1, otherwise fractional coordinate cannot be generated from Cartesian coordinate
+    call vecprod(cellv1(1),cellv1(2),cellv1(3),5D0,7D0,-4D0,cellv2(1),cellv2(2),cellv2(3)) !(5,7,-4) is an arbitrarily selected vector
     call vecprod(cellv1(1),cellv1(2),cellv1(3),cellv2(1),cellv2(2),cellv2(3),cellv3(1),cellv3(2),cellv3(3))
+    cellv2=cellv2/dsqrt(sum(cellv2**2))
+    cellv3=cellv3/dsqrt(sum(cellv3**2))
 else if (ifPBC==2) then !2D system
     ifdoPBCz=0
-    !Set temporary cellv3 orthogonal to v1 and v2, otherwise e.g. fractional coordinate cannot be generated
+    !Set temporary cellv3 orthogonal to v1 and v2, otherwise fractional coordinate cannot be generated from Cartesian coordinate
     call vecprod(cellv1(1),cellv1(2),cellv1(3),cellv2(1),cellv2(2),cellv2(3),cellv3(1),cellv3(2),cellv3(3))
+    cellv3=cellv3/dsqrt(sum(cellv3**2))
 end if
 !When PBC is not considered in a direction, PBCnx/y/z should be set to 0 to avoid consider neighbouring cells in corresponding direction
 if (ifdoPBCx==0) PBCnx=0
@@ -137,20 +140,6 @@ xin=xyzout(1)
 yin=xyzout(2)
 zin=xyzout(3)
 end subroutine
-
-
-!!!------- Used to test "move_to_cell" in interactive interface
-!subroutine test_PBC
-!use defvar
-!real*8 xyzin(3),xyzout(3)
-!do while(.true.)
-!    write(*,*) "Input x,y,z in Bohr for test"
-!    read(*,*) xyzin
-!    call move_to_cell(xyzin,xyzout)
-!    write(*,*) "x,y,z of new coordinate:"
-!    write(*,"(3f12.6,' Bohr')") xyzout
-!end do
-!end subroutine
 
 
 

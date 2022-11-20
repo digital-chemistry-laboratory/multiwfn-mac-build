@@ -5491,9 +5491,13 @@ else if (icoordtype==-2) then !Z-matrix directly with geometry parameters
 end if
 
 !Write translation vectors
-if (any(cellv1/=0)) write(ifileid,"('Tv',3f12.6)") cellv1*b2a
-if (any(cellv2/=0)) write(ifileid,"('Tv',3f12.6)") cellv2*b2a
-if (any(cellv3/=0)) write(ifileid,"('Tv',3f12.6)") cellv3*b2a
+if (ifPBC>=1) then
+	write(ifileid,"('Tv',3f12.6)") cellv1*b2a
+	if (ifPBC>=2) then
+		write(ifileid,"('Tv',3f12.6)") cellv2*b2a
+		if (ifPBC==3) write(ifileid,"('Tv',3f12.6)") cellv3*b2a
+    end if
+end if
 
 !Write initial guess
 if (selectyn=='y') then

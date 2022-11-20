@@ -315,12 +315,17 @@ integer :: nmo_back,ifdelvirorb=0 !If "delvirorb" has been called, then ifdelvir
 real*8,allocatable :: MOene_back(:),MOocc_back(:)
 integer,allocatable :: MOtype_back(:)
 real*8,allocatable :: CO_back(:,:)
-!Translation vector of the cell in Bohr. If any vector has all zero values, that means cell information is not available. The ones with _bk suffix are used to backup PBC information, the ones with _org are original system information
-real*8 :: cellv1(3)=0,cellv2(3)=0,cellv3(3)=0,cellv1_org(3),cellv2_org(3),cellv3_org(3),cellv1_bk(3),cellv2_bk(3),cellv3_bk(3)
-integer :: ifPBC=0,ifPBC_org,ifPBC_bk !Dimension of periodicity. 0=Isolated system, 1/2/3/=one/two/three dimensions
 !Other property
 integer :: iresinfo=0 !=0/1: Residue information is unavailable/available in this file
 
+!-------- PBC information
+!Translation vectors of the cell in Bohr. The vector of nonperiodic direction(s) is automatically set to a norm vector perpendicular to periodic directions in subroutine "init_PBC"
+real*8 :: cellv1(3)=0,cellv2(3)=0,cellv3(3)=0
+!The ones with _bk suffix are used to backup PBC information, the ones with _org are original system information
+real*8 :: cellv1_org(3),cellv2_org(3),cellv3_org(3),cellv1_bk(3),cellv2_bk(3),cellv3_bk(3)
+integer :: ifPBC=0,ifPBC_org,ifPBC_bk !Dimension of periodicity. 0=Isolated system, 1/2/3/=one/two/three dimensions
+integer :: PBCnx,PBCny,PBCnz,ifdoPBCx,ifdoPBCy,ifdoPBCz !PBC setting actually used in calculation, they will be specified by init_PBC
+integer :: PBCnx_in=1,PBCny_in=1,PBCnz_in=1,ifdoPBCx_in=1,ifdoPBCy_in=1,ifdoPBCz_in=1 !PBC setting read from settings.ini
 
 !-------- Connectivity matrix
 !Loaded from .mol/mol2 using readmol/readmol2 or readmolconn (from mol), value is formal bond order; can also be guessed via genconnmat, value is 1/0 (connected, not connected)
@@ -441,8 +446,6 @@ integer :: ifchprog=1,iloadascart=0,iloadGaugeom=1,iloadORCAgeom=1,maxloadexc=0,
 integer :: iuserfunc=0,iDFTxcsel=84,iKEDsel=0,ispheratm=1,ishowchgtrans=0,uESEinp=0,SpherIVgroup=0,MCvolmethod=2,readEDF=1,isupplyEDF=2,ishowptESP=1,imolsurparmode=1,nPGmaxatm=200
 integer :: NICSnptlim=8000,iCDAcomp=1,ESPrhonlay=1
 real*8 :: bndordthres=0.05D0,compthres=0.5D0,compthresCDA=1D0,expcutoff=-40D0,expcutoff_PBC=-20D0,ESPrhoiso=0D0
-integer :: PBCnx,PBCny,PBCnz,ifdoPBCx,ifdoPBCy,ifdoPBCz !PBC setting actually used in calculation, they will be specified by init_PBC
-integer :: PBCnx_in=1,PBCny_in=1,PBCnz_in=1,ifdoPBCx_in=1,ifdoPBCy_in=1,ifdoPBCz_in=1 !PBC setting read from settings.ini
 integer :: nthreads=4
 integer*8 :: ompstacksize=200000000
 character :: lastfile*200="",gaupath*200="",cubegenpath*200="",formchkpath*200="",orcapath*200="",orca_2mklpath*200="",cubegendenstype*80="SCF"

@@ -2331,7 +2331,7 @@ if (.not.allocated(CObasa)) return !Only works when all orbitals are available, 
 if (idelvirorb==0) return !Do not delete orbitals as explicitly requested in settings.ini
 !Linear response kernel, local electron affinity, orbital-weighted Fukui/dual descriptor require all orbital information
 if (iuserfunc==24.or.iuserfunc==27.or.iuserfunc==28.or.iuserfunc==29.or.iuserfunc==95.or.iuserfunc==96.or.iuserfunc==97.or.iuserfunc==98) return
-!if (imodwfn==1) return !Wavefunction has been modified, don't make thing more complicated!
+if (imodwfn==1) return !Wavefunction has been modified, so don't let this subroutine make thing more complicated!
 if (wfntype==3.or.wfntype==4) return !This routine doesn't work for post-HF cases
 if (ifdelvirorb==1) return !This routine has already been called while delvirorb_back was not used after that
 

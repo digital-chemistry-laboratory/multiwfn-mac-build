@@ -52,6 +52,8 @@ integer :: frag1multi,frag2multi,totalmulti
 integer :: iprestype=1,ioutSbas=0,ioutorbene=0,istate_force=1,idiaglib=1,iGAPW=0,iLSSCF=0,iLRIGPW=0,iPSOLVER=1
 real*8 :: Piso=1.01325D0,Ptens(3,3)=reshape( [1.01325D0,0D0,0D0, 0D0,1.01325D0,0D0, 0D0,0D0,1.01325D0], shape=shape(Ptens))
 integer :: CUTOFF=350,REL_CUTOFF=50
+real*8 :: cellv1_pseudo(3),cellv2_pseudo(3),cellv3_pseudo(3) !Pseudo cell for low-dimensional system
+real*8 :: cellv1_tmp(3),cellv2_tmp(3),cellv3_tmp(3)
 
 !Status information of current system. ",save" is used so that for the same system we can enter this interface multiple times to generate various input files
 integer,save :: netchg,multispin
@@ -107,8 +109,10 @@ basname(11)="6-311G**"
 basname(12)="Ahlrichs-def2-TZVP"
 basname(13)="pob-TZVP"
 basname(14)="Ahlrichs-def2-QZVP"
+basname(19)="def2-QZVP with RI_5Z"
 basname(20)="cc-DZ with RI_DZ"
 basname(21)="cc-TZ with RI_TZ"
+basname(22)="cc-QZ with RI_QZ"
 
 !Construct kind information, charge and multiplicity
 10 if (allocated(atmkind).and.filename/=lastinpname) deallocate(atmkind) !Has allocated last time, need to regenerate if the last system is different to the present one
@@ -156,6 +160,7 @@ do while(.true.)
         if (itask==6) write(*,"(a,i6)") " -6 Set frequency of writing molecular dynamics trajectory, current:",nMDsavefreq
         if (iMDformat==1) write(*,*) "-5 Choose format of outputted trajectory, current: xyz"
         if (iMDformat==2) write(*,*) "-5 Choose format of outputted trajectory, current: dcd"
+        if (iMDformat==-2) write(*,*) "-5 Choose format of outputted trajectory, current: dcd_aligned_cell"
         if (iMDformat==3) write(*,*) "-5 Choose format of outputted trajectory, current: pdb"
     end if
     if (iatomcharge==0) write(*,*) "-4 Calculate atomic charges, current: None"
@@ -350,7 +355,7 @@ do while(.true.)
             if (iLRIGPW==1) write(*,*) "20 Toggle using LRIGPW instead of GPW to accelerate calculation, current: Yes"
             if (iLSSCF==0) write(*,*) "21 Toggle using Linear Scaling Self Consistent Field Method, current: No"
             if (iLSSCF==1) write(*,*) "21 Toggle using Linear Scaling Self Consistent Field Method, current: Yes"
-            if (ifPBC=="XYZ") then
+            if (PBCdir=="XYZ") then
                 if (iPSOLVER==1) write(*,*) "22 Set Poisson solver, current: PERIODIC"
                 if (iPSOLVER==2) write(*,*) "22 Set Poisson solver, current: ANALYTIC"
                 if (iPSOLVER==3) write(*,*) "22 Set Poisson solver, current: MT"
@@ -573,11 +578,7 @@ do while(.true.)
         write(*,*) "Input one of following strings to specify periodic boundary condition (PBC)"
         write(*,*) "NONE, X, XY, XYZ, XZ, Y, YZ, Z"
         read(*,*) PBCdir
-        if (PBCdir/="NONE".and.PBCdir/="X".and.PBCdir/="Y".and.PBCdir/="Z".and.PBCdir/="XY".and.PBCdir/="XY".and.PBCdir/="YZ") then
-            write(*,*) "Error: Your input cannot be recognized!"
-            PBCdir="XYZ"
-            cycle
-        end if
+        call strlc2uc(PBCdir) !Foolish user may input in lower case
         !Automatically set proper Poisson solver and vacuum sizes
         if (PBCdir=="NONE") then !Use WAVELET for 0D, usually best choice
             iPSOLVER=4
@@ -588,6 +589,10 @@ do while(.true.)
         else if (PBCdir=="XY".or.PBCdir=="XZ".or.PBCdir=="YZ") then !Use MT for 2D. Needs vaccum size in each side >= half of system
             iPSOLVER=3
             write(*,*) "Note: Poisson solver has been automatically changed to MT"
+        else
+            write(*,*) "Error: Your input cannot be recognized! Now set to XYZ periodicity"
+            PBCdir="XYZ"
+            cycle
         end if
         call determine_vacuumsize(iPSOLVER,vacsizex,vacsizey,vacsizez,icentering)
     else if (isel==-6) then
@@ -596,9 +601,10 @@ do while(.true.)
     else if (isel==-5) then
         if (itask==4) write(*,*) "Choose the format for recording trajectory of optimization"
         if (itask==6.or.itask==14) write(*,*) "Choose the format for recording trajectory of molecular dynamics"
-        write(*,*) "1 xyz (Simplest. Does not contain cell information)"
-        write(*,*) "2 dcd (Binary file, smallest size. Containing cell information)"
-        write(*,*) "3 pdb (Containing cell information, but accuracy of coordinates is limited)"
+        write(*,*) " 1 xyz (Simplest. Does not contain cell information)"
+        write(*,*) " 2 dcd (Binary file, smallest size. Containing cell information)"
+        write(*,"(a)") " -2 dcd_aligned_cell (same as -2, but transform so that cell vector 1 is along X-axis, cell vector 2 is in XY plane)"
+        write(*,*) " 3 pdb (Containing cell information, but accuracy of coordinates is limited)"
         read(*,*) iMDformat
     else if (isel==-4) then
         write(*,*) "Printing which kind of atomic charge?"
@@ -709,19 +715,21 @@ do while(.true.)
     else if (isel==1) then !Functionals description: https://manual.cp2k.org/trunk/CP2K_INPUT/ATOM/METHOD/XC/XC_FUNCTIONAL.html
         !write(*,*) "-1 Molecular mechanism (MM)"
         write(*,*) "1 Pade (LDA)"
-        write(*,*) "2 PBE        -2 revPBE     -3 PBEsol"
-        write(*,*) "3 TPSS        4 BP86        5 BLYP"
-        write(*,*) "6 PBE0       -6 PBE0 with ADMM"
-        write(*,*) "7 B3LYP      -7 B3LYP with ADMM"
-        write(*,*) "8 HSE06      -8 HSE06 with ADMM"
-        write(*,*) "9 BEEF-vdW"
+        write(*,*) "2 PBE         -2 revPBE      -3 PBEsol"
+        write(*,*) "3 TPSS         4 BP86         5 BLYP"
+        write(*,*) "6 PBE0        -6 PBE0 with ADMM"
+        write(*,*) "7 B3LYP       -7 B3LYP with ADMM"
+        write(*,*) "8 HSE06       -8 HSE06 with ADMM"
+        write(*,*) "9 BHandHLYP   -9 BHandHLYP with ADMM"
+        write(*,*) "10 M06-2X    -10 M06-2X with ADMM"
         write(*,*) "11 B97M-rV (via LibXC)       12 MN15L (via LibXC)"
         write(*,*) "13 SCAN (via LibXC)          14 r2SCAN (via LibXC)"
         write(*,*) "15 RPBE (via LibXC)          16 revTPSS (via LibXC)"
-        write(*,*) "20 RI-MP2                    21 RI-SCS-MP2"
-        write(*,*) "22 RI-(EXX+RPA)@PBE          23 GW@PBE"
+        write(*,*) "17 BEEF-vdW"
+        write(*,*) "20 RI-MP2     21 RI-SCS-MP2    22 RI-(EXX+RPA)@PBE"
         write(*,*) "25 RI-B2PLYP  26 RI-B2GP-PLYP  27 RI-DSD-BLYP  28 RI-revDSD-PBEP86 with ADMM"
-        write(*,*) "30 GFN1-xTB      40 PM6      50 SCC-DFTB"
+        write(*,*) "30 GFN1-xTB   40 PM6           50 SCC-DFTB"
+        write(*,*) "60 GW@BHandHLYP with ADMM      61 GW@MN15L"
         read(*,*) isel2
         iwfc=0 !Do not involve wavefunction-based correlation
         iHFX=0 !Do not involve HF exchange
@@ -738,10 +746,10 @@ do while(.true.)
         if (isel2==-7) method="B3LYP_ADMM"
         if (isel2==8) method="HSE06"
         if (isel2==-8) method="HSE06_ADMM"
-        if (isel2==9) then
-            method="BEEFVDW"
-            idispcorr=0
-        end if
+        if (isel2==9) method="BHandHLYP"
+        if (isel2==-9) method="BHandHLYP_ADMM"
+        if (isel2==10) method="M06-2X"
+        if (isel2==-10) method="M06-2X_ADMM"
         if (isel2==11) then
             method="B97M-rV_LIBXC"
             idispcorr=5
@@ -751,22 +759,42 @@ do while(.true.)
         if (isel2==14) method="r2SCAN_LIBXC"
         if (isel2==15) method="RPBE_LIBXC"
         if (isel2==16) method="revTPSS_LIBXC"
-        if (isel2>=20.and.isel2<30) then !Involve wavefunction-based correlation
+        if (isel2==17) then
+            method="BEEFVDW"
+            idispcorr=0
+        end if
+        if ((isel2>=20.and.isel2<=29).or.(isel2>=60.and.isel2<=61)) then !Involve wavefunction-based correlation
             if (isel2==20) method="RI-MP2"
             if (isel2==21) method="RI-SCS-MP2"
             if (isel2==22) method="RI-(EXX+RPA)@PBE"
-            if (isel2==23) method="GW@PBE"
             if (isel2==25) method="RI-B2PLYP"
             if (isel2==26) method="RI-B2GP-PLYP"
             if (isel2==27) method="RI-DSD-BLYP"
             if (isel2==28) method="RI-revDSD-PBEP86_ADMM"
+            if (isel2>=60.and.isel2<=61) then
+                if (isel2==60) method="GW@BHandHLYP_ADMM"
+                if (isel2==61) method="GW@MN15L"
+                write(*,*) "Use which type of GW?"
+                write(*,*) "1 G0W0"
+                write(*,*) "2 evGW"
+                write(*,*) "3 scGW0"
+                read(*,*) itmp
+                niter_evGW=1
+                niter_scGW0=1
+                if (itmp==2) then
+                    niter_evGW=10
+                else if (itmp==3) then
+                    niter_scGW0=10
+                end if
+            end if
             iwfc=1
             if (ibas/=20) ibas=21 !Default to cc-TZ with RI_TZ
+            if (index(method,"GW")/=0) ibas=22 !Change to QZ level because slow basis set convergence feature of GW
         end if
         if (isel2==30) method="GFN1-xTB"
         if (isel2==40) method="PM6"
         if (isel2==50) method="SCC-DFTB"
-        if (isel2==-6.or.isel2==-7.or.isel2==-8.or.isel2==30.or.isel2==40.or.isel2==50) idiagOT=2 !When ADMM is used, OT must also be used. OT is suggested for GFN-xTB and PM6 dealing with large system
+        if (index(method,"ADMM")/=0.or.isel2==30.or.isel2==40.or.isel2==50) idiagOT=2 !When ADMM is used, OT must also be used. OT is suggested for GFN-xTB and PM6 dealing with large system
         if (isel2==40) imixing=1
         if (index(method,"SCAN")/=0) then
             write(*,"(a)") " NOTE: If you are using CP2K >=9.1, in the generated CP2K input file, it is suggested to replace &
@@ -777,9 +805,9 @@ do while(.true.)
             ""POTENTIAL_FILE_NAME  POTENTIAL"" with ""POTENTIAL_FILE_NAME  POTENTIAL_UZH"", and replace ""BASIS_SET_FILE_NAME  BASIS_MOLOPT"" with ""BASIS_SET_FILE_NAME  BASIS_MOLOPT_UZH"", &
             and manually specify proper GTH potential and corresponding valence basis set optimized for PBE0 calculation"
         end if
-        if (abs(isel2)==6.or.abs(isel2)==7.or.abs(isel2)==8.or.iwfc==1) then !Hybrid functionals and wavefunction-based correlation methods need HF exchange
+        if (abs(isel2)==6.or.abs(isel2)==7.or.abs(isel2)==8.or.abs(isel2)==9.or.abs(isel2)==10.or.iwfc==1) then !Hybrid functionals and wavefunction-based correlation methods need HF exchange
             iHFX=1
-            if (method=="RI-(EXX+RPA)@PBE".or.method=="GW@PBE") iHFX=0 !Based on PBE orbitals, HFX is not involved in SCF process
+            if (method=="RI-(EXX+RPA)@PBE".or.method=="GW@MN15L") iHFX=0 !Based on PBE orbitals, HFX is not involved in SCF process
         end if
         
     else if (isel==2) then !Select basis set
@@ -794,7 +822,7 @@ do while(.true.)
             read(*,*)
         else
             ibas=ibassel
-            if (ibas>=10.and.ibas<=14) then
+            if (ibas>=10.and.ibas<=15) then
                 iGAPW=1
             else
                 iGAPW=0
@@ -1061,62 +1089,112 @@ if (nrep1/=1.or.nrep2/=1.or.nrep3/=1) then !This is needed even not for classica
 end if
 
 !---- &CELL
+!A pseudo-cell cellv1/2/3_pseudo is the cell actually presented in the input file
+!According to PBCdir, the periodic direction will employ the original cell information loaded from input file,&
+!while other direction(s) employ system size plus vacuum size, and the vectors are parallel to the corresponding Cartesian axes
+cellv1_pseudo=cellv1
+cellv2_pseudo=cellv2
+cellv3_pseudo=cellv3
+xdist=(maxval(a%x)-minval(a%x)+2*vacsizex) !Extended size in X
+ydist=(maxval(a%y)-minval(a%y)+2*vacsizey)
+zdist=(maxval(a%z)-minval(a%z)+2*vacsizez)
 write(ifileid,"(a)") "    &CELL"
-if (ifPBC==3.and.PBCdir=="XYZ") then !Real 3D system and request calculation as 3D periodicity, use original cell vectors
-    write(ifileid,"(a,3f15.8)") "      A",cellv1(:)*b2a
-    write(ifileid,"(a,3f15.8)") "      B",cellv2(:)*b2a
-    write(ifileid,"(a,3f15.8)") "      C",cellv3(:)*b2a
-    write(ifileid,"(a)") "      PERIODIC "//trim(PBCdir)//" #Direction of applied PBC (geometry aspect)"
-else !Low-dimensional case, allow to set vacuum size. Periodic directions employ original cell vectors, while other direction(s) employ actual size with vacuum size, and they are parallel to the Cartesian axes
-    !Get extended size (system+vacuum) in X,Y,Z w.r.t boundary atoms
-    xdist=(maxval(a%x)-minval(a%x)+2*vacsizex)*b2a
-    ydist=(maxval(a%y)-minval(a%y)+2*vacsizey)*b2a
-    zdist=(maxval(a%z)-minval(a%z)+2*vacsizez)*b2a
-    if (PBCdir=="NONE") then
-        if (iPSOLVER==4) then !WAVELET, needs cubic box
-            tmp=max(max(xdist,ydist),zdist)
-            write(ifileid,"(a,3f10.3)") "      ABC",tmp,tmp,tmp
-        else
-            write(ifileid,"(a,3f10.3)") "      ABC",xdist,ydist,zdist
-        end if
+if (PBCdir=="NONE") then
+    if (iPSOLVER==4) then !WAVELET, needs cubic box
+        tmp=max(max(xdist,ydist),zdist)
+        cellv1_pseudo(:)=(/ tmp,0D0,0D0 /)
+        cellv2_pseudo(:)=(/ 0D0,tmp,0D0 /)
+        cellv3_pseudo(:)=(/ 0D0,0D0,tmp /)
     else
-        if (PBCdir=="X") then
-            write(ifileid,"(a,3f15.8)") "      A",cellv1(:)*b2a
-            write(ifileid,"(a,3f15.8)") "      B",0D0,ydist,0D0
-            write(ifileid,"(a,3f15.8)") "      C",0D0,0D0,zdist
-        else if (PBCdir=="Y") then
-            write(ifileid,"(a,3f15.8)") "      A",xdist,0D0,0D0
-            write(ifileid,"(a,3f15.8)") "      B",cellv2(:)*b2a
-            write(ifileid,"(a,3f15.8)") "      C",0D0,0D0,zdist
-        else if (PBCdir=="Z") then
-            write(ifileid,"(a,3f15.8)") "      A",xdist,0D0,0D0
-            write(ifileid,"(a,3f15.8)") "      B",0D0,ydist,0D0
-            write(ifileid,"(a,3f15.8)") "      C",cellv3(:)*b2a
-        else if (PBCdir=="XY") then
-            write(ifileid,"(a,3f15.8)") "      A",cellv1(:)*b2a
-            write(ifileid,"(a,3f15.8)") "      B",cellv2(:)*b2a
-            write(ifileid,"(a,3f15.8)") "      C",0D0,0D0,zdist
-        else if (PBCdir=="XZ") then
-            write(ifileid,"(a,3f15.8)") "      A",cellv1(:)*b2a
-            write(ifileid,"(a,3f15.8)") "      B",0D0,ydist,0D0
-            write(ifileid,"(a,3f15.8)") "      C",cellv3(:)*b2a
-        else if (PBCdir=="YZ") then
-            write(ifileid,"(a,3f15.8)") "      A",xdist,0D0,0D0
-            write(ifileid,"(a,3f15.8)") "      B",cellv2(:)*b2a
-            write(ifileid,"(a,3f15.8)") "      C",cellv3(:)*b2a
-        else if (PBCdir=="XYZ") then
-            write(ifileid,"(a,3f15.8)") "      A",xdist,0D0,0D0
-            write(ifileid,"(a,3f15.8)") "      B",0D0,ydist,0D0
-            write(ifileid,"(a,3f15.8)") "      C",0D0,0D0,zdist
-        end if
+        cellv1_pseudo(:)=(/ xdist,0D0,0D0 /)
+        cellv2_pseudo(:)=(/ 0D0,ydist,0D0 /)
+        cellv3_pseudo(:)=(/ 0D0,0D0,zdist /)
     end if
-    if (iPSOLVER==1) then
-        write(ifileid,"(a)") "      PERIODIC XYZ #Direction(s) of applied PBC (geometry aspect)"
-        write(*,"(a)") " Note: PERIODIC in the generated input file is changed to XYZ since current PSOLVER is PERIODIC"
-    else
-        write(ifileid,"(a)") "      PERIODIC "//trim(PBCdir)//" #Direction(s) of applied PBC (geometry aspect)"
+else if (PBCdir=="X") then
+    cellv2_pseudo(:)=(/ 0D0,ydist,0D0 /)
+    cellv3_pseudo(:)=(/ 0D0,0D0,zdist /)
+else if (PBCdir=="Y") then
+    cellv1_pseudo(:)=(/ xdist,0D0,0D0 /)
+    cellv3_pseudo(:)=(/ 0D0,0D0,zdist /)
+else if (PBCdir=="Z") then
+    cellv1_pseudo(:)=(/ xdist,0D0,0D0 /)
+    cellv2_pseudo(:)=(/ 0D0,ydist,0D0 /)
+else if (PBCdir=="XY") then
+    cellv3_pseudo(:)=(/ 0D0,0D0,zdist /)
+else if (PBCdir=="XZ") then
+    cellv2_pseudo(:)=(/ 0D0,ydist,0D0 /)
+else if (PBCdir=="YZ") then
+    cellv1_pseudo(:)=(/ xdist,0D0,0D0 /)
+else if (PBCdir=="XYZ") then
+    !When ifPBC==3, namely the inputted file provides cellv1/2/3, it will be directly used
+    !while if the loaded system is nonperiodic while we request to use XYZ periodicity to calculate, then employ extended sizes
+    if (ifPBC/=3) then
+        cellv1_pseudo(:)=(/ xdist,0D0,0D0 /)
+        cellv2_pseudo(:)=(/ 0D0,ydist,0D0 /)
+        cellv3_pseudo(:)=(/ 0D0,0D0,zdist /)
     end if
 end if
+write(ifileid,"(a,3f15.8)") "      A",cellv1_pseudo(:)*b2a
+write(ifileid,"(a,3f15.8)") "      B",cellv2_pseudo(:)*b2a
+write(ifileid,"(a,3f15.8)") "      C",cellv3_pseudo(:)*b2a
+if (iPSOLVER==1) then !PSOLVER PERIODIC forces to use XYZ periodicity
+    write(ifileid,"(a)") "      PERIODIC XYZ #Direction(s) of applied PBC (geometry aspect)"
+    if (PBCdir/="XYZ") write(*,"(a)") " Note: PERIODIC in the generated input file is changed to XYZ since current PSOLVER is PERIODIC"
+else
+    write(ifileid,"(a)") "      PERIODIC "//trim(PBCdir)//" #Direction(s) of applied PBC (geometry aspect)"
+end if
+
+!if (ifPBC==3.and.PBCdir=="XYZ") then !Real 3D system and request calculation as 3D periodicity, use original cell vectors
+!    write(ifileid,"(a,3f15.8)") "      A",cellv1(:)*b2a
+!    write(ifileid,"(a,3f15.8)") "      B",cellv2(:)*b2a
+!    write(ifileid,"(a,3f15.8)") "      C",cellv3(:)*b2a
+!    write(ifileid,"(a)") "      PERIODIC "//trim(PBCdir)//" #Direction of applied PBC (geometry aspect)"
+!else !Low-dimensional case, allow to set vacuum size
+!    if (PBCdir=="NONE") then
+!        if (iPSOLVER==4) then !WAVELET, needs cubic box
+!            tmp=max(max(xdist,ydist),zdist)
+!            write(ifileid,"(a,3f10.3)") "      ABC",tmp,tmp,tmp
+!        else
+!            write(ifileid,"(a,3f10.3)") "      ABC",xdist,ydist,zdist
+!        end if
+!    else
+!        if (PBCdir=="X") then
+!            write(ifileid,"(a,3f15.8)") "      A",cellv1(:)*b2a
+!            write(ifileid,"(a,3f15.8)") "      B",0D0,ydist,0D0
+!            write(ifileid,"(a,3f15.8)") "      C",0D0,0D0,zdist
+!        else if (PBCdir=="Y") then
+!            write(ifileid,"(a,3f15.8)") "      A",xdist,0D0,0D0
+!            write(ifileid,"(a,3f15.8)") "      B",cellv2(:)*b2a
+!            write(ifileid,"(a,3f15.8)") "      C",0D0,0D0,zdist
+!        else if (PBCdir=="Z") then
+!            write(ifileid,"(a,3f15.8)") "      A",xdist,0D0,0D0
+!            write(ifileid,"(a,3f15.8)") "      B",0D0,ydist,0D0
+!            write(ifileid,"(a,3f15.8)") "      C",cellv3(:)*b2a
+!        else if (PBCdir=="XY") then
+!            write(ifileid,"(a,3f15.8)") "      A",cellv1(:)*b2a
+!            write(ifileid,"(a,3f15.8)") "      B",cellv2(:)*b2a
+!            write(ifileid,"(a,3f15.8)") "      C",0D0,0D0,zdist
+!        else if (PBCdir=="XZ") then
+!            write(ifileid,"(a,3f15.8)") "      A",cellv1(:)*b2a
+!            write(ifileid,"(a,3f15.8)") "      B",0D0,ydist,0D0
+!            write(ifileid,"(a,3f15.8)") "      C",cellv3(:)*b2a
+!        else if (PBCdir=="YZ") then
+!            write(ifileid,"(a,3f15.8)") "      A",xdist,0D0,0D0
+!            write(ifileid,"(a,3f15.8)") "      B",cellv2(:)*b2a
+!            write(ifileid,"(a,3f15.8)") "      C",cellv3(:)*b2a
+!        else if (PBCdir=="XYZ") then
+!            write(ifileid,"(a,3f15.8)") "      A",xdist,0D0,0D0
+!            write(ifileid,"(a,3f15.8)") "      B",0D0,ydist,0D0
+!            write(ifileid,"(a,3f15.8)") "      C",0D0,0D0,zdist
+!        end if
+!    end if
+!    if (iPSOLVER==1) then
+!        write(ifileid,"(a)") "      PERIODIC XYZ #Direction(s) of applied PBC (geometry aspect)"
+!        write(*,"(a)") " Note: PERIODIC in the generated input file is changed to XYZ since current PSOLVER is PERIODIC"
+!    else
+!        write(ifileid,"(a)") "      PERIODIC "//trim(PBCdir)//" #Direction(s) of applied PBC (geometry aspect)"
+!    end if
+!end if
 if (nrep1/=1.or.nrep2/=1.or.nrep3/=1) write(ifileid,"(a,3i3)") "      MULTIPLE_UNIT_CELL",nrep1,nrep2,nrep3
 write(ifileid,"(a)") "    &END CELL"
 if (icentering==1) then
@@ -1150,12 +1228,18 @@ if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") then !Semi-empi
                 write(ifileid,"(a)") "    &KIND "//trim(kindname(ikind))//"_ghost"
             end if
             write(ifileid,"(a)") "      ELEMENT "//ind2name(kindeleidx(ikind))
-            if (ibas==20) then
+            if (ibas==19) then
+                write(ifileid,"(a)") "      BASIS_SET def2-QZVP"
+                write(ifileid,"(a)") "      BASIS_SET RI_AUX RI-5Z"
+            else if (ibas==20) then
                 write(ifileid,"(a)") "      BASIS_SET cc-DZ"
                 write(ifileid,"(a)") "      BASIS_SET RI_AUX RI_DZ"
             else if (ibas==21) then
                 write(ifileid,"(a)") "      BASIS_SET cc-TZ"
                 write(ifileid,"(a)") "      BASIS_SET RI_AUX RI_TZ"
+            else if (ibas==22) then
+                write(ifileid,"(a)") "      BASIS_SET cc-QZ"
+                write(ifileid,"(a)") "      BASIS_SET RI_AUX RI_QZ"
             else
                 if ((ibas>=-6.and.ibas<=-1).or.(ibas>=1.and.ibas<=5)) then
                     write(c80tmp,"(i3)") Nval(kindeleidx(ikind))
@@ -1224,6 +1308,8 @@ if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  EMSL_BASIS_SETS"
     else if (ibas==13) then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_pob"
+    else if (ibas==19) then
+        write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_def2_QZVP_RI_ALL"
     else if (ibas==20.or.ibas==21) then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_RI_cc-TZ"
     end if
@@ -1361,20 +1447,20 @@ if (method=="PM6") then !Special for semi-empirical
     write(ifileid,"(a)") "        &END MULTIPOLES"
     write(ifileid,"(a)") "        EWALD_TYPE EWALD"
     !write(ifileid,"(a)") "        ALPHA  0.5" !See e.g. https://github.com/misteliy/cp2k/blob/master/tests/SE/regtest-3/Al2O3.inp
-    ngmax1=nint(cellv1(1)*nrep1*b2a) !Make gmax approximately 1 pt/Angstrom in each direction
+    ngmax1=nint(cellv1_pseudo(1)*nrep1*b2a) !Make gmax approximately 1 pt/Angstrom in each direction
     if (mod(ngmax1,2)==0) ngmax1=ngmax1+1 !Must be odd number
-    ngmax2=nint(cellv2(2)*nrep2*b2a)
+    ngmax2=nint(cellv2_pseudo(2)*nrep2*b2a)
     if (mod(ngmax2,2)==0) ngmax2=ngmax2+1 !Must be odd number
-    ngmax3=nint(cellv3(3)*nrep3*b2a)
+    ngmax3=nint(cellv3_pseudo(3)*nrep3*b2a)
     if (mod(ngmax3,2)==0) ngmax3=ngmax3+1
     write(ifileid,"(a,3i4)") "        GMAX",ngmax1,ngmax2,ngmax3
     write(ifileid,"(a)") "      &END EWALD"
 else if (method=="SCC-DFTB") then !Special for DFTB
     write(ifileid,"(a)") "      &EWALD"
     write(ifileid,"(a)") "        EWALD_TYPE SPME"
-    ngmax1=2*nint(cellv1(1)*nrep1*b2a) !Make gmax approximately 1 pt/Angstrom in each direction
-    ngmax2=2*nint(cellv2(2)*nrep2*b2a)
-    ngmax3=2*nint(cellv3(3)*nrep3*b2a)
+    ngmax1=2*nint(cellv1_pseudo(1)*nrep1*b2a) !Make gmax approximately 1 pt/Angstrom in each direction
+    ngmax2=2*nint(cellv2_pseudo(2)*nrep2*b2a)
+    ngmax3=2*nint(cellv3_pseudo(3)*nrep3*b2a)
     write(ifileid,"(a,3i4)") "        GMAX",ngmax1,ngmax2,ngmax3
     write(ifileid,"(a)") "      &END EWALD"
 else !Common case
@@ -1400,7 +1486,7 @@ if (index(method,"ADMM")/=0) then !Use ADMM
     end if
     if (iTDDFT==1.and.index(method,"_ADMM")/=0) then !Needed otherwise cannot run. Suggested by https://www.cp2k.org/howto:tddft
         write(ifileid,"(a)") "      EXCH_SCALING_MODEL NONE"
-        if (method=="B3LYP_ADMM") then
+        if (method=="B3LYP_ADMM".or.method=="BHandHLYP_ADMM") then
             write(ifileid,"(a)") "      EXCH_CORRECTION_FUNC BECKE88X"
         else
             write(ifileid,"(a)") "      EXCH_CORRECTION_FUNC PBEX"
@@ -1449,28 +1535,47 @@ if (index(method,"LIBXC")/=0) then
 else if (method=="GFN1-xTB".or.method=="PM6".or.method=="SCC-DFTB") then
     continue
 else if (index(method,"PBE0")/=0) then
-        write(ifileid,"(a)") "      &XC_FUNCTIONAL"
-        write(ifileid,"(a)") "        &PBE"
-        write(ifileid,"(a)") "          SCALE_X 0.75"
-        write(ifileid,"(a)") "          SCALE_C 1.0"
-        write(ifileid,"(a)") "        &END PBE"
-        write(ifileid,"(a)") "      &END XC_FUNCTIONAL"
+    write(ifileid,"(a)") "      &XC_FUNCTIONAL"
+    write(ifileid,"(a)") "        &PBE"
+    write(ifileid,"(a)") "          SCALE_X 0.75"
+    write(ifileid,"(a)") "          SCALE_C 1.0"
+    write(ifileid,"(a)") "        &END PBE"
+    write(ifileid,"(a)") "      &END XC_FUNCTIONAL"
 else if (index(method,"B3LYP")/=0) then
-        write(ifileid,"(a)") "      &XC_FUNCTIONAL"
-        write(ifileid,"(a)") "        &LYP"
-        write(ifileid,"(a)") "          SCALE_C 0.81"
-        write(ifileid,"(a)") "        &END"
-        write(ifileid,"(a)") "        &BECKE88"
-        write(ifileid,"(a)") "          SCALE_X 0.72"
-        write(ifileid,"(a)") "        &END"
-        write(ifileid,"(a)") "        &VWN"
-        write(ifileid,"(a)") "          FUNCTIONAL_TYPE VWN3 #Gaussian's B3LYP definition"
-        write(ifileid,"(a)") "          SCALE_C 0.19"
-        write(ifileid,"(a)") "        &END"
-        write(ifileid,"(a)") "        &XALPHA"
-        write(ifileid,"(a)") "          SCALE_X 0.08"
-        write(ifileid,"(a)") "        &END"
-        write(ifileid,"(a)") "      &END XC_FUNCTIONAL"
+    write(ifileid,"(a)") "      &XC_FUNCTIONAL"
+    write(ifileid,"(a)") "        &LYP"
+    write(ifileid,"(a)") "          SCALE_C 0.81"
+    write(ifileid,"(a)") "        &END"
+    write(ifileid,"(a)") "        &BECKE88"
+    write(ifileid,"(a)") "          SCALE_X 0.72"
+    write(ifileid,"(a)") "        &END"
+    write(ifileid,"(a)") "        &VWN"
+    write(ifileid,"(a)") "          FUNCTIONAL_TYPE VWN3 #Gaussian's B3LYP definition"
+    write(ifileid,"(a)") "          SCALE_C 0.19"
+    write(ifileid,"(a)") "        &END"
+    write(ifileid,"(a)") "        &XALPHA"
+    write(ifileid,"(a)") "          SCALE_X 0.08"
+    write(ifileid,"(a)") "        &END"
+    write(ifileid,"(a)") "      &END XC_FUNCTIONAL"
+else if (index(method,"BHandHLYP")/=0) then !Including case of GW@BHandHLYP_ADMM
+    write(ifileid,"(a)") "      &XC_FUNCTIONAL"
+    write(ifileid,"(a)") "        &HYB_GGA_XC_BHANDHLYP"
+    write(ifileid,"(a)") "        &END HYB_GGA_XC_BHANDHLYP"
+    write(ifileid,"(a)") "      &END XC_FUNCTIONAL"
+else if (index(method,"GW@MN15L")/=0) then
+    write(ifileid,"(a)") "      &XC_FUNCTIONAL"
+    write(ifileid,"(a)") "        &MGGA_X_MN15_L"
+    write(ifileid,"(a)") "        &END MGGA_X_MN15_L"
+    write(ifileid,"(a)") "        &MGGA_C_MN15_L"
+    write(ifileid,"(a)") "        &END MGGA_C_MN15_L"
+    write(ifileid,"(a)") "      &END XC_FUNCTIONAL"
+else if (index(method,"M06-2X")/=0) then
+    write(ifileid,"(a)") "      &XC_FUNCTIONAL"
+    write(ifileid,"(a)") "        &HYB_MGGA_X_M06_2X"
+    write(ifileid,"(a)") "        &END HYB_MGGA_X_M06_2X"
+    write(ifileid,"(a)") "        &MGGA_C_M06_2X"
+    write(ifileid,"(a)") "        &END MGGA_C_M06_2X"
+    write(ifileid,"(a)") "      &END XC_FUNCTIONAL"
 else if (method=="revPBE".or.method=="PBEsol") then
     write(ifileid,"(a)") "      &XC_FUNCTIONAL PBE"
     write(ifileid,"(a)") "        &PBE"
@@ -1493,7 +1598,7 @@ else if (index(method,"HSE")/=0) then
 else if (index(method,"MP2")/=0) then
     write(ifileid,"(a)") "      &XC_FUNCTIONAL NONE"
     write(ifileid,"(a)") "      &END XC_FUNCTIONAL"
-else if (method=="RI-(EXX+RPA)@PBE".or.method=="GW@PBE") then
+else if (method=="RI-(EXX+RPA)@PBE") then
     write(ifileid,"(a)") "      &XC_FUNCTIONAL PBE"
     write(ifileid,"(a)") "      &END XC_FUNCTIONAL"
 else if (index(method,"B2PLYP")/=0) then
@@ -1536,11 +1641,27 @@ else !Common native GGA functionals
     write(ifileid,"(a)") "      &XC_FUNCTIONAL "//trim(method)
     write(ifileid,"(a)") "      &END XC_FUNCTIONAL"
 end if
+
+!Coulomb truncation radius (CUTOFF_RADIUS) may be used later, now calculate (recorded in Angstrom!)
+!Set it to 1/2.01 of shortest Cartesian length for small cell
+cellv1_tmp=cellv1;cellv2_tmp=cellv2;cellv3_tmp=cellv3
+i1=ifdoPBCx; i2=ifdoPBCy; i3=ifdoPBCz
+cellv1=cellv1_pseudo*nrep1
+cellv2=cellv2_pseudo*nrep2
+cellv3=cellv3_pseudo*nrep3
+ifdoPBCx=1;ifdoPBCy=1;ifdoPBCz=1
+call cellxyzsize(xsize,ysize,zsize)
+trunc_rad=min(min(xsize,ysize),zsize)*b2a/2.01D0
+ifdoPBCx=i1; ifdoPBCy=i2; ifdoPBCz=i3
+cellv1=cellv1_tmp;cellv2=cellv2_tmp;cellv3=cellv3_tmp
+
 !HF part for hybrid functionals
 if (iHFX==1) then !HFX potential
     write(ifileid,"(a)") "      &HF"
     if (index(method,"PBE0")/=0.or.index(method,"HSE")/=0) write(ifileid,"(a)") "        FRACTION 0.25 #HF composition"
     if (index(method,"B3LYP")/=0) write(ifileid,"(a)") "        FRACTION 0.2 #HF composition"
+    if (index(method,"BHandHLYP")/=0) write(ifileid,"(a)") "        FRACTION 0.5 #HF composition"
+    if (index(method,"M06-2X")/=0) write(ifileid,"(a)") "        FRACTION 0.54 #HF composition"
     if (index(method,"MP2")/=0) write(ifileid,"(a)") "        FRACTION 1.0 #HF composition"
     if (index(method,"B2PLYP")/=0) write(ifileid,"(a)") "        FRACTION 0.53 #HF composition"
     if (index(method,"B2GP-PLYP")/=0) write(ifileid,"(a)") "        FRACTION 0.65 #HF composition"
@@ -1560,22 +1681,13 @@ if (iHFX==1) then !HFX potential
         write(ifileid,"(a)") "          OMEGA 0.11"
         write(ifileid,"(a)") "        &END INTERACTION_POTENTIAL"
     else
-        if (ifPBC/=0) then !PBC system needs Coulomb truncation for common hybrid functionals
+        if (PBCdir/="NONE") then !PBC system needs Coulomb truncation for common hybrid functionals. By default the Coulomb interaction is not truncated
             write(ifileid,"(a)") "        &INTERACTION_POTENTIAL"
             write(ifileid,"(a)") "          POTENTIAL_TYPE TRUNCATED"
-            !Set CUTOFF_RADIUS to 1/2.01 of shortest Cartesian length for small cell
-            cellv1=cellv1*nrep1
-            cellv2=cellv2*nrep2
-            cellv3=cellv3*nrep3
-            call cellxyzsize(xsize,ysize,zsize)
-            trunc_rad=min(min(xsize,ysize),zsize)*b2a/2.01D0
-            cellv1=cellv1/nrep1
-            cellv2=cellv2/nrep2
-            cellv3=cellv3/nrep3
             if (trunc_rad>6) then !If half of shortest box length is larger than 6 Angstrom, simply use 6, this is usually adequate
-                write(ifileid,"(a,f8.4)") "          CUTOFF_RADIUS 6.0 #Cutoff radius for truncated 1/r Coulomb operator"
+                write(ifileid,"(a,f8.4)") "          CUTOFF_RADIUS 6.0 #Cutoff radius (Angstrom) for truncated 1/r Coulomb operator"
             else
-                write(ifileid,"(a,f8.4,a)") "          CUTOFF_RADIUS",trunc_rad," #Cutoff radius for truncated 1/r Coulomb operator"
+                write(ifileid,"(a,f8.4,a)") "          CUTOFF_RADIUS",trunc_rad," #Cutoff radius (Angstrom) for truncated 1/r Coulomb operator"
             end if
             write(ifileid,"(a)") "        &END INTERACTION_POTENTIAL"
         end if
@@ -1591,10 +1703,14 @@ end if
 !Wavefunction-based correlation part
 if (iwfc==1) then
     write(ifileid,"(a)") "      &WF_CORRELATION"
-    if (method=="RI-(EXX+RPA)@PBE") then
+    if (method=="RI-(EXX+RPA)@PBE".or.index(method,"GW")/=0) then
         write(ifileid,"(a)") "        &RI_RPA"
-        write(ifileid,"(a)") "          QUADRATURE_POINTS  10  #Number of quadrature points for the numerical integration in the RI-RPA method"
-        write(ifileid,"(a)") "          MINIMAX  #Use Minimax quadrature scheme for performing the numerical integration"
+        if (index(method,"GW")/=0) then
+            write(ifileid,"(a)") "          QUADRATURE_POINTS  60  #Number of quadrature points for the numerical integration in the GW"
+        else
+            write(ifileid,"(a)") "          QUADRATURE_POINTS  10  #Number of quadrature points for the numerical integration in the RI-RPA method"
+            write(ifileid,"(a)") "          MINIMAX  #Use Minimax quadrature scheme for performing the numerical integration"
+        end if
         write(ifileid,"(a)") "          &HF"
         write(ifileid,"(a)") "            FRACTION 1.0"
         write(ifileid,"(a)") "            &SCREENING"
@@ -1603,22 +1719,32 @@ if (iwfc==1) then
         if (ifPBC/=0) then !PBC system needs Coulomb truncation for evaluating HF exchange of RPA energy
             write(ifileid,"(a)") "            &INTERACTION_POTENTIAL"
             write(ifileid,"(a)") "              POTENTIAL_TYPE TRUNCATED"
-            !Set CUTOFF_RADIUS to 1/2.01 of shortest Cartesian length for small cell
-            cellv1=cellv1*nrep1;cellv2=cellv2*nrep2;cellv3=cellv3*nrep3
-            call cellxyzsize(xsize,ysize,zsize)
-            trunc_rad=min(min(xsize,ysize),zsize)*b2a/2.01D0
-            cellv1=cellv1/nrep1;cellv2=cellv2/nrep2;cellv3=cellv3/nrep3
             if (trunc_rad>6) then !If half of shortest box length is larger than 6 Angstrom, simply use 6, this is usually adequate
-                write(ifileid,"(a,f8.4)") "              CUTOFF_RADIUS 6.0 #Cutoff radius for truncated 1/r Coulomb operator"
+                write(ifileid,"(a,f8.4)") "              CUTOFF_RADIUS 6.0 #Cutoff radius (Angstrom) for truncated 1/r Coulomb operator"
             else
-                write(ifileid,"(a,f8.4,a)") "              CUTOFF_RADIUS",trunc_rad," #Cutoff radius for truncated 1/r Coulomb operator"
+                write(ifileid,"(a,f8.4,a)") "              CUTOFF_RADIUS",trunc_rad," #Cutoff radius (Angstrom) for truncated 1/r Coulomb operator"
             end if
             write(ifileid,"(a)") "            &END INTERACTION_POTENTIAL"
         end if
         write(ifileid,"(a)") "          &END HF"
+        if (index(method,"GW")/=0) then !Set GW
+            write(ifileid,"(a)") "          &GW"
+            write(ifileid,"(a)") "            CORR_MOS_OCC   5  #Number of occupied MOs whose energies are to be corrected"
+            write(ifileid,"(a)") "            CORR_MOS_VIRT  5  #Number of virtual MOs whose energies are to be corrected"
+            !write(ifileid,"(a)") "            ANALYTIC_CONTINUATION PADE  #Type of analytic continuation for the self energy to be used"
+            !write(ifileid,"(a)") "            NUMB_POLES            2"
+            !write(ifileid,"(a)") "            CROSSING_SEARCH       Z_SHOT"
+            !write(ifileid,"(a)") "            FERMI_LEVEL_OFFSET    2.0E-2"
+            write(ifileid,"(a,i3,a)") "            EV_GW_ITER",niter_evGW,"  #Maximum number of iterations for eigenvalue self-consistency of evGW"
+            write(ifileid,"(a,i3,a)") "            SC_GW0_ITER",niter_scGW0,"   #Maximum number of iterations for GW0 self-consistency of scGW0"
+            write(ifileid,"(a)") "            UPDATE_XC_ENERGY T  #If total energy will be corrected using exact exchange and the RPA correlation energy"
+            write(ifileid,"(a)") "            RI_SIGMA_X T  #If exchange self-energy will be calculated approximatively with RI"
+            if (PBCdir=="XYZ") write(ifileid,"(a)") "            PERIODIC_CORRECTION F  #If periodic correction scheme will be used"
+            if (ikpoint1>1.or.ikpoint2>1.or.ikpoint3>1) write(ifileid,"(a,3i3,a)") "           KPOINTS_SELF_ENERGY",ikpoint1,ikpoint2,ikpoint3,"  #Number of k-points for self-energy"
+            write(ifileid,"(a)") "          &END GW"
+            write(ifileid,"(a)") "          SIZE_FREQ_INTEG_GROUP  1  #Number of processes for computing each integration point, must be multiple of GROUP_SIZE in &WF_CORRELATION"
+        end if
         write(ifileid,"(a)") "        &END RI_RPA"
-    else if (method=="GW@PBE") then
-        
     else !Other case, all involve MP2
         write(ifileid,"(a)") "        &RI_MP2"
         write(ifileid,"(a)") "        &END RI_MP2"
@@ -2114,6 +2240,18 @@ if (itask==9.or.itask==10.or.iTDDFT==1) then !NMR, polar, TDDFT
             else if (index(method,"B3LYP")/=0) then
                 write(ifileid,"(a)") "        &XC_FUNCTIONAL B3LYP"
                 write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
+            else if (index(method,"BHandHLYP")/=0) then
+                write(ifileid,"(a)") "        &XC_FUNCTIONAL"
+                write(ifileid,"(a)") "          &HYB_GGA_XC_BHANDHLYP"
+                write(ifileid,"(a)") "          &END HYB_GGA_XC_BHANDHLYP"
+                write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
+            else if (index(method,"M06-2X")/=0) then
+                write(ifileid,"(a)") "        &XC_FUNCTIONAL"
+                write(ifileid,"(a)") "          &HYB_MGGA_X_M06_2X"
+                write(ifileid,"(a)") "          &END HYB_MGGA_X_M06_2X"
+                write(ifileid,"(a)") "          &MGGA_C_M06_2X"
+                write(ifileid,"(a)") "          &END MGGA_C_M06_2X"
+                write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
             else if (method=="revPBE".or.method=="PBEsol") then
                 write(ifileid,"(a)") "        &XC_FUNCTIONAL PBE"
                 write(ifileid,"(a)") "          &PBE"
@@ -2422,6 +2560,7 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
         write(ifileid,"(a)") "    &TRAJECTORY"
         if (iMDformat==1) write(ifileid,"(a)") "      FORMAT xyz"
         if (iMDformat==2) write(ifileid,"(a)") "      FORMAT dcd"
+        if (iMDformat==-2) write(ifileid,"(a)") "      FORMAT DCD_ALIGNED_CELL"
         if (iMDformat==3) write(ifileid,"(a)") "      FORMAT pdb"
         write(ifileid,"(a)") "    &END TRAJECTORY"
     else if (itask==6.or.itask==14) then !MD or PIMD
@@ -2432,6 +2571,7 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
         write(ifileid,"(a)") "      &END EACH"
         if (iMDformat==1) write(ifileid,"(a)") "      FORMAT xyz"
         if (iMDformat==2) write(ifileid,"(a)") "      FORMAT dcd"
+        if (iMDformat==-2) write(ifileid,"(a)") "      FORMAT DCD_ALIGNED_CELL"
         if (iMDformat==3) write(ifileid,"(a)") "      FORMAT pdb"
         write(ifileid,"(a)") "    &END TRAJECTORY"
         write(ifileid,"(a)") "    &VELOCITIES"

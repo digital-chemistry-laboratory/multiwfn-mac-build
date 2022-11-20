@@ -39,6 +39,7 @@ do while(.true.)
 	if (allocated(b)) write(*,*) "9 Calculate atom and fragment contributions by Becke method"
 	if (allocated(b)) write(*,*) "10 Calculate atom and fragment contributions by Hirshfeld-I method"
 	if (allocated(b)) write(*,*) "11 Calculate atom and fragment contributions by AIM method"
+    write(*,*) "99 Calculate orbital delocalization index (ODI) based on orbital density"
 	if (allocated(CObasa)) write(*,*) "100 Evaluate oxidation state by LOBA method"
 	read(*,*) icompana
 
@@ -82,6 +83,8 @@ do while(.true.)
         see Section 4.8.6 of Multiwfn manual for example"
         write(*,*) "Press ENTER button to continue"
         read(*,*)
+	else if (icompana==99) then
+        call ODI_dens
 	else if (icompana==100) then
 		call LOBA
 	end if
@@ -1594,4 +1597,102 @@ do imo=1,nmo
 		end do
 	end if
 end do
+end subroutine
+
+
+
+
+!!----------- Calculate orbital delocalization index (ODI) based on orbital density
+subroutine ODI_dens
+use defvar
+use util
+use functions
+implicit real*8 (a-h,o-z)
+character c2000tmp*2000
+integer,allocatable :: tmparr(:)
+real*8,allocatable :: ODIarr(:),densarr(:,:)
+real*8 beckeweigrid(radpot*sphpot),wfnval(nmo)
+type(content) gridatmorg(radpot*sphpot),gridatm(radpot*sphpot)
+
+if (ifPBC/=0) then
+    write(*,*) "Error: PBC has not been supported by this function yet!"
+    return
+end if
+
+write(*,*)
+if (allocated(b)) icalctype=1 !Calculate based on wavefunction
+if (allocated(cubmat)) icalctype=2 !Calculate based on orbital density
+if (allocated(b).and.allocated(cubmat)) then
+    write(*,*) "How to calculate orbital delocalization index?"
+    write(*,*) "1 Calculate based on the orbital density derived from orbital wavefunctions"
+    write(*,*) "2 Calculate based on the grid data in memory"
+    read(*,*) icalctype
+end if
+
+expfac=2D0
+
+if (icalctype==1) then
+    write(*,*) "Input indices of the orbitals to calculate ODI, e.g. 2,3,7-10"
+    read(*,"(a)") c2000tmp
+    call str2arr(c2000tmp,ntmp)
+    allocate(tmparr(ntmp),ODIarr(ntmp))
+    call str2arr(c2000tmp,ntmp,tmparr)
+    
+    if (iautointgrid==1) then
+        nradpotold=radpot
+        nsphpotold=sphpot
+        radcutold=radcut
+        radpot=30
+        sphpot=302
+        radcut=15
+    end if
+    allocate(densarr(nmo,radpot*sphpot))
+    write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
+    call gen1cintgrid(gridatmorg,iradcut)
+    call walltime(iwalltime1)
+    densarr=0
+    do iatm=1,ncenter
+	    write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
+	    gridatm%x=gridatmorg%x+a(iatm)%x
+	    gridatm%y=gridatmorg%y+a(iatm)%y
+	    gridatm%z=gridatmorg%z+a(iatm)%z
+	    !$OMP parallel do shared(densarr) private(ipt,wfnval) num_threads(nthreads)
+	    do ipt=1+iradcut*sphpot,radpot*sphpot
+            call orbderv(1,1,nmo,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,wfnval(:))
+		    densarr(:,ipt)=wfnval(:)**2
+	    end do
+	    !$OMP end parallel do
+	    call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid,covr_tianlu,3)
+	    do ipt=1+iradcut*sphpot,radpot*sphpot
+		    ODIarr(:)=ODIarr(:)+densarr(:,ipt)**expfac *gridatmorg(ipt)%value*beckeweigrid(ipt)
+	    end do
+    end do
+    ODIarr(:)=100*dsqrt(ODIarr(:))
+    call walltime(iwalltime2)
+    write(*,"(' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
+    write(*,*)
+    do itmp=1,ntmp
+        iorb=tmparr(itmp)
+        write(*,"(' ODI of orbital',i6,':',f10.4)") iorb,ODIarr(iorb)
+    end do
+    if (iautointgrid==1) then
+	    radpot=nradpotold
+	    sphpot=nsphpotold
+        radcut=radcutold
+    end if
+    
+else if (icalctype==2) then
+    call calc_dvol(dvol)
+    sumall=sum(abs(cubmat(:,:,:)))
+    valint=sumall*dvol
+    write(*,"(' Differential element:',f15.10,' Bohr^3')") dvol
+	write(*,"(' Sum of all values of grid data:',1PE16.8)") sumall
+	write(*,"(' Integral of absolute value of grid data:',1PE16.8)") valint
+    if (allocated(cubmattmp)) deallocate(cubmattmp)
+    allocate(cubmattmp(nx,ny,nz))
+    cubmattmp=cubmat/valint
+    ODIval=dsqrt(sum(cubmattmp(:,:,:)**expfac)*dvol)*100
+    write(*,"(/,' Orbital delocalization index is',f10.4)") ODIval
+    deallocate(cubmattmp)
+end if
 end subroutine
