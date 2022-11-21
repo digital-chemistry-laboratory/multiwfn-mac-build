@@ -23,6 +23,7 @@ do while(.true.)
 	write(*,*) "16 Generate natural orbitals based on the density matrix in .fch/.fchk file"
     write(*,*) "17 Calculate Coulomb and exchange integrals between two orbitals"
     write(*,*) "18 Calculate bond length/order alternation (BLA/BOA)"
+    write(*,*) "19 Calculate spatial delocalization index (SDI) for orbitals or a function"
     write(*,*) "20 Bond order density (BOD) and natural adaptive orbital (NAdO) analyses"
 	read(*,*) isel
 	if (isel==0) then
@@ -63,6 +64,8 @@ do while(.true.)
         call orb_coulexcint
     else if (isel==18) then
         call BLABOA
+    else if (isel==19) then
+		call SDI
     else if (isel==20) then
         call BOD
 	end if
@@ -3139,4 +3142,141 @@ do while(.true.)
 		end if
 	end if
 end do
+end subroutine
+
+
+
+
+!!----------- Calculate spatial delocalization index (SDI)
+subroutine SDI
+use defvar
+use util
+use functions
+implicit real*8 (a-h,o-z)
+character c2000tmp*2000
+real*8 :: expfac=2D0
+integer,allocatable :: tmparr(:)
+real*8,allocatable :: SDIarr(:),densarr(:,:)
+real*8 funcval(radpot*sphpot),beckeweigrid(radpot*sphpot),wfnval(nmo)
+type(content) gridatmorg(radpot*sphpot),gridatm(radpot*sphpot)
+
+if (ifPBC/=0) then
+    write(*,*) "Error: PBC has not been supported by this function yet!"
+    return
+end if
+
+do while(.true.)
+	write(*,*)
+	call menutitle("Calculate spatial delocalization index (SDI)",10,1)
+	write(*,"(a,f8.4)") " -1 Set exponent factor, current:",expfac
+	write(*,*) "0 Return"
+	write(*,*) "1 Calcluate SDI for a real space function"
+	write(*,*) "2 Calculate SDI for density of orbital wavefunctions"
+	if (allocated(cubmat)) write(*,*) "3 Calculate SDI based on the grid data in memory"
+	read(*,*) icalctype
+	if (icalctype==0) then
+		return
+	else if (icalctype==-1) then
+		write(*,*) "Input exponent factor, e.g. 1.5"
+        read(*,*) expfac
+	else
+		exit
+	end if
+end do
+
+if (icalctype==1) then !Calculate for real space function
+    call selfunc_interface(1,ifunc)
+	write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
+	call gen1cintgrid(gridatmorg,iradcut)
+	call walltime(iwalltime1)
+	valintabs=0
+	valint2=0
+	do iatm=1,ncenter
+		write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
+		gridatm%x=gridatmorg%x+a(iatm)%x
+		gridatm%y=gridatmorg%y+a(iatm)%y
+		gridatm%z=gridatmorg%z+a(iatm)%z
+		!$OMP parallel do shared(funcval) private(ipt) num_threads(nthreads)
+		do ipt=1+iradcut*sphpot,radpot*sphpot
+			funcval(ipt)=calcfuncall(ifunc,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
+		end do
+		!$OMP end parallel do
+		call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid,covr_tianlu,3)
+		do ipt=1+iradcut*sphpot,radpot*sphpot
+			valintabs=valintabs+abs(funcval(ipt))*gridatmorg(ipt)%value*beckeweigrid(ipt)
+			valint2=valint2+abs(funcval(ipt))**expfac *gridatmorg(ipt)%value*beckeweigrid(ipt)
+		end do
+	end do
+    valint2=valint2/valintabs**expfac
+	call walltime(iwalltime2)
+	write(*,"(' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
+    SDIval=1D0/dsqrt(valint2)
+    write(*,"(/,' Spatial delocalization index is',f12.6)") SDIval
+
+else if (icalctype==2) then !Calculate based on orbital density
+    write(*,*) "Input indices of the orbitals to calculate SDI, e.g. 2,3,7-10"
+    read(*,"(a)") c2000tmp
+    call str2arr(c2000tmp,ntmp)
+    allocate(tmparr(ntmp),SDIarr(ntmp))
+    call str2arr(c2000tmp,ntmp,tmparr)
+    if (iautointgrid==1) then
+        nradpotold=radpot
+        nsphpotold=sphpot
+        radcutold=radcut
+        radpot=30
+        sphpot=302
+        radcut=15
+    end if
+    allocate(densarr(nmo,radpot*sphpot))
+    write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
+    call gen1cintgrid(gridatmorg,iradcut)
+    call walltime(iwalltime1)
+    densarr=0
+    do iatm=1,ncenter
+	    write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
+	    gridatm%x=gridatmorg%x+a(iatm)%x
+	    gridatm%y=gridatmorg%y+a(iatm)%y
+	    gridatm%z=gridatmorg%z+a(iatm)%z
+	    !$OMP parallel do shared(densarr) private(ipt,wfnval) num_threads(nthreads)
+	    do ipt=1+iradcut*sphpot,radpot*sphpot
+            call orbderv(1,1,nmo,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,wfnval(:))
+		    densarr(:,ipt)=wfnval(:)**2
+	    end do
+	    !$OMP end parallel do
+	    call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid,covr_tianlu,3)
+	    do ipt=1+iradcut*sphpot,radpot*sphpot
+		    SDIarr(:)=SDIarr(:)+densarr(:,ipt)**expfac *gridatmorg(ipt)%value*beckeweigrid(ipt)
+	    end do
+    end do
+    SDIarr(:)=1D0/dsqrt(SDIarr(:))
+    call walltime(iwalltime2)
+    write(*,"(' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
+    write(*,*)
+    do itmp=1,ntmp
+        iorb=tmparr(itmp)
+        write(*,"(' SDI of orbital',i6,':',f10.4)") iorb,SDIarr(iorb)
+    end do
+    write(*,*)
+    write(*,*) "Note: The unit of SDI of orbital density is a.u."
+    if (iautointgrid==1) then
+	    radpot=nradpotold
+	    sphpot=nsphpotold
+        radcut=radcutold
+    end if
+    
+else if (icalctype==3) then !Calculate based on grid data
+    call calc_dvol(dvol)
+    sumall=sum(abs(cubmat(:,:,:)))
+    valint=sumall*dvol
+    write(*,"(' Differential element:',f15.10,' Bohr^3')") dvol
+	write(*,"(' Sum of all values of grid data:',1PE16.8)") sumall
+	write(*,"(' Integral of absolute value of grid data:',1PE16.8)") valint
+    if (allocated(cubmattmp)) deallocate(cubmattmp)
+    allocate(cubmattmp(nx,ny,nz))
+    cubmattmp=cubmat/valint
+    SDIval=1/dsqrt(sum(abs(cubmattmp(:,:,:))**expfac)*dvol)
+    write(*,"(/,' Spatial delocalization index is',f12.6)") SDIval
+    deallocate(cubmattmp)
+end if
+
 end subroutine
