@@ -593,15 +593,28 @@ end if
 
 !Show cell frame
 if (ishowcell==1) then
-	CALL MATOP3(0.58D0,0.21D0,0.72D0,'diffuse')
+	!Along a
+	CALL MATOP3(0.7D0,0.0D0,0.0D0,'diffuse')
     call cellvertex2(1,2,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
-	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
-    call cellvertex2(2,3,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
 	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
     call cellvertex2(3,4,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
 	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
+    call cellvertex2(5,6,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
+	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
+    call cellvertex2(7,8,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
+	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
+    !Along b
+	CALL MATOP3(0.0D0,0.7D0,0.0D0,'diffuse')
+    call cellvertex2(2,3,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
+	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
     call cellvertex2(1,4,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
 	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
+    call cellvertex2(6,7,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
+	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
+    call cellvertex2(5,8,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
+	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
+    !Along c
+	CALL MATOP3(0.0D0,0.0D0,0.7D0,'diffuse')
     call cellvertex2(1,5,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
 	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
     call cellvertex2(2,6,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
@@ -610,14 +623,7 @@ if (ishowcell==1) then
 	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
     call cellvertex2(4,8,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
 	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
-    call cellvertex2(5,6,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
-	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
-    call cellvertex2(6,7,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
-	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
-    call cellvertex2(7,8,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
-	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
-    call cellvertex2(5,8,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
-	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
+	!CALL MATOP3(0.58D0,0.21D0,0.72D0,'diffuse') !Old
 end if
 
 if (isosur1style/=5) CALL ZBFFIN !Ending of Z-buffer

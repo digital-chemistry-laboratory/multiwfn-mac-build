@@ -1838,6 +1838,7 @@ type(atomtype) atmp
 real*8 inertia(3,3),eigvecmat(3,3),eigvalarr(3)
 real*8 rcoord(3),fcoord(3)
 integer,allocatable :: tmparr(:)
+real*8,allocatable :: fcoordall(:,:)
 
 if (allocated(b)) then
     write(*,"(/,a)") " NOTE: This function only changes geometry, the wavefunction will not be correspondingly affected!"
@@ -1876,7 +1877,7 @@ do while(.true.)
     write(*,*) "23 Translate system along cell axes by given distances"
     write(*,*) "24 Translate system to center selected part in the cell"
     write(*,*) "25 Extract a molecular cluster (central molecule + neighbouring ones)"
-    write(*,*) "26 Set cell information       27 Add boundary atoms"
+    write(*,*) "26 Set cell information      27 Add boundary atoms     28 Axes interconversion"
     read(*,*) isel
     
     if (isel==-10) then
@@ -2846,6 +2847,61 @@ do while(.true.)
         else
             write(*,"(a,i6,a)") " Done!",ntmp," boundary atoms have been added to present system"
         end if
+        
+    else if (isel==28) then !Axes interconversion
+        write(*,"(a)") " Note: Selected two components of atomic fractional coordinates and cell vector lengths will be exchanged"
+        write(*,*)
+        write(*,*) "0 Return"
+        write(*,*) "1 a<-->b interconversion"
+        write(*,*) "2 a<-->c interconversion"
+        write(*,*) "3 b<-->c interconversion"
+        read(*,*) idir
+        if (idir==0) cycle
+        !Exchange fractional coordinates
+        allocate(fcoordall(3,ncenter))
+        do iatm=1,ncenter
+            rcoord(1)=a(iatm)%x
+            rcoord(2)=a(iatm)%y
+            rcoord(3)=a(iatm)%z
+            call Cart2fract(rcoord,fcoord)
+            if (idir==1) then
+                tmpval=fcoord(1)
+                fcoord(1)=fcoord(2)
+                fcoord(2)=tmpval
+            else if (idir==2) then
+                tmpval=fcoord(1)
+                fcoord(1)=fcoord(3)
+                fcoord(3)=tmpval
+            else if (idir==3) then
+                tmpval=fcoord(2)
+                fcoord(2)=fcoord(3)
+                fcoord(3)=tmpval
+            end if
+            fcoordall(:,iatm)=fcoord(:)
+        end do
+        !Exchange cell lengths
+        anorm=dsqrt(sum(cellv1**2))
+        bnorm=dsqrt(sum(cellv2**2))
+        cnorm=dsqrt(sum(cellv3**2))
+        if (idir==1) then
+            cellv1=cellv1/anorm*bnorm
+            cellv2=cellv2/bnorm*anorm
+        else if (idir==2) then
+            cellv1=cellv1/anorm*cnorm
+            cellv3=cellv3/cnorm*anorm
+        else if (idir==3) then
+            cellv2=cellv2/bnorm*cnorm
+            cellv3=cellv3/cnorm*bnorm
+        end if
+        !Obtain new atomic coordinates
+        do iatm=1,ncenter
+            call fract2Cart(fcoordall(:,iatm),rcoord)
+            a(iatm)%x=rcoord(1)
+            a(iatm)%y=rcoord(2)
+            a(iatm)%z=rcoord(3)
+        end do
+        deallocate(fcoordall)
+        write(*,*) "Done!"
     end if
 end do
     

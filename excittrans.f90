@@ -231,8 +231,8 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
 		do while(.true.)
 			call loclabel(10,"Excited State",ifound,0)
 			if (ifound==1) then
-				nstates=nstates+1
-				read(10,*)
+				read(10,"(a)") c80tmp
+                if (index(c80tmp,'f=')/=0) nstates=nstates+1
 			else
 				exit
 			end if

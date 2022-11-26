@@ -492,7 +492,7 @@ integer :: numcp=0 !Number of located CPs
 real*8 :: CPpos(3,maxnumcp) !XYZ of CPs
 integer :: CPtype(maxnumcp)=0 !Type of CPs. 0=unknown 1=(3,-3) 2=(3,-1) 3=(3,+1) 4=(3,+3)
 character :: CPtyp2lab(0:4)*6=(/ "  ??  ","(3,-3)","(3,-1)","(3,+1)","(3,+3)" /)
-real*8 :: CPstepscale=1D0,gradconv=1D-6,dispconv=1D-7,minicpdis=0.03D0,vdwsumcrit=1.2D0,singularcrit=5D-22,CPsearchlow=0D0,CPsearchhigh=0D0,topotrustrad=0D0
+real*8 :: CPstepscale=1D0,gradconv=1D-6,dispconv=1D-7,minicpdis=0.03D0,vdwsumcrit=1.5D0,singularcrit=5D-22,CPsearchlow=0D0,CPsearchhigh=0D0,topotrustrad=0D0
 integer :: topomaxcyc=120,ishowsearchlevel=0,itopomethod=1
 integer :: lab_oneCP=0 !If only allowing labelling one CP. =0: Labelling all, =x: Only allow show label for CP x
 !Path related:

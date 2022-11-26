@@ -1082,9 +1082,13 @@ write(ifileid,"(/,a)") "&FORCE_EVAL"
 write(ifileid,"(a)") "  METHOD Quickstep"
 
 write(ifileid,"(a)") "  &SUBSYS"
-if (nrep1/=1.or.nrep2/=1.or.nrep3/=1) then !This is needed even not for classical force field calculation
+if (nrep1/=1.or.nrep2/=1.or.nrep3/=1.or.icentering==1) then !This is needed even not for classical force field calculation
     write(ifileid,"(a)") "    &TOPOLOGY"
-    write(ifileid,"(a,3i3)") "      MULTIPLE_UNIT_CELL",nrep1,nrep2,nrep3
+    if (nrep1/=1.or.nrep2/=1.or.nrep3/=1) write(ifileid,"(a,3i3)") "      MULTIPLE_UNIT_CELL",nrep1,nrep2,nrep3
+    if (icentering==1) then
+        write(ifileid,"(a)") "      &CENTER_COORDINATES #Centering atoms in the box"
+        write(ifileid,"(a)") "      &END CENTER_COORDINATES"
+    end if
     write(ifileid,"(a)") "    &END TOPOLOGY"
 end if
 
@@ -1143,66 +1147,8 @@ if (iPSOLVER==1) then !PSOLVER PERIODIC forces to use XYZ periodicity
 else
     write(ifileid,"(a)") "      PERIODIC "//trim(PBCdir)//" #Direction(s) of applied PBC (geometry aspect)"
 end if
-
-!if (ifPBC==3.and.PBCdir=="XYZ") then !Real 3D system and request calculation as 3D periodicity, use original cell vectors
-!    write(ifileid,"(a,3f15.8)") "      A",cellv1(:)*b2a
-!    write(ifileid,"(a,3f15.8)") "      B",cellv2(:)*b2a
-!    write(ifileid,"(a,3f15.8)") "      C",cellv3(:)*b2a
-!    write(ifileid,"(a)") "      PERIODIC "//trim(PBCdir)//" #Direction of applied PBC (geometry aspect)"
-!else !Low-dimensional case, allow to set vacuum size
-!    if (PBCdir=="NONE") then
-!        if (iPSOLVER==4) then !WAVELET, needs cubic box
-!            tmp=max(max(xdist,ydist),zdist)
-!            write(ifileid,"(a,3f10.3)") "      ABC",tmp,tmp,tmp
-!        else
-!            write(ifileid,"(a,3f10.3)") "      ABC",xdist,ydist,zdist
-!        end if
-!    else
-!        if (PBCdir=="X") then
-!            write(ifileid,"(a,3f15.8)") "      A",cellv1(:)*b2a
-!            write(ifileid,"(a,3f15.8)") "      B",0D0,ydist,0D0
-!            write(ifileid,"(a,3f15.8)") "      C",0D0,0D0,zdist
-!        else if (PBCdir=="Y") then
-!            write(ifileid,"(a,3f15.8)") "      A",xdist,0D0,0D0
-!            write(ifileid,"(a,3f15.8)") "      B",cellv2(:)*b2a
-!            write(ifileid,"(a,3f15.8)") "      C",0D0,0D0,zdist
-!        else if (PBCdir=="Z") then
-!            write(ifileid,"(a,3f15.8)") "      A",xdist,0D0,0D0
-!            write(ifileid,"(a,3f15.8)") "      B",0D0,ydist,0D0
-!            write(ifileid,"(a,3f15.8)") "      C",cellv3(:)*b2a
-!        else if (PBCdir=="XY") then
-!            write(ifileid,"(a,3f15.8)") "      A",cellv1(:)*b2a
-!            write(ifileid,"(a,3f15.8)") "      B",cellv2(:)*b2a
-!            write(ifileid,"(a,3f15.8)") "      C",0D0,0D0,zdist
-!        else if (PBCdir=="XZ") then
-!            write(ifileid,"(a,3f15.8)") "      A",cellv1(:)*b2a
-!            write(ifileid,"(a,3f15.8)") "      B",0D0,ydist,0D0
-!            write(ifileid,"(a,3f15.8)") "      C",cellv3(:)*b2a
-!        else if (PBCdir=="YZ") then
-!            write(ifileid,"(a,3f15.8)") "      A",xdist,0D0,0D0
-!            write(ifileid,"(a,3f15.8)") "      B",cellv2(:)*b2a
-!            write(ifileid,"(a,3f15.8)") "      C",cellv3(:)*b2a
-!        else if (PBCdir=="XYZ") then
-!            write(ifileid,"(a,3f15.8)") "      A",xdist,0D0,0D0
-!            write(ifileid,"(a,3f15.8)") "      B",0D0,ydist,0D0
-!            write(ifileid,"(a,3f15.8)") "      C",0D0,0D0,zdist
-!        end if
-!    end if
-!    if (iPSOLVER==1) then
-!        write(ifileid,"(a)") "      PERIODIC XYZ #Direction(s) of applied PBC (geometry aspect)"
-!        write(*,"(a)") " Note: PERIODIC in the generated input file is changed to XYZ since current PSOLVER is PERIODIC"
-!    else
-!        write(ifileid,"(a)") "      PERIODIC "//trim(PBCdir)//" #Direction(s) of applied PBC (geometry aspect)"
-!    end if
-!end if
 if (nrep1/=1.or.nrep2/=1.or.nrep3/=1) write(ifileid,"(a,3i3)") "      MULTIPLE_UNIT_CELL",nrep1,nrep2,nrep3
 write(ifileid,"(a)") "    &END CELL"
-if (icentering==1) then
-    write(ifileid,"(a)") "    &TOPOLOGY"
-    write(ifileid,"(a)") "      &CENTER_COORDINATES #Centering the atoms in the box"
-    write(ifileid,"(a)") "      &END CENTER_COORDINATES"
-    write(ifileid,"(a)") "    &END TOPOLOGY"
-end if
 
 !---- &COORD
 write(ifileid,"(a)") "    &COORD"
@@ -2113,11 +2059,15 @@ if (itask==13) then !Real-time propagation
 end if
 write(ifileid,"(a)") "  &END DFT"
 
-if (itask==2.or.inoSCFinfo==1) then !FORCE_EVAL/PRINT
+if (itask==2.or.itask==4.or.inoSCFinfo==1) then !FORCE_EVAL/PRINT
     write(ifileid,"(a)") "  &PRINT"
     if (itask==2) then
-        write(ifileid,"(a)") "    &FORCES ON"
+        write(ifileid,"(a)") "    &FORCES ON #Print atomic forces"
         write(ifileid,"(a)") "    &END FORCES"
+    end if
+    if (itask==4) then !CELL_OPT
+        write(ifileid,"(a)") "    &STRESS_TENSOR ON #Print stress tensor"
+        write(ifileid,"(a)") "    &END STRESS_TENSOR"
     end if
     if (inoSCFinfo==1) then
         write(ifileid,"(a)") "    &PROGRAM_RUN_INFO"
@@ -2129,7 +2079,7 @@ if (itask==2.or.inoSCFinfo==1) then !FORCE_EVAL/PRINT
     write(ifileid,"(a)") "  &END PRINT"
 end if
 
-if (itask==4.or.ibarostat>0) write(ifileid,"(a)") "  STRESS_TENSOR ANALYTICAL #Compute full stress tensor analytically" !By default not compute
+if (itask==4.or.ibarostat>0) write(ifileid,"(a)") "  STRESS_TENSOR ANALYTICAL #Compute full stress tensor analytically" !Compute for CELL_OPT and MD with barostat
 if (itask==9.or.itask==10.or.iTDDFT==1) then !NMR, polar, TDDFT
     write(ifileid,"(a)") "  &PROPERTIES"
     if (itask==9.or.itask==10) then !NMR, polar

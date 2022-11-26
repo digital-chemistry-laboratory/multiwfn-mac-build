@@ -184,7 +184,10 @@ end if
 call genfragatm !Generate fragatm array containing all atoms
 
 call init_PBC !Initialize some PBC information and settings
-if (ifPBC/=0) ishowcell=1 !Show cell
+if (ifPBC/=0) then
+	ishowcell=1 !Show cell
+    iorthoview=1 !Use orthographic view
+end if
 
 call init_func !Some user-defined real space functions need special initialization for an system
 
