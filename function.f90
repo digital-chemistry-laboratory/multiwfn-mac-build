@@ -1831,15 +1831,23 @@ end subroutine
 !!-------- A general routine used to calculate value, gradient and Hessian matrix for all real space functions
 ! itype=1 Only calculate value and grad
 ! itype=2 Calculate value, gradient and Hessian
-subroutine gencalchessmat(itype,ifunc,x,y,z,value,grad,hess)
+!If idiagonly_in is presented and is 1, then when full numerical Hessian is calculated, only diagonal part will be evaluated to save cost
+subroutine gencalchessmat(itype,ifunc,x,y,z,value,grad,hess,idiagonly_in)
 integer ifunc,itype
 real*8 x,y,z,value,grad(3),hess(3,3),tens3(3,3,3)
 real*8 gradaddx(3),gradminx(3),gradaddy(3),gradminy(3),gradaddz(3),gradminz(3)
 character selELFLOL*3
+integer,optional :: idiagonly_in
+
 diff=8D-4
 denom=2D0*diff
 if (ifunc==9) selELFLOL="ELF"
 if (ifunc==10) selELFLOL="LOL"
+
+idiagonly=0
+if (present(idiagonly_in)) then
+	if (idiagonly_in==1) idiagonly=1
+end if
 
 !For functions whose both analytic gradient and Hessian are available, evaluate them and then return
 !If comment one of them, then the gradient and Hessian of corresponding function will be calculated numerically
@@ -1979,18 +1987,20 @@ if (itype==2) then
 		yminymin=calcfuncall(ifunc,x,y-2D0*diff,z)
 		zaddzadd=calcfuncall(ifunc,x,y,z+2D0*diff)
 		zminzmin=calcfuncall(ifunc,x,y,z-2D0*diff)
-		xaddyadd=calcfuncall(ifunc,x+diff,y+diff,z)
-		xminyadd=calcfuncall(ifunc,x-diff,y+diff,z)
-		xaddymin=calcfuncall(ifunc,x+diff,y-diff,z)
-		xminymin=calcfuncall(ifunc,x-diff,y-diff,z)
-		yaddzadd=calcfuncall(ifunc,x,y+diff,z+diff)
-		yminzadd=calcfuncall(ifunc,x,y-diff,z+diff)
-		yaddzmin=calcfuncall(ifunc,x,y+diff,z-diff)
-		yminzmin=calcfuncall(ifunc,x,y-diff,z-diff)
-		xaddzadd=calcfuncall(ifunc,x+diff,y,z+diff)
-		xminzadd=calcfuncall(ifunc,x-diff,y,z+diff)
-		xaddzmin=calcfuncall(ifunc,x+diff,y,z-diff)
-		xminzmin=calcfuncall(ifunc,x-diff,y,z-diff)
+        if (idiagonly==0) then
+			xaddyadd=calcfuncall(ifunc,x+diff,y+diff,z)
+			xminyadd=calcfuncall(ifunc,x-diff,y+diff,z)
+			xaddymin=calcfuncall(ifunc,x+diff,y-diff,z)
+			xminymin=calcfuncall(ifunc,x-diff,y-diff,z)
+			yaddzadd=calcfuncall(ifunc,x,y+diff,z+diff)
+			yminzadd=calcfuncall(ifunc,x,y-diff,z+diff)
+			yaddzmin=calcfuncall(ifunc,x,y+diff,z-diff)
+			yminzmin=calcfuncall(ifunc,x,y-diff,z-diff)
+			xaddzadd=calcfuncall(ifunc,x+diff,y,z+diff)
+			xminzadd=calcfuncall(ifunc,x-diff,y,z+diff)
+			xaddzmin=calcfuncall(ifunc,x+diff,y,z-diff)
+			xminzmin=calcfuncall(ifunc,x-diff,y,z-diff)
+        end if
 	end if 
 	!Collect above temporary data to evaluate pure numerical Hessian
 	gradx_yadd=(xaddyadd-xminyadd)/denom

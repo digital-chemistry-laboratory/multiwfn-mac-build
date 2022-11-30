@@ -59,7 +59,7 @@ subroutine excittrans_main
 implicit real*8 (a-h,o-z)
 do while(.true.)
 	write(*,*)
-	write(*,*) "          ============ Electronic excitation analyses ============ "
+	write(*,*) "           ============ Electronic excitation analyses ============ "
 	write(*,*) "-1 Check, modify and export configuration coefficients of an excitation"
 	write(*,*) "0 Return"
 	write(*,"(a)") " 1 Analyze and visualize hole&electron distribution, transition density, and transition electric/magnetic dipole moment density"
@@ -3335,13 +3335,17 @@ real*8 grounddip(3),statedip(3),nucdip(3) !Total ground state dipole moment, ele
 real*8 tdvec(3),tmpvec(3)
 character,allocatable :: allexclab(:)*5 !Label of each states
 integer :: idiptype=1 !1=Electric transition dipole moment, 2= Magnetic, 0=Both
+integer :: iGSESonly=0
 
 call loadallexcinfo(0)
 call loadallexccoeff(1)
 allocate(tdvecmat(3,0:nstates,0:nstates),Xnorm(nstates))
+tdvecmat=0
 
 do while(.true.)
 	write(*,*)
+    if (iGSESonly==0) write(*,*) "-1: Toggle if only calculating between ground and excited states, current: No"
+    if (iGSESonly==1) write(*,*) "-1: Toggle if only calculating between ground and excited states, current: Yes"
 	!if (idiptype==0) write(*,*) "0 Choose type of (transition) dipole moment, current: Electric & Magnetic"
 	if (idiptype==1) write(*,*) "0 Choose type of (transition) dipole moment, current: Electric"
 	if (idiptype==2) write(*,*) "0 Choose type of (transition) dipole moment, current: Magnetic"
@@ -3358,6 +3362,12 @@ do while(.true.)
 		write(*,*) "1 Electric"
 		write(*,*) "2 Magnetic"
         read(*,*) idiptype
+    else if (isel==-1) then
+		if (iGSESonly==1) then
+			iGSESonly=0
+        else
+			iGSESonly=1
+        end if
     else
 		exit
     end if
@@ -3550,6 +3560,7 @@ iprog=0
 !$OMP PARALLEL DO SHARED(tdvecmat,iprog) PRIVATE(iexc,jexc,tdvec,ipair,jpair,imo,lmo,jmo,kmo,wei) schedule(dynamic) NUM_THREADS(nthreads)
 do iexc=1,nstates
 	do jexc=iexc,nstates
+		if (iGSESonly==1) cycle
 		if (allexcmulti(iexc)/=allexcmulti(jexc)) cycle !For 50-50 calculation, only calculate same-spin case
 		if (isel==4.and.jexc/=iexc) cycle !Only calculate the moment between excited states with same index
 		tdvec=0
@@ -3598,10 +3609,12 @@ if (all(allexcmulti==allexcmulti(1))) then !All states have same spin, in this c
 				oscillstr=2D0/3D0*allexcene(iexc)/au2eV*sum(tdvecmat(:,0,iexc)**2)
 				write(iout,"(2i6,3f14.7,2f12.5)") 0,iexc,tdvecmat(:,0,iexc),allexcene(iexc),oscillstr
 			end do
-			write(iout,*)
-			write(iout,"(' Note: In below output the case of i=j corresponds to contribution of electron to dipole moment of excited state i')")
-			write(iout,"(' Transition electric dipole moment between excited states (a.u.):')")
-			write(iout,*) "    i     j         X             Y             Z        Diff.(eV)   Oscil.str"
+            if (iGSESonly==0) then
+				write(iout,*)
+				write(iout,"(' Note: In below output the case of i=j corresponds to contribution of electron to dipole moment of excited state i')")
+				write(iout,"(' Transition electric dipole moment between excited states (a.u.):')")
+				write(iout,*) "    i     j         X             Y             Z        Diff.(eV)   Oscil.str"
+            end if
 		else if (isel==4) then !Output dipole moment for each state
 			write(iout,"(a)") " Note: The electric dipole moments shown below include both nuclear charge and electronic contributions"
 			write(iout,"(' Ground state electric dipole moment in X,Y,Z:',3f12.6,' a.u.',/)") grounddip
@@ -3609,7 +3622,7 @@ if (all(allexcmulti==allexcmulti(1))) then !All states have same spin, in this c
 			write(iout,*) " State         X             Y             Z        exc.(eV)    exc.(nm)"
 		end if
 		do iexc=1,nstates
-			if (isel<=3) then
+			if (isel<=3.and.iGSESonly==0) then
 				do jexc=iexc,nstates
 					if (isel==1.or.isel==2) then
 						enediff=abs(allexcene(jexc)-allexcene(iexc))
@@ -3669,33 +3682,35 @@ else !Not all states have the same spin, 50-50 with singlet ground state is assu
 		if (allexcmulti(iexc)/=1) cycle
 		write(iout,"(a,' -- ',a,3f14.7,f12.4)") allexclab(0),allexclab(iexc),tdvecmat(:,0,iexc),allexcene(iexc)
 	end do
-    !Output between various singlet excited states
-	do iexc=1,nstates
-		do jexc=iexc,nstates
-			if (allexcmulti(iexc)==1.and.allexcmulti(jexc)==1) &
-			write(iout,"(a,' -- ',a,3f14.7,f12.4)") allexclab(iexc),allexclab(jexc),tdvecmat(:,iexc,jexc),abs(allexcene(jexc)-allexcene(iexc))
+    if (iGSESonly==0) then
+		!Output between various singlet excited states
+		do iexc=1,nstates
+			do jexc=iexc,nstates
+				if (allexcmulti(iexc)==1.and.allexcmulti(jexc)==1) &
+				write(iout,"(a,' -- ',a,3f14.7,f12.4)") allexclab(iexc),allexclab(jexc),tdvecmat(:,iexc,jexc),abs(allexcene(jexc)-allexcene(iexc))
+			end do
 		end do
-	end do
-    !Output between various triplet excited states
-    if (idiptype==1) then
-		write(iout,"(/,' Transition electric dipole moment between triplet states (a.u.):')")
-    else if (idiptype==2) then
-		write(iout,"(/,' Transition magnetic dipole moment between triplet states (a.u.):')")
+		!Output between various triplet excited states
+		if (idiptype==1) then
+			write(iout,"(/,' Transition electric dipole moment between triplet states (a.u.):')")
+		else if (idiptype==2) then
+			write(iout,"(/,' Transition magnetic dipole moment between triplet states (a.u.):')")
+		end if
+		write(iout,*) "  i        j          X             Y             Z         Diff.(eV)"
+		do iexc=1,nstates
+			do jexc=iexc,nstates
+				if (allexcmulti(iexc)==3.and.allexcmulti(jexc)==3) &
+				write(iout,"(a,' -- ',a,3f14.7,f12.4)") allexclab(iexc),allexclab(jexc),tdvecmat(:,iexc,jexc),abs(allexcene(jexc)-allexcene(iexc))
+			end do
+		end do
+		write(iout,"(/,' Excitation energies (eV):')")
+		do iexc=1,nstates
+			if (allexcmulti(iexc)==1) write(iout,"(a,f12.4)") allexclab(iexc),allexcene(iexc)
+		end do
+		do iexc=1,nstates
+			if (allexcmulti(iexc)==3) write(iout,"(a,f12.4)") allexclab(iexc),allexcene(iexc)
+		end do
     end if
-	write(iout,*) "  i        j          X             Y             Z         Diff.(eV)"
-	do iexc=1,nstates
-		do jexc=iexc,nstates
-			if (allexcmulti(iexc)==3.and.allexcmulti(jexc)==3) &
-			write(iout,"(a,' -- ',a,3f14.7,f12.4)") allexclab(iexc),allexclab(jexc),tdvecmat(:,iexc,jexc),abs(allexcene(jexc)-allexcene(iexc))
-		end do
-	end do
-	write(iout,"(/,' Excitation energies (eV):')")
-	do iexc=1,nstates
-		if (allexcmulti(iexc)==1) write(iout,"(a,f12.4)") allexclab(iexc),allexcene(iexc)
-	end do
-	do iexc=1,nstates
-		if (allexcmulti(iexc)==3) write(iout,"(a,f12.4)") allexclab(iexc),allexcene(iexc)
-	end do
 end if
 
 if (isel==2) then

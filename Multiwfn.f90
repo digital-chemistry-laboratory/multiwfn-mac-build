@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2022-Nov-25"
+write(*,*) "Version 3.8(dev), release date: 2022-Nov-29"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -250,7 +250,8 @@ if (allocated(a)) then
 end if
 
 !Special treatment and test new code
-!call ODI_dens
+!call energy_info_project
+
 !!!--------------------- Now everything start ---------------------!!!
 do while(.true.) !Main loop
 
@@ -783,7 +784,13 @@ do while(.true.) !Main loop
             else if (i==1303) then
 				call set_alpha_level()
 		    end if
+            
+        !!!-----------------------------------------
+	    !2000!!------------------- Very special functions
+	    else if (isel==2000) then
+			call energy_info_project
 	    end if
+        
     end if
     
 end do !End main cycle

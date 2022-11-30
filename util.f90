@@ -552,6 +552,22 @@ rmsfit=dsqrt(accum/natm)
 end subroutine
 
 
+!!--------- Input an angle in radian, return degree
+real*8 function rad2ang(rad)
+use defvar
+real*8 rad
+rad2ang=rad/pi*180D0
+end function
+
+
+!!--------- Input an angle in degree, return radian
+real*8 function ang2rad(ang)
+use defvar
+real*8 ang
+ang2rad=ang/180D0*pi
+end function
+
+
 
 
 !===============================================================!

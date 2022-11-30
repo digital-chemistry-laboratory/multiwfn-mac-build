@@ -372,7 +372,7 @@ end subroutine
 
 
 
-!!!------ Calculate cell vectors cellv1/2/3 based on inputted a,b,c,alpha,beta,gamma, reference: http://gisaxs.com/index.php/Unit_cell
+!!!------ Calculate cell vectors cellv1/2/3 based on inputted a,b,c (in Bohr) and alpha,beta,gamma (in degree), reference: http://gisaxs.com/index.php/Unit_cell
 subroutine abc2cellv(asize,bsize,csize,alpha,beta,gamma)
 use defvar
 implicit real*8 (a-h,o-z)

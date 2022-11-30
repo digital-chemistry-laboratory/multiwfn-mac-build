@@ -4217,7 +4217,7 @@ end subroutine
 !!--------- Initialize LIBRETA for present wavefunction if haven't
 !info=1: Show some notices
 !info=2: Silent
-!Usually according to "function ifdoESP" to determine if initialize LIBRETA for a real space function
+!Usually according to "function ifdoESP" to determine if LIBRETA is needed to be initialized for a real space function
 subroutine doinitlibreta(info)
 use defvar
 use libreta

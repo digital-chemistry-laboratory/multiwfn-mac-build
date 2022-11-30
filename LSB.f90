@@ -1604,3 +1604,173 @@ do k=1,nz
 end do
 write(*,*) "Done!"
 end subroutine
+
+
+
+
+
+!!--------- The Energetic Information Project    
+subroutine energy_info_project
+use defvar
+use util
+use functions
+implicit real*8 (a-h,o-z)
+character refsysname*200
+real*8 intval,funcval(radpot*sphpot),beckeweigrid(radpot*sphpot)
+type(content) gridatmorg(radpot*sphpot),gridatm(radpot*sphpot)
+real*8 eval(radpot*sphpot),egrad(3,radpot*sphpot),elapl(radpot*sphpot)
+real*8 e0val(radpot*sphpot),e0grad(3,radpot*sphpot),e0lapl(radpot*sphpot)
+real*8 vectmp(3),hess(3,3)
+
+do while(.true.)
+write(*,*)
+call menutitle("Energetic Information Project",10,1)
+write(*,*) "0 Return"
+write(*,*) "Select type of energetic information"
+write(*,*) "1 Shannon entropy"
+write(*,*) "2 Fisher information"
+write(*,*) "3 Alternative Fisher information"
+write(*,*) "4 Relative Shannon entropy"
+write(*,*) "5 Relative Fisher information"
+write(*,*) "6 Alternative relative Fisher information"
+read(*,*) ieneinfo
+if (ieneinfo==0) return
+
+ider=0 !Evaluate value
+if (ieneinfo==2.or.ieneinfo==5) ider=1 !Evaluate value and gradient
+if (ieneinfo==3.or.ieneinfo==6) ider=2 !Evaluate value, gradient and Hessian
+
+if (ieneinfo==4.or.ieneinfo==5.or.ieneinfo==6) then
+	write(*,*) "Choose type of reference wavefunction"
+	write(*,*) "1 Promolecule"
+	write(*,*) "2 Another system"
+	read(*,*) ireftype
+	if (ireftype==1) then
+		call generate_promolwfn !Generate promolecular wavefunction and store to CO_pmol, MOocc_pmol, etc.
+	else
+		write(*,*) "Input path of wavefunction file of another system, e.g. /sob/test.wfn"
+		do while(.true.)
+			read(*,"(a)") refsysname
+			inquire(file=refsysname,exist=alive)
+			if (alive) exit
+			write(*,*) "Cannot find the file, input again!"
+		end do
+	end if
+end if
+
+write(*,*) "Select type of energy density"
+write(*,"(a)") " 1 Total energy E (electronic energy density)"
+write(*,"(a)") " 2 Total kinetic energy Ts (Hamiltonian kinetic energy density)"
+write(*,"(a)") " -2 Total kinetic energy Ts (Lagrangian kinetic energy density)"
+write(*,"(a)") " 3 Electrostatic energy Ee (negative ESP multiplied by electron density)"
+write(*,"(a)") " 4 Exchange-correlation energy Exc (Integrand of Exc. The form is determined by ""iDFTxcsel"" in settings.ini)"
+write(*,"(a)") " 5 Weizsacker kinetic energy Tw (closed-shell form)"
+write(*,"(a)") " 6 Pauli energy Tp=Ts-Tw (the form of Ts is determined by ""iKEDsel"" in settings.ini)"
+write(*,"(a)") " 7 Fermionic quantum energy Eq=Tp+Exc (evaluating Tp based on Hamiltonian kinetic energy density)"
+write(*,"(a)") " -7 Fermionic quantum energy Eq=Tp+Exc (evaluating Tp based on Lagrangian kinetic energy density)"
+read(*,*) ienedens
+
+if (ienedens==2) then
+	ifunc=6
+else if (ienedens==-2) then
+	ifunc=7
+else
+	ifunc=100
+	if (ienedens==1) iuserfunc=11
+	if (ienedens==3) iuserfunc=68
+	if (ienedens==4) iuserfunc=1000
+	if (ienedens==5) iuserfunc=5
+	if (ienedens==6) iuserfunc=114
+	if (ienedens==7) iuserfunc=69
+	if (ienedens==-7) iuserfunc=-69
+end if
+
+write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
+call gen1cintgrid(gridatmorg,iradcut)
+call walltime(iwalltime1)
+intval=0
+do iatm=1,ncenter
+	write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
+	gridatm%x=gridatmorg%x+a(iatm)%x
+	gridatm%y=gridatmorg%y+a(iatm)%y
+	gridatm%z=gridatmorg%z+a(iatm)%z
+    
+    if (ienedens==3) call doinitlibreta(2)
+    !Calculate value, gradiant and Laplacian of energy density for present system
+	!$OMP parallel do shared(eval,egrad,elapl) private(ipt,x,y,z,hess) num_threads(nthreads)
+	do ipt=1+iradcut*sphpot,radpot*sphpot
+		x=gridatm(ipt)%x
+		y=gridatm(ipt)%y
+		z=gridatm(ipt)%z
+        if (ider==0) then !Only need value
+			eval(ipt)=calcfuncall(ifunc,x,y,z)
+        else !Need derivative
+			call gencalchessmat(ider,ifunc,x,y,z,eval(ipt),egrad(:,ipt),hess(:,:),1)
+			elapl(ipt)=hess(1,1)+hess(2,2)+hess(3,3)
+        end if
+	end do
+	!$OMP end parallel do
+    
+    !Calculate reference part
+    if (ieneinfo==4.or.ieneinfo==5.or.ieneinfo==6) then
+		if (ireftype==1) then
+			deallocate(MOocc,MOtype,MOene,CO)
+			allocate(MOocc(nmo_pmol),MOene(nmo_pmol),MOtype(nmo_pmol),CO(nmo_pmol,nprims))
+			nmo=nmo_pmol
+			MOocc=MOocc_pmol
+			MOene=MOene_pmol
+			MOtype=MOtype_pmol
+			CO=CO_pmol
+        else if (ireftype==2) then
+			call dealloall(0)
+            call readinfile(refsysname,1)
+        end if
+        if (ienedens==3) call doinitlibreta(2)
+		!$OMP parallel do shared(e0val,e0grad,e0lapl) private(ipt,x,y,z,hess) num_threads(nthreads)
+		do ipt=1+iradcut*sphpot,radpot*sphpot
+			x=gridatm(ipt)%x
+			y=gridatm(ipt)%y
+			z=gridatm(ipt)%z
+			if (ider==0) then !Only need value
+				e0val(ipt)=calcfuncall(ifunc,x,y,z)
+			else !Need derivative
+				call gencalchessmat(ider,ifunc,x,y,z,e0val(ipt),e0grad(:,ipt),hess(:,:),1)
+				e0lapl(ipt)=hess(1,1)+hess(2,2)+hess(3,3)
+			end if
+		end do
+		!$OMP end parallel do
+		call dealloall(0)
+		call readinfile(firstfilename,1) !Retrieve the first loaded file
+    end if
+    
+    !Calculate function value at every point
+	do ipt=1+iradcut*sphpot,radpot*sphpot
+        if (ieneinfo==1) then
+			funcval(ipt)=-eval(ipt)*log(eval(ipt))
+        else if (ieneinfo==2) then
+			funcval(ipt)=sum(egrad(:,ipt)**2)/eval(ipt)
+        else if (ieneinfo==3) then
+			funcval(ipt)=-elapl(ipt)*log(eval(ipt))
+        else if (ieneinfo==4) then
+			funcval(ipt)=eval(ipt)*log(eval(ipt)/e0val(ipt))
+        else if (ieneinfo==5) then
+			vectmp(:)=egrad(:,ipt)/eval(ipt)-e0grad(:,ipt)/e0val(ipt)
+            funcval(ipt)=eval(ipt)*sum(vectmp(:)**2)
+        else if (ieneinfo==6) then
+			funcval(ipt)=elapl(ipt)*log(eval(ipt)/e0val(ipt))
+        end if
+	end do
+    
+	call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid,covr_tianlu,3)
+	do ipt=1+iradcut*sphpot,radpot*sphpot
+		intval=intval+funcval(ipt)*gridatmorg(ipt)%value*beckeweigrid(ipt)
+	end do
+end do
+call walltime(iwalltime2)
+write(*,"(' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
+
+write(*,"(/,' Result is',1PE20.10)") intval
+
+end do
+
+end subroutine

@@ -1812,19 +1812,23 @@ open(10,file=name,status="old")
 call loclabel(10,"&CELL ",ifound) !Must be "&CELL " rather than "&CELL", the latter may locate to e.g. &CELL_OPT
 do while(.true.)
     read(10,"(a)") c200tmp
-    if (index(c200tmp,'&END')/=0) exit
     if (index(c200tmp,'&CELL_REF')/=0) then !Skip &CELL_REF part
         do while(.true.)
             read(10,"(a)") c200tmp
             if (index(c200tmp,'&END')/=0) then
-                read(10,"(a)") c200tmp
+                read(10,*) c200tmp
                 exit
             end if
         end do
     end if
+    if (index(c200tmp,'&END')/=0) exit
     if (index(trim(c200tmp),'A ')/=0) read(c200tmp,*) c40tmp,cellv1
     if (index(trim(c200tmp),'B ')/=0) read(c200tmp,*) c40tmp,cellv2
     if (index(trim(c200tmp),'C ')/=0.and.index(c200tmp,'PERIODIC')==0) read(c200tmp,*) c40tmp,cellv3
+    write(*,"(a)") trim(c200tmp)
+    write(*,*) cellv1
+    write(*,*) cellv2
+    write(*,*) cellv3
     if (index(c200tmp,'ABC')/=0) then
         read(c200tmp,*) c40tmp,asize,bsize,csize
         alpha=90;beta=90;gamma=90

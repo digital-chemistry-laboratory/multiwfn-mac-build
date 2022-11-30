@@ -2769,6 +2769,8 @@ do while(.true.)
             if (ifPBC==3) then
                 write(*,"(' Cell angles:  Alpha=',f9.4,'  Beta=',f9.4,'  Gamma=',f9.4,' degree')") alpha,beta,gamma
                 write(*,"(' Cell size:        a=',f9.4,'     b=',f9.4,'      c=',f9.4,' Angstrom')") dsqrt(sum(cellv1**2))*b2a,dsqrt(sum(cellv2**2))*b2a,dsqrt(sum(cellv3**2))*b2a
+                call calc_cellvol(cellvol)
+                write(*,"(' Cell volume:',f12.3,' Angstrom^3')") cellvol*b2a**3
             end if
             write(*,*)
             write(*,*) "-1 Restore to original cell information"
@@ -2777,9 +2779,9 @@ do while(.true.)
                 write(*,*) "1 Set length of a"
                 write(*,*) "2 Set length of b"
                 write(*,*) "3 Set length of c"
-                write(*,*) "4 Set angle of alpha"
-                write(*,*) "5 Set angle of beta"
-                write(*,*) "6 Set angle of gamma"
+                write(*,*) "4 Set angle of alpha (angle between b and c)"
+                write(*,*) "5 Set angle of beta (angle between a and c)"
+                write(*,*) "6 Set angle of gamma (angle between a and b)"
             end if
             write(*,*) "7 Set cell vector 1"
             if (ifPBC>1) then
@@ -2788,6 +2790,8 @@ do while(.true.)
                     write(*,*) "9 Set cell vector 3"
                 end if
             end if
+            if (ifPBC==3) write(*,*) "10 Align cell (make ""a"" along X-axis, and make ""ab"" parallel to XY plane)"
+            !if (ifPBC==3) write(*,*) "11 Transform to orthogonal cell"
             read(*,*) isel2
             if (isel2==-1) then
                 cellv1=cellv1_org
@@ -2830,6 +2834,20 @@ do while(.true.)
                 write(*,*) "Input X/Y/Z of cell vector 3 in Angstrom, e.g. 0,0.2,0.84"
                 read(*,*) cellv3
                 cellv3=cellv3/b2a
+            else if (isel2==10) then
+                call getcellabc(asize,bsize,csize,alpha,beta,gamma)
+                asize=asize/b2a
+                bsize=bsize/b2a
+                csize=csize/b2a
+                call abc2cellv(asize,bsize,csize,alpha,beta,gamma)
+                write(*,*) "Done!"
+            else if (isel2==11) then !Transform to orthogonal cell. This is useless, because although the volume will be unchanged, the translation symmetry will be broken
+                !Make b point to Y axis
+                cellv2(1)=0
+                cellv2(3)=0
+                !Make c point to Z axis
+                cellv3(1:2)=0
+                write(*,*) "Done!"
             end if
         end do
         
