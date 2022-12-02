@@ -197,6 +197,8 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
 		ifiletypeexc=4
     else if (iprog==5) then !CP2K output
 		ifiletypeexc=6
+    else if(iprog==7) then !BDF output
+        ifiletypeexc=7
     else if (iprog==0) then !Plain text file
 		ifiletypeexc=3
     end if
@@ -296,6 +298,23 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
             if (c80tmp==" ") exit
 			nstates=nstates+1
 		end do
+    else if (ifiletypeexc==7) then !BDF output file. This part of code was contributed by Cong Wang, 2022-Dec-1
+        call loclabel(10,"D<Pab>",ifound)
+        if (ifound==0) then
+            write(*,"(a)") " Error: Unable to locate ""D<Pab>"" label"
+            write(*,*) "Press ENTER button to return"
+            read(*,*)
+            return
+        end if
+        do while(.true.)
+            call loclabel(10,"D<Pab>",ifound,0)
+            if (ifound==1) then
+                nstates=nstates+1
+                read(10,*)
+            else
+                exit
+            end if
+        end do
 	end if
 	if (nstates>1) then
         if (maxloadexc==0) then
@@ -496,7 +515,48 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
                 allexcnorb(iexc)=allexcnorb(iexc)+1
 			end do
 		end do
-        
+
+    else if (ifiletypeexc==7) then !BDF output file. This part of code was contributed by Cong Wang, 2022-Dec-1
+        rewind(10)
+        isf=111
+        iexc=0
+        do while(.true.)
+            read(10,"(a)",iostat=ierror) c200tmp
+            if (ierror/=0) exit
+            if (index(c200tmp,"Start TD-DFT Calculations for isf")/=0) then
+                read(c200tmp(45:45),*) isf
+            else if (index(c200tmp,"D<Pab>")/=0) then
+                iexc=iexc+1
+                if(iexc>nstates) then
+                    write(*,*) "iexc>nstates"
+                    stop
+                end if
+                if (isf==0) then
+                    allexcmulti(iexc)=1
+                else if (isf==1) then
+                    allexcmulti(iexc)=3
+                else !May be unrestricted calculation, set as 0
+                    allexcmulti(iexc)=0
+                end if
+                do i=1,50
+                    if (c200tmp(i:i+1)=="eV") exit
+                end do
+                read(c200tmp(i-10:i-1),*) allexcene(iexc)
+                itmp=index(c200tmp,'f=')
+                read(c200tmp(itmp+6:),*) allexcf(iexc)
+                !Count how many orbital pairs are involved in this excitation
+                do while(.true.)
+                    read(10,"(a)") c200tmp
+                    if (index(c200tmp,'>')/=0) then
+                        allexcnorb(iexc)=allexcnorb(iexc)+1
+                    else if (index(c200tmp,'<')/=0) then
+                        allexcnorb(iexc)=allexcnorb(iexc)+1
+                    else
+                        exit
+                    end if
+                end do
+            end if
+        end do    
 	else if (ifiletypeexc==3) then !Plain text file
 		rewind(10)
 		do iexc=1,nstates
@@ -824,6 +884,53 @@ else
 		!Even for closed-shell reference state, CP2K still outputs coefficients as normalization to 1.0, &
 		!However, in order to follow the Gaussian convention, we change the coefficient as normalization to 0.5
 		if (wfntype==0.or.wfntype==3) allexccoeff=allexccoeff/dsqrt(2D0)
+
+    else if (ifiletypeexc==7) then !BDF output file. This part of code was contributed by Cong Wang, 2022-Dec-1
+        do iexc=1,nstates
+            call loclabel(10,"D<Pab>",ifound,0)
+            read(10,*)
+            do itmp=1,allexcnorb(iexc)
+                !Determine excitation direction
+                read(10,"(a)") c200tmp
+                ileft=index(c200tmp,"->")
+                allexcdir(itmp,iexc)=1 !means ->
+                isign=ileft
+                if (ileft==0) then
+                    iright=index(c200tmp,"<-")
+                    allexcdir(itmp,iexc)=2 !means <-
+                    isign=iright
+                end if
+                !Process left side
+                leftstr=c200tmp(:isign-1)
+                do ileft=len_trim(leftstr),1,-1
+                    if (leftstr(ileft:ileft)=="(") exit
+                end do
+                read(leftstr(ileft:len_trim(leftstr)-1),*) allorbleft(itmp,iexc)
+                !Process right side
+                rightstr=c200tmp(isign+2:)
+                ir1=0
+                ir2=0
+                do iright=1,len_trim(rightstr)
+                    if (rightstr(iright:iright)=="(") ir1=iright
+                    if (rightstr(iright:iright)==")") then
+                        ir2=iright
+                        exit
+                    end if
+                end do
+                read(rightstr(ir1+1:ir2-1),*) allorbright(itmp,iexc)
+                ir1=0
+                ir2=0
+                do iright=1,len_trim(rightstr)
+                    if (rightstr(iright:iright+3)=="Per:") ir1=iright
+                    if (rightstr(iright:iright)=="%") then
+                        ir2=iright
+                        exit
+                    end if
+                end do
+                read(rightstr(ir1+4:ir2-1),*) fper
+                allexccoeff(itmp,iexc) = sqrt(fper/200D0)
+            end do
+        end do
 	end if
 	
 	close(10)
@@ -1141,6 +1248,54 @@ else if (ifiletypeexc==6) then !ORCA output file
 	!Even for closed-shell reference state, CP2K still outputs coefficients as normalization to 1.0, &
 	!However, in order to follow the Gaussian convention, we change the coefficient as normalization to 0.5
 	if (wfntype==0.or.wfntype==3) exccoeff=exccoeff/dsqrt(2D0)
+
+else if (ifiletypeexc==7) then !BDF output file. This part of code was contributed by Cong Wang, 2022-Dec-1
+    rewind(10)
+    do iexc=1,istate
+        call loclabel(10,"D<Pab>",ifound,0)
+        read(10,*)
+    end do
+    do itmp=1,excnorb
+        !Determine excitation direction
+        read(10,"(a)") c200tmp
+        ileft=index(c200tmp,"->")
+        excdir(itmp)=1 !means ->
+        isign=ileft
+        if (ileft==0) then
+            iright=index(c200tmp,"<-")
+            excdir(itmp)=2 !means <-
+            isign=iright
+        end if
+        !Process left side
+        leftstr=c200tmp(:isign-1)
+        do ileft=len_trim(leftstr),1,-1
+            if (leftstr(ileft:ileft)=="(") exit
+        end do
+        read(leftstr(ileft:len_trim(leftstr)-1),*) orbleft(itmp)
+        !Process right side
+        rightstr=c200tmp(isign+2:)
+        ir1=0
+        ir2=0
+        do iright=1,len_trim(rightstr)
+            if (rightstr(iright:iright)=="(") ir1=iright
+            if (rightstr(iright:iright)==")") then
+                ir2=iright
+                exit
+            end if
+        end do
+        read(rightstr(ir1+1:ir2-1),*) orbright(itmp)
+        ir1=0
+        ir2=0
+        do iright=1,len_trim(rightstr)
+            if (rightstr(iright:iright+3)=="Per:") ir1=iright
+            if (rightstr(iright:iright)=="%") then
+                ir2=iright
+                exit
+            end if
+        end do
+        read(rightstr(ir1+4:ir2-1),*) fper
+        exccoeff(itmp) = sqrt(fper/200D0)
+    end do
 end if
 close(10)
 
@@ -5524,7 +5679,7 @@ use defvar
 use excitinfo
 use util
 implicit real*8 (a-h,o-z)
-character c2tmp*2,c80tmp*80,outstr*80,outfilename*200,selectyn
+character c2tmp*2,c80tmp*80,c200tmp*200,outstr*80,outfilename*200,selectyn
 integer,allocatable :: idxorder(:)
 real*8,allocatable :: exccoefftmp(:)
 
@@ -5568,6 +5723,14 @@ else if (iprog==5) then !CP2K
     call readaftersign_int(c80tmp,':',nbasis)
     iopsh=0
     call loclabel(10,"U-TDDFPT",iopsh)
+else if (iprog==7) then !BDF. This part of code was contributed by Cong Wang, 2022-Dec-1
+    iopsh=0
+    call loclabel(10,"Beta MOs",iopsh)
+    if (iopsh==0) wfntype=0
+    if (iopsh==1) wfntype=1
+    call loclabel(10,"Basis Functions =")
+    read(10,"(a)") c200tmp
+    read(c200tmp(index(c200tmp,"=")+1:len_trim(c200tmp)),*) nbasis
 else
     write(*,*) "Error: Unable to determine the content of this file"
     write(*,*) "Press ENTER button to return"
@@ -5663,6 +5826,14 @@ else if (iprog==5) then !CP2K
 		read(10,"(a)") c80tmp
 		call readaftersign_int(c80tmp,':',iHOMO_B)
     end if
+else if (iprog==7) then !BDF. This part of code was contributed by Cong Wang, 2022-Dec-1
+    open(10,file=filename,status="old")
+    call loclabel(10,"alpha electrons :")
+    read(10,"(a)") c200tmp
+    read(c200tmp(index(c200tmp,":")+1:len_trim(c200tmp)),*) iHOMO_A
+    read(10,"(a)") c200tmp
+    read(c200tmp(index(c200tmp,":")+1:len_trim(c200tmp)),*) iHOMO_B
+    close(10)
 end if
 
 iLUMO_A=iHOMO_A+1

@@ -2140,7 +2140,7 @@ end function
 subroutine loclabel(fileid,label,ifound,irewind,maxline)
 integer fileid,ierror
 integer,optional :: ifound,irewind,maxline
-character c200*200
+character c200tmp*200
 character(len=*) label
 if (.not.present(irewind)) then
 	rewind(fileid)
@@ -2149,9 +2149,9 @@ else
 end if
 if (.not.present(maxline)) then
 	do while(.true.)
-		read(fileid,"(a)",iostat=ierror) c200
+		read(fileid,"(a)",iostat=ierror) c200tmp
 		if (ierror/=0) exit
-		if (index(c200,label)/=0) then
+		if (index(c200tmp,label)/=0) then
 			backspace(fileid)
 			if (present(ifound)) ifound=1 !Found result
 			return
@@ -2159,9 +2159,9 @@ if (.not.present(maxline)) then
 	end do
 else
 	do iline=1,maxline
-		read(fileid,"(a)",iostat=ierror) c200
+		read(fileid,"(a)",iostat=ierror) c200tmp
 		if (ierror/=0) exit
-		if (index(c200,label)/=0) then
+		if (index(c200tmp,label)/=0) then
 			backspace(fileid)
 			if (present(ifound)) ifound=1 !Found result
 			return
@@ -2287,7 +2287,7 @@ end subroutine
 
 !--------- Determine the present file is output file of which code
 !The file must has been opended as "ifileid"
-!iprog: 1=Outputted by Gaussian, 2=Outputted by ORCA, 3=Outputted by GAMESS-US, 4=Outputted by Firefly, 5=CP2K, 6=xTB, 0=Undetermined
+!iprog: 1=Outputted by Gaussian, 2=Outputted by ORCA, 3=Outputted by GAMESS-US, 4=Outputted by Firefly, 5=CP2K, 6=xTB, 7=BDF, 0=Undetermined
 !info (optional): 1 means output the type of this file
 subroutine outputprog(ifileid,iprog,info)
 integer ifileid,iprog
@@ -2327,6 +2327,12 @@ call loclabel(10,"x T B",ifound,maxline=500)
 if (ifound==1) then
     iprog=6
     if (present(info)) write(*,*) "Note: This file is recognized as a xTB output file"
+    return
+end if
+call loclabel(10,"BDF",ifound,maxline=500)
+if (ifound==1) then
+    iprog=7
+    if (present(info)) write(*,*) "Note: This file is recognized as a BDF output file"
     return
 end if
 iprog=0

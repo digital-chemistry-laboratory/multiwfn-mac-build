@@ -2881,7 +2881,7 @@ use defvar
 use util
 implicit real*8 (a-h,o-z)
 character(len=*) loadspecname
-character ctest,ctest2,ctest3,c80tmp*80,c200tmp*200
+character ctest,ctest2,ctest3,c3tmp*3,c80tmp*80,c200tmp*200
 integer ispectrum,imode
 integer :: nrdfreq=0 ! >0 means pre-resonance raman, which loads external field frequency
 real*8,allocatable :: rdfreq(:),tmparr(:)
@@ -3710,6 +3710,113 @@ if (iCP2K==1) then
 		end do
     end if
 	close(10)
+    return
+end if
+
+!Check if is BDF output file. This part of code was contributed by Cong Wang, 2022-Dec-1
+call loclabel(10,"BDF",iBDFout,maxline=100)
+rewind(10)
+if (iBDFout==1) then
+    if (imode==0) write(*,*) "Recognized as a BDF output file"
+    !UV-Vis
+    if (ispectrum==3) then
+        call loclabel(10,"[algorithm]",ifound,0)
+        call skiplines(10,2)
+        numdata=0
+        do while(.true.)
+            read(10,"(a)") c200tmp
+            if (index(c200tmp,"[dvdson_parameters]")/=0) exit
+            read(c200tmp,*) itmp1,c3tmp,itmp2,itmp3
+            numdata=numdata+itmp2
+        end do
+        if (imode==1) then !Have obtained number of data, return
+            close(10)
+            return
+        end if
+        allocate(datax(numdata),str(numdata),FWHM(numdata)) !Transition energy, strength and FWHM loaded from only one file
+        call loclabel(10,"List of excitations",ifound,0)
+        if (ifound==1) then
+            do while(.true.)
+                call loclabel(10,"List of excitations",ifound,0)
+                if (ifound==1) then
+                    call loclabel(10,"isf=",isfout,0,10)
+                    if (isfout==1) then
+                        read(10,"(a)") c200tmp
+                        read(c200tmp(index(c200tmp,"=")+1:),*) isf
+                        if (isf==0) exit
+                    end if
+                end if
+            end do
+        end if
+        call loclabel(10,"No. Pair   ExSym   ExEnergies     Wavelengths      f",ifound,0,10)
+        call skiplines(10,2)
+        datax=0;str=0
+        do iec=1,numdata
+            read(10,"(a)") c200tmp
+            read(c200tmp(index(c200tmp,"eV")-10:index(c200tmp,"eV")-1),*) datax(iec)
+            read(c200tmp(index(c200tmp,"nm")+2:index(c200tmp,"nm")+10),*) str(iec)
+        end do
+        if (iUVdir/=0.and.ispectrum==3) then
+            call loclabel(10,"Ground to excited state Transition electric dipole moments",ifound,0,10)
+            call skiplines(10,2)
+            !write(*,*) "TAG iUVdir: ", iUVdir
+            do iec=1,numdata
+                read(10,*) istate,xdip,ydip,zdip
+                if (iUVdir==1) then
+                    tmp=xdip**2
+                else if (iUVdir==2) then
+                    tmp=ydip**2
+                else if (iUVdir==3) then
+                    tmp=zdip**2
+                else if (iUVdir==4) then
+                    tmp=xdip**2+ydip**2
+                else if (iUVdir==5) then
+                    tmp=xdip**2+zdip**2
+                else if (iUVdir==6) then
+                    tmp=ydip**2+zdip**2
+                end if
+                str(iec)=2D0/3D0*tmp*datax(iec)/au2eV
+            end do
+        end if
+        !write(*,*) "TAG -str: ", str
+        call loclabel(10,"List of SOC-SI results",ifound,0)
+        if (ifound==1) then
+            write(*,"(a)") " Spin-orbit coupling corrected spectra information was found, &
+                would you like to plot this kind of spectrum instead of the one without correction? (y/n)"
+            read(*,*) ctest
+            if (ctest=='y'.or.ctest=='Y') then
+                numdata=4*numdata !If root=n, then there will be n singlet states and 3n triplet sublevels
+                deallocate(datax,str,FWHM)
+                allocate(datax(numdata),str(numdata),FWHM(numdata))
+                do isoc=1,numdata
+                    call loclabel(10,"E_J-E_I         fosc",ifound,0)
+                    call skiplines(10,2)
+                    read(10,*) tmp1,tmp2,tmp3,tmp4,datax(isoc),str(isoc)
+                    if (iUVdir/=0.and.ispectrum==3) then
+                        call loclabel(10,"Norm=",ifound,0)
+                        read(10,"(a)") c200tmp
+                        read(c200tmp(index(c200tmp,"=")+1:),*) xdipr,ydipr,zdipr
+                        if (iUVdir==1) then
+                            tmp=xdipr**2
+                        else if (iUVdir==2) then
+                            tmp=ydipr**2
+                        else if (iUVdir==3) then
+                            tmp=zdipr**2
+                        else if (iUVdir==4) then
+                            tmp=xdipr**2+ydipr**2
+                        else if (iUVdir==5) then
+                            tmp=xdipr**2+zdipr**2
+                        else if (iUVdir==6) then
+                            tmp=ydipr**2+zdipr**2
+                        end if
+                        str(isoc)=2D0/3D0*tmp*datax(isoc)/au2eV
+                    end if
+                end do
+            end if
+        end if
+        FWHM=2D0/3D0
+    end if
+    close(10)
     return
 end if
 
@@ -5159,6 +5266,37 @@ else if (iprog==2) then !ORCA
         iatm=idx+1
         a(iatm)%name=trim(c80tmp2)
         atmshd(iatm)=tmpshd
+    end do
+else if (iprog==7) then !BDF. This part of code was contributed by Cong Wang, 2022-Dec-1
+    call loclabel(10,"Number of atoms",ifound)
+    read(10,"(a)") c80tmp
+    read(c80tmp(index(c80tmp,":")+1:),*) ncenter
+    if (.not.allocated(a)) allocate(a(ncenter))
+    allocate(atmshd(ncenter))
+    rewind(10)
+    do while(.true.)
+        call loclabel(10,"Nuclear Magnetic shielding result in PPM",ifound,0)
+        if (ifound==0) then
+            write(*,"(a)") " Error: Unable to find magnetic shielding tensors!"
+            write(*,*) "Press ENTER button to exit program"
+            read(*,*)
+            stop
+        end if
+        read(10,"(a)") c80tmp
+        if(index(c80tmp,"giao")/=0) then
+            backspace(10)
+            exit
+        end if
+    end do
+    do iatm=1,ncenter
+        call loclabel(10,"NMR shielding tensor and constant of nucleus",irewind=0)
+        read(10,"(a)") c80tmp
+        read(c80tmp(index(c80tmp,"atom")+4:),*) a(iatm)%name
+    end do
+    call loclabel(10,"Isotropic/anisotropic constant by atom order",irewind=0)
+    read(10,*)
+    do iatm=1,ncenter
+        read(10,*) atmshd(iatm), tmp
     end do
 else if (iprog==0) then !Undetermined, viewed as plain text file
     ncenter=totlinenum(10,1)
