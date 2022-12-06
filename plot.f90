@@ -1002,6 +1002,7 @@ end subroutine
 !Input length unit must be in Bohr, but you can use ilenunit2D to change the displayed length unit (=1/2 denote Bohr/Angstrom)
 subroutine drawplane(init1inp,end1inp,init2inp,end2inp,init3,end3,idrawtype)
 use topo
+use util
 implicit real*8 (a-h,o-z)
 real*8 init1inp,end1inp,init2inp,end2inp,init1,end1,init2,end2,init3,end3
 real*8 xcoord(ngridnum1),ycoord(ngridnum2),gradd1tmp(ngridnum1,ngridnum2),gradd2tmp(ngridnum1,ngridnum2)
@@ -1459,7 +1460,7 @@ if (idrawtype==1.or.idrawtype==2.or.idrawtype==6.or.idrawtype==7) then
 		    if (plesel<=3) then !XY plane
 			    do iatm=ipt+1,ncenter
 				    if (inplane(iatm)==0) cycle
-				    if (distmat(ipt,iatm) < ( covr(a(ipt)%index)+covr(a(iatm)%index) )*bondcrit) then
+				    if (atomdist(ipt,iatm,0) < ( covr(a(ipt)%index)+covr(a(iatm)%index) )*bondcrit) then
 					    if (plesel==1) call rline(posmarkx,posmarky,a(iatm)%x*scll,a(iatm)%y*scll)
 					    if (plesel==2) call rline(posmarkx,posmarkz,a(iatm)%x*scll,a(iatm)%z*scll)
 					    if (plesel==3) call rline(posmarky,posmarkz,a(iatm)%y*scll,a(iatm)%z*scll)
@@ -1484,7 +1485,7 @@ if (idrawtype==1.or.idrawtype==2.or.idrawtype==6.or.idrawtype==7) then
 			    if ( n1>0.and.n2>0.and.n1<(ngridnum1-1).and.n2<(ngridnum2-1) ) then !The ipt is within the scope of drawing range
 				    do iatm=ipt+1,ncenter
 					    if (inplane(iatm)==0) cycle
-					    if (distmat(ipt,iatm) < ( covr(a(ipt)%index)+covr(a(iatm)%index) )*bondcrit) then
+					    if (atomdist(ipt,iatm,0) < ( covr(a(ipt)%index)+covr(a(iatm)%index) )*bondcrit) then
 						    !Get position of iatm in the plotting coordinate
 						    call pointprjple(a1x,a1y,a1z,a2x,a2y,a2z,a3x,a3y,a3z,a(iatm)%x*scll,a(iatm)%y*scll,a(iatm)%z*scll,prjx,prjy,prjz)
 						    if (abs(v1x*v2y-v2x*v1y)>1D-8) then

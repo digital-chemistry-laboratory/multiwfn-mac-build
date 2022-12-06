@@ -447,8 +447,8 @@ do while(.true.)
 					write(*,"(' Error: Missing reference parameter for ',a,'-',a)") ind2name(iatmeleidx),ind2name(jatmeleidx)
 					exit
 				end if
-				paircontri=-refsigma/numHOMAatm*(refbondlen-distmat(iatm,jatm)*b2a)**2
-				write(*,"(i5,'(',a,')  --',i5,'(',a,'):',f15.6,f16.6)") iatm,ind2name(iatmeleidx),jatm,ind2name(jatmeleidx),paircontri,distmat(iatm,jatm)*b2a
+				paircontri=-refsigma/numHOMAatm*(refbondlen-atomdist(iatm,jatm,1)*b2a)**2
+				write(*,"(i5,'(',a,')  --',i5,'(',a,'):',f15.6,f16.6)") iatm,ind2name(iatmeleidx),jatm,ind2name(jatmeleidx),paircontri,atomdist(iatm,jatm,1)*b2a
 				HOMAval=HOMAval+paircontri
 				if (iidx==numHOMAatm) write(*,"(a,f12.6)") " HOMA value is",HOMAval
 			end do
@@ -515,8 +515,8 @@ do while(.true.)
 					write(*,"(' Error: Missing a and b parameters for ',a,'-',a)") ind2name(iatmeleidx),ind2name(jatmeleidx)
 					exit
 				end if
-				BirdN(iidx)=Birdanow/(distmat(iatm,jatm)*b2a)**2-Birdbnow
-				write(*,"(i5,'(',a,')  --',i5,'(',a,'):',f15.6,f16.6)") iatm,ind2name(iatmeleidx),jatm,ind2name(jatmeleidx),BirdN(iidx),distmat(iatm,jatm)*b2a
+				BirdN(iidx)=Birdanow/(atomdist(iatm,jatm,1)*b2a)**2-Birdbnow
+				write(*,"(i5,'(',a,')  --',i5,'(',a,'):',f15.6,f16.6)") iatm,ind2name(iatmeleidx),jatm,ind2name(jatmeleidx),BirdN(iidx),atomdist(iatm,jatm,1)*b2a
 				if (iidx==numBirdatm) then
 					avgBirdN=sum(BirdN)/numBirdatm
 					BirdVnow=dsqrt(sum((BirdN(:)-avgBirdN)**2)/numBirdatm)*100/avgBirdN

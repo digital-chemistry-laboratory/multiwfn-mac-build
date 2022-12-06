@@ -706,7 +706,7 @@ do while (.true.)
         !Convert atomic pair dg indices to IBSIW
 		do idx=1,ni
 			do jdx=1,nj
-                dist=distmat(IGMfrag(ifrag,idx),IGMfrag(jfrag,jdx))*b2a
+                dist=atomdist(IGMfrag(ifrag,idx),IGMfrag(jfrag,jdx),1)*b2a
                 IBSIWmat(idx,jdx)=atmpairdg(idx,jdx)/dist**2*100
 			end do
 		end do
@@ -907,7 +907,7 @@ do icen=1,ncenter
             iatm=atmlist1(itmp)
             do jtmp=1,natm2
                 jatm=atmlist2(jtmp)
-                if (distmat(iatm,jatm)>9) cycle !The two atoms are closely contacted
+                if (atomdist(iatm,jatm,1)>9) cycle !The two atoms are closely contacted
                 xmid=(a(iatm)%x+a(jatm)%x)/2
                 ymid=(a(iatm)%y+a(jatm)%y)/2
                 zmid=(a(iatm)%z+a(jatm)%z)/2

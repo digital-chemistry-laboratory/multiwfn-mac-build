@@ -888,7 +888,7 @@ do while(.true.)
             iatm=atmlist(idx)
             do jdx=idx+1,natmlist
                 jatm=atmlist(jdx)
-                dist=distmat(iatm,jatm)*b2a
+                dist=atomdist(iatm,jatm,1)*b2a
                 if (dist>distprintthres) cycle
                 IBSImat(idx,jdx)=atmpairdg(idx,jdx)/dist**2/refval
                 write(*,"(i5,'(',a,')',i5,'(',a,')  Dist:',f8.4,'   Int(dg_pair):',f8.5,'   IBSI:',f8.5)") &

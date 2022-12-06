@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2022-Dec-1"
+write(*,*) "Version 3.8(dev), release date: 2022-Dec-5"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -169,15 +169,6 @@ forall (i=1:nfragatm_org) fragatm_org(i)=i
 
 
 !!-------- Call some routines only once
-if (allocated(a)) then
-	if (ncenter>15000) then
-        !For huge system, generation of distance matrix is not only quite time consuming but take huge memory
-        !Though it is needed in many analyses, they are unlikely to be applied for system containing more than 20000 atoms
-        write(*,"(a)") " Note: There are very large number of atoms, so distance matrix is not generated now"
-    else
-	    call gendistmat !Generate distance matrix. For 15000 atom systems, it will occupy about 2GB memory
-    end if
-end if
 !Convert prebuilt radii from Angstrom to Bohr. But some radii such as radii_hugo will remain unchanged since it is recorded as Bohr
 if (ifirstMultiwfn==1) then
 	vdwr=vdwr/b2a

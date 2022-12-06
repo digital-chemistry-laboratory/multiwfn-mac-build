@@ -884,7 +884,6 @@ do while(.true.)
 		end do
 		deallocate(a_tmp,b_tmp,CO_tmp)
 		imodwfn=1
-		call gendistmat !The number of atoms have changed, so we must update distance matrix
 	
 	else if (isel==33) then
 		write(*,*) "Rotate which orbital? (Input 0 to rotate all orbitals)"
@@ -1378,39 +1377,6 @@ forall (i=1:nbasis) Smat(i,i)=1D0/Smat(i,i)
 !Xmatinv=matmul(matmul(Umat,Smat),transpose(Umat))
 tmpmat=matmul_blas(Umat,Smat,nbasis,nbasis)
 Xmatinv=matmul_blas(tmpmat,Umat,nbasis,nbasis,0,1)
-end subroutine
-
-
-
-
-!!!------------------ Generate distance matrix between atoms (in Bohr)
-!To avoid complicating thing, PBC is not taken into account
-subroutine gendistmat
-use defvar
-implicit real*8 (a-h,o-z)
-if (allocated(distmat)) deallocate(distmat)
-allocate(distmat(ncenter,ncenter))
-distmat=0D0
-!if (ifPBC==0) then
-	!$OMP PARALLEL DO SHARED(distmat) PRIVATE(i,j,tmp) schedule(dynamic) NUM_THREADS(nthreads)
-	do i=1,ncenter
-		do j=i+1,ncenter
-			tmp=dsqrt((a(i)%x-a(j)%x)**2+(a(i)%y-a(j)%y)**2+(a(i)%z-a(j)%z)**2)
-			distmat(i,j)=tmp
-			distmat(j,i)=tmp
-		end do
-	end do
-	!$OMP END PARALLEL DO
-!else
-!	!$OMP PARALLEL DO SHARED(distmat) PRIVATE(i,j) schedule(dynamic) NUM_THREADS(nthreads)
-!	do i=1,ncenter
-!		do j=i+1,ncenter
-!			call nearest_atmdistxyz(i,j,distmat(i,j),atmx,atmy,atmz)
-!			distmat(j,i)=distmat(i,j)
-!		end do
-!	end do
-!	!$OMP END PARALLEL DO
-!end if
 end subroutine
 
 
@@ -2795,6 +2761,7 @@ end subroutine
 !!------- Calculate Becke weighting function of all atoms at (x,y,z), storing to Pvec(:). Does not support PBC
 subroutine BeckePvec(x,y,z,Pvec,radinp,nbeckeiter)
 use defvar
+use util
 implicit real*8 (a-h,o-z)
 integer nbeckeiter
 real*8 x,y,z,Pvec(ncenter)
@@ -2810,7 +2777,7 @@ smat(:,:)=1D0
 !Calculate weight for atom pair (ii,jj). smat(ii,jj) is weight of ii, smat(jj,ii) is weight of jj, they sum to 1
 do ii=1,ncenter
 	do jj=ii+1,ncenter
-        dist=distmat(jj,ii)
+        dist=atomdist(jj,ii,1)
         diff=rdist(ii)-rdist(jj)
             
         !Quick determination. If difference of distance between current point to ii and to jj is longer than their distance, atom of distant side should have weight of zero

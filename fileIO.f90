@@ -1825,10 +1825,6 @@ do while(.true.)
     if (index(trim(c200tmp),'A ')/=0) read(c200tmp,*) c40tmp,cellv1
     if (index(trim(c200tmp),'B ')/=0) read(c200tmp,*) c40tmp,cellv2
     if (index(trim(c200tmp),'C ')/=0.and.index(c200tmp,'PERIODIC')==0) read(c200tmp,*) c40tmp,cellv3
-    write(*,"(a)") trim(c200tmp)
-    write(*,*) cellv1
-    write(*,*) cellv2
-    write(*,*) cellv3
     if (index(c200tmp,'ABC')/=0) then
         read(c200tmp,*) c40tmp,asize,bsize,csize
         alpha=90;beta=90;gamma=90
@@ -7645,8 +7641,8 @@ write(ifileid,"(A40,3X,A1,5X,1PE22.15)") "Virial Ratio                          
 write(ifileid,"(A40,3X,A1,5X,1PE22.15)") "Total Energy                            ","R",totenergy
 !After careful investigation, I found the following information is needed if you want to use unfchk &
 !to convert it to chk and read guess from it, without it Gaussian will only read alpha orbitals as guess.
-!According to Gaussian programmer's manual, the meaning of the first slot of ILSW is: 0=real HF (default) 1=real etc.
-!I found R and RO calculation doesn't need this
+!According to Gaussian programmer's manual, the meaning of the first slot of ILSW is: 0=real RHF (default) 1=real UHF, etc.
+!R and RO calculations do not need this
 if (wfntype==1.or.wfntype==4) then
     write(ifileid,"(a)") "Num ILSW                                   I              1"
     write(ifileid,"(a)") "ILSW                                       I   N=         1"

@@ -212,7 +212,7 @@ do while(.true.)
 		iatm=frag1(iatmidx)
 		do jatmidx=1,nfrag2
 			jatm=frag2(jatmidx)
-			eleint=eleint+a(iatm)%charge*a(jatm)%charge/distmat(iatm,jatm)
+			eleint=eleint+a(iatm)%charge*a(jatm)%charge/atomdist(iatm,jatm,1)
 		end do
 	end do
 	write(*,"(' Electrostatic interaction energy:',f12.2,' kJ/mol',f12.2,' kcal/mol',/)") eleint*au2kJ,eleint*au2kcal
@@ -1004,7 +1004,7 @@ else if (chgtype==3.or.chgtype==4) then
 				else if (chgtype==4) then !Adjusted voronoi
 					vdwra=vdwr(a(iatm)%index)
 					vdwrb=vdwr(a(jatm)%index)
-					RAB=distmat(iatm,jatm)
+					RAB=atomdist(iatm,jatm,1)
 					rhoval=(RAB**2+discen2-disother2)/2D0/RAB
 					rhoa=vdwra/(vdwra+vdwrb)*RAB
 					if (rhoval>rhoa) then
@@ -1285,6 +1285,7 @@ end subroutine
 !itype=0: CM5, itype=1: 1.2*CM5
 subroutine doCM5(charge,itype)
 use defvar
+use util
 implicit real*8 (a-h,o-z)
 integer itype
 real*8 charge(ncenter),CMcharge(ncenter),radius(118),tvec(3)
@@ -1301,38 +1302,15 @@ if (ishowchgtrans==1) write(*,"(/,a)") " Details of CM5 charge correction (only 
 do iatm=1,ncenter
 	CMcorr=0
 	iZ=a(iatm)%index
-    if (ifPBC==0) then
-	    do jatm=1,ncenter
-		    if (iatm==jatm) cycle
-		    jZ=a(jatm)%index
-		    Bval=exp( -alpha*(distmat(iatm,jatm)*b2a-radius(iZ)-radius(jZ)) )
-            call getCM5Tval(iZ,jZ,Tval)
-		    CMcorr=CMcorr+Tval*Bval
-		    if (ishowchgtrans==1.and.abs(Tval*Bval)>1D-5) write(*,"(i4,a,i4,a,'  B_term:',f10.5,'  T_term:',f10.5,'  Corr. charge:',f10.5)") &
-            iatm,a(iatm)%name,jatm,a(jatm)%name,Bval,Tval,Tval*Bval
-	    end do
-    else !PBC case
-        do icell=-PBCnx,PBCnx
-            do jcell=-PBCny,PBCny
-                do kcell=-PBCnz,PBCnz
-	                do jatm=1,ncenter
-		                if (iatm==jatm) cycle
-		                jZ=a(jatm)%index
-                        call tvec_PBC(icell,jcell,kcell,tvec)
-                        atmx=a(jatm)%x+tvec(1)
-                        atmy=a(jatm)%y+tvec(2)
-                        atmz=a(jatm)%z+tvec(3)
-                        dist=dsqrt((atmx-a(iatm)%x)**2+(atmy-a(iatm)%y)**2+(atmz-a(iatm)%z)**2)
-		                Bval=exp( -alpha*(dist*b2a-radius(iZ)-radius(jZ)) )
-                        call getCM5Tval(iZ,jZ,Tval)
-		                CMcorr=CMcorr+Tval*Bval
-		                if (ishowchgtrans==1.and.abs(Tval*Bval)>1D-5) write(*,"(i4,a,i4,a,'  B_term:',f10.5,'  T_term:',f10.5,'  Corr. charge:',f10.5)") &
-                        iatm,a(iatm)%name,jatm,a(jatm)%name,Bval,Tval,Tval*Bval
-	                end do
-                end do
-            end do
-        end do
-    end if
+	do jatm=1,ncenter
+		if (iatm==jatm) cycle
+		jZ=a(jatm)%index
+		Bval=exp( -alpha*(atomdist(iatm,jatm,1)*b2a-radius(iZ)-radius(jZ)) )
+        call getCM5Tval(iZ,jZ,Tval)
+		CMcorr=CMcorr+Tval*Bval
+		if (ishowchgtrans==1.and.abs(Tval*Bval)>1D-5) write(*,"(i4,a,i4,a,'  B_term:',f10.5,'  T_term:',f10.5,'  Corr. charge:',f10.5)") &
+        iatm,a(iatm)%name,jatm,a(jatm)%name,Bval,Tval,Tval*Bval
+	end do
     CMcharge(iatm)=charge(iatm)+CMcorr
 end do
 
@@ -1954,7 +1932,7 @@ if (isel==1.or.ieqvcons==2) then
 	if (ideterbond==1) then !Guess bonding relationship
 		do i=1,ncenter
 			do j=i+1,ncenter
-				if ( distmat(i,j)<( covr(a(i)%index)+covr(a(j)%index) )*bondcrit ) bondedmat(i,j)=1
+				if ( atomdist(i,j,1)<( covr(a(i)%index)+covr(a(j)%index) )*bondcrit ) bondedmat(i,j)=1
 				bondedmat(j,i)=bondedmat(i,j)
 			end do
 		end do
@@ -3567,7 +3545,7 @@ if (imode==2) then
 		do istat=ichgmin,ichgmax !Charge state
 			do jatm=1,ncenter
 				if (ignorefar==1) then
-					if (distmat(iatm,jatm)>(vdwr(a(iatm)%index)+vdwr(a(jatm)%index))*vdwsumcut) cycle
+					if (atomdist(iatm,jatm,1)>(vdwr(a(iatm)%index)+vdwr(a(jatm)%index))*vdwsumcut) cycle
 				end if
 				if (a(jatm)%index==1.and.istat==1) cycle !H+ doesn't contains electron and cannot compute density
 				c80tmp="atmrad"//sep//trim(a(jatm)%name)//statname(istat)//".rad"
@@ -3635,7 +3613,7 @@ do icyc=1,maxcyc
 		promol=0D0
 		do jatm=1,ncenter
 			if (ignorefar==1) then
-				if (distmat(iatm,jatm)>(vdwr(a(iatm)%index)+vdwr(a(jatm)%index))*vdwsumcut) cycle
+				if (atomdist(iatm,jatm,1)>(vdwr(a(iatm)%index)+vdwr(a(jatm)%index))*vdwsumcut) cycle
 			end if
 			if (imode==1) then
 				!$OMP parallel do shared(tmpdens) private(ipt) schedule(dynamic) num_threads(nthreads)
@@ -4095,6 +4073,7 @@ end function
 subroutine EEM
 use defvar
 use util
+implicit real*8 (a-h,o-z)
 integer,parameter :: maxBO=3 !Maximum of possible bond order
 character c200tmp*200
 real*8 EEMmat(ncenter+1,ncenter+1),EEMarr(ncenter+1),qarr(ncenter+1)
@@ -4230,7 +4209,7 @@ EEMcyc: do while(.true.)
 				if (i==j) then
 					EEMmat(i,j)=Bparm(a(i)%index,imulti)
 				else
-					EEMmat(i,j)=kappa/(distmat(i,j)*b2a)
+					EEMmat(i,j)=kappa/(atomdist(i,j,1)*b2a)
 				end if
 			end do
 		end do

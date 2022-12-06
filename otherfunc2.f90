@@ -830,7 +830,6 @@ write(*,*) "Input distance cutoff in Angstrom, e.g. 3.2"
 read(*,*) discrit
 discrit=discrit/b2a
 
-call gendistmat
 avgdist=0
 iwithin=0
 distmax=0
@@ -838,7 +837,7 @@ distmin=1000000
 do iatm=1,ncenter
 	do jatm=iatm+1,ncenter
 		if ((a(iatm)%name==elesel1.and.a(jatm)%name==elesel2).or.(a(jatm)%name==elesel1.and.a(iatm)%name==elesel2)) then
-			dist=distmat(iatm,jatm)
+			dist=atomdist(iatm,jatm,1)
 			if (dist<=discrit) then
 				iwithin=iwithin+1
 				write(*,"(i6,'#   ',i6,'(',a')   --',i6,'(',a,')    Length:',f12.6,' Angstrom')") iwithin,iatm,a(iatm)%name,jatm,a(jatm)%name,dist*b2a
@@ -877,7 +876,7 @@ if (selectyn=='y'.or.selectyn=='Y') then
 		ncoord=0
 		do jatm=1,ncenter
 			if (iatm==jatm.or.a(jatm)%name/=elesel2) cycle
-			if (distmat(iatm,jatm)<=discrit) ncoord=ncoord+1
+			if (atomdist(iatm,jatm,1)<=discrit) ncoord=ncoord+1
 		end do
 		write(*,"(' The coordinate number of',i6,'(',a,') due to ',a,' - ',a,' bond:',i5)") iatm,elesel1,elesel1,elesel2,ncoord
 		ncoordtot=ncoordtot+ncoord
@@ -2530,7 +2529,7 @@ do idx=1,idxend
             jatm=atmseq(1)
         end if
     end if
-    dist=distmat(iatm,jatm)*b2a
+    dist=atomdist(iatm,jatm,1)*b2a
     if (mod(idx,2)==1) then !odd
         avglen_odd=avglen_odd+dist
         n_odd=n_odd+1
