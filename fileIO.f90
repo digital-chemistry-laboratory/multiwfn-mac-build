@@ -3863,6 +3863,8 @@ if (ifound==1) then
         cellv2=cellv2/b2a
         cellv3=cellv3/b2a
     end if
+else
+	call loadcellinfo_txt !Load cell information from [Cell].txt in current folder if available
 end if
 
 !!!!! Load atom information

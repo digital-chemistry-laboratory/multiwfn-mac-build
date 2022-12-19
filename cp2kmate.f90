@@ -1228,9 +1228,9 @@ if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") then !Semi-empi
                 ie=kindeleidx(ikind)
                 if ((ie>=21.and.ie<=28).or.(ie>=39.and.ie<=46).or.(ie>=57.and.ie<=78).or.ie>=89) then !Only +U for d or f element
                     if (ie/=24.and.ie/=25.and.ie/=42.and.ie/=43.and.ie/=46.and.ie/=75) then !Ignore half-occupied d shell elements
-                        write(ifileid,"(a)") "      &DFT_PLUS_U T"
-                        write(ifileid,"(a)") "        L 2 #Quantum number of angular momentum the atomic orbitals to +U. 2=d, 3=f"
-                        write(ifileid,"(a)") "        U_MINUS_J [eV] 3.9 #Effective on-site Coulomb interaction parameter U(eff) = U - J"
+                        write(ifileid,"(a)") "      &DFT_PLUS_U"
+                        write(ifileid,"(a)") "        L 2 #Quantum number of angular momentum the atomic orbitals to +U. 0=s, 1=p, 2=d, 3=f"
+                        write(ifileid,"(a)") "        U_MINUS_J [eV] 2.0 #Effective on-site Coulomb interaction parameter U(eff) = U - J"
                         write(ifileid,"(a)") "      &END DFT_PLUS_U"
                     end if
                 end if

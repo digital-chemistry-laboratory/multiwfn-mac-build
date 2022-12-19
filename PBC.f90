@@ -634,3 +634,48 @@ use defvar
 integer iz
 iz=iz-floor(float(iz-1)/nz)*nz
 end subroutine
+
+
+
+!!!-------- Load cell information from [Cell].txt in current folder if available
+!The format of this file should be identical to content below [Cell] field of .molden file
+subroutine loadcellinfo_txt
+use defvar
+implicit real*8 (a-h,o-z)
+character selectyn,c80tmp*80
+
+ifileid=11
+inquire(file="[Cell].txt",exist=alive)
+if (alive) then
+    write(*,"(a)") " Cell information is not defined in input file, but [Cell].txt is found in current folder, do you want to load cell information from it? (y/n)"
+    read(*,*) selectyn
+    if (selectyn=='y'.or.selectyn=='Y') then
+        open(ifileid,file="[Cell].txt",status="old")
+        read(ifileid,"(a)") c80tmp
+        read(c80tmp,*,iostat=ierror) alen,blen,clen,anga,angb,angc
+        if (ierror==0) then !Load as cell parameters
+            call abc2cellv(alen/b2a,blen/b2a,clen/b2a,anga,angb,angc)
+            ifPBC=3
+        else !Load as cell vectors
+            read(c80tmp,*) cellv1
+            ifPBC=1
+            read(ifileid,*,iostat=ierror) cellv2
+            if (ierror/=0) then
+                cellv2=0
+            else
+                ifPBC=ifPBC+1
+                read(ifileid,*,iostat=ierror) cellv3
+                if (ierror/=0) then
+                    cellv3=0
+                else
+                    ifPBC=ifPBC+1
+                end if
+            end if
+            cellv1=cellv1/b2a
+            cellv2=cellv2/b2a
+            cellv3=cellv3/b2a
+        end if
+        close(ifileid)
+    end if
+end if
+end subroutine

@@ -96,7 +96,7 @@ if (functype==12.and.ESPrhoiso/=0) then
 	allocate(corpos(nx,ny,nz),boundgrd(nx,ny,nz))
     write(*,"(' Note: ESP will be calculated only for the grids around isosurface of electron density of ',f10.6,' a.u.')") ESPrhoiso
     write(*,*) "Detecting the grids for calculating ESP..."
-	!$OMP PARALLEL DO SHARED(corpos) PRIVATE(ix,iy,iz) schedule(dynamic) NUM_THREADS(nthreads)
+	!$OMP PARALLEL DO SHARED(corpos) PRIVATE(ix,iy,iz) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
     do iz=1,nz
 		do iy=1,ny
 			do ix=1,nx
@@ -143,10 +143,10 @@ if (ifdoESP(functype).and.(iESPcode==2.or.iESPcode==3)) then
 end if
 
 !Start calculation of grid data!!!!!!!!!!!!
-if (infomode==0) call showprog(0,nz)
+if (infomode==0) call showprog(0,nz*ny)
 ifinish=0
 cubmat=0
-!$OMP PARALLEL DO SHARED(cubmat,ifinish) PRIVATE(i,j,k,tmpx,tmpy,tmpz,densval) schedule(dynamic) NUM_THREADS(nthreads)
+!$OMP PARALLEL DO SHARED(cubmat,ifinish) PRIVATE(i,j,k,tmpx,tmpy,tmpz,densval) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
 do k=1,nz
 	do j=1,ny
 		do i=1,nx
@@ -170,16 +170,16 @@ do k=1,nz
 				cubmat(i,j,k)=calcfuncall(functype,tmpx,tmpy,tmpz)
 			end if
 		end do
+		if (infomode==0) then
+		    !$OMP CRITICAL
+		    ifinish=ifinish+1
+		    call showprog(ifinish,nz*ny)
+		    !$OMP END CRITICAL
+		end if
 	end do
-    !$OMP CRITICAL
-	if (infomode==0) then
-        ifinish=ifinish+1
-        call showprog(ifinish,nz)
-	end if
-	!$OMP END CRITICAL
 end do
 !$OMP END PARALLEL DO
-if (infomode==0.and.ifinish<nz) call showprog(nz,nz)
+if (infomode==0.and.ifinish<nz*ny) call showprog(nz*ny,nz*ny)
 nthreads=nthreads_old
 
 call del_GTFuniq !Destory unique GTF informtaion
@@ -822,18 +822,21 @@ else
 end if
 write(*,*) "Calculating grid data of electron density..."
 ifinish=0
-!$OMP PARALLEL DO SHARED(rhocub,ifinish) PRIVATE(i,j,k,tmpx,tmpy,tmpz,tmprho) schedule(dynamic) NUM_THREADS(nthreads)
+!$OMP PARALLEL DO SHARED(rhocub,ifinish) PRIVATE(i,j,k,tmpx,tmpy,tmpz,tmprho) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
 do k=1,nz
 	do j=1,ny
 		do i=1,nx
 			call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
 			rhocub(i,j,k)=fdens(tmpx,tmpy,tmpz)
 		end do
+		!$OMP CRITICAL
+		ifinish=ifinish+1
+		call showprog(ifinish,nz*ny)
+		!$OMP END CRITICAL
 	end do
-	ifinish=ifinish+1
-    call showprog(ifinish,nz)
 end do
 !$OMP END PARALLEL DO
+if (ifinish<nz*ny) call showprog(nz*ny,nz*ny)
 end subroutine
 
 
