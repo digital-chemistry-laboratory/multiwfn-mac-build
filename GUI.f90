@@ -1629,7 +1629,7 @@ else
 		if (allocated(cubmat)) deallocate(cubmat)
 		allocate(cubmat(nx,ny,nz))
         ifinish=0
-		!$OMP parallel do PRIVATE(i,j,k,tmpx,tmpy,tmpz) SHARED(cubmat,ifinish) NUM_THREADS(nthreads)
+		!$OMP parallel do PRIVATE(i,j,k,tmpx,tmpy,tmpz) SHARED(cubmat,ifinish) NUM_THREADS(nthreads) collapse(2)
 		do k=1,nz
 			do j=1,ny
 				do i=1,nx
@@ -1650,7 +1650,7 @@ else
 	else if (isosursec==1) then !Save cube data for isosurface 2 to cubmattmp
 		if (allocated(cubmattmp)) deallocate(cubmattmp)
 		allocate(cubmattmp(nx,ny,nz))
-		!$OMP parallel do PRIVATE(i,j,k,tmpx,tmpy,tmpz) SHARED(cubmat) NUM_THREADS(nthreads)
+		!$OMP parallel do PRIVATE(i,j,k,tmpx,tmpy,tmpz) SHARED(cubmat) NUM_THREADS(nthreads) collapse(2)
 		do k=1,nz
 			do j=1,ny
 				do i=1,nx

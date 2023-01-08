@@ -49,18 +49,22 @@ integer,allocatable :: atmcons(:),thermoatm(:)
 real*8 :: efieldvec(3)=0,vacsizex=5/b2a,vacsizey=5/b2a,vacsizez=5/b2a
 real*8 :: frag1chg,frag2chg
 integer :: frag1multi,frag2multi,totalmulti
-integer :: iprestype=1,ioutSbas=0,ioutorbene=0,istate_force=1,idiaglib=1,iGAPW=0,iLSSCF=0,iLRIGPW=0,iPSOLVER=1
+integer :: iprestype=1,ioutSbas=0,ioutorbene=0,istate_force=1,idiaglib=1,iGAPW=0,iLSSCF=0,iLRIGPW=0,iPSOLVER=1,niter_evGW=1,niter_scGW0=1
 real*8 :: Piso=1.01325D0,Ptens(3,3)=reshape( [1.01325D0,0D0,0D0, 0D0,1.01325D0,0D0, 0D0,0D0,1.01325D0], shape=shape(Ptens))
 integer :: CUTOFF=350,REL_CUTOFF=50
 real*8 :: cellv1_pseudo(3),cellv2_pseudo(3),cellv3_pseudo(3) !Pseudo cell for low-dimensional system
 real*8 :: cellv1_tmp(3),cellv2_tmp(3),cellv3_tmp(3)
+!CDFT related arrays
+integer :: nCDFTgroup=0 !Number of CDFT groups
+integer,allocatable,save :: CDFTatm(:,:),CDFTtype(:),CDFTnatm(:) !Atom indices, constraint type and number of involved atoms of CDFT groups
+real*8,allocatable,save :: CDFTtarget(:) !Target value of CDFT groups
 
 !Status information of current system. ",save" is used so that for the same system we can enter this interface multiple times to generate various input files
 integer,save :: netchg,multispin
 integer,allocatable,save :: atmkind(:) !The kind that atoms belonging to
 integer,parameter :: nkindmax=200
 integer,save :: nkind=0 !Current number of kinds
-character(len=5),save :: kindname(nkindmax) !Name of each kind
+character(len=8),save :: kindname(nkindmax) !Name of each kind
 integer,save :: kindeleidx(nkindmax) !Element idx of each kind
 integer,save :: kindmag(nkindmax) !Magnetization of each kind
 character,save :: lastinpname*200 !Input file of last time in this interface
@@ -108,7 +112,8 @@ basname(10)="6-31G*"
 basname(11)="6-311G**"
 basname(12)="Ahlrichs-def2-TZVP"
 basname(13)="pob-TZVP"
-basname(14)="Ahlrichs-def2-QZVP"
+basname(14)="pob-TZVP-rev2"
+basname(16)="Ahlrichs-def2-QZVP"
 basname(19)="def2-QZVP with RI_5Z"
 basname(20)="cc-DZ with RI_DZ"
 basname(21)="cc-TZ with RI_TZ"
@@ -351,6 +356,11 @@ do while(.true.)
             !if (idiaglib==1) write(*,*) "20 Choose diagonalization library, current: Default"
             !if (idiaglib==2) write(*,*) "20 Choose diagonalization library, current: ELPA"
             !if (idiaglib==3) write(*,*) "20 Choose diagonalization library, current: Scalapack"
+            if (nCDFTgroup>0) then
+                write(*,"(a,i3,a)") " 19 Redefine constrained DFT (CDFT) groups, current:",nCDFTgroup," groups"
+            else
+                write(*,"(a)") " 19 Enable constrained DFT (CDFT) and define groups"
+            end if
             if (iLRIGPW==0) write(*,*) "20 Toggle using LRIGPW instead of GPW to accelerate calculation, current: No"
             if (iLRIGPW==1) write(*,*) "20 Toggle using LRIGPW instead of GPW to accelerate calculation, current: Yes"
             if (iLSSCF==0) write(*,*) "21 Toggle using Linear Scaling Self Consistent Field Method, current: No"
@@ -452,7 +462,7 @@ do while(.true.)
                         ncount=count(atmkind(:)==ikind)
                         if (ncount>0) then
                             idx=idx+1
-                            write(*,"(' #',i3,':  Kind name: ',a5,' Element: ',a,'  Magnetization:',i3,'   Natoms:',i5)") &
+                            write(*,"(' #',i3,':  Kind name: ',a,' Element: ',a,'  Magnetization:',i3,'   Natoms:',i5)") &
                             idx,kindname(ikind),ind2name(kindeleidx(ikind)),kindmag(ikind),ncount
                         end if
                     end do
@@ -474,7 +484,7 @@ do while(.true.)
                     call str2arr(c2000tmp,ntmp,tmparr)
                     if (all(a(tmparr(1:ntmp))%index==a(tmparr(1))%index)) then
                         nkind=nkind+1
-                        write(*,*) "Input magnetization (difference of alpha and beta electrons), e.g. 4"
+                        write(*,*) "Input magnetization (difference between alpha and beta electrons), e.g. 4"
                         read(*,*) kindmag(nkind)
                         atmkind(tmparr(1:ntmp))=nkind
                         iele=a(tmparr(1))%index
@@ -536,6 +546,32 @@ do while(.true.)
                     ioutSbas=1
                 else
                     ioutSbas=0
+                end if
+            else if (isel2==19) then
+                if (allocated(CDFTatm)) deallocate(CDFTatm,CDFTtype,CDFTnatm,CDFTtarget)
+                write(*,*) "Define how many CDFT constraint groups? e.g. 3"
+                write(*,*) "If input 0, CDFT will be disabled"
+                read(*,*) nCDFTgroup
+                if (nCDFTgroup>0) then
+                    allocate(CDFTatm(ncenter,nCDFTgroup),CDFTtype(nCDFTgroup),CDFTnatm(nCDFTgroup),CDFTtarget(nCDFTgroup))
+                    do igroup=1,nCDFTgroup
+                        write(*,"(a,i3,a)") " Input index of the atoms involved in CDFT group",igroup,", e.g. 2,3,7-10"
+                        read(*,"(a)") c2000tmp
+                        call str2arr(c2000tmp,CDFTnatm(igroup),CDFTatm(:,igroup))
+                        write(*,"(a,i3)") " Choose type of constraint of CDFT group",igroup
+                        write(*,*) "1 Number of alpha electrons"
+                        write(*,*) "2 Number of beta electrons"
+                        write(*,*) "3 Number of all electrons"
+                        write(*,*) "4 Spin population"
+                        read(*,*) CDFTtype(igroup)
+                        write(*,"(a,i3,a)") " Choose target constraint value of CDFT group",igroup,", e.g. 0.5"
+                        read(*,*) CDFTtarget(igroup)
+                    end do
+                    write(*,"(a)") " Done! Note that atom coefficients of all CDFT groups in the generated input file will be set to 1.0, please properly modify if need"
+                    if (idiagOT==1) then
+                        idiagOT=2
+                        write(*,"(a)") " Note: OT has been activated because it is needed by CDFT calculation"
+                    end if
                 end if
             else if (isel2==20) then
                 !write(*,*) "Choose diagonalization library"
@@ -1227,12 +1263,16 @@ if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") then !Semi-empi
             if (iDFTplusU==1) then
                 ie=kindeleidx(ikind)
                 if ((ie>=21.and.ie<=28).or.(ie>=39.and.ie<=46).or.(ie>=57.and.ie<=78).or.ie>=89) then !Only +U for d or f element
-                    if (ie/=24.and.ie/=25.and.ie/=42.and.ie/=43.and.ie/=46.and.ie/=75) then !Ignore half-occupied d shell elements
+                    !if (ie/=24.and.ie/=25.and.ie/=42.and.ie/=43.and.ie/=46.and.ie/=75) then !Ignore half-occupied d shell elements
                         write(ifileid,"(a)") "      &DFT_PLUS_U"
-                        write(ifileid,"(a)") "        L 2 #Quantum number of angular momentum the atomic orbitals to +U. 0=s, 1=p, 2=d, 3=f"
+                        if ((ie>=57.and.ie<=71).or.(ie>=89.and.ie<=103)) then
+                            write(ifileid,"(a)") "        L 3 #Quantum number of angular momentum the atomic orbitals to +U. 0=s, 1=p, 2=d, 3=f"
+                        else
+                            write(ifileid,"(a)") "        L 2 #Quantum number of angular momentum the atomic orbitals to +U. 0=s, 1=p, 2=d, 3=f"
+                        end if
                         write(ifileid,"(a)") "        U_MINUS_J [eV] 2.0 #Effective on-site Coulomb interaction parameter U(eff) = U - J"
                         write(ifileid,"(a)") "      &END DFT_PLUS_U"
-                    end if
+                    !end if
                 end if
             end if
             if (kindmag(ikind)/=0) write(ifileid,"(a,i3)") "      MAGNETIZATION",kindmag(ikind)
@@ -1250,13 +1290,13 @@ if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  GTH_BASIS_SETS"
     else if (ibas<=5) then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_MOLOPT"
-    else if (ibas==10.or.ibas==11.or.ibas==12.or.ibas==14) then
+    else if (ibas==10.or.ibas==11.or.ibas==12.or.ibas==16) then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  EMSL_BASIS_SETS"
-    else if (ibas==13) then
+    else if (ibas==13.or.ibas==14) then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_pob"
     else if (ibas==19) then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_def2_QZVP_RI_ALL"
-    else if (ibas==20.or.ibas==21) then
+    else if (ibas==20.or.ibas==21.or.ibas==22) then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_RI_cc-TZ"
     end if
     if (index(method,"ADMM")/=0) then !Set basis set file for ADMM
@@ -1336,7 +1376,7 @@ else !Other tasks involving energy derivative, use marginally tighter convergenc
 end if
 write(ifileid,"(a,1PE8.1,a)") "      EPS_DEFAULT",eps_def," #Set all EPS_xxx to values such that the energy will be correct up to this value"
 
-if (iHFX==1.or.method=="RI-(EXX+RPA)@PBE") then
+if (iHFX==1.or.method=="RI-(EXX+RPA)@PBE".or.index(method,"GW")/=0) then
     write(ifileid,"(a)") "      EPS_PGF_ORB 1E-12 #If warning ""Kohn Sham matrix not 100% occupied"" occurs and meantime calculation is unstable, decrease it"
 end if
 if (itask==6) then
@@ -1381,6 +1421,54 @@ else !GPW with GTH pseudopotential
         write(ifileid,"(a)") "        LRI_OVERLAP_MATRIX AUTOSELECT #Choose automatically for each pair whether to calculate the inverse or pseudoinverse"
         write(ifileid,"(a)") "      &END LRIGPW"
     end if
+end if
+if (nCDFTgroup>0) then !Constrained DFT
+    write(ifileid,"(a)") "      &CDFT #Set parameters of constrained DFT"
+    write(ifileid,"(a)") "        TYPE_OF_CONSTRAINT Hirshfeld #Type of weighting function for constraint"
+    write(ifileid,"(a)") "        ATOMIC_CHARGES F #Print atomic CDFT charges during iterations"
+    write(ifileid,"(a)",advance="no") "        STRENGTH"
+    do igroup=1,nCDFTgroup
+        write(ifileid,"(a)",advance="no") " 0"
+    end do
+    write(ifileid,"(a)") " #Initial Lagrangian multipliers"
+    write(ifileid,"(a)",advance="no") "        TARGET"
+    do igroup=1,nCDFTgroup
+        write(ifileid,"(f10.3)",advance="no") CDFTtarget(igroup)
+    end do
+    write(ifileid,"(a)") " #Constraint target values"
+    do igroup=1,nCDFTgroup
+        write(ifileid,"(a,i3)") "        &ATOM_GROUP #CDFT group",igroup
+        write(ifileid,"(a)") "          #Indices of the atoms involved in the constraint"
+        call outCP2K_LIST(ifileid,CDFTatm(1:CDFTnatm(igroup),igroup),CDFTnatm(igroup),"          ","ATOMS")
+        write(ifileid,"(a)") "          #Coefficients of the atoms involved in the constraint"
+        write(ifileid,"(a)",advance="no") "          COEFF"
+        do idx=1,CDFTnatm(igroup)
+            write(ifileid,"(a)",advance="no") " 1"
+        end do
+        write(ifileid,*)
+        if (CDFTtype(igroup)==1) write(ifileid,"(a)") "          CONSTRAINT_TYPE ALPHA #Type of constraint"
+        if (CDFTtype(igroup)==2) write(ifileid,"(a)") "          CONSTRAINT_TYPE BETA #Type of constraint"
+        if (CDFTtype(igroup)==3) write(ifileid,"(a)") "          CONSTRAINT_TYPE CHARGE #Type of constraint"
+        if (CDFTtype(igroup)==4) write(ifileid,"(a)") "          CONSTRAINT_TYPE MAGNETIZATION #Type of constraint"
+        write(ifileid,"(a)") "        &END ATOM_GROUP"
+    end do
+    write(ifileid,"(a)") "        #&DUMMY_ATOMS #No constraint applied but calculate charges"
+    write(ifileid,"(a)") "        #  ATOMS ..."
+    write(ifileid,"(a)") "        #&END DUMMY_ATOMS"
+    write(ifileid,"(a)") "        &OUTER_SCF #Method of optimizing Lagrangian multiplier"
+    write(ifileid,"(a)") "          TYPE CDFT_CONSTRAINT #Kind of outer SCF is CDFT"
+    write(ifileid,"(a)") "          EPS_SCF 1E-3 #Convergence threshold Lagrangian multiplier"
+    if (nCDFTgroup==1) then
+        write(ifileid,"(a)") "          OPTIMIZER SECANT"
+    else
+        write(ifileid,"(a)") "          OPTIMIZER NEWTON_LS #Newton's method with backtracking line search"
+    end if
+    write(ifileid,"(a)") "          #STEP_SIZE 0.1 #Initial step size used in optimizer"
+    write(ifileid,"(a)") "        &END OUTER_SCF"
+    write(ifileid,"(a)") "        &HIRSHFELD_CONSTRAINT"
+    write(ifileid,"(a)") "          SHAPE_FUNCTION DENSITY #Use atomic density expanded by multiple Gaussians for Hirshfeld partitioning"
+    write(ifileid,"(a)") "        &END HIRSHFELD_CONSTRAINT"
+    write(ifileid,"(a)") "      &END CDFT"
 end if
 write(ifileid,"(a)") "    &END QS"
 
@@ -1652,7 +1740,11 @@ if (iwfc==1) then
     if (method=="RI-(EXX+RPA)@PBE".or.index(method,"GW")/=0) then
         write(ifileid,"(a)") "        &RI_RPA"
         if (index(method,"GW")/=0) then
-            write(ifileid,"(a)") "          QUADRATURE_POINTS  60  #Number of quadrature points for the numerical integration in the GW"
+            if (ifPBC==0) then
+                write(ifileid,"(a)") "          QUADRATURE_POINTS  60  #Number of quadrature points for the numerical integration in the GW"
+            else !Use larger value for PBC system, because QUADRATURE_POINTS doesn't affect cost significantly, so using larger value to ensure numerical accuracy
+                write(ifileid,"(a)") "          QUADRATURE_POINTS  100  #Number of quadrature points for the numerical integration in the GW"
+            end if
         else
             write(ifileid,"(a)") "          QUADRATURE_POINTS  10  #Number of quadrature points for the numerical integration in the RI-RPA method"
             write(ifileid,"(a)") "          MINIMAX  #Use Minimax quadrature scheme for performing the numerical integration"
@@ -1661,6 +1753,7 @@ if (iwfc==1) then
         write(ifileid,"(a)") "            FRACTION 1.0"
         write(ifileid,"(a)") "            &SCREENING"
         write(ifileid,"(a)") "              EPS_SCHWARZ 1E-7"
+        write(ifileid,"(a)") "              SCREEN_ON_INITIAL_P F"
         write(ifileid,"(a)") "            &END SCREENING"
         if (ifPBC/=0) then !PBC system needs Coulomb truncation for evaluating HF exchange of RPA energy
             write(ifileid,"(a)") "            &INTERACTION_POTENTIAL"
@@ -1683,10 +1776,14 @@ if (iwfc==1) then
             !write(ifileid,"(a)") "            FERMI_LEVEL_OFFSET    2.0E-2"
             write(ifileid,"(a,i3,a)") "            EV_GW_ITER",niter_evGW,"  #Maximum number of iterations for eigenvalue self-consistency of evGW"
             write(ifileid,"(a,i3,a)") "            SC_GW0_ITER",niter_scGW0,"   #Maximum number of iterations for GW0 self-consistency of scGW0"
-            write(ifileid,"(a)") "            UPDATE_XC_ENERGY T  #If total energy will be corrected using exact exchange and the RPA correlation energy"
-            write(ifileid,"(a)") "            RI_SIGMA_X T  #If exchange self-energy will be calculated approximatively with RI"
+            write(ifileid,"(a)") "            UPDATE_XC_ENERGY F  #If total energy will be corrected using exact exchange and the RPA correlation energy"
+            if (ifPBC==0) then
+                write(ifileid,"(a)") "            RI_SIGMA_X T  #If exchange self-energy will be calculated approximatively with RI"
+            else
+                write(ifileid,"(a)") "            RI_SIGMA_X F  #If exchange self-energy will be calculated approximatively with RI"
+            end if
             if (PBCdir=="XYZ") write(ifileid,"(a)") "            PERIODIC_CORRECTION F  #If periodic correction scheme will be used"
-            if (ikpoint1>1.or.ikpoint2>1.or.ikpoint3>1) write(ifileid,"(a,3i3,a)") "           KPOINTS_SELF_ENERGY",ikpoint1,ikpoint2,ikpoint3,"  #Number of k-points for self-energy"
+            if (ikpoint1>1.or.ikpoint2>1.or.ikpoint3>1) write(ifileid,"(a,3i3,a)") "            KPOINTS_SELF_ENERGY",ikpoint1,ikpoint2,ikpoint3,"  #Number of k-points for self-energy"
             write(ifileid,"(a)") "          &END GW"
             write(ifileid,"(a)") "          SIZE_FREQ_INTEG_GROUP  1  #Number of processes for computing each integration point, must be multiple of GROUP_SIZE in &WF_CORRELATION"
         end if
@@ -1858,6 +1955,11 @@ else !&SCF
         end if
         write(ifileid,"(a)") "        MINIMIZER DIIS #CG is worth to consider in difficult cases" !BROYDEN in fact can also be used, but quite poor!
         write(ifileid,"(a)") "        LINESEARCH 2PNT #1D line search algorithm for CG. 2PNT is default, 3PNT is better but more costly. GOLD is best but very expensive"
+        if (nCDFTgroup>0) then
+            write(ifileid,"(a)") "        ALGORITHM IRAC #Algorithm of OT. Can be STRICT (default) or IRAC" !For CDFT, this is much easier to converge than the default STRICT when lambda>0
+        else
+            write(ifileid,"(a)") "        ALGORITHM STRICT #Algorithm of OT. Can be STRICT (default) or IRAC"
+        end if
         write(ifileid,"(a)") "      &END OT"
         if (iouterSCF==0) then
             write(ifileid,"(a)") "      #Uncomment following lines can enable outer SCF, important for difficult convergence case"
@@ -2245,10 +2347,10 @@ end if
 if (itask==11) then !BSSE setting
     write(ifileid,"(/,a)") "  &BSSE"
     write(ifileid,"(a)") "    &FRAGMENT"
-    call outCP2K_LIST(ifileid,frag1,nfrag1,"      ")
+    call outCP2K_LIST(ifileid,frag1,nfrag1,"      ","LIST")
     write(ifileid,"(a)") "    &END FRAGMENT"
     write(ifileid,"(a)") "    &FRAGMENT"
-    call outCP2K_LIST(ifileid,frag2,nfrag2,"      ")
+    call outCP2K_LIST(ifileid,frag2,nfrag2,"      ","LIST")
     write(ifileid,"(a)") "    &END FRAGMENT"
     write(ifileid,"(a)") "    &CONFIGURATION # real(A)+real(B)"
     write(ifileid,"(a)") "      GLB_CONF 1 1"
@@ -2455,7 +2557,7 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
             end if
             !if (nthermoatm<ncenter) then !Misleading
             !    write(ifileid,"(a)") "      &DEFINE_REGION"
-            !    call outCP2K_LIST(ifileid,thermoatm(1:nthermoatm),nthermoatm,"        ")
+            !    call outCP2K_LIST(ifileid,thermoatm(1:nthermoatm),nthermoatm,"        ","LIST")
             !    write(ifileid,"(a)") "      &END DEFINE_REGION"
             !end if
             write(ifileid,"(a)") "    &END THERMOSTAT"
@@ -2497,7 +2599,7 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
         write(ifileid,"(a)") "  &CONSTRAINT"
         write(ifileid,"(a)") "    &FIXED_ATOMS #Set atoms to be fixed"
         write(ifileid,"(a)") "      COMPONENTS_TO_FIX XYZ #Which fractional components will be fixed, can be X, Y, Z, XY, XZ, YZ, XYZ"
-        call outCP2K_LIST(ifileid,atmcons(1:natmcons),natmcons,"      ")
+        call outCP2K_LIST(ifileid,atmcons(1:natmcons),natmcons,"      ","LIST")
         write(ifileid,"(a)") "    &END FIXED_ATOMS"
         write(ifileid,"(a)") "  &END CONSTRAINT"
     end if
@@ -2604,21 +2706,26 @@ ifconti=1
 end subroutine
 
 !----- Output integer arrays in CP2K "LIST" convention
-!list(1:nlist) are indices to be exported to ifileid. spacestr is string containing proper number of spaces to be outputted in front of data
-subroutine outCP2K_LIST(ifileid,list,nlist,spacestr)
-character(len=*) spacestr
+!list(1:nlist) are indices to be exported to ifileid. spacestr is string containing proper number of spaces in front of data, header is label string
+subroutine outCP2K_LIST(ifileid,list,nlist,spacestr,header)
+character(len=*) spacestr,header
 character c80tmp*80
 integer ifileid,nlist,ifconti
 integer list(nlist)
 call testidx_contiguous(list,nlist,ifconti)
 if (ifconti==1) then
     write(c80tmp,*) maxval(list(1:nlist))
-    write(ifileid,"(a,i8,'..',a)") spacestr//"LIST ",minval(list(1:nlist)),adjustl(c80tmp)
+    write(ifileid,"(a,i7,'..',a)") spacestr//header//' ',minval(list(1:nlist)),adjustl(c80tmp)
 else
-    write(ifileid,"(a)",advance='no') spacestr//"LIST "
+    iline=1
     i=0
     do while(.true.) !Change line ended with \ when outputting every 12 terms
-        write(ifileid,"(a)",advance='no') spacestr
+        if (iline==1) then
+            write(ifileid,"(a)",advance='no') spacestr//header//' '
+        else
+            write(ifileid,"(a)",advance='no') spacestr
+        end if
+        iline=iline+1
         if (i*12<nlist-12) then !Not the last line, the remaining terms is more than 12
             write(ifileid,"(12i6,' \')") list(12*i+1:12*i+12)
             i=i+1

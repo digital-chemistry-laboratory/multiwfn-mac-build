@@ -4080,25 +4080,18 @@ real*8 EEMmat(ncenter+1,ncenter+1),EEMarr(ncenter+1),qarr(ncenter+1)
 real*8 kappa,Aparm(nelesupp,maxBO),Bparm(nelesupp,maxBO) !If parameter is -1, means undefined parameter
 real*8 :: chgnet=0
 
-if (ifPBC==0) then
-	if (ifiletype/=11.and.ifiletype/=13) then
-		write(*,"(/,a)") " Warning: Commonly MDL Molfile (.mol) or .mol2 file should be used as input file, &
-        since it contains atomic connectivity information. If you want to let Multiwfn guess interatomic connectivity &
-        and then calculate EEM charges, you can input ""g"", however bond multiplicity cannot be determined in this way, and thus &
-        the EEM charges may be problematic if the employed EEM parameters explicitly involve bond multiplicity"
-		write(*,*) "If you simply want to return, press ENTER button"
-		read(*,"(a)") c200tmp
-        if (index(c200tmp,'g')/=0) then
-			call genconnmat(1,0)
-        else
-			return
-        end if
+if (ifiletype/=11.and.ifiletype/=13) then
+	write(*,"(/,a)") " Warning: Commonly MDL Molfile (.mol) or .mol2 file should be used as input file, &
+	because it contains bond information, which is needed by present function. If you want to let Multiwfn guess interatomic connectivity &
+	and then calculate EEM charges, you can input ""g"", however bond multiplicity cannot be determined in this way, and thus &
+	the EEM charges may be problematic if the employed EEM parameters explicitly involve bond multiplicity"
+	write(*,*) "If you simply want to return, press ENTER button"
+	read(*,"(a)") c200tmp
+	if (index(c200tmp,'g')/=0) then
+		call genconnmat(1,0)
+	else
+		return
 	end if
-else
-	write(*,"(/,a)") " Note: Multiwfn will guess interatomic connectivity and then calculate EEM. &
-    However bond multiplicity cannot be determined in this way, and thus the &
-    EEM charges may be problematic if the employed EEM parameters explicitly involve bond multiplicity"
-	call genconnmat(1,1)
 end if
 
 iparmset=2
@@ -4189,6 +4182,10 @@ EEMcyc: do while(.true.)
 				write(*,"(' Error: Multiplicity of atom',i5,' (',i2,') exceeded upper limit (',i2,')!')") iatm,imulti,maxBO
                 write(*,"(a)") " The present EEM parameters do not support such bonding status, or connectivity in your input file is wrong"
 				cycle EEMcyc
+            else if (imulti==0) then
+				write(*,"(' Error: Atom',i5,'(',a,') is not bonded to any atom!')") iatm,a(iatm)%name
+                write(*,"(a)") " The present EEM parameters do not support such bonding status, or connectivity in your input file is wrong"
+				cycle EEMcyc
 			end if
 			tmpval=Aparm(a(iatm)%index,imulti)
 			if (tmpval==-1) then
@@ -4217,7 +4214,7 @@ EEMcyc: do while(.true.)
 		!Solve EEM equation
 		qarr=matmul(invmat(EEMmat,ncenter+1),EEMarr)
 		do iatm=1,ncenter
-			write(*,"(' EEM charge of atom',i5,'(',a,'):',f15.10)") iatm,a(iatm)%name,qarr(iatm)
+			write(*,"(' EEM charge of atom',i8,'(',a,'):',f15.10)") iatm,a(iatm)%name,qarr(iatm)
 		end do
 		write(*,"(' Electronegativity:',f12.6)") qarr(ncenter+1)
         write(*,*)
