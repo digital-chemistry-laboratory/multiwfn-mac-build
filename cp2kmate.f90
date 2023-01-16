@@ -112,7 +112,8 @@ basname(10)="6-31G*"
 basname(11)="6-311G**"
 basname(12)="Ahlrichs-def2-TZVP"
 basname(13)="pob-TZVP"
-basname(14)="pob-TZVP-rev2"
+basname(14)="pob-DZVP-rev2"
+basname(15)="pob-TZVP-rev2"
 basname(16)="Ahlrichs-def2-QZVP"
 basname(19)="def2-QZVP with RI_5Z"
 basname(20)="cc-DZ with RI_DZ"
@@ -601,7 +602,7 @@ do while(.true.)
                 if (PBCdir=="NONE".or.PBCdir=="XY".or.PBCdir=="XZ".or.PBCdir=="YZ") write(*,*) "3 MT"
                 if (PBCdir=="NONE".or.PBCdir=="XZ".or.PBCdir=="XYZ") write(*,*) "4 WAVELET"
                 read(*,*) iPSOLVER
-                call determine_vacuumsize(iPSOLVER,vacsizex,vacsizey,vacsizez,icentering) !Automatically set proper vacuum sizes
+                call determine_vacuumsize(itask,iPSOLVER,vacsizex,vacsizey,vacsizez,icentering) !Automatically set proper vacuum size
             else if (isel2==23) then
                 write(*,*) "0 Do not use surface dipole correction"
                 write(*,*) "1 Use surface dipole correction in X direction"
@@ -630,7 +631,7 @@ do while(.true.)
             PBCdir="XYZ"
             cycle
         end if
-        call determine_vacuumsize(iPSOLVER,vacsizex,vacsizey,vacsizez,icentering)
+        call determine_vacuumsize(itask,iPSOLVER,vacsizex,vacsizey,vacsizez,icentering) !Automatically set proper vacuum size
     else if (isel==-6) then
         write(*,*) "Input frequency of writing molecular dynamics trajectory, 1 means every step"
         read(*,*) nMDsavefreq
@@ -706,7 +707,8 @@ do while(.true.)
         write(*,*) "14 Path-integral molecular dynamics (PIMD)"
         read(*,*) itask
         if (itask==9.and.ibas<=5) then
-            ibas=10 !Use 6-31G* if current basis set is pseudopotential basis set
+            ibas=10 !Use 6-31G* if current basis set is a pseudopotential basis set
+            iGAPW=1
         else if (itask==4) then !Use pdb to record variable cell during cell optimization
             iMDformat=3
         else if (itask==5) then !Vibrational analysis
@@ -748,6 +750,7 @@ do while(.true.)
             CUTOFF=400
             REL_CUTOFF=55
         end if
+        if (itask==9.or.itask==10) call determine_vacuumsize(itask,iPSOLVER,vacsizex,vacsizey,vacsizez,icentering) !Set vacuum size for NMR and polar tasks larger
     else if (isel==1) then !Functionals description: https://manual.cp2k.org/trunk/CP2K_INPUT/ATOM/METHOD/XC/XC_FUNCTIONAL.html
         !write(*,*) "-1 Molecular mechanism (MM)"
         write(*,*) "1 Pade (LDA)"
@@ -858,7 +861,7 @@ do while(.true.)
             read(*,*)
         else
             ibas=ibassel
-            if (ibas>=10.and.ibas<=15) then
+            if (ibas>=10.and.ibas<=16) then
                 iGAPW=1
             else
                 iGAPW=0
@@ -906,8 +909,9 @@ do while(.true.)
     else if (isel==6) then
         if (ismear==0) then
             ismear=1
-            nADDED_MOS=30
-            write(*,"(a)") " Note: The number of virtual orbitals to solve has been changed to 30, please properly adjust if needed"
+            nADDED_MOS=nint(ncenter/2D0) !This is usually sufficient for 300 K smearing
+            if (nADDED_MOS<30) nADDED_MOS=30
+            write(*,"(a,i5,a)") " Note: The number of virtual orbitals to solve has been changed to",nADDED_MOS,", please properly adjust if need"
         else
             ismear=0
             nADDED_MOS=0
@@ -916,6 +920,8 @@ do while(.true.)
     else if (isel==7) then
         if (iSCCS==0) then
             iSCCS=1
+            write(*,"(a)") " Note: In the generated input file, the SCCS parameters correspond to water case given in &
+            J. Chem. Phys., 150, 041710 (2019), please manually modify according to actual situation"
         else
             iSCCS=0
         end if
@@ -1292,7 +1298,7 @@ if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_MOLOPT"
     else if (ibas==10.or.ibas==11.or.ibas==12.or.ibas==16) then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  EMSL_BASIS_SETS"
-    else if (ibas==13.or.ibas==14) then
+    else if (ibas==13.or.ibas==14.or.ibas==15) then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_pob"
     else if (ibas==19) then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_def2_QZVP_RI_ALL"
@@ -1361,15 +1367,12 @@ if (itask==1) then !Single point, do not need high accuracy
         eps_scf=1D-6
         eps_def=1D-12
     end if
-else if (itask==5) then !Vibration analysis is realized based on finite difference of force
+else if (itask==5.or.itask==9.or.itask==10) then !Vibration analysis is realized based on finite difference of force, NMR and polar
     eps_scf=1D-7
     eps_def=1D-14
 else if (itask==6.or.itask==14) then !For faster MD/PIMD, use even looser threshold
     eps_scf=1D-5
     eps_def=1D-10
-else if (itask==9.or.itask==10) then !NMR and polar may need pretty tight threshold
-    eps_scf=2D-8
-    eps_def=1D-14
 else !Other tasks involving energy derivative, use marginally tighter convergence
     eps_scf=1D-6
     eps_def=1D-12
@@ -2027,7 +2030,7 @@ else !&SCF
 end if
 
 !--- &PRINT of DFT level, FORCE_EVAL/DFT/PRINT
-if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imoment==1.or.ioutorbene==1) then
+if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imoment==1.or.ioutorbene==1.or.iSCCS==1) then
     write(ifileid,"(a)") "    &PRINT"
     if (ioutSbas==1) then
         write(ifileid,"(a)") "      &S_CSR_WRITE #Exporting .csr file containing overlap matrix"
@@ -2118,6 +2121,18 @@ if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imom
         write(ifileid,"(a)") "        &EACH"
         write(ifileid,"(a)") "          QS_SCF 1"
         write(ifileid,"(a)") "        &END EACH"
+        write(ifileid,"(a)") "        &POLARISATION_CHARGE_DENSITY"
+        write(ifileid,"(a)") "          &EACH"
+        write(ifileid,"(a)") "            QS_SCF 0"
+        write(ifileid,"(a)") "          &END EACH"
+        write(ifileid,"(a)") "          STRIDE 2"
+        write(ifileid,"(a)") "        &END POLARISATION_CHARGE_DENSITY"
+        write(ifileid,"(a)") "        &DIELECTRIC_FUNCTION"
+        write(ifileid,"(a)") "          &EACH"
+        write(ifileid,"(a)") "            QS_SCF 0"
+        write(ifileid,"(a)") "          &END EACH"
+        write(ifileid,"(a)") "          STRIDE 2"
+        write(ifileid,"(a)") "        &END DIELECTRIC_FUNCTION"
         write(ifileid,"(a)") "      &END SCCS"
         write(ifileid,"(a)") "      @ENDIF"
     end if
@@ -2125,17 +2140,17 @@ if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imom
 end if
 if (iSCCS==1) then
     write(ifileid,"(a)") "    &SCCS"
-    write(ifileid,"(a)") "      ALPHA [N*m^-1] 0.0"
-    write(ifileid,"(a)") "      BETA [kbar] 0.0"
+    write(ifileid,"(a)") "      ALPHA [mN/m] 57.2"
+    write(ifileid,"(a)") "      BETA [GPa] -0.5"
     write(ifileid,"(a)") "      GAMMA [mN/m] 0.0"
-    write(ifileid,"(a)") "      DIELECTRIC_CONSTANT 78.36 #Water"
-    write(ifileid,"(a)") "      EPS_SCCS 1E-6 #Default. Requested accuracy for the SCCS iteration cycle"
-    write(ifileid,"(a)") "      EPS_SCF 0.5 #Default. SCCS iteration is activated only if SCF iteration is converged to this threshold"
-    write(ifileid,"(a)") "      MAX_ITER 100 #Default. Maximum number of SCCS iteration steps"
-    write(ifileid,"(a)") "      DERIVATIVE_METHOD FFT #Default. Method for calculation of numerical derivatives. Can also be CD3, CD5, CD7"
+    write(ifileid,"(a)") "      DIELECTRIC_CONSTANT 78.36"
+    write(ifileid,"(a)") "      EPS_SCF 0.2 #SCCS is activated only if SCF iteration is converged to this threshold"
+    write(ifileid,"(a)") "      EPS_SCCS 1E-6 #Requested accuracy for convergence of polarization charge density iteration"
+    write(ifileid,"(a)") "      MAX_ITER 150 #Maximum number of polarization charge density iterations"
+    write(ifileid,"(a)") "      DERIVATIVE_METHOD CD5 #Method for calculation of numerical derivatives. Can be FFT, CD3, CD5, CD7"
     write(ifileid,"(a)") "      &ANDREUSSI"
-    write(ifileid,"(a)") "        RHO_MAX 0.0035 #Default"
-    write(ifileid,"(a)") "        RHO_MIN 0.0001 #Default"
+    write(ifileid,"(a)") "        RHO_MIN 0.0001841"
+    write(ifileid,"(a)") "        RHO_MAX 0.0013604"
     write(ifileid,"(a)") "      &END ANDREUSSI"
     write(ifileid,"(a)") "    &END SCCS"
 end if
@@ -2186,12 +2201,8 @@ if (itask==9.or.itask==10.or.iTDDFT==1) then !NMR, polar, TDDFT
     write(ifileid,"(a)") "  &PROPERTIES"
     if (itask==9.or.itask==10) then !NMR, polar
         write(ifileid,"(a)") "    &LINRES #Activate linear response calculation"
-        if (ncenter>500) then
-            write(ifileid,"(a)") "      PRECONDITIONER FULL_KINETIC #Preconditioner to be used with all minimization schemes"
-        else
-            write(ifileid,"(a)") "      PRECONDITIONER FULL_ALL #Preconditioner to be used with all minimization schemes"
-        end if
-        if (itask==9) then !NMR will do response calculation 3*Natoms times, quite expensive, so use relatively looser criterion
+        write(ifileid,"(a)") "      PRECONDITIONER FULL_KINETIC #Preconditioner for conjugate gradient minimization"
+        if (itask==9) then
             write(ifileid,"(a)") "      EPS 1E-8 #Target accuracy for the convergence of the conjugate gradient" !Tigher than default 1E-6
         else
             write(ifileid,"(a)") "      EPS 1E-10 #Target accuracy for the convergence of the conjugate gradient" !Tigher than default 1E-6
@@ -2199,13 +2210,15 @@ if (itask==9.or.itask==10.or.iTDDFT==1) then !NMR, polar, TDDFT
         write(ifileid,"(a)") "      MAX_ITER 300 #Maximum number of conjugate gradient iteration to be performed for one optimization"
         if (itask==9) then
             write(ifileid,"(a)") "      &CURRENT"
-            !write(ifileid,"(a)") "        GAUGE R_AND_STEP_FUNCTION #Default. The gauge used to compute the induced current within GAPW" !I found the default is the only useful choice
-            write(ifileid,"(a)") "        ORBITAL_CENTER WANNIER #The orbital center. Can also be ATOM"
+            write(ifileid,"(a)") "        GAUGE R_AND_STEP_FUNCTION #The gauge used to compute induced current: ATOM, R, R_AND_STEP_FUNCTION"
+            write(ifileid,"(a)") "        ORBITAL_CENTER ATOM #Orbital center: WANNIER, ATOM, BOX, COMMON"
+            write(ifileid,"(a)") "        CHI_PBC T #Calculate the succeptibility correction to the shift with PBC"
             write(ifileid,"(a)") "      &END CURRENT"
             write(ifileid,"(a)") "      &LOCALIZE"
             !I found CRAZY doesn't properly work, so do not explicitly mention, just use default JACOBI
             !write(ifileid,"(a)") "	      METHOD JACOBI #Localization optimization method. JACOBI=2x2 orbital rotations. CRAZY is less robust but usually much faster"
-            write(ifileid,"(a)") "	      MAX_ITER 300 #Maximum number of iterations used for localization methods"
+            write(ifileid,"(a)") "	      MAX_ITER 20000 #Maximum number of iterations used for localization methods"
+            write(ifileid,"(a)") "	      EPS_LOCALIZATION 1E-5 #Convergence criterion of orbital localization"
             !I found BOYS and PIPEK do not work, so do not explicitly mention them, just use default BERRY
             !write(ifileid,"(a)") "	      OPERATOR BERRY #The quantity to be minimized in localization. Can also be BOYS and PIPEK"
             write(ifileid,"(a)") "      &END LOCALIZE"
@@ -2740,27 +2753,36 @@ end subroutine
 
 
 !!---------- Automatically set proper vacuum sizes
-subroutine determine_vacuumsize(iPSOLVER,vacsizex,vacsizey,vacsizez,icentering)
+!For NMR (9), polar(10), RT-TDDFT(13), use ~20% larger size
+subroutine determine_vacuumsize(itask,iPSOLVER,vacsizex,vacsizey,vacsizez,icentering)
 use defvar
-integer iPSOLVER,icentering
-real*8 vacsizex,vacsizey,vacsizez
+integer itask,iPSOLVER,icentering
+real*8 vacsizex,vacsizey,vacsizez,buff
 if (iPSOLVER==1) then !Usually adequate for PERIODIC
-    vacsizex=5/b2a
-    vacsizey=5/b2a
-    vacsizez=5/b2a
+    buff=5
+    if (itask==9.or.itask==10.or.itask==13) buff=6
+    vacsizex=buff/b2a
+    vacsizey=buff/b2a
+    vacsizez=buff/b2a
 else if (iPSOLVER==2) then !ANALYTIC converges quite slow
-    vacsizex=10/b2a
-    vacsizey=10/b2a
-    vacsizez=10/b2a
+    buff=10
+    if (itask==9.or.itask==10.or.itask==13) buff=12
+    vacsizex=buff/b2a
+    vacsizey=buff/b2a
+    vacsizez=buff/b2a
 else if (iPSOLVER==3) then !MT needs vaccum size in each side is >= half of system
-    vacsizex=((maxval(a%x)-minval(a%x))*b2a+2*4D0)/2/b2a !4 A is extension distance for electron tail in each side
-    vacsizey=((maxval(a%y)-minval(a%y))*b2a+2*4D0)/2/b2a
-    vacsizez=((maxval(a%z)-minval(a%z))*b2a+2*4D0)/2/b2a
+    buff=4 !4 A is extension distance for electron tail in each side
+    if (itask==9.or.itask==10.or.itask==13) buff=5
+    vacsizex=((maxval(a%x)-minval(a%x))*b2a+2*buff)/2/b2a
+    vacsizey=((maxval(a%y)-minval(a%y))*b2a+2*buff)/2/b2a
+    vacsizez=((maxval(a%z)-minval(a%z))*b2a+2*buff)/2/b2a
 else if (iPSOLVER==4) then
     icentering=1
-    vacsizex=3.5/b2a !WAVELET converges quite fast, 3.5 A is adequate for any case
-    vacsizey=3.5/b2a
-    vacsizez=3.5/b2a
+    buff=3.5D0 !WAVELET converges quite fast, 3.5 A is adequate for any case
+    if (itask==9.or.itask==10.or.itask==13) buff=4.2D0
+    vacsizex=buff/b2a 
+    vacsizey=buff/b2a
+    vacsizez=buff/b2a
 end if
 end subroutine
 

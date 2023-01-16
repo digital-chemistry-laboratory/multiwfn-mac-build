@@ -5298,19 +5298,27 @@ else if (iprog==7) then !BDF. This part of code was contributed by Cong Wang, 20
     do iatm=1,ncenter
         read(10,*) atmshd(iatm), tmp
     end do
-else if (iprog==0) then !Undetermined, viewed as plain text file
-    ncenter=totlinenum(10,1)
-    write(*,*) ncenter
-    if (.not.allocated(a)) allocate(a(ncenter))
-    allocate(atmshd(ncenter))
-    do iatm=1,ncenter
-        read(10,*) a(iatm)%name,atmshd(iatm)
-    end do
-else
-    write(*,*) "Error: The program of generating this file is unsupported!"
-    write(*,*) "Press ENTER button to exit program"
-    read(*,*)
-    stop
+else if (iprog==0) then !Undetermined
+	call loclabel(10,"Shielding atom at atomic positions",ifound)
+    if (ifound==1) then !CP2K .data file of NMR
+		call loclabelfinal(10,"ISOTROPY =",ncenter)
+		if (.not.allocated(a)) allocate(a(ncenter))
+		allocate(atmshd(ncenter))
+        rewind(10)
+        read(10,*)
+        do iatm=1,ncenter
+			read(10,*) c80tmp,a(iatm)%name
+            call skiplines(10,12)
+            read(10,*) c80tmp,c80tmp,atmshd(iatm)
+        end do
+    else !Viewed as a plain text file
+		ncenter=totlinenum(10,1)
+		if (.not.allocated(a)) allocate(a(ncenter))
+		allocate(atmshd(ncenter))
+		do iatm=1,ncenter
+			read(10,*) a(iatm)%name,atmshd(iatm)
+		end do
+    end if
 end if
 close(10)
 
