@@ -3658,7 +3658,7 @@ if (iCP2K==1) then
             end if
 		end do
     
-    else if (ispectrum==1) then !IR
+    else if (ispectrum==1.or.ispectrum==2) then !IR and Raman
 		!Find how many frequencies in the file
 		i1=0
 		i2=0
@@ -3696,10 +3696,13 @@ if (iCP2K==1) then
 				iread=ilackdata
 			end if
 			call loclabel(10,"VIB|Frequency (cm^-1)",ifound,0)
+            !Read frequencies
 			read(10,"(22x)",advance="no")
 			if (iread==1) read(10,*) datax(inow)
 			if (iread==2) read(10,*) datax(inow),datax(inow+1)
 			if (iread==3) read(10,*) datax(inow),datax(inow+1),datax(inow+2)
+            !Read IR/Raman intensities
+			if (ispectrum==2) read(10,*) !Skip IR line
 			read(10,"(22x)",advance="no")
 			if (iread==1) read(10,*) str(inow)
 			if (iread==2) read(10,*) str(inow),str(inow+1)
@@ -3973,7 +3976,7 @@ end if
 allocate(shdnum(nsystem))
 allocate(shdval(ncenter,nsystem))
 allocate(shdnatm(ncenter,nsystem),shdeffnatm(ncenter,nsystem))
-allocate(shdatm(20,ncenter,nsystem)) !Degeneracy is assumed to be at most 20
+allocate(shdatm(200,ncenter,nsystem)) !Degeneracy is assumed to be at most 200
 allocate(atmshdall_org(ncenter,nsystem))
 allocate(atmstr(ncenter))
 atmstr=1
@@ -4017,6 +4020,7 @@ end if
 
 !curveytmp is a temporary array used to record curve during generating curve of each system
 if (allocated(curvex)) deallocate(curvex) !Global array
+if (allocated(curvey)) deallocate(curvey) !Global array
 if (allocated(curveytmp)) deallocate(curveytmp) !Global array
 allocate(curvex(num1Dpoints),curvey(num1Dpoints),curveytmp(num1Dpoints),curveyall(nsystem,num1Dpoints))
 allocate(linexall(nsystem,3*ncenter),lineyall(nsystem,3*ncenter))

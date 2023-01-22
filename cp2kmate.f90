@@ -32,6 +32,7 @@ if (outname==" ") outname=trim(c200tmp)//".inp"
 call outCP2Kinp(outname,10)
 end subroutine
 !!---------- Output current coordinate to CP2K input file
+!NOTE: To determine isolated, use (ifPBC==0.or.PBCdir=="NONE"). ifPBC==0 doesn't necessarily mean the system is isolated, because .restart of CP2K carries cell information
 subroutine outCP2Kinp(outname,ifileid)
 use defvar
 use util
@@ -42,7 +43,7 @@ character selectyn,c80tmp*80,c80tmp2*80,c200tmp*200,c2000tmp*2000
 character :: method*22="PBE",PBCdir*4="XYZ ",cellfix*4="NONE"
 character(len=30) :: basname(-10:30)=" "
 integer :: itask=1,idispcorr=0,imolden=0,ioutvibmol=1,ithermostat=0,ibarostat=0,inoSCFinfo=0,iSCCS=0,idipcorr=0,iwfc=0,iHFX=0,imoment=0,ioptmethod=1,iprintlevel=1
-integer :: iTDDFT=0,nstates_TD=3,iTDtriplet=0,isTDA=0,iNTO=0,nADDED_MOS=0,icentering=0
+integer :: iTDDFT=0,nstates_TD=3,iTDtriplet=0,isTDA=0,iNTO=0,nADDED_MOS=0,icentering=0,itightopt=0,iraman=0
 integer :: iMDformat=1,nMDsavefreq=1,ioutcube=0,idiagOT=1,imixing=2,ismear=0,iatomcharge=0,ifineXCgrid=0,iouterSCF=1,iDFTplusU=0,NHOMO=0,NLUMO=0
 integer :: natmcons=0,nthermoatm=0,ikpoint1=1,ikpoint2=1,ikpoint3=1,nrep1=1,nrep2=1,nrep3=1
 integer,allocatable :: atmcons(:),thermoatm(:)
@@ -270,6 +271,13 @@ do while(.true.)
         write(*,*) "11 Set constraint of cell length(s) during optimization, current: "//trim(cellfix)
         if (iprestype==1) write(*,"(a,1PE13.5,' bar')") " 12 Set external pressure, current:",Piso
         if (iprestype==2) write(*,"(a)") " 12 Set external pressure, current: Anisotropic"
+    end if
+    if (itask==3.or.itask==4.or.itask==7) then
+        if (itightopt==0) write(*,"(a)") " 13 Toggle using tighter conv. threshold (for subsequent freq), current: No"
+        if (itightopt==1) write(*,"(a)") " 13 Toggle using tighter conv. threshold (for subsequent freq), current: Yes"
+    else if (itask==5) then
+        if (iraman==0) write(*,"(a)") " 13 Toggle calculating Raman activities, current: No"
+        if (iraman==1) write(*,"(a)") " 13 Toggle calculating Raman activities, current: Yes"
     end if
     if (iTDDFT==0) then
         write(*,*) "15 Toggle calculating excited states via TDDFT, current: No"
@@ -654,7 +662,7 @@ do while(.true.)
         write(*,*) "6 RESP"
         write(*,*) "7 REPEAT"
         read(*,*) iatomcharge
-        if (ifPBC==0.and.iatomcharge==7) then
+        if ((ifPBC==0.or.PBCdir=="NONE").and.iatomcharge==7) then
             write(*,*) "Error: REPEAT can only be used for periodic system"
             write(*,*) "Press ENTER button to continue"
             read(*,*)
@@ -1039,7 +1047,19 @@ do while(.true.)
             end if
         end if
     else if (isel==13) then
-        if (itask==6) then
+        if (itask==3.or.itask==4.or.itask==7) then
+            if (itightopt==0) then
+                itightopt=1
+            else if (itightopt==1) then
+                itightopt=0
+            end if
+        else if (itask==5) then
+            if (iraman==0) then
+                iraman=1
+            else if (iraman==1) then
+                iraman=0
+            end if
+        else if (itask==6) then
             if (inoSCFinfo==0) then
                 inoSCFinfo=1
             else
@@ -1327,7 +1347,7 @@ write(ifileid,"(a,i5,a)") "    MULTIPLICITY",multispin," #Spin multiplicity"
 if (multispin>1.or.any(kindmag(1:nkind)/=0)) write(ifileid,"(a)") "    UKS"
 if (any(efieldvec/=0)) then
     efieldmag=dsqrt(sum(efieldvec**2))
-    if (ifPBC==0) then
+    if (ifPBC==0.or.PBCdir=="NONE") then
         write(ifileid,"(a)") "    &EFIELD"
         write(ifileid,"(a,f8.5)") "      INTENSITY",efieldmag
         write(ifileid,"(a,3f8.5)") "      POLARISATION",efieldvec/efieldmag
@@ -1367,7 +1387,7 @@ if (itask==1) then !Single point, do not need high accuracy
         eps_scf=1D-6
         eps_def=1D-12
     end if
-else if (itask==5.or.itask==9.or.itask==10) then !Vibration analysis is realized based on finite difference of force, NMR and polar
+else if (itask==5.or.itask==9.or.itask==10.or.((itask==3.or.itask==4.or.itask==7).and.itightopt==1)) then !freq, NMR, polar, opt(structure, cell, TS) for subsequent freq purpose
     eps_scf=1D-7
     eps_def=1D-14
 else if (itask==6.or.itask==14) then !For faster MD/PIMD, use even looser threshold
@@ -1389,7 +1409,7 @@ end if
 if (method=="GFN1-xTB") then
     write(ifileid,"(a)") "      METHOD xTB"
     write(ifileid,"(a)") "      &xTB"
-    if (ifPBC>0) write(ifileid,"(a)") "        DO_EWALD T" !Default is Coulomb way to calculate electrostatic interaction
+    if (PBCdir/="NONE") write(ifileid,"(a)") "        DO_EWALD T" !Default is Coulomb way to calculate electrostatic interaction
     write(ifileid,"(a)") "        CHECK_ATOMIC_CHARGES F #xTB calculation often crashes without setting this to false"
     write(ifileid,"(a)") "        &PARAMETER"
     write(ifileid,"(a)") "          DISPERSION_PARAMETER_FILE dftd3.dat"
@@ -1408,7 +1428,7 @@ else if (method=="SCC-DFTB") then
     write(ifileid,"(a)") "      &DFTB"
     write(ifileid,"(a)") "        SELF_CONSISTENT  T"
     write(ifileid,"(a)") "        DISPERSION       T"
-    if (ifPBC>0) write(ifileid,"(a)") "        DO_EWALD         T"
+    if (PBCdir/="NONE") write(ifileid,"(a)") "        DO_EWALD         T"
     write(ifileid,"(a)") "        &PARAMETER"
     write(ifileid,"(a)") "          PARAM_FILE_PATH  DFTB/scc"
     write(ifileid,"(a)") "          PARAM_FILE_NAME  scc_parameter"
@@ -1478,28 +1498,32 @@ write(ifileid,"(a)") "    &END QS"
 !---- &POISSON
 write(ifileid,"(a)") "    &POISSON" !How to deal with electrostatic part
 if (method=="PM6") then !Special for semi-empirical
-    write(ifileid,"(a)") "      &EWALD"
-    write(ifileid,"(a)") "        &MULTIPOLES"
-    write(ifileid,"(a)") "          MAX_MULTIPOLE_EXPANSION QUADRUPOLE"
-    write(ifileid,"(a)") "        &END MULTIPOLES"
-    write(ifileid,"(a)") "        EWALD_TYPE EWALD"
-    !write(ifileid,"(a)") "        ALPHA  0.5" !See e.g. https://github.com/misteliy/cp2k/blob/master/tests/SE/regtest-3/Al2O3.inp
-    ngmax1=nint(cellv1_pseudo(1)*nrep1*b2a) !Make gmax approximately 1 pt/Angstrom in each direction
-    if (mod(ngmax1,2)==0) ngmax1=ngmax1+1 !Must be odd number
-    ngmax2=nint(cellv2_pseudo(2)*nrep2*b2a)
-    if (mod(ngmax2,2)==0) ngmax2=ngmax2+1 !Must be odd number
-    ngmax3=nint(cellv3_pseudo(3)*nrep3*b2a)
-    if (mod(ngmax3,2)==0) ngmax3=ngmax3+1
-    write(ifileid,"(a,3i4)") "        GMAX",ngmax1,ngmax2,ngmax3
-    write(ifileid,"(a)") "      &END EWALD"
+    if (PBCdir/="NONE") then
+        write(ifileid,"(a)") "      &EWALD"
+        write(ifileid,"(a)") "        &MULTIPOLES"
+        write(ifileid,"(a)") "          MAX_MULTIPOLE_EXPANSION QUADRUPOLE"
+        write(ifileid,"(a)") "        &END MULTIPOLES"
+        write(ifileid,"(a)") "        EWALD_TYPE EWALD"
+        !write(ifileid,"(a)") "        ALPHA  0.5" !See e.g. https://github.com/misteliy/cp2k/blob/master/tests/SE/regtest-3/Al2O3.inp
+        ngmax1=nint(cellv1_pseudo(1)*nrep1*b2a) !Make gmax approximately 1 pt/Angstrom in each direction
+        if (mod(ngmax1,2)==0) ngmax1=ngmax1+1 !Must be odd number
+        ngmax2=nint(cellv2_pseudo(2)*nrep2*b2a)
+        if (mod(ngmax2,2)==0) ngmax2=ngmax2+1 !Must be odd number
+        ngmax3=nint(cellv3_pseudo(3)*nrep3*b2a)
+        if (mod(ngmax3,2)==0) ngmax3=ngmax3+1
+        write(ifileid,"(a,3i4)") "        GMAX",ngmax1,ngmax2,ngmax3
+        write(ifileid,"(a)") "      &END EWALD"
+    end if
 else if (method=="SCC-DFTB") then !Special for DFTB
-    write(ifileid,"(a)") "      &EWALD"
-    write(ifileid,"(a)") "        EWALD_TYPE SPME"
-    ngmax1=2*nint(cellv1_pseudo(1)*nrep1*b2a) !Make gmax approximately 1 pt/Angstrom in each direction
-    ngmax2=2*nint(cellv2_pseudo(2)*nrep2*b2a)
-    ngmax3=2*nint(cellv3_pseudo(3)*nrep3*b2a)
-    write(ifileid,"(a,3i4)") "        GMAX",ngmax1,ngmax2,ngmax3
-    write(ifileid,"(a)") "      &END EWALD"
+    if (PBCdir/="NONE") then
+        write(ifileid,"(a)") "      &EWALD"
+        write(ifileid,"(a)") "        EWALD_TYPE SPME"
+        ngmax1=2*nint(cellv1_pseudo(1)*nrep1*b2a) !Make gmax approximately 1 pt/Angstrom in each direction
+        ngmax2=2*nint(cellv2_pseudo(2)*nrep2*b2a)
+        ngmax3=2*nint(cellv3_pseudo(3)*nrep3*b2a)
+        write(ifileid,"(a,3i4)") "        GMAX",ngmax1,ngmax2,ngmax3
+        write(ifileid,"(a)") "      &END EWALD"
+    end if
 else !Common case
     if (iPSOLVER==1) then
         write(ifileid,"(a)") "      PERIODIC XYZ #Direction(s) of PBC for calculating electrostatics"
@@ -1743,7 +1767,7 @@ if (iwfc==1) then
     if (method=="RI-(EXX+RPA)@PBE".or.index(method,"GW")/=0) then
         write(ifileid,"(a)") "        &RI_RPA"
         if (index(method,"GW")/=0) then
-            if (ifPBC==0) then
+            if (ifPBC==0.or.PBCdir=="NONE") then
                 write(ifileid,"(a)") "          QUADRATURE_POINTS  60  #Number of quadrature points for the numerical integration in the GW"
             else !Use larger value for PBC system, because QUADRATURE_POINTS doesn't affect cost significantly, so using larger value to ensure numerical accuracy
                 write(ifileid,"(a)") "          QUADRATURE_POINTS  100  #Number of quadrature points for the numerical integration in the GW"
@@ -1780,7 +1804,7 @@ if (iwfc==1) then
             write(ifileid,"(a,i3,a)") "            EV_GW_ITER",niter_evGW,"  #Maximum number of iterations for eigenvalue self-consistency of evGW"
             write(ifileid,"(a,i3,a)") "            SC_GW0_ITER",niter_scGW0,"   #Maximum number of iterations for GW0 self-consistency of scGW0"
             write(ifileid,"(a)") "            UPDATE_XC_ENERGY F  #If total energy will be corrected using exact exchange and the RPA correlation energy"
-            if (ifPBC==0) then
+            if (ifPBC==0.or.PBCdir=="NONE") then
                 write(ifileid,"(a)") "            RI_SIGMA_X T  #If exchange self-energy will be calculated approximatively with RI"
             else
                 write(ifileid,"(a)") "            RI_SIGMA_X F  #If exchange self-energy will be calculated approximatively with RI"
@@ -2197,18 +2221,23 @@ if (itask==2.or.itask==4.or.inoSCFinfo==1) then !FORCE_EVAL/PRINT
 end if
 
 if (itask==4.or.ibarostat>0) write(ifileid,"(a)") "  STRESS_TENSOR ANALYTICAL #Compute full stress tensor analytically" !Compute for CELL_OPT and MD with barostat
-if (itask==9.or.itask==10.or.iTDDFT==1) then !NMR, polar, TDDFT
+if ((itask==5.and.iraman==1).or.itask==9.or.itask==10.or.iTDDFT==1) then !Raman, NMR, polar, TDDFT
     write(ifileid,"(a)") "  &PROPERTIES"
-    if (itask==9.or.itask==10) then !NMR, polar
+    if ((itask==5.and.iraman==1).or.itask==9.or.itask==10) then !Raman, NMR, polar
         write(ifileid,"(a)") "    &LINRES #Activate linear response calculation"
-        write(ifileid,"(a)") "      PRECONDITIONER FULL_KINETIC #Preconditioner for conjugate gradient minimization"
-        if (itask==9) then
+        if (itask==5) then !Raman
+            write(ifileid,"(a)") "      PRECONDITIONER FULL_ALL #Preconditioner for conjugate gradient minimization"
+            write(ifileid,"(a)") "      EPS 1E-6 #Target accuracy for the convergence of the conjugate gradient" !Identical to default, already sufficient for Raman spectrum
+        else if (itask==9) then !NMR
+            write(ifileid,"(a)") "      PRECONDITIONER FULL_KINETIC #Preconditioner for conjugate gradient minimization"
             write(ifileid,"(a)") "      EPS 1E-8 #Target accuracy for the convergence of the conjugate gradient" !Tigher than default 1E-6
-        else
-            write(ifileid,"(a)") "      EPS 1E-10 #Target accuracy for the convergence of the conjugate gradient" !Tigher than default 1E-6
+            write(ifileid,"(a)") "      MAX_ITER 400 #Maximum number of conjugate gradient iterations to be performed" !Sometimes converges very slowly
+        else if (itask==10) then !Polar
+            write(ifileid,"(a)") "      PRECONDITIONER FULL_ALL #Preconditioner for conjugate gradient minimization"
+            write(ifileid,"(a)") "      EPS 1E-7 #Target accuracy for the convergence of the conjugate gradient" !Tigher than default 1E-6
+            write(ifileid,"(a)") "      MAX_ITER 100 #Maximum number of conjugate gradient iterations to be performed" !Larger than the default 50
         end if
-        write(ifileid,"(a)") "      MAX_ITER 300 #Maximum number of conjugate gradient iteration to be performed for one optimization"
-        if (itask==9) then
+        if (itask==9) then !NMR
             write(ifileid,"(a)") "      &CURRENT"
             write(ifileid,"(a)") "        GAUGE R_AND_STEP_FUNCTION #The gauge used to compute induced current: ATOM, R, R_AND_STEP_FUNCTION"
             write(ifileid,"(a)") "        ORBITAL_CENTER ATOM #Orbital center: WANNIER, ATOM, BOX, COMMON"
@@ -2226,8 +2255,14 @@ if (itask==9.or.itask==10.or.iTDDFT==1) then !NMR, polar, TDDFT
             write(ifileid,"(a)") "      #  NICS T #Calculate NICS"
             write(ifileid,"(a)") "      #  NICS_FILE_NAME filepath #Path of the file containing NICS points coordinates"
             write(ifileid,"(a)") "      &END NMR"
-        else if (itask==10) then
-            write(ifileid,"(a)") "      &POLAR ON"
+        else if (itask==5.or.itask==10) then !Raman or polar
+            write(ifileid,"(a)") "      &POLAR"
+            if (itask==5) write(ifileid,"(a)") "        DO_RAMAN T #Compute the electric-dipole--electric-dipole polarizability" !This is default
+            if (ifPBC==0.or.PBCdir=="NONE") then
+                write(ifileid,"(a)") "        PERIODIC_DIPOLE_OPERATOR F #Type of dipole operator: Berry phase(T) or Local(F)"
+            else
+                write(ifileid,"(a)") "        PERIODIC_DIPOLE_OPERATOR T #Type of dipole operator: Berry phase(T) or Local(F)"
+            end if
             write(ifileid,"(a)") "      &END POLAR"
         end if
         write(ifileid,"(a)") "    &END LINRES"
@@ -2238,7 +2273,7 @@ if (itask==9.or.itask==10.or.iTDDFT==1) then !NMR, polar, TDDFT
         if (isTDA==1) then
             write(ifileid,"(a)") "      KERNEL STDA #Using sTDA approximation"
             write(ifileid,"(a)") "      &STDA"
-            if (ifPBC>0) write(ifileid,"(a)") "        DO_EWALD .T. #Use Ewald type method for periodic Coulomb interaction"
+            if (PBCdir/="NONE") write(ifileid,"(a)") "        DO_EWALD .T. #Use Ewald type method for periodic Coulomb interaction"
             write(ifileid,"(a)") "        FRACTION 0.2 #Fraction of TB Hartree-Fock exchange to use in the kernel"
             write(ifileid,"(a)") "      &END STDA"
         end if
@@ -2473,7 +2508,11 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
             write(ifileid,"(a)") "          #The following thresholds of dimer orientation are the default ones"
             write(ifileid,"(a)") "          MAX_DR 3E-3 #Maximum geometry change"
             write(ifileid,"(a)") "          RMS_DR 1.5E-3 #RMS geometry change"
-            write(ifileid,"(a)") "          MAX_FORCE 4.5E-4 #Maximum force"
+            if (itightopt==1) then
+                write(ifileid,"(a)") "          MAX_FORCE 1E-4 #Maximum force"
+            else
+                write(ifileid,"(a)") "          MAX_FORCE 4.5E-4 #Maximum force"
+            end if
             write(ifileid,"(a)") "          RMS_FORCE 3E-4 #RMS force"
             write(ifileid,"(a)") "          &CG"
             write(ifileid,"(a)") "            &LINE_SEARCH"
@@ -2488,7 +2527,11 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
         write(ifileid,"(a)") "    #The following thresholds of geometry convergence are the default ones"
         write(ifileid,"(a)") "    MAX_DR 3E-3 #Maximum geometry change"
         write(ifileid,"(a)") "    RMS_DR 1.5E-3 #RMS geometry change"
-        write(ifileid,"(a)") "    MAX_FORCE 4.5E-4 #Maximum force"
+        if (itightopt==1) then
+            write(ifileid,"(a)") "    MAX_FORCE 1E-4 #Maximum force"
+        else
+            write(ifileid,"(a)") "    MAX_FORCE 4.5E-4 #Maximum force"
+        end if
         write(ifileid,"(a)") "    RMS_FORCE 3E-4 #RMS force"
         write(ifileid,"(a)") "  &END GEO_OPT"
     else if (itask==4) then
@@ -2507,9 +2550,17 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
         write(ifileid,"(a)") "    #The following thresholds of optimization convergence are the default ones"
         write(ifileid,"(a)") "    MAX_DR 3E-3 #Maximum geometry change"
         write(ifileid,"(a)") "    RMS_DR 1.5E-3 #RMS geometry change"
-        write(ifileid,"(a)") "    MAX_FORCE 4.5E-4 #Maximum force"
+        if (itightopt==1) then
+            write(ifileid,"(a)") "    MAX_FORCE 1E-4 #Maximum force"
+        else
+            write(ifileid,"(a)") "    MAX_FORCE 4.5E-4 #Maximum force"
+        end if
         write(ifileid,"(a)") "    RMS_FORCE 3E-4 #RMS force"
-        write(ifileid,"(a)") "    PRESSURE_TOLERANCE 100 #Pressure tolerance (w.r.t EXTERNAL_PRESSURE)"
+        if (itightopt==0) then
+            write(ifileid,"(a)") "    PRESSURE_TOLERANCE 100 #Pressure tolerance (w.r.t EXTERNAL_PRESSURE)"
+        else if (itightopt==1) then
+            write(ifileid,"(a)") "    PRESSURE_TOLERANCE 50 #Pressure tolerance (w.r.t EXTERNAL_PRESSURE)"
+        end if
         if (ioptmethod==1) then
             write(ifileid,"(a)") "    OPTIMIZER BFGS #Can also be CG (more robust for difficult cases) or LBFGS"
             write(ifileid,"(a)") "    &BFGS"
@@ -2550,7 +2601,7 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
         end if
         write(ifileid,"(a)") "    TEMPERATURE 298.15 #Initial and maintained temperature (K)"
         write(ifileid,"(a)") "#   COMVEL_TOL 0 #Uncomment this can remove translation motion of center-of-mass every step"
-        if (ifPBC==0) then
+        if (ifPBC==0.or.PBCdir=="NONE") then
             write(ifileid,"(a)") "#   ANGVEL_TOL 0 #Uncomment this can remove overall rotation every step"
             write(ifileid,"(a)") "    ANGVEL_ZERO T #Eliminate overall rotation component from initial velocity"
         end if
@@ -2685,16 +2736,16 @@ if (itask==5) then
     write(ifileid,"(a)") "  NPROC_REP 1 #Number of processors to be used per replica. This is default"
     write(ifileid,"(a)") "  TC_PRESSURE 101325 #1 atm. Pressure for calculate thermodynamic data (Pa)"
     write(ifileid,"(a)") "  TC_TEMPERATURE 298.15 #Temperature for calculate thermodynamic data (K)"
-    write(ifileid,"(a)") "  THERMOCHEMISTRY #Print thermochemistry information (only valid for molecule in gas!)"
-    write(ifileid,"(a)") "  INTENSITIES T #Calculate IR intensities"
-    if (ifPBC==0) then
-        write(ifileid,"(a)") "  FULLY_PERIODIC F #This is default. If T, avoiding to project out rotation component from Hessian matrix"
+    write(ifileid,"(a)") "  THERMOCHEMISTRY #Print thermochemistry information (only valid for isolated systems)"
+    write(ifileid,"(a)") "  INTENSITIES T #Calculate IR/Raman intensities"
+    if (ifPBC==0.or.PBCdir=="NONE") then
+        write(ifileid,"(a)") "  FULLY_PERIODIC F #If T, avoiding to project out rotation component from Hessian matrix"
     else
         write(ifileid,"(a)") "  FULLY_PERIODIC T #Avoiding to project out rotation component from Hessian matrix"
     end if
     if (ioutvibmol==1) then
         write(ifileid,"(a)") "  &PRINT"
-        write(ifileid,"(a)") "    &MOLDEN_VIB #Output .mol (Molden file) for visualization vibrational modes"
+        write(ifileid,"(a)") "    &MOLDEN_VIB #Output .mol (Molden file) for visualizing vibrational modes"
         write(ifileid,"(a)") "    &END MOLDEN_VIB"
         write(ifileid,"(a)") "  &END PRINT"
     end if
