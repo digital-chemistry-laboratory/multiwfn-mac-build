@@ -2172,8 +2172,16 @@ use util
 implicit real*8 (a-h,o-z)
 integer infomode
 character(len=*) name
+
 ifiletype=11
 open(10,file=name,status="old")
+!Molden file containing vibrational modes exported by CP2K also has .mol extension. If it is the case, regarded as plain text file
+call loclabel(10,"[Molden Format]",ifound,maxline=100)
+if (ifound==1) then
+	ifiletype=0
+    close(10)
+    return
+end if
 read(10,"(a)") titleline
 read(10,*)
 read(10,*)

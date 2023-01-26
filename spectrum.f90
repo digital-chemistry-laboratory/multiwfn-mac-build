@@ -28,7 +28,7 @@ integer :: icurveclr=1,ilineclr=5 !Default: Red for curve, black for discrete li
 integer :: thk_curve=3,thk_weighted=8,thk_Yeq0=2,thk_discrete=1,thk_axis=1,thk_grid=1,thk_PVS=3,thk_OPVS=3 !thickness
 integer :: ishowlabelleft=1,ishowlabelright=1 !If showing labels on left and right Y-axes
 integer :: ndecimalX=-1,ndecimalYleft=-1,ndecimalYright=-1 !Number of decimal places in axes, use auto by default
-integer :: height_axis=36,ticksize=36,legtextsize=36,labtype_Yleft=1,ilegendpos=7
+integer :: height_axis=36,ticksize=36,legtextsize=36,labtype_Yleft=1,labtype_Yright=1,ilegendpos=7
 integer,parameter :: ncurrclr=15 !At most 15 individual colors. For more curves/lines, always use color of last one (8)
 integer :: currclr(ncurrclr)=(/ 12,3,10,1,14,5,9,13,11,6,7,15,16,2,8 /) !Color index of current curve/line colors
 integer :: iYeq0=1 !If drawing line corresponding to Y=0
@@ -435,6 +435,7 @@ do while(.true.)
         write(10,"('thk_PVS',i5)") thk_PVS
         write(10,"('thk_OPVS',i5)") thk_OPVS
         write(10,"('iVDOS',i5)") iVDOS
+        write(10,"('labtype_Yright',i5)") labtype_Yright
         close(10)
         write(*,*) "Done!"
         cycle
@@ -512,6 +513,7 @@ do while(.true.)
         call readoption_int(10,"thk_PVS",' ',thk_PVS)
         call readoption_int(10,"thk_OPVS",' ',thk_OPVS)
         call readoption_int(10,"iVDOS",' ',iVDOS)
+        call readoption_int(10,"labtype_Yright",' ',labtype_Yright)
         close(10)
         write(*,*) "Loading finished!"
         cycle
@@ -963,6 +965,9 @@ do while(.true.)
             if (labtype_Yleft==1) write(*,"(a)") " 9 Set type of labels in left Y-axis, current: Float"
             if (labtype_Yleft==2) write(*,"(a)") " 9 Set type of labels in left Y-axis, current: Exponent"
             if (labtype_Yleft==3) write(*,"(a)") " 9 Set type of labels in left Y-axis, current: Scientific"
+            if (labtype_Yright==1) write(*,"(a)") " -9 Set type of labels in right Y-axis, current: Float"
+            if (labtype_Yright==2) write(*,"(a)") " -9 Set type of labels in right Y-axis, current: Exponent"
+            if (labtype_Yright==3) write(*,"(a)") " -9 Set type of labels in right Y-axis, current: Scientific"
             if (nsystem>1.or.any(PVSnterm/=0)) then
                 write(*,"(a,i3)") " 10 Set text size of legend, current:",legtextsize
                 write(*,*) "11 Set position of legends"
@@ -1011,6 +1016,11 @@ do while(.true.)
                 write(*,*) "2 Exponent"
                 write(*,*) "3 Scientific"
                 read(*,*) labtype_Yleft
+            else if (isel2==-9) then
+                write(*,*) "1 Float"
+                write(*,*) "2 Exponent"
+                write(*,*) "3 Scientific"
+                read(*,*) labtype_Yright
             else if (isel2==10) then
                 write(*,*) "Input size, e.g. 40"
                 read(*,*) legtextsize
@@ -2704,10 +2714,14 @@ do while(.true.)
                 end if
             end if
             call setgrf('NONE','NONE','NONE','NAME')
-            if (ishowlabelright==0) then
-                call labels("NONE","Y")
-                call namdis(60,'Y')
-            end if
+			if (ishowlabelright==0) then
+				call labels("NONE","Y")
+				call namdis(60,'Y') !Use larger distance between name and axis
+			else
+				if (labtype_Yright==1) call labels("FLOAT","Y")
+				if (labtype_Yright==2) call labels("XEXP","Y")
+				if (labtype_Yright==3) call labels("FEXP","Y")
+			end if
 			call LINWID(thk_axis)
 			CALL GRAF(xlow+shiftx,xhigh+shiftx,xlow+shiftx,stepx, orgy2,endy2,orgy2,stepy2)
 			CALL LINWID(thk_discrete)
@@ -3703,10 +3717,35 @@ if (iCP2K==1) then
 			if (iread==3) read(10,*) datax(inow),datax(inow+1),datax(inow+2)
             !Read IR/Raman intensities
 			if (ispectrum==2) read(10,*) !Skip IR line
-			read(10,"(22x)",advance="no")
-			if (iread==1) read(10,*) str(inow)
-			if (iread==2) read(10,*) str(inow),str(inow+1)
-			if (iread==3) read(10,*) str(inow),str(inow+1),str(inow+2)
+			do itmp=1,iread
+				if (itmp==1) then
+					read(10,"(22x)",advance="no")
+					idxmode=inow
+                else if (itmp==2) then
+					backspace(10)
+					read(10,"(43x)",advance="no")
+					idxmode=inow+1
+                else if (itmp==3) then
+					backspace(10)
+					read(10,"(64x)",advance="no")
+					idxmode=inow+2
+                end if
+                read(10,*,iostat=ierror) str(idxmode)
+                if (ierror/=0) then
+					if (ispectrum==1) write(*,"(a,i6,a)") " Error: Cannot properly load IR intensity of mode",idxmode,"!"
+					if (ispectrum==2) write(*,"(a,i6,a)") " Error: Cannot properly load Raman activity of mode",idxmode,"!"
+                    write(*,"(a)") " Please check corresponding data in the input file, perhaps the value is too large, &
+                    making the data be recorded as ************"
+                    if (ispectrum==1) then
+						write(*,*) "If it is the case, please manually input the IR intensity in kM/mol, e.g. 89.64"
+                        write(*,"(a)") "Hint: If you request CP2K to export .mol (Molden) file containing vibrational information, &
+                        you can find the intensity in [INT] field. The value to be inputted here should be that in [INT] multiplied by 974.85541. &
+                        Alternatively, you can directly use the .mol file as input file" 
+                    end if
+                    if (ispectrum==2) write(*,*) "If it is the case, please manually input the Raman activity, e.g. 89.64"
+                    read(*,*) str(idxmode)
+                end if
+            end do
 			if (ilackdata<=3) exit
 			ilackdata=ilackdata-3
 			inow=inow+3
@@ -3822,6 +3861,46 @@ if (iBDFout==1) then
     close(10)
     return
 end if
+
+!Check if is Molden file containing vibrational frequencies and IR intensities
+call loclabel(10,"[Molden Format]",imolden,maxline=100)
+rewind(10)
+if (imolden==1) then
+    if (imode==0) write(*,*) "Recognized as a Molden input file"
+    if (ispectrum/=1) then
+		write(*,*) "Error: Only IR spectrum is supported when Molden file is used"
+        close(10)
+        return
+    end if
+    call loclabel(10,"[FREQ]")
+    read(10,*)
+    numdata=0
+    do while(.true.)
+		read(10,"(a)",iostat=ierror) c200tmp
+        if (index(c200tmp,'[')/=0.or.c200tmp==" ".or.ierror/=0) exit
+        numdata=numdata+1
+    end do
+    if (imode==1) then !Have obtained number of data, return
+        close(10)
+        return
+    end if
+	allocate(datax(numdata),str(numdata),FWHM(numdata))
+	FWHM=8D0
+    call loclabel(10,"[FREQ]")
+    read(10,*)
+	do i=1,numdata
+		read(10,*) datax(i)
+	end do
+    call loclabel(10,"[INT]")
+    read(10,*)
+	do i=1,numdata
+		read(10,*) str(i)
+	end do
+    str=str*974.85541D0
+    close(10)
+    return
+end if
+
 
 !Plain text file
 if (imode==0) write(*,*) "Recognized as a plain text file"

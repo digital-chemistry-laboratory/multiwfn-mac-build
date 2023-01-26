@@ -33,6 +33,7 @@ call outCP2Kinp(outname,10)
 end subroutine
 !!---------- Output current coordinate to CP2K input file
 !NOTE: To determine isolated, use (ifPBC==0.or.PBCdir=="NONE"). ifPBC==0 doesn't necessarily mean the system is isolated, because .restart of CP2K carries cell information
+!Use PBCdir=="NONE" to determine only when the options are relevant to calculation of electrostatic interaction
 subroutine outCP2Kinp(outname,ifileid)
 use defvar
 use util
@@ -42,7 +43,7 @@ integer :: ifileid,ibas=2,tmparr(ncenter)
 character selectyn,c80tmp*80,c80tmp2*80,c200tmp*200,c2000tmp*2000
 character :: method*22="PBE",PBCdir*4="XYZ ",cellfix*4="NONE"
 character(len=30) :: basname(-10:30)=" "
-integer :: itask=1,idispcorr=0,imolden=0,ioutvibmol=1,ithermostat=0,ibarostat=0,inoSCFinfo=0,iSCCS=0,idipcorr=0,iwfc=0,iHFX=0,imoment=0,ioptmethod=1,iprintlevel=1
+integer :: itask=1,idispcorr=0,imolden=0,ioutvibmol=1,ithermostat=0,ibarostat=0,inoSCFinfo=0,iSCCS=0,idipcorr=0,iwfc=0,iHFX=0,imoment=0,ihyperfine=0,ioptmethod=1,iprintlevel=1
 integer :: iTDDFT=0,nstates_TD=3,iTDtriplet=0,isTDA=0,iNTO=0,nADDED_MOS=0,icentering=0,itightopt=0,iraman=0
 integer :: iMDformat=1,nMDsavefreq=1,ioutcube=0,idiagOT=1,imixing=2,ismear=0,iatomcharge=0,ifineXCgrid=0,iouterSCF=1,iDFTplusU=0,NHOMO=0,NLUMO=0
 integer :: natmcons=0,nthermoatm=0,ikpoint1=1,ikpoint2=1,ikpoint3=1,nrep1=1,nrep2=1,nrep3=1
@@ -325,8 +326,8 @@ do while(.true.)
             if (ifineXCgrid==0) write(*,"(a)") " 4 Toggle using finer grid for exchange-correlation part, current: No"
             if (ifineXCgrid==1) write(*,"(a)") " 4 Toggle using finer grid for exchange-correlation part, current: Yes"
             write(*,"(a,i5,' and',i4,' Ry')") " 5 Set CUTOFF and REL_CUTOFF, current:",CUTOFF,REL_CUTOFF
-            if (imoment==0) write(*,*) "6 Print moments, current: No"
-            if (imoment==1) write(*,*) "6 Print moments, current: Yes"
+            if (imoment==0) write(*,*) "6 Print electric/magnetic moments, current: No"
+            if (imoment==1) write(*,*) "6 Print electric/magnetic moments, current: Yes"
             if (PBCdir=="NONE") write(*,"(a,3f8.3,' A')") " 7 Set vacuum size in both sides of X,Y,Z, current:",vacsizex*b2a,vacsizey*b2a,vacsizez*b2a
             if (PBCdir=="X") write(*,"(a,2f8.3,' A')") " 7 Set vacuum size in both sides of Y and Z, current:",vacsizey*b2a,vacsizez*b2a
             if (PBCdir=="Y") write(*,"(a,2f8.3,' A')") " 7 Set vacuum size in both sides of X and Z, current:",vacsizex*b2a,vacsizez*b2a
@@ -365,6 +366,8 @@ do while(.true.)
             !if (idiaglib==1) write(*,*) "20 Choose diagonalization library, current: Default"
             !if (idiaglib==2) write(*,*) "20 Choose diagonalization library, current: ELPA"
             !if (idiaglib==3) write(*,*) "20 Choose diagonalization library, current: Scalapack"
+            if (ihyperfine==0) write(*,*) "18 Toggle printing EPR hyperfine coupling tensor, current: No"
+            if (ihyperfine==1) write(*,*) "18 Toggle printing EPR hyperfine coupling tensor, current: Yes"
             if (nCDFTgroup>0) then
                 write(*,"(a,i3,a)") " 19 Redefine constrained DFT (CDFT) groups, current:",nCDFTgroup," groups"
             else
@@ -555,6 +558,12 @@ do while(.true.)
                     ioutSbas=1
                 else
                     ioutSbas=0
+                end if
+            else if (isel2==18) then
+                if (ihyperfine==0) then
+                    ihyperfine=1
+                else
+                    ihyperfine=0
                 end if
             else if (isel2==19) then
                 if (allocated(CDFTatm)) deallocate(CDFTatm,CDFTtype,CDFTnatm,CDFTtarget)
@@ -1982,8 +1991,8 @@ else !&SCF
         end if
         write(ifileid,"(a)") "        MINIMIZER DIIS #CG is worth to consider in difficult cases" !BROYDEN in fact can also be used, but quite poor!
         write(ifileid,"(a)") "        LINESEARCH 2PNT #1D line search algorithm for CG. 2PNT is default, 3PNT is better but more costly. GOLD is best but very expensive"
-        if (nCDFTgroup>0) then
-            write(ifileid,"(a)") "        ALGORITHM IRAC #Algorithm of OT. Can be STRICT (default) or IRAC" !For CDFT, this is much easier to converge than the default STRICT when lambda>0
+        if (nCDFTgroup>0.or.ibas==13.or.ibas==14.or.ibas==15) then
+            write(ifileid,"(a)") "        ALGORITHM IRAC #Algorithm of OT. Can be STRICT (default) or IRAC" !For CDFT, this is much easier to converge than the default STRICT when lambda>0; For pob, often IRAC converges more smoothly
         else
             write(ifileid,"(a)") "        ALGORITHM STRICT #Algorithm of OT. Can be STRICT (default) or IRAC"
         end if
@@ -2054,7 +2063,7 @@ else !&SCF
 end if
 
 !--- &PRINT of DFT level, FORCE_EVAL/DFT/PRINT
-if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imoment==1.or.ioutorbene==1.or.iSCCS==1) then
+if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imoment==1.or.ihyperfine==1.or.ioutorbene==1.or.iSCCS==1) then
     write(ifileid,"(a)") "    &PRINT"
     if (ioutSbas==1) then
         write(ifileid,"(a)") "      &S_CSR_WRITE #Exporting .csr file containing overlap matrix"
@@ -2124,12 +2133,17 @@ if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imom
             write(ifileid,"(a)") "      &END VORONOI"
         end if
     end if
+    if (ihyperfine==1) then
+        write(ifileid,"(a)") "      &HYPERFINE_COUPLING_TENSOR"
+        write(ifileid,"(a)") "      &END HYPERFINE_COUPLING_TENSOR"
+    end if
     if (itask==5.or.imoment==1) then
         write(ifileid,"(a)") "      &MOMENTS"
-        if (PBCdir=="NONE") then
+        if (ifPBC==0.or.PBCdir=="NONE") then
             write(ifileid,"(a)") "        PERIODIC F #Use Berry phase formula (T) or simple operator (F), the latter normally applies to isolated systems"
-            write(ifileid,"(a)") "        MAGNETIC F #If calculating magnetic moments. Can only be used for isolated system"
+            write(ifileid,"(a)") "        MAGNETIC F #If also printing magnetic moments. Can only be used for isolated systems"
             write(ifileid,"(a)") "        REFERENCE COM #Reference point for calculating electric moment. COM=center of mass"
+            write(ifileid,"(a)") "        MAX_MOMENT 1 #Maximum order of moments to be calculated. 1/2/3: Dipole/Quadrupole/Octapole moments. Up to 5"
         else
             write(ifileid,"(a)") "        PERIODIC T #Use Berry phase formula (T) or simple operator (F), the latter normally applies to isolated systems"
         end if
@@ -2523,7 +2537,7 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==13.or.ita
             write(ifileid,"(a)") "      &END DIMER"
             write(ifileid,"(a)") "    &END TRANSITION_STATE"
         end if
-        write(ifileid,"(a)") "    MAX_ITER 400 #Maximum number of geometry optimization"
+        write(ifileid,"(a)") "    MAX_ITER 500 #Maximum number of geometry optimization"
         write(ifileid,"(a)") "    #The following thresholds of geometry convergence are the default ones"
         write(ifileid,"(a)") "    MAX_DR 3E-3 #Maximum geometry change"
         write(ifileid,"(a)") "    RMS_DR 1.5E-3 #RMS geometry change"

@@ -2661,7 +2661,7 @@ c80tmp=' Progress: ['
 c80tmp(13:62)=repeat('#',iprog)
 c80tmp(13+iprog:62)=repeat('-',50-iprog)
 c80tmp(63:63)=']'
-write(c80tmp(64:),"(f8.2,' %')") dfloat(inow)/nall*100
+write(c80tmp(64:),"(f8.1,' %')") dfloat(inow)/nall*100
 itmp=itmp+1
 if (itmp==1) c80tmp(79:79)='-'
 if (itmp==2) c80tmp(79:79)='\'

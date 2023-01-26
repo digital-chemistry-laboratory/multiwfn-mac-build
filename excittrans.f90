@@ -1473,9 +1473,9 @@ write(*,*) "Calculating grid data..."
 call walltime(iwalltime1)
 
 ifinish=0
-!$OMP PARALLEL DO SHARED(ifinish,holegrid,elegrid,transdens,holecross,elecross,magtrdens) &
+!$OMP PARALLEL DO SHARED(ifinish,ishowprog,holegrid,elegrid,transdens,holecross,elecross,magtrdens) &
 !$OMP PRIVATE(i,j,k,tmpx,tmpy,tmpz,orbval,wfnderv,imo,jmo,excwei,iexcitorb,jexcitorb,ileft,jleft,iright,jright,tmpleft,tmpright,idir,jdir,tmpval) &
-!$OMP schedule(dynamic) NUM_THREADS(nthreads)
+!$OMP schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
 do k=1,nz
 	do j=1,ny
 		do i=1,nx
@@ -1551,11 +1551,16 @@ do k=1,nz
 				end do
 			end do
 		end do
+		!$OMP CRITICAL
+		ifinish=ifinish+1
+		ishowprog=mod(ifinish,floor(nz*ny/100D0))
+		if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+		!$OMP END CRITICAL
 	end do
-    ifinish=ifinish+1
-    call showprog(ifinish,nz)
 end do
 !$OMP END PARALLEL DO
+if (ishowprog/=0) call showprog(100,100)
+
 holecross=holecross*2 !Because "jexcitorb=iexcitorb+1,excnorb" does not considered duplicated cross terms
 elecross=elecross*2
 deallocate(skippair)

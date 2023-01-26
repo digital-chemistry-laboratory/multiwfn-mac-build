@@ -146,7 +146,7 @@ end if
 if (infomode==0) call showprog(0,nz*ny)
 ifinish=0
 cubmat=0
-!$OMP PARALLEL DO SHARED(cubmat,ifinish) PRIVATE(i,j,k,tmpx,tmpy,tmpz,densval) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
+!$OMP PARALLEL DO SHARED(cubmat,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz,densval) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
 do k=1,nz
 	do j=1,ny
 		do i=1,nx
@@ -172,14 +172,15 @@ do k=1,nz
 		end do
 		if (infomode==0) then
 		    !$OMP CRITICAL
-		    ifinish=ifinish+1
-		    call showprog(ifinish,nz*ny)
+			ifinish=ifinish+1
+			ishowprog=mod(ifinish,floor(nz*ny/100D0))
+			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
 		    !$OMP END CRITICAL
 		end if
 	end do
 end do
 !$OMP END PARALLEL DO
-if (infomode==0.and.ifinish<nz*ny) call showprog(nz*ny,nz*ny)
+if (infomode==0.and.ishowprog/=0) call showprog(100,100)
 nthreads=nthreads_old
 
 call del_GTFuniq !Destory unique GTF informtaion
@@ -815,14 +816,15 @@ subroutine saverhocub
 use defvar
 use functions
 implicit real*8 (a-h,o-z)
+
 if (allocated(rhocub)) then
-    if (size(rhocub,1)==nx.and.size(rhocub,2)==ny.and.size(rhocub,3)==nz) return !Do need to calculate again
+    if (size(rhocub,1)==nx.and.size(rhocub,2)==ny.and.size(rhocub,3)==nz) return !The grid data to be calculated is already available, do not need to calculate again
 else
     allocate(rhocub(nx,ny,nz))
 end if
 write(*,*) "Calculating grid data of electron density..."
 ifinish=0
-!$OMP PARALLEL DO SHARED(rhocub,ifinish) PRIVATE(i,j,k,tmpx,tmpy,tmpz,tmprho) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
+!$OMP PARALLEL DO SHARED(rhocub,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz,tmprho) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
 do k=1,nz
 	do j=1,ny
 		do i=1,nx
@@ -830,13 +832,14 @@ do k=1,nz
 			rhocub(i,j,k)=fdens(tmpx,tmpy,tmpz)
 		end do
 		!$OMP CRITICAL
-		ifinish=ifinish+1
-		call showprog(ifinish,nz*ny)
+        ifinish=ifinish+1
+        ishowprog=mod(ifinish,floor(nz*ny/100D0))
+        if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
 		!$OMP END CRITICAL
 	end do
 end do
 !$OMP END PARALLEL DO
-if (ifinish<nz*ny) call showprog(nz*ny,nz*ny)
+if (ishowprog/=0) call showprog(100,100)
 end subroutine
 
 
