@@ -1728,10 +1728,10 @@ do while(.true.) !Interface loop
 		
 	else if (isel==7) then
 		write(*,*) "1 Guess connectivity based on atomic covalent radii and interatomic distance"
-		write(*,*) "2 Load connectivity from a .mol file"
+		write(*,*) "2 Load connectivity from a .mol or .mol2 file"
 		read(*,*) ideterbond
 		if (ideterbond==2) then
-			write(*,*) "Input file path of the .mol file, e.g. C:\tsushima_yoshiko.mol"
+			write(*,*) "Input file path of the .mol or .mol2 file, e.g. C:\tsushima_yoshiko.mol"
 			do while(.true.)
 				read(*,"(a)") molfilepath
 				inquire(file=molfilepath,exist=alive)
@@ -1936,7 +1936,7 @@ if (isel==1.or.ieqvcons==2) then
 				bondedmat(j,i)=bondedmat(i,j)
 			end do
 		end do
-	else !Generate bonding matrix based on loaded connectivity matrix in specified .mol file
+	else if (ideterbond==2) then !Generate bonding matrix based on loaded connectivity matrix in specified .mol or .mol2 file
 		call readmolconn(molfilepath)
 		do i=1,ncenter
 			do j=i+1,ncenter

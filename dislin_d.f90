@@ -1,14 +1,14 @@
 !/****************************************************************/
 !/**                       DISLIN.F90                           **/
 !/**                                                            **/
-!/** Module file for DISLIN Fortran 90.                         **/
+!/** Module file for DISLIN Fortran 90/95.                      **/
 !/**                                                            **/
-!/** Date     :  04.08.2018                                     **/
-!/** Routines :  794                                            **/
-!/** Version  :  11.1 / explicit-shape / double precision       **/
+!/** Date     :  15.03.2022                                     **/
+!/** Routines :  798                                            **/
+!/** Version  :  11.5 / explicit-shape / double precision       **/
 !/****************************************************************/
 
-module dislin_d
+module dislin
 
 ! Constants for line styles 
   integer, parameter :: SYMBOL_EMPTY                =    -1
@@ -94,6 +94,11 @@ module dislin_d
       implicit none
       integer, intent (in) :: i,j
     end subroutine autres
+
+    subroutine autres3d(i,j,k)
+      implicit none
+      integer, intent (in) :: i,j,k
+    end subroutine autres3d
  
     subroutine ax2grf()
     end subroutine ax2grf
@@ -1755,6 +1760,12 @@ module dislin_d
       integer, dimension (n), intent (in) :: nray
     end subroutine legsel
 
+    subroutine legtbl(i,copt)
+      implicit none
+      integer, intent (in) :: i
+      character (len = *), intent (in) :: copt
+    end subroutine legtbl
+
     subroutine legtit(cstr)
       implicit none
       character (len = *), intent (in) :: cstr
@@ -2857,6 +2868,11 @@ module dislin_d
       integer, intent (in) :: i,j
     end subroutine setres
  
+    subroutine setres3d(xl,yl,zl)
+      implicit none
+      double precision, intent (in) :: xl,yl,zl
+    end subroutine setres3d
+
     subroutine setrgb(xr,xg,xb)
       implicit none
       double precision, intent (in) :: xr,xg,xb
@@ -4435,6 +4451,13 @@ module dislin_d
       double precision :: yinvrs
     end function yinvrs
  
+    subroutine ypolar(a,b,or,step,cstr,ndist)
+      implicit none
+      double precision, intent (in) :: a,b,or,step
+      character (len = *), intent (in) :: cstr
+      integer, intent (in) :: ndist
+    end subroutine ypolar
+
     function yposn(y)
       implicit none
       double precision, intent (in) :: y
@@ -4496,5 +4519,5 @@ module dislin_d
       double precision, intent (in) :: a,e
     end subroutine zscale
   end interface
-end module dislin_d
+end module dislin 
 

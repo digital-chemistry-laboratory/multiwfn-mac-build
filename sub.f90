@@ -3045,7 +3045,7 @@ write(*,*) "If no orbitals are frozen, simply input 0"
 write(*,"(a)") " PS: For unrestricted reference, if you input n, the n lowest alpha and n lowest beta MOs will be regarded as frozen"
 read(*,*) nfrz
 write(*,*) "Please wait..."
-if (wfntype==0) then !RHF reference
+if (wfntype==0.or.wfntype==2) then !RHF and ROHF reference
 	open(10,file=c200tmp,status="old")
 	Ptot=0
 	do while(.true.)

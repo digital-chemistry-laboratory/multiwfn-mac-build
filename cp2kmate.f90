@@ -771,8 +771,8 @@ do while(.true.)
     else if (isel==1) then !Functionals description: https://manual.cp2k.org/trunk/CP2K_INPUT/ATOM/METHOD/XC/XC_FUNCTIONAL.html
         !write(*,*) "-1 Molecular mechanism (MM)"
         write(*,*) "1 Pade (LDA)"
-        write(*,*) "2 PBE         -2 revPBE      -3 PBEsol"
-        write(*,*) "3 TPSS         4 BP86         5 BLYP"
+        write(*,*) "2 PBE               -2 revPBE            -3 PBEsol"
+        write(*,*) "3 TPSS (via LibXC)   4 BP86               5 BLYP"
         write(*,*) "6 PBE0        -6 PBE0 with ADMM"
         write(*,*) "7 B3LYP       -7 B3LYP with ADMM"
         write(*,*) "8 HSE06       -8 HSE06 with ADMM"
@@ -793,7 +793,7 @@ do while(.true.)
         if (isel2==2) method="PBE"
         if (isel2==-2) method="revPBE"
         if (isel2==-3) method="PBEsol"
-        if (isel2==3) method="TPSS"
+        if (isel2==3) method="TPSS_LIBXC"
         if (isel2==4) method="BP"
         if (isel2==5) method="BLYP"
         if (isel2==6) method="PBE0"
@@ -1594,6 +1594,11 @@ if (index(method,"LIBXC")/=0) then
             write(ifileid,"(a)") "        &END GGA_X_RPBE"
             write(ifileid,"(a)") "        &GGA_C_PBE"
             write(ifileid,"(a)") "        &END GGA_C_PBE"
+        else if (method=="TPSS_LIBXC") then
+            write(ifileid,"(a)") "        &MGGA_X_TPSS"
+            write(ifileid,"(a)") "        &END MGGA_X_TPSS"
+            write(ifileid,"(a)") "        &MGGA_C_TPSS"
+            write(ifileid,"(a)") "        &END MGGA_C_TPSS"
         else if (method=="revTPSS_LIBXC") then
             write(ifileid,"(a)") "        &MGGA_X_REVTPSS"
             write(ifileid,"(a)") "        &END MGGA_X_REVTPSS"
@@ -1876,6 +1881,8 @@ if (idispcorr>0.or.method=="BEEFVDW") then
             write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL SCAN"
         else if (method=="RPBE_LIBXC") then !i.e. Remove _LIBXC suffix
             write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL RPBE"
+        else if (method=="TPSS_LIBXC") then !i.e. Remove _LIBXC suffix
+            write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL TPSS"
         else if (method=="revTPSS_LIBXC") then !i.e. Remove _LIBXC suffix
             write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL revTPSS"
         else if (index(method,"B2PLYP")/=0) then
@@ -2340,6 +2347,11 @@ if ((itask==5.and.iraman==1).or.itask==9.or.itask==10.or.iTDDFT==1) then !Raman,
                         write(ifileid,"(a)") "          &END GGA_X_RPBE"
                         write(ifileid,"(a)") "          &GGA_C_PBE"
                         write(ifileid,"(a)") "          &END GGA_C_PBE"
+                    else if (method=="TPSS_LIBXC") then
+                        write(ifileid,"(a)") "          &MGGA_X_TPSS"
+                        write(ifileid,"(a)") "          &END MGGA_X_TPSS"
+                        write(ifileid,"(a)") "          &MGGA_C_TPSS"
+                        write(ifileid,"(a)") "          &END MGGA_C_TPSS"
                     else if (method=="revTPSS_LIBXC") then
                         write(ifileid,"(a)") "          &MGGA_X_REVTPSS"
                         write(ifileid,"(a)") "          &END MGGA_X_REVTPSS"

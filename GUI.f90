@@ -6,12 +6,56 @@ integer iatm1text,iatm2text,iatm3text,iatm4text,igeomresult
 integer idisisosurnumpt,idisisosurverypoor,idisisosurpoor,idisisosurdef,idisisosurgood,idisisosurhigh,idisisosurveryhigh,idisisosurperfect
 real*8 :: aug3D_main0=6D0
 
+!Used by subroutine myDWGTXT
+integer imyDWGTXT
+character myDWGTXTstr*2000 
+
 contains
+
 
 !!--------- Select input file by GUI
 subroutine selfilegui
 CALL dwgfil("Choose an input file (.wfn/wfx/fch/molden/mwfn/chg/pdb/xyz/mol/mol2/cif/cub, etc.)",filename,"*")
 end subroutine
+
+
+!!-------- DWGTXT often crashes under Window (at least for dislin 2022-Mar). This is my replacement for DWGTXT
+!promptstr is string of prompt, defstr is default string
+!The loaded text will be stored to myDWGTXTstr defined in the module GUI, maximum 2000 characters
+subroutine myDWGTXT(promptstr,defstr)
+character(len=*) promptstr,defstr
+CALL swgtit(" ")
+call swgwth(70)
+CALL WGINI('VERT',idiswindow)
+call swgatt(idiswindow,"INACTIVE","CLOSE") !Disable close button
+call swgatt(idiswindow,"OFF","MAXI") !Disable maximization button
+CALL SWGJUS("CENTER","LABEL") !Center the label text
+call WGLAB(idiswindow,trim(promptstr),itext)
+call WGTXT(idiswindow," ",imyDWGTXT)
+call SWGTXT(imyDWGTXT,defstr)
+CALL WGBAS(idiswindow,"HORI",idishori)
+CALL SWGWTH(20)
+call wgpbut(idishori,"OK",idisok)
+call wgpbut(idishori,"Cancel",idisreturn)
+call SWGCBK(idisreturn,myDWGTXT_return)
+call SWGCBK(idisok,myDWGTXT_load)
+call SWGCBK(imyDWGTXT,myDWGTXT_load)
+CALL WGFIN
+end subroutine
+!--------- Load string from text box created by myDWGTXT
+subroutine myDWGTXT_load(id)
+integer,intent (in) :: id
+call GWGTXT(imyDWGTXT,myDWGTXTstr)
+call sendok
+end subroutine
+!--------- Return from myDWGTXT
+subroutine myDWGTXT_return(id)
+integer,intent (in) :: id
+myDWGTXTstr=" "
+call sendok
+end subroutine
+
+
 
 !!--------- A GUI for drawing molecular structure and orbital isosurface
 subroutine drawmolgui
@@ -116,6 +160,7 @@ if (ifPBC==0) call swgatt(idisshowcell,"INACTIVE","STATUS")
 CALL wgapp(idisotherset,"Toggle showing all boundary atoms",idisshowboundaryatom)
 if (ifPBC==0) call swgatt(idisshowboundaryatom,"INACTIVE","STATUS")
 CALL wgapp(idisotherset,"Set atom highlighting",idishighlightatom)
+CALL wgapp(idisotherset,"Load bonding connectivity from mol/mol2 file",idisloadconn)
 CALL WGPOP(idiswindow,"Tools",idistools)
 CALL wgapp(idistools,"Write settings to GUIsettings.ini",idiswriteGUIsetting)
 CALL wgapp(idistools,"Load settings from GUIsettings.ini",idisloadGUIsetting)
@@ -254,6 +299,7 @@ call SWGCBK(idisselfrag,GUIselfrag)
 call SWGCBK(idisgetatmidx_by_ele,getatmidx_by_ele)
 call SWGCBK(idisshowcoordA,showcoordA)
 call SWGCBK(idisshowcoordB,showcoordB)
+call SWGCBK(idisloadconn,loadconn)
 call SWGCBK(idisshowfractcoord,showfractcoord)
 call SWGCBK(idisexpintcoord,export_intcoord)
 call SWGCBK(idisreturn,GUIreturn)
@@ -429,6 +475,7 @@ CALL wgapp(idisotherset,"Use line style",idisuseline)
 CALL wgapp(idisotherset,"Toggle showing hydrogens",idisshowhydrogen)
 CALL wgapp(idisotherset,"Toggle showing all boundary atoms",idisshowboundaryatom)
 if (ifPBC==0) call swgatt(idisshowboundaryatom,"INACTIVE","STATUS")
+CALL wgapp(idisotherset,"Load bonding connectivity from mol/mol2 file",idisloadconn)
 CALL wgapp(idisotherset,"Write settings to isosur.ini",idiswriteisosursetting)
 CALL wgapp(idisotherset,"Load settings from isosur.ini",idisloadisosursetting)
 
@@ -524,6 +571,7 @@ call SWGCBK(idisreset,resetview)
 call SWGCBK(idisisosurscl,setisosurscl)
 call SWGCBK(idisscrval,setscrval)
 call SWGCBK(idisshowhydrogen,setshowhydrogen)
+call SWGCBK(idisloadconn,loadconn)
 call SWGCBK(idiswriteisosursetting,write_isosur_setting)
 call SWGCBK(idisloadisosursetting,load_isosur_setting)
 if (isosursec==0) call SWGCBK(idisshowbothsign,setshowbothsign)
@@ -587,6 +635,7 @@ CALL wgapp(idisotherset,"Use vdW style",idisusevdW)
 CALL wgapp(idisotherset,"Use line style",idisuseline)
 CALL wgapp(idisotherset,"Toggle showing hydrogens",idisshowhydrogen)
 CALL wgapp(idisotherset,"Toggle showing all boundary atoms",idisshowboundaryatom)
+CALL wgapp(idisotherset,"Load bonding connectivity from mol/mol2 file",idisloadconn)
 if (ifPBC==0) call swgatt(idisshowboundaryatom,"INACTIVE","STATUS")
 !Main region
 CALL WGDRAW(idiswindow,idisgraph) !Draw-widget to display molecular structure
@@ -649,6 +698,7 @@ call SWGCBK(idissavepic,savepic)
 call SWGCBK(idissetangle,setviewangle)
 call SWGCBK(idissetzoom,setzoom)
 call SWGCBK(idisshowboundaryatom,setshowboundaryatom)
+call SWGCBK(idisloadconn,loadconn)
 call SWGCBK(idisatmlabtyp,setatmlabtyp)
 call SWGCBK(idisatmlabclr,setatmlabclr)
 call SWGCBK(idisuseCPK,setCPKstyle)
@@ -826,6 +876,7 @@ CALL wgapp(idisotherset,"Toggle showing cell frame",idisshowcell)
 if (ifPBC==0) call swgatt(idisshowcell,"INACTIVE","STATUS")
 CALL wgapp(idisotherset,"Toggle showing all boundary atoms",idisshowboundaryatom)
 if (ifPBC==0) call swgatt(idisshowboundaryatom,"INACTIVE","STATUS")
+CALL wgapp(idisotherset,"Load bonding connectivity from mol/mol2 file",idisloadconn)
 CALL SWGSPC(1D0,0D0)
 if (imodlayout<=1) then
 	call SWGSTP(0.1D0)
@@ -888,6 +939,7 @@ CALL SWGSPC(4D0,0.5D0) !Reset the default widget spacing
 call swgtyp("HORI","SCALE") !Reset the default mode for list widget
 call SWGCBK(idisshowcell,setshowcell)
 call SWGCBK(idisshowboundaryatom,setshowboundaryatom)
+call SWGCBK(idisloadconn,loadconn)
 idrawbasinidx=-10 !Don't draw basins by default
 if (isys==1) call drawmol
 CALL WGFIN
@@ -950,6 +1002,7 @@ CALL wgapp(idisotherset,"Toggle showing cell frame",idisshowcell)
 if (ifPBC==0) call swgatt(idisshowcell,"INACTIVE","STATUS")
 CALL wgapp(idisotherset,"Toggle showing all boundary atoms",idisshowboundaryatom)
 if (ifPBC==0) call swgatt(idisshowboundaryatom,"INACTIVE","STATUS")
+CALL wgapp(idisotherset,"Load bonding connectivity from mol/mol2 file",idisloadconn)
 CALL SWGSPC(1D0,0D0)
 call SWGSTP(0.1D0)
 call wgscl(idisright,"Ratio of atomic size",0D0,5D0,ratioatmsphere,2,idisatmsize)
@@ -993,6 +1046,7 @@ call SWGCBK(idisbondradius,setbondradius)
 call SWGCBK(idisdomainplot,showdomainsel)
 call SWGCBK(idisshowcell,setshowcell)
 call SWGCBK(idisshowboundaryatom,setshowboundaryatom)
+call SWGCBK(idisloadconn,loadconn)
 CALL SWGSPC(4D0,0.5D0) !Reset the default widget spacing
 call swgtyp("HORI","SCALE") !Reset the default mode for list widget
 if (isys==1) call drawmol
@@ -2828,6 +2882,24 @@ do iatm=1,ncenter
 	write(*,"(i5,'(',a2,')','  Charge:',f9.5,'  Fract. coord. 1/2/3:',3f10.6)") &
     iatm,a(iatm)%name,a(iatm)%charge,fract(:)
 end do
+end subroutine
+
+
+
+!!!-------- Interface of loading bonding connectivity from mol/mol2
+subroutine loadconn(id)
+integer,intent (in) :: id
+character :: c200tmp*200
+call myDWGTXT("Input path of .mol or .mol2 file, e.g. D:\love\nico.mol2"," ")
+if (myDWGTXTstr==" ") return
+inquire(file=myDWGTXTstr,exist=alive)
+if (.not.alive) then
+	call dwgmsg("Error: Cannot find the file!")
+    return
+end if
+call readmolconn(trim(myDWGTXTstr))
+call drawmol
+call dwgmsg("Bonding connectivity has been loaded and updated!")
 end subroutine
 
 

@@ -1417,7 +1417,7 @@ do while(.true.)
 										PVScomp(ifrag,idata)=tmpval/facnorm
 									end if
 								end do
-                                OPVScomp(idata)=2*min(PVScomp(OPVSidx1,idata),PVScomp(OPVSidx2,idata))
+                                if (OPVSidx1/=0.and.OPVSidx2/=0) OPVScomp(idata)=2*min(PVScomp(OPVSidx1,idata),PVScomp(OPVSidx2,idata))
 							end do
 							deallocate(normmat_atm)
                         else if (iPVScomptype==2) then !Composition is computed according to contribution to intensity

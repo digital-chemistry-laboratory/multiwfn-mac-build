@@ -2209,30 +2209,6 @@ if (infomode==0) write(*,"(' Totally',i8,' atoms')") ncenter
 call guessnelec
 end subroutine
 
-!------------- Only read connectivity from .mol file -----------------
-subroutine readmolconn(name) 
-use defvar
-implicit real*8 (a-h,o-z)
-character(len=*) name
-open(10,file=name,status="old")
-read(10,*)
-read(10,*)
-read(10,*)
-read(10,"(2i3)") ntmp,nbond
-do i=1,ntmp
-	read(10,*)
-end do
-if (allocated(connmat)) deallocate(connmat)
-allocate(connmat(ncenter,ncenter))
-connmat=0
-do ibond=1,nbond
-	read(10,"(3i3)") i,j,ntmp
-	connmat(i,j)=ntmp
-	connmat(j,i)=ntmp
-end do
-close(10)
-end subroutine
-
 
 
 
@@ -2303,6 +2279,72 @@ a%z=a%z/b2a
 a%charge=a%index
 if (infomode==0) write(*,"(' Totally',i8,' atoms')") ncenter
 call guessnelec
+end subroutine
+
+
+
+
+!------------- Only read connectivity from .mol or .mol2 file
+subroutine readmolconn(name) 
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+character(len=*) name
+character c80tmp*80
+
+if (allocated(connmat)) deallocate(connmat)
+allocate(connmat(ncenter,ncenter))
+connmat=0
+    
+open(10,file=name,status="old")
+if (index(name,".mol2")/=0) then !Read mol2
+	call loclabel(10,"@<TRIPOS>MOLECULE")
+    read(10,*)
+    read(10,*)
+    read(10,*) ntmp,nbond
+    if (ntmp/=ncenter) then
+		write(*,"(a)") " Warning: The number of atoms in the .mol2 file is not the same as present system!"
+		!write(*,"(a)") " Press ENTER button to continue (Multiwfn may crash)"
+  !      read(10,*)
+  !      pause
+    end if
+	call loclabel(10,"@<TRIPOS>BOND")
+	read(10,*)
+	do ibond=1,nbond
+		read(10,*) inouse,i,j,c80tmp
+		if (c80tmp=="ar".or.c80tmp=="Ar") then
+			ntmp=4
+		else if (c80tmp=="am") then
+			ntmp=1
+		else if (c80tmp=="un".or.c80tmp=="nc".or.c80tmp=="du") then
+			ntmp=0
+		else
+			read(c80tmp,*) ntmp
+		end if
+		connmat(i,j)=ntmp
+		connmat(j,i)=ntmp
+	end do
+else !Read mol
+	read(10,*)
+	read(10,*)
+	read(10,*)
+	read(10,"(2i3)") ntmp,nbond
+    if (ntmp/=ncenter) then
+		write(*,"(a)") " Warning: The number of atoms in the .mol2 file is not the same as present system!"
+		!write(*,"(a)") " Press ENTER button to continue (Multiwfn may crash)"
+  !      read(10,*)
+  !      pause
+    end if
+	do i=1,ntmp
+		read(10,*)
+	end do
+	do ibond=1,nbond
+		read(10,"(3i3)") i,j,ntmp
+		connmat(i,j)=ntmp
+		connmat(j,i)=ntmp
+	end do
+end if
+close(10)
 end subroutine
 
 
