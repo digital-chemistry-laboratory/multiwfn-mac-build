@@ -273,9 +273,9 @@ do while(.true.)
         if (iprestype==1) write(*,"(a,1PE13.5,' bar')") " 12 Set external pressure, current:",Piso
         if (iprestype==2) write(*,"(a)") " 12 Set external pressure, current: Anisotropic"
     end if
-    if (itask==3.or.itask==4.or.itask==7) then
-        if (itightopt==0) write(*,"(a)") " 13 Toggle using tighter conv. threshold (for subsequent freq), current: No"
-        if (itightopt==1) write(*,"(a)") " 13 Toggle using tighter conv. threshold (for subsequent freq), current: Yes"
+    if (itask==2.or.itask==3.or.itask==4.or.itask==7) then
+        if (itightopt==0) write(*,"(a)") " 13 Toggle using tighter threshold (for subsequent freq), current: No"
+        if (itightopt==1) write(*,"(a)") " 13 Toggle using tighter threshold (for subsequent freq), current: Yes"
     else if (itask==5) then
         if (iraman==0) write(*,"(a)") " 13 Toggle calculating Raman activities, current: No"
         if (iraman==1) write(*,"(a)") " 13 Toggle calculating Raman activities, current: Yes"
@@ -1056,7 +1056,7 @@ do while(.true.)
             end if
         end if
     else if (isel==13) then
-        if (itask==3.or.itask==4.or.itask==7) then
+        if (itask==2.or.itask==3.or.itask==4.or.itask==7) then
             if (itightopt==0) then
                 itightopt=1
             else if (itightopt==1) then
@@ -1396,7 +1396,7 @@ if (itask==1) then !Single point, do not need high accuracy
         eps_scf=1D-6
         eps_def=1D-12
     end if
-else if (itask==5.or.itask==9.or.itask==10.or.((itask==3.or.itask==4.or.itask==7).and.itightopt==1)) then !freq, NMR, polar, opt(structure, cell, TS) for subsequent freq purpose
+else if (itask==5.or.itask==9.or.itask==10.or.((itask==2.or.itask==3.or.itask==4.or.itask==7).and.itightopt==1)) then !freq, NMR, polar, force, opt(structure, cell, TS) for subsequent freq purpose
     eps_scf=1D-7
     eps_def=1D-14
 else if (itask==6.or.itask==14) then !For faster MD/PIMD, use even looser threshold

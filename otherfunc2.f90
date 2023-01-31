@@ -2963,13 +2963,17 @@ use functions
 implicit real*8 (a-h,o-z)
 real*8 intval,moment1(3),moment2(3,3),moment2nuc(3,3),funcval(radpot*sphpot),beckeweigrid(radpot*sphpot),eigvecmat(3,3),eigval(3)
 type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
+integer :: iabs=0
 character selectyn
+
 ifunc=1
 cenx=0
 ceny=0
 cenz=0
 do while(.true.)
 	write(*,*)
+    if (iabs==0) write(*,"(a)") " -1 Toggle using absolute function value instead of original function value when calculating various quantities via option 1, current: No"
+    if (iabs==1) write(*,"(a)") " -1 Toggle using absolute function value instead of original function value when calculating various quantities via option 1, current: Yes"
 	write(*,*) "0 Return"
 	write(*,*) "1 Calculate various quantities of the selected function"
 	write(*,*) "2 Calculate center and integral of the selected function"
@@ -2980,6 +2984,13 @@ do while(.true.)
 	
 	if (isel==0) then
 		return
+    else if (isel==-1) then
+		if (iabs==0) then
+			iabs=1
+        else
+			iabs=0
+        end if
+		cycle
 	else if (isel==3) then
 		call selfunc_interface(1,ifunc)
 		cycle
@@ -3003,6 +3014,7 @@ do while(.true.)
 	realcenx=0
 	realceny=0
 	realcenz=0
+    !Calculate center, integral, first and second moments
 	do iatm=1,ncenter
 		write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
 		gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
@@ -3041,14 +3053,14 @@ do while(.true.)
         !$OMP parallel do num_threads(nthreads) &
         !$OMP default(none) &
         !$OMP private(i, xtmp, ytmp, ztmp, tmpval) &
-        !$OMP shared(iradcut, radpot, sphpot, isel, funcval, gridatm, gridatmorg, beckeweigrid, cenx, ceny, cenz) &
+        !$OMP shared(iabs, iradcut, radpot, sphpot, isel, funcval, gridatm, gridatmorg, beckeweigrid, cenx, ceny, cenz) &
         !$OMP reduction(+:intval, moment1, moment2, realcenx, realceny, realcenz)
         do i = 1 + iradcut*sphpot, radpot*sphpot
             tmpval = funcval(i)*gridatmorg(i)%value*beckeweigrid(i)
             xtmp = gridatm(i)%x - cenx
             ytmp = gridatm(i)%y - ceny
             ztmp = gridatm(i)%z - cenz
-            if (isel == 5) tmpval = abs(tmpval)
+            if (isel == 5 .or. iabs==1) tmpval = abs(tmpval)
             intval = intval + tmpval
             moment1(1) = moment1(1) + xtmp*tmpval
             moment1(2) = moment1(2) + ytmp*tmpval
@@ -3064,16 +3076,17 @@ do while(.true.)
             realcenz = realcenz + gridatm(i)%z*tmpval
         end do
         !$OMP end parallel do
-         
 	end do
+    
 	call walltime(iwalltime2)
 	write(*,"(' Calculation took up wall clock time',i10,' s',/)") iwalltime2-iwalltime1
 	
-	if (isel==1) then
+    !Print result
+	if (isel==1) then !Various quantities
 		moment2(3,1)=moment2(1,3)
 		moment2(2,1)=moment2(1,2)
 		moment2(3,2)=moment2(2,3)
-		write(*,*) "Note: All data shown below are in a.u."
+		write(*,*) "Note: Unless otherwise specified, all data shown below are in a.u."
 		write(*,"(/,' Integral over whole space:',1PE16.8,/)") intval
 		write(*,"(' The first moment:')")
 		write(*,"(' X= ',1PE16.8,'   Y= ',1PE16.8,'   Z= ',1PE16.8)") moment1
@@ -3088,9 +3101,11 @@ do while(.true.)
 		write(*,"(a,3(1PE16.8))") ' Eigenvalues:',eigval
         write(*,"(a,1PE16.8)") " Sum of eigenvalues (trace of the second moment tensor):",sum(eigval)
 		write(*,"(' Anisotropy:',1PE16.8,/)") eigval(3)-(eigval(1)+eigval(2))/2D0
-		write(*,"(' Radius of gyration:',1PE16.8)") dsqrt((moment2(1,1)+moment2(2,2)+moment2(3,3))/intval)
+        rgyr=dsqrt((moment2(1,1)+moment2(2,2)+moment2(3,3))/intval)
+		write(*,"(' Radius of gyration:',1PE16.8, ' Bohr ',1PE16.8, ' Angstrom')") rgyr,rgyr*b2a
         write(*,"(/,a,f16.6)") " Spatial extent of the function <r^2>:",sum(eigval)
 
+        !If the selected function is electron density, also print electric moments
 		if (ifunc==1) then
 			moment2nuc=0
 			do iatm=1,ncenter
@@ -3120,7 +3135,7 @@ do while(.true.)
 			write(*,"(' ZX=',f16.8,'   ZY=',f16.8,'   ZZ=',f16.8)") moment2nuc(3,:)-moment2(3,:)
 		end if
 		
-	else if (isel==2.or.isel==5) then
+	else if (isel==2.or.isel==5) then !Function center
 		realcenx=realcenx/intval
 		realceny=realceny/intval
 		realcenz=realcenz/intval
