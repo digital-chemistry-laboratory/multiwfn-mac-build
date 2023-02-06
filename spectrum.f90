@@ -7,7 +7,7 @@
 !For n systems, nsystem=n, data of system i is dataxall(i,1:numdataall(i)), and in this case numdata is maximum length of numdataall
 subroutine plotspectrum
 use defvar
-use dislin_d
+use dislin
 use plot
 use util
 implicit real*8 (a-h,o-z)
@@ -3943,7 +3943,7 @@ end module
 subroutine NMRplot
 use defvar
 use NMRmod
-use dislin_d
+use dislin
 use plot
 use util
 implicit real*8 (a-h,o-z)

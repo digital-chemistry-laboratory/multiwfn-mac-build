@@ -13,7 +13,7 @@ do while(.true.)
 	write(*,*) "4 Integrate a function in whole space"
 	write(*,*) "5 Show overlap integral between alpha and beta orbitals"
 	write(*,*) "6 Monitor SCF convergence process of Gaussian"
-    !write(*,*) "7 empty"
+    write(*,*) "7 Auxiliary tools for CP2K (CP2Kmate)"
 	write(*,*) "8 Generate Gaussian input file with initial guess from fragment wavefunctions"
 	write(*,*) "9 Evaluate interatomic connectivity and atomic coordination number"
 ! 	write(*,*) "10 Generate spherically averaged atomic radial density" !Rarely used, so, hidden
@@ -62,6 +62,8 @@ do while(.true.)
 		call aboverlap
 	else if (isel==6) then
 		call monitorscf
+	else if (isel==7) then
+		call cp2kmate
 	else if (isel==8) then
 		call fragguess
 	else if (isel==9) then
@@ -1071,7 +1073,7 @@ end subroutine
 subroutine monitorscf
 use defvar
 use util
-use dislin_d
+use dislin
 implicit real*8 (a-h,o-z)
 real*8,dimension(1000) :: DE,RMSDP,MaxDP,grad,stepnum(1000)=(/ (i,i=1,1000) /),constant
 real*8 aimDE,aimRMSDP,aimMaxDP

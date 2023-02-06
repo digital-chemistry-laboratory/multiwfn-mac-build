@@ -1177,7 +1177,7 @@ end subroutine
 subroutine plotintdiag(status,ifrag,jfrag,nCDAfrag,nmoCDA,FOcp,nmo0,nmo1,nmo2,occ0,occ1,occ2,ene0,ene1,ene2,&
 eneplotlow,eneplothigh,eneintv,conncritleft,conncritright,idrawMObar,iconnlogi,ilabelorbidx,ilabelcomp,labsize,&
 complabshift,degencrit,eneshiftA,eneshiftB,eneshiftcomp)
-use dislin_d
+use dislin
 use defvar
 implicit real*8 (a-h,o-z)
 integer nmo0,nmo1,nmo2,labsize,idrawMObar,iconnlogi,ilabelorbidx,ilabelcomp,nmoCDA(0:nCDAfrag)

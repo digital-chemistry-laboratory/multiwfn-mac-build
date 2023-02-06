@@ -14,7 +14,7 @@
 subroutine DOS
 use defvar
 use util
-use dislin_d
+use dislin
 use functions
 implicit real*8 (a-h,o-z)
 integer,parameter :: nfragmax=10
@@ -98,6 +98,32 @@ iusersetcolorscale=0 !If user has set color scale of 2D LDOS by himself
 Yrightsclfac=0.5D0 !Scale factor relative to left Y-axis of OPDOS (right Y-axis)
 yxratio=1D0
 graphformat_old=graphformat !User may change graphformat, backup it
+
+!Special treatment for periodic wavefunction, which may contain numerous dense orbitals
+!if (ifPBC>0) then
+!	iunitx=2
+!	unitstr=" eV"
+!    defFWHM=0.0146997D0 !0.4 eV is usually suitable
+!    ilinebottom=1
+!    nlabdigX=1
+!	nlabdigY=1
+!	nlabdigY_OPDOS=1
+!    
+!	iunitx=2
+!	MOene_dos=MOene_dos*au2eV
+!	FWHM=FWHM*au2eV
+!	enelow=enelow*au2eV
+!	enehigh=enehigh*au2eV
+!	unitstr=" eV"
+!	!After change the unit, in principle, the curve (and hence Y-range) will be automatically reduced by 27.2114.& 
+!	!str should also be reduced by 27.2114 so that the discrete line can be properly shown in the graph range &
+!	!To compensate the reduce of str, scalecurve thus be augmented by corresponding factor
+!	str=str/au2eV
+!	scalecurve=scalecurve*au2eV
+!	stepx=stepx*au2eV
+!	stepy=stepy/au2eV
+!end if
+
 
 ireadgautype=1
 if (ifiletype==0) then
@@ -187,7 +213,7 @@ else
 	return
 end if
 
-!Allocate all arrays that may be used, don't consider if they will actually be used, because memory consuming is very little
+!Allocate all arrays that may be used, do not consider if they will actually be used, because memory consuming is very little
 allocate(DOSlinex(3*nmo),TDOSliney(3*nmo),TDOSliney_unocc(3*nmo),PDOSliney(3*nmo,nfragmax),OPDOSliney(3*nmo),LDOSliney(3*nmo))
 allocate(compfrag(nmo,0:nfragmax),OPfrag12(nmo))
 allocate(fragDOS(nbasis,nfragmax+1)) !The last slot is used to exchange fragment
@@ -214,7 +240,7 @@ if (any(nfragDOS>0)) idoPDOS=1
 idoOPDOS=0
 if (all(nfragDOS(1:2)>0).and.icompmethod<=2.and.iPDOStype==1) idoOPDOS=1
 
-!Unknow text file doesn't contains wavefunction info, couldn't define fragment
+!Unknow text file does not contain wavefunction info, couldn't define fragment
 write(*,*)
 write(*,"(a)") " Hint: You can input ""s"" to save current plotting status to a file, or input ""l"" to load status from a file"
 write(*,*)
@@ -1396,7 +1422,8 @@ else if (isel==0.or.isel==10) then
 			if (ishowlegend==1) write(*,*) "13 Toggle showing legends, current: Yes"
 			if (ishowlegend==0) write(*,*) "13 Toggle showing legends, current: No"
 			if (idoOPDOS==1) write(*,"(a,f10.5)") " 14 Set scale factor of Y-axis for OPDOS, current:",Yrightsclfac
-			write(*,*) "15 Toggle showing vertical dashed line to highlight HOMO level"
+			if (ishowHOMOlev==0) write(*,*) "15 Toggle showing vertical dashed line to highlight HOMO level, current: No"
+			if (ishowHOMOlev==1) write(*,*) "15 Toggle showing vertical dashed line to highlight HOMO level, current: Yes"
 			write(*,*) "16 Set the texts in the legends"
 			write(*,"(a,i3)") " 17 Set width of curves, current:",icurvewidth
 			write(*,"(a,i3)") " 18 Set width of lines, current:",ilinewidth

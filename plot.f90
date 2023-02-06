@@ -1,6 +1,6 @@
 module plot
 use defvar
-use dislin_d
+use dislin
 use util
 implicit real*8 (a-h,o-z)
 
@@ -1760,7 +1760,7 @@ end subroutine
 
 subroutine setgraphformat
 use defvar
-use dislin_d
+use dislin
 write(*,*) "Input index to select a format"
 write(*,*) "Note: 1~4 are pixel formats, 5~9 are vector formats"
 write(*,*) "1 png"
@@ -1806,7 +1806,7 @@ end subroutine
 
 !!----------- Set color table of Dislin, will affect color transition of color-filled map and heat map
 subroutine setcolortable(isel) !"isel" corresponds to global variable "iclrtrans"
-use dislin_d
+use dislin
 implicit real*8 (a-h,o-z)
 integer isel
 integer,parameter :: nlevel=255

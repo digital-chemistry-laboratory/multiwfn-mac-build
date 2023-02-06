@@ -2142,7 +2142,7 @@ end subroutine
 subroutine hole_ele_atmcontri_heatmap
 use defvar
 use util
-use dislin_d
+use dislin
 implicit real*8 (a-h,o-z)
 character c200tmp*200,c2000tmp*2000
 real*8 :: atmcomp(ncenter,nmo),xyratio=0.15D0
