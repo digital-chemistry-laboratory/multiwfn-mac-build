@@ -61,6 +61,7 @@ if (.not.(ifiletype==0.or.allocated(CObasa))) then
 	return
 end if
 
+!Initialize parameters and some arrays
 if (allocated(FWHM)) deallocate(FWHM) !Global array
 if (allocated(str)) deallocate(str) !Global array
 defFWHM=0.05D0 !Default FWHM
@@ -69,6 +70,7 @@ ibroadfunc=2 !Default is Gaussian function
 scalecurve=0.1D0 !Multiply curves with this value
 enelow=-0.8D0 !Energy range, a.u.
 enehigh=0.2D0
+eneshift=0
 stepx=0.1D0
 stepy=2
 gauweigh=0.5D0 !The weight of Gaussian in Pseudo-Voigt function
@@ -98,32 +100,7 @@ iusersetcolorscale=0 !If user has set color scale of 2D LDOS by himself
 Yrightsclfac=0.5D0 !Scale factor relative to left Y-axis of OPDOS (right Y-axis)
 yxratio=1D0
 graphformat_old=graphformat !User may change graphformat, backup it
-
-!Special treatment for periodic wavefunction, which may contain numerous dense orbitals
-!if (ifPBC>0) then
-!	iunitx=2
-!	unitstr=" eV"
-!    defFWHM=0.0146997D0 !0.4 eV is usually suitable
-!    ilinebottom=1
-!    nlabdigX=1
-!	nlabdigY=1
-!	nlabdigY_OPDOS=1
-!    
-!	iunitx=2
-!	MOene_dos=MOene_dos*au2eV
-!	FWHM=FWHM*au2eV
-!	enelow=enelow*au2eV
-!	enehigh=enehigh*au2eV
-!	unitstr=" eV"
-!	!After change the unit, in principle, the curve (and hence Y-range) will be automatically reduced by 27.2114.& 
-!	!str should also be reduced by 27.2114 so that the discrete line can be properly shown in the graph range &
-!	!To compensate the reduce of str, scalecurve thus be augmented by corresponding factor
-!	str=str/au2eV
-!	scalecurve=scalecurve*au2eV
-!	stepx=stepx*au2eV
-!	stepy=stepy/au2eV
-!end if
-
+graphformat="pdf"
 
 ireadgautype=1
 if (ifiletype==0) then
@@ -219,15 +196,48 @@ allocate(compfrag(nmo,0:nfragmax),OPfrag12(nmo))
 allocate(fragDOS(nbasis,nfragmax+1)) !The last slot is used to exchange fragment
 allocate(LDOScomp(nmo))
 
-!======Set from where to where are active energy levels
+!Set from where to where are active energy levels
 if (ispin==0.or.ispin==3) imoend=nmo !Text file or restricted .fch, or unrestricted but consider both spins
 if (ispin==1.or.ispin==2) imoend=nbasis !For unrestricted fch or Gaussian output file while only consider alpha or beta
 
-if (allocated(MOene_dos)) deallocate(MOene_dos,MOocc_dos) !MOene_dos is the working horse, record energy in current unit
+!MOene_dos is the working horse, recording energies in actually employed unit
+!MOocc_dos records occupation numbers for DOS plotting, which may be modified by users in present function
+if (allocated(MOene_dos)) deallocate(MOene_dos,MOocc_dos)
 allocate(MOene_dos(nmo),MOocc_dos(nmo))
 MOene_dos=MOene
 MOocc_dos=MOocc
 if (ifiletype==0.and.(inp==3.or.inp==4)) MOene_dos=au2eV*MOene
+
+!Prettify default map effect for periodic wavefunction, which may contain numerous dense orbitals
+if (ifPBC>0) then
+    ilinebottom=1
+    nlabdigX=1
+	nlabdigY=1
+	nlabdigY_OPDOS=1
+    !Use eV unit
+	iunitx=2
+	unitstr=" eV"
+    FWHM=0.5D0 !Usually suitable
+	MOene_dos=MOene_dos*au2eV
+	str=str/au2eV
+	scalecurve=scalecurve*au2eV
+	stepx=1
+	stepy=1
+	eneHOMO=-1D99 !Determine HOMO energy
+	do imo=1,imoend
+		irealmo=imo
+		if (ispin==2) irealmo=imo+nbasis
+		if (MOocc_dos(irealmo)>0) then
+			if (MOene_dos(irealmo)>eneHOMO) eneHOMO=MOene_dos(irealmo)
+        else
+			eneLUMO=MOene_dos(irealmo)
+            exit
+        end if
+	end do
+    enelow=eneHOMO-8
+    enehigh=eneLUMO+5
+end if
+
 
 
 !!!!! ***** Main loop ***** !!!!!!
@@ -246,13 +256,14 @@ write(*,"(a)") " Hint: You can input ""s"" to save current plotting status to a 
 write(*,*)
 write(*,*) "          ================ Plot density-of-states ==============="
 write(*,*) "-10 Return to main menu"
+write(*,"(a,f10.4,1x,a)") " -6 Set shift of energy levels, current:",eneshift,trim(unitstr)
 write(*,*) "-5 Customize energy levels, occupations, strengths and FWHMs for specific MOs"
 write(*,*) "-4 Show all orbital information"
 write(*,*) "-3 Export energy levels, occupations, strengths and FWHMs to plain text file"
 write(*,*) "-2 Define MO fragments for MO-PDOS"
 if (allocated(CObasa)) write(*,*) "-1 Define fragments for PDOS/OPDOS"
 if (idoOPDOS==1) then
-	write(*,*) "0 Draw TDOS+PDOS+OPDOS graph!"
+	write(*,*) "0 Draw TDOS+PDOS+OPDOS graph!    -0 Draw TDOS+PDOS!"
 else if (idoPDOS==1) then
     if (iPDOStype==1) then
 	    write(*,*) "0 Draw TDOS+PDOS graph!"
@@ -445,12 +456,37 @@ else if (index(c80tmp,'l')/=0) then
     write(*,*) "Loading finished!"
     cycle
 else
+	if (c80tmp=="-0") idoOPDOS=0
     read(c80tmp,*) isel
 end if
 
 if (isel==-10) then
     graphformat=graphformat_old
 	exit
+    
+else if (isel==-6) then !Shift energy levels
+	eneshift_old=eneshift
+	!Remove previous shift
+	MOene_dos=MOene_dos-eneshift
+    write(*,*) "Input shift value of orbital energies in "//trim(unitstr)//", e.g. 0.23"
+    write(*,*) "If input ""H"", then orbital energies will be added by negative of HOMO energy"
+    read(*,*) c80tmp
+    if (c80tmp=='h'.or.c80tmp=='H') then
+		eneHOMO=-1D99 !Determine HOMO energy
+		do imo=1,imoend
+			irealmo=imo
+			if (ispin==2) irealmo=imo+nbasis
+			if (MOocc_dos(irealmo)>0.and.MOene_dos(irealmo)>eneHOMO) eneHOMO=MOene_dos(irealmo)
+		end do
+        eneshift=-eneHOMO
+    else
+		read(c80tmp,*) eneshift
+    end if
+	MOene_dos=MOene_dos+eneshift
+    !Correspondingly shift X-range
+    enelow=enelow+(eneshift-eneshift_old)
+    enehigh=enehigh+(eneshift-eneshift_old)
+    write(*,*) "Done!"
     
 else if (isel==-5) then
 	do while(.true.)
@@ -612,7 +648,7 @@ else if (isel==-1) then
 			end if
 		end do
 		write(*,*) "Input fragment index to define it, e.g. 2"
-		write(*,*) "Input a negative index can unset the fragment, e.g. -2"
+		write(*,*) "Input a negative index will unset the fragment, e.g. -2"
 		write(*,*) "Input two indices can exchange the two fragments, e.g. 1,4"
 		write(*,*) "Input ""e"" can export current fragment setting to DOSfrag.txt in current folder"
 		write(*,*) "Input ""i"" can import fragment setting from DOSfrag.txt in current folder"
@@ -766,6 +802,7 @@ else if (isel==8) then
 		enelow=enelow*au2eV
 		enehigh=enehigh*au2eV
 		unitstr=" eV"
+        eneshift=eneshift*au2eV
 		!After change the unit, in principle, the curve (and hence Y-range) will be automatically reduced by 27.2114.& 
 		!str should also be reduced by 27.2114 so that the discrete line can be properly shown in the graph range &
 		!To compensate the reduce of str, scalecurve thus be augmented by corresponding factor
@@ -779,6 +816,7 @@ else if (isel==8) then
 		FWHM=FWHM/au2eV
 		enelow=enelow/au2eV
 		enehigh=enehigh/au2eV
+        eneshift=eneshift/au2eV
 		unitstr=" a.u."
 		str=str*au2eV
 		scalecurve=scalecurve/au2eV
@@ -852,7 +890,21 @@ else if (isel==0.or.isel==10) then
 		    ntime=1 !One set of orbital
 		    if (ispin==3) ntime=2 !Unrestricted wavefunction and both spins are considered, two passes using different CObas are needed
             if (icompmethod<=2) then !Mulliken/SCPA
-                call ask_Sbas_PBC
+				if (.not.allocated(Sbas)) then
+					inquire(file="CP2K_overlap.txt",exist=alive)
+					if (alive) then !Directly use existing overlap matrix to save time
+						write(*,"(a)") " CP2K_overlap.txt has been found in current folder, directly load it and use the overlap matrix? (y/n)"
+						read(*,*) c80tmp
+						if (c80tmp=='y'.or.c80tmp=='Y') then
+							open(10,file="CP2K_overlap.txt",status="old")
+							allocate(Sbas(nbasis,nbasis))
+							call readmatgau(10,Sbas,1,"?",7,5)
+							close(10)
+							write(*,*) "Loading overlap matrix finished!"
+						end if
+					end if
+					call ask_Sbas_PBC
+                end if
 		        write(*,*) "Calculating orbital composition, please wait..."
 		        OPfrag12=0
 			    tmpmat=>CObasa
@@ -982,13 +1034,15 @@ else if (isel==0.or.isel==10) then
 		inow=3*(imo-1)
 		irealmo=imo
 		if (ispin==2) irealmo=imo+nbasis
-        if (MOene_dos(irealmo)==0) then
+        !In the case of CP2K, virtual orbitals are not solved by default and energies are exactly zero, skip them. &
+        !Use MOene rather than MOene_dos because the latter may be shifted
+        if (MOene(irealmo)==0) then 
 			if (iwarnzero==0) then
 				write(*,*) "Note: There are orbitals with zero energy, they are automatically ignored"
                 write(*,*)
 				iwarnzero=1
             end if
-			cycle !In the case of CP2K, virtual orbitals are not solved and energies are exactly zero, skip them
+			cycle
         end if
 		DOSlinex(inow+1:inow+3)=MOene_dos(irealmo)
 		if (isel==0) then
@@ -1028,7 +1082,7 @@ else if (isel==0.or.isel==10) then
 		do imo=1,imoend !Cycle each orbital
 			irealmo=imo
 			if (ispin==2) irealmo=imo+nbasis
-            if (MOene_dos(irealmo)==0) cycle !In the case of CP2K, virtual orbitals are not solved and energies are exactly zero, skip them
+            if (MOene(irealmo)==0) cycle
 			preterm=str(imo)*0.5D0/pi*FWHM(imo)
 			do ipoint=1,num1Dpoints !Broaden imo as curve
 				tmp=preterm/( (curvexpos(ipoint)-MOene_dos(irealmo))**2+0.25D0*FWHM(imo)**2 )
@@ -1049,7 +1103,7 @@ else if (isel==0.or.isel==10) then
 		do imo=1,imoend !Cycle each orbital
 			irealmo=imo
 			if (ispin==2) irealmo=imo+nbasis
-            if (MOene_dos(irealmo)==0) cycle !In the case of CP2K, virtual orbitals are not solved and energies are exactly zero, skip them
+            if (MOene(irealmo)==0) cycle
 			gauss_c=FWHM(imo)/2D0/sqrt(2*dlog(2D0))
 			gauss_a=str(imo)/(gauss_c*sqrt(2D0*pi))
 			do ipoint=1,num1Dpoints !Broaden imo as curve
@@ -1216,11 +1270,11 @@ else if (isel==0.or.isel==10) then
 						if (ispin==2) irealmo=imo+nbasis
 						if (MOocc_dos(irealmo)>0.and.MOene_dos(irealmo)>enetmp) then
 							enetmp=MOene_dos(irealmo)
-							iFermi=irealmo
+							iHOMO=irealmo
 						end if
 					end do
-					HOMOlevx=MOene_dos(iFermi)
-					write(*,"(a,f10.5,a)") " Note: The vertical dash line corresponds to HOMO level at",MOene_dos(iFermi),unitstr
+					HOMOlevx=MOene_dos(iHOMO)
+					write(*,"(a,f10.5,a)") " Note: The vertical dash line corresponds to HOMO level at",MOene_dos(iHOMO),unitstr
 					HOMOlevy(1)=ylowerleft
 					HOMOlevy(2)=yupperleft
 					call linwid(ilinewidth) !Set to user-defined line width
@@ -1300,7 +1354,7 @@ else if (isel==0.or.isel==10) then
                     if (ishowYlab==1) CALL NAMDIS(45,'Y')
 					call setgrf('NONE','NONE','NONE','NAME')
 					CALL GRAF(enelow,enehigh,enelow,stepx, ylowerright,yupperright,ylowerright,(yupperright-ylowerright)/10D0)
-					call color('GREEN')
+                    call setcolor(12) !Dark green
 					call linwid(icurvewidth) !Set to user-defined line width
 					if (ishowOPDOScurve==1) CALL CURVE(curvexpos,OPDOScurve,num1Dpoints)
                     if (ilinebottom==0) then !If showing lines at bottom, OPDOS lines will never be shown

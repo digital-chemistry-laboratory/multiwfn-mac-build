@@ -2023,9 +2023,9 @@ end subroutine
 subroutine readmatgau(fileid,mat,insemi,inform,inskipcol,inncol,innspace,iostat)
 !e.g. Lower trigonal matrix: readmatgau(10,tmpmat,1,"D14.6",7,5)   full matrix: readmatgau(10,tmpmat,0,"?",7,5)
 !mat: The matrix to return
-!Below are optional
+!Below are optional options
 !insemi: 1 means the matrix is a lower trigonal matrix. Default is full matrix
-!inform: Format used to read data, default is D14.6. e.g. "f8.4 " (must be 5 character). inform="?" means use free format to read
+!inform: Format used to read data, default is D14.6. e.g. "f8.4 " (must be 5 character!!!). inform="?" means use free format to read, recommended!
 !inskipcol: Number of column (marker) to be skipped at the beginning of each row, default is 7
 !inncol: Number of columns in each line, default is 5
 !innspace: Number of useless lines in between each frame, default is 1

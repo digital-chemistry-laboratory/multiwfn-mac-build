@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2023-Feb-5"
+write(*,*) "Version 3.8(dev), release date: 2023-Feb-8"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -196,12 +196,14 @@ end if
 !!-------- Show cell information
 call showcellinfo
 call getcellabc(asize,bsize,csize,alpha,beta,gamma)
-if (asize<5D0.and.PBCnx==1) write(*,"(/,a)") " Warning: Because size of a axis of the cell is relatively small, &
-in order to guarantee analysis accuracy, it is suggested to increase the first index of ""PBCnxnynz"" in settings.ini to 2"
-if (bsize<5D0.and.PBCny==1) write(*,"(/,a)") " Warning: Because size of b axis of the cell is relatively small, &
-in order to guarantee analysis accuracy, it is suggested to increase the second index of ""PBCnxnynz"" in settings.ini to 2"
-if (csize<5D0.and.PBCnz==1) write(*,"(/,a)") " Warning: Because size of c axis of the cell is relatively small, &
-in order to guarantee analysis accuracy, it is suggested to increase the third index of ""PBCnxnynz"" in settings.ini to 2"
+if (allocated(b)) then
+	if (asize<5D0.and.PBCnx==1) write(*,"(/,a)") " Warning: Because size of a axis of the cell is relatively small, &
+	in order to guarantee analysis accuracy, it is suggested to increase the first index of ""PBCnxnynz"" in settings.ini to 2"
+	if (bsize<5D0.and.PBCny==1) write(*,"(/,a)") " Warning: Because size of b axis of the cell is relatively small, &
+	in order to guarantee analysis accuracy, it is suggested to increase the second index of ""PBCnxnynz"" in settings.ini to 2"
+	if (csize<5D0.and.PBCnz==1) write(*,"(/,a)") " Warning: Because size of c axis of the cell is relatively small, &
+	in order to guarantee analysis accuracy, it is suggested to increase the third index of ""PBCnxnynz"" in settings.ini to 2"
+end if
 
 
 !!-------- Show brief information of present system

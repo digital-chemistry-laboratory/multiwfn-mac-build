@@ -275,6 +275,7 @@ do while(.true.)
 			open(ides,file="intmat.txt",status="replace")
 		end if
 		if (imattype==1) then
+			call ask_Sbas_PBC
 			call showmatgau(Sbas,"Overlap matrix",1,fileid=ides)
             tmpmat=Sbas
 			call diagsymat(Sbas,eigvec,eigval,ierror)
