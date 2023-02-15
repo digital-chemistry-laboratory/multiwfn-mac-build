@@ -88,7 +88,11 @@ if (ifPBC==0) then
     end do
 end if
 
-call gen_GTFuniq(infomode) !Generate unique GTFs, for faster evaluation in orbderv
+if (ifPBC==0) then
+	call gen_GTFuniq(infomode) !Generate unique GTFs, for faster evaluation in orbderv
+else
+	call gen_neigh_GTF !Generate neighbouring GTFs list at reduced grids, for faster evaluation
+end if
 
 !When ESPrhoiso/=0, only calculate ESP for grid around isosurface of rho=ESPrhoiso to save time
 !Now determine which grids will be calculated
@@ -421,7 +425,7 @@ else
         dy=gridv2(2)
         dz=gridv3(3)
     end if
-    call getgridend
+    call getgridend !Generate endx,endy,endz
     
 	write(*,"(' Coordinate of origin in X,Y,Z is   ',3f12.6,' Bohr')") orgx,orgy,orgz
 	write(*,"(' Coordinate of end point in X,Y,Z is',3f12.6,' Bohr')") endx,endy,endz

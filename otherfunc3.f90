@@ -1911,9 +1911,7 @@ do while(.true.)
     else if (isel==0) then
         if (ncenter<=300) then
             write(*,*) "Atom list:"
-		    do i=1,ncenter
-			    write(*,"(i5,'(',a2,')',' --> Charge:',f10.6,'  x,y,z(Bohr):',3f11.6)") i,a(i)%name,a(i)%charge,a(i)%x,a(i)%y,a(i)%z
-		    end do
+		    call showcoordA(0)
         else
 			write(*,"(a)") " Note: There are more than 300 atoms, so their information are not shown here now. &
             To print, in the manu bar please select ""Tools"" - ""Print XYZ coordinates"""

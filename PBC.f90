@@ -516,7 +516,7 @@ real*8 Cart(3),fract(3),ftest(3)
 integer ncenter_tmp
 
 call getcellabc(asize,bsize,csize,alpha,beta,gamma)
-devthres=1D-3 !If distance to cell boundary is less than 0.001 Bohr, then it will be regarded as boundary atom
+devthres=1D-2 !If distance to cell boundary is less than 0.01 Bohr, then it will be regarded as boundary atom
 fdeva=devthres/asize
 fdevb=devthres/bsize
 fdevc=devthres/csize

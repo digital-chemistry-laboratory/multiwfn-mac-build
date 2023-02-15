@@ -1442,7 +1442,7 @@ character molfilepath*200,gauoutfilepath*200,eqvconsfilepath*200,addcenfilepath*
 real*8 :: hyper_a=0.0005D0,hyper_a_1=0.0005D0,hyper_a_2=0.001D0,hyper_b=0.1D0 !Hyperbolic restraint parameters
 integer :: ideterbond=1,igridtype=1,iradiisel=1,iESPtype=1
 real*8 tmpmat(1,1)
-integer :: maxRESPiter=50
+integer :: maxRESPiter=300
 real*8 :: RESPconv=0.000001D0
 !Charge constraint
 character chgconsfilepath*200
@@ -3308,21 +3308,24 @@ else !Use internal code to evaluate ESP
         if (isys==1.and.nESPthreads>10) nESPthreads=10
     end if
     write(*,*)
-	itmp=1
+    iprog=1
+    nprogstep=floor(nESPpt/100D0)
     call showprog(0,nESPpt)
-	!$OMP PARALLEL DO SHARED(itmp,ESPptval) PRIVATE(ipt) schedule(dynamic) NUM_THREADS(nESPthreads)
+	!$OMP PARALLEL DO SHARED(iprog,ESPptval) PRIVATE(ipt) schedule(dynamic) NUM_THREADS(nESPthreads)
 	do ipt=1,nESPpt
-		if (ipt>=itmp*300) then
-			call showprog(ipt,nESPpt)
-			itmp=itmp+1
-		end if
 		if (iESPtype==1) then !Take nuclear charge into account
 			ESPptval(ipt)=totesp(ESPpt(1,ipt),ESPpt(2,ipt),ESPpt(3,ipt))
 		else if (iESPtype==2.or.iESPtype==3) then !Do not take nuclear charge into account
 			ESPptval(ipt)=eleesp(ESPpt(1,ipt),ESPpt(2,ipt),ESPpt(3,ipt))
 		end if
+		!$OMP CRITICAL
+		if (ipt>=iprog*nprogstep) then
+			call showprog(ipt,nESPpt)
+			iprog=iprog+1
+		end if
+        	!$OMP END CRITICAL
 	end do    !$OMP END PARALLEL DO
-    call showprog(nESPpt,nESPpt)
+    if (mod(nESPpt,nprogstep)/=0) call showprog(100,100)
 end if
 call walltime(iwalltime2)
 if (ishowprompt==1) write(*,"(' Calculation of ESP took up wall clock time',i10,' s')") iwalltime2-iwalltime1

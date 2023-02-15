@@ -326,6 +326,11 @@ real*8 :: cellv1_org(3),cellv2_org(3),cellv3_org(3),cellv1_bk(3),cellv2_bk(3),ce
 integer :: ifPBC=0,ifPBC_org,ifPBC_bk !Dimension of periodicity. 0=Isolated system, 1/2/3/=one/two/three dimensions
 integer :: PBCnx,PBCny,PBCnz,ifdoPBCx,ifdoPBCy,ifdoPBCz !PBC setting actually used in calculation, they will be specified by init_PBC
 integer :: PBCnx_in=1,PBCny_in=1,PBCnz_in=1,ifdoPBCx_in=1,ifdoPBCy_in=1,ifdoPBCz_in=1 !PBC setting read from settings.ini
+!Neighbouring information of GTFs (including images) w.r.t. reduced grids
+integer,allocatable :: neighGTF(:,:,:,:),neighnGTF(:,:,:) !neighGTF(1:neighnGTF(i,j,k),i,j,k) contains neighbouring GTF indices at reduced grid (i,j,k)
+integer,allocatable :: neighGTFcell(:,:,:,:,:) !neighGTF(1/2/3,m,i,j,k) is cell index in direction 1/2/3 of the m GTF neighbouring to reduced grid (i,j,k)
+real*8 spcred !Spacing of reduced grids
+real*8 orgx_neigh,orgy_neigh,orgz_neigh !Starting position of reduced grids
 
 !-------- Connectivity matrix
 !Loaded from .mol/mol2 using readmol/readmol2 or readmolconn (from mol), value is formal bond order; can also be guessed via genconnmat, value is 1/0 (connected, not connected)

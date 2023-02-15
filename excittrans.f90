@@ -1468,7 +1468,11 @@ do iexcitorb=1,excnorb
 	if (abs(exccoeff(iexcitorb))<0.01D0) skippair(iexcitorb)=.true.
 end do
 
-call gen_GTFuniq(1) !Generate unique GTFs, for faster evaluation
+if (ifPBC==0) then
+	call gen_GTFuniq(1) !Generate unique GTFs, for faster evaluation
+else
+	call gen_neigh_GTF !Generate neighbouring GTFs list at reduced grids, for faster evaluation
+end if
 write(*,*) "Calculating grid data..."
 call walltime(iwalltime1)
 

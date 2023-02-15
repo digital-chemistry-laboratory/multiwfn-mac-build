@@ -351,9 +351,13 @@ end do
 !======== Start calculation ========!
 !======== Start calculation ========!
 !======== Start calculation ========!
-! Delete high-lying virtual orbitals to speed up calculation
-if (imapfunc/=0.and.imapfunc/=4.and.imapfunc/=20.and.imapfunc/=21.and.imapfunc/=22) call delvirorb(1)
-call gen_GTFuniq(0) !Generate unique GTFs, for faster evaluation in orbderv
+
+if (imapfunc/=0.and.imapfunc/=4.and.imapfunc/=20.and.imapfunc/=21.and.imapfunc/=22) call delvirorb(1) ! Delete high-lying virtual orbitals to speed up calculation
+if (ifPBC==0) then
+	call gen_GTFuniq(0) !Generate unique GTFs, for faster evaluation in orbderv
+else
+	call gen_neigh_GTF !Generate neighbouring GTFs list at reduced grids, for faster evaluation
+end if
 
 call walltime(iclktime1)
 if (isurftype==1.or.isurftype==2.or.isurftype==5.or.isurftype==6) then !Calculate grid data for determining isosurface

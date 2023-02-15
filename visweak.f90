@@ -431,7 +431,11 @@ if (iIGMtype==2) allocate(rhogrid(nx,ny,nz),gradgrid(3,nx,ny,nz))
 
 !----- Calculate grid data
 call delvirorb(1)
-call gen_GTFuniq(0) !Generate unique GTFs, for faster evaluation in orbderv
+if (ifPBC==0) then
+	call gen_GTFuniq(0) !Generate unique GTFs, for faster evaluation in orbderv
+else
+	call gen_neigh_GTF !Generate neighbouring GTFs list at reduced grids, for faster evaluation
+end if
 call walltime(iwalltime1)
 write(*,*) "Calculating sign(lambda2)rho..."
 ifinish=0

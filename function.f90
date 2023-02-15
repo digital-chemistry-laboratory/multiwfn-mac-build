@@ -398,7 +398,6 @@ subroutine orbderv(runtype,istart,iend,x,y,z,wfnval,grad,hess,tens3)
 real*8 x,y,z,wfnval(nmo)
 real*8,optional :: grad(3,nmo),hess(3,3,nmo),tens3(3,3,3,nmo)
 integer runtype,istart,iend
-!real*8 GTFexpterm(nprims)
 
 if (ifPBC>0) then !Consider PBC
     call orbderv_PBC(runtype,istart,iend,x,y,z,wfnval,grad,hess,tens3)
@@ -818,12 +817,215 @@ subroutine orbderv_PBC(runtype,istart,iend,x,y,z,wfnval,grad,hess,tens3)
 real*8 x,y,z,wfnval(nmo),tvec(3)
 real*8,optional :: grad(3,nmo),hess(3,3,nmo),tens3(3,3,3,nmo)
 integer runtype,istart,iend
-real*8 GTFexpterm(nprims)
 
 wfnval=0D0
 if (present(grad)) grad=0D0
 if (present(hess)) hess=0D0
 if (present(tens3)) tens3=0D0
+
+if (allocated(neighGTF)) then !Using neighbouring GTF list to significantly reduce number of candidate GTFs. Unique GTF cannot be utilized
+
+ix_red=floor((x-orgx_neigh)/spcred)
+iy_red=floor((y-orgy_neigh)/spcred)
+iz_red=floor((z-orgz_neigh)/spcred)
+nloopGTF=neighnGTF(ix_red,iy_red,iz_red)
+do iloopGTF=1,nloopGTF
+	j=neighGTF(iloopGTF,ix_red,iy_red,iz_red)
+    icell=neighGTFcell(1,iloopGTF,ix_red,iy_red,iz_red)
+    jcell=neighGTFcell(2,iloopGTF,ix_red,iy_red,iz_red)
+    kcell=neighGTFcell(3,iloopGTF,ix_red,iy_red,iz_red)
+    call tvec_PBC(icell,jcell,kcell,tvec)
+	jcen=b(j)%center
+	sftx=x-(a(jcen)%x+tvec(1))
+	sfty=y-(a(jcen)%y+tvec(2))
+	sftz=z-(a(jcen)%z+tvec(3))
+    sftx2=sftx*sftx
+    sfty2=sfty*sfty
+    sftz2=sftz*sftz
+	rr=sftx2 + sfty2 + sftz2
+	ep=b(j)%exp
+	tmpval=-ep*rr
+	if (tmpval>expcutoff_PBC.or.expcutoff_PBC>0) then
+		expterm=exp(tmpval)
+    else
+		cycle
+    end if
+	
+	!Calculate value for current GTF
+	jtype=b(j)%type
+	ix=type2ix(jtype)
+	iy=type2iy(jtype)
+	iz=type2iz(jtype)
+	if (jtype==1) then
+	GTFval=expterm
+	else if (jtype==2) then
+	GTFval=sftx*expterm
+	else if (jtype==3) then
+	GTFval=sfty*expterm
+	else if (jtype==4) then
+	GTFval=sftz*expterm
+	else if (jtype==5) then
+	GTFval=sftx2*expterm
+	else if (jtype==6) then
+	GTFval=sfty2*expterm
+	else if (jtype==7) then
+	GTFval=sftz2*expterm
+	else if (jtype==8) then
+	GTFval=sftx*sfty*expterm
+	else if (jtype==9) then
+	GTFval=sftx*sftz*expterm
+	else if (jtype==10) then
+	GTFval=sfty*sftz*expterm
+	else
+	GTFval=sftx**ix *sfty**iy *sftz**iz *expterm
+	end if
+	!Calculate orbital wavefunction value
+	do imo=istart,iend
+		wfnval(imo)=wfnval(imo)+CO(imo,j)*GTFval
+	end do
+                
+	if (runtype>=2) then
+		!Calculate 1-order derivative for current GTF
+		tx=0D0
+		ty=0D0
+		tz=0D0
+		if (ix/=0) tx=ix*sftx**(ix-1)
+		if (iy/=0) ty=iy*sfty**(iy-1)
+		if (iz/=0) tz=iz*sftz**(iz-1)
+		GTFdx=sfty**iy *sftz**iz *expterm*(tx-2*ep*sftx**(ix+1))
+		GTFdy=sftx**ix *sftz**iz *expterm*(ty-2*ep*sfty**(iy+1))
+		GTFdz=sftx**ix *sfty**iy *expterm*(tz-2*ep*sftz**(iz+1))
+		!Calculate 1-order derivative for orbitals
+		do imo=istart,iend
+			grad(1,imo)=grad(1,imo)+CO(imo,j)*GTFdx
+			grad(2,imo)=grad(2,imo)+CO(imo,j)*GTFdy
+			grad(3,imo)=grad(3,imo)+CO(imo,j)*GTFdz
+		end do
+
+		if (runtype>=3) then
+			!Calculate 2-order derivative for current GTF
+			txx=0D0
+			tyy=0D0
+			tzz=0D0
+			if (ix>=2) txx=ix*(ix-1)*sftx**(ix-2)
+			if (iy>=2) tyy=iy*(iy-1)*sfty**(iy-2)
+			if (iz>=2) tzz=iz*(iz-1)*sftz**(iz-2)
+			GTFdxx=sfty**iy *sftz**iz *expterm*( txx + 2*ep*sftx**ix*(-2*ix+2*ep*sftx2-1) )
+			GTFdyy=sftx**ix *sftz**iz *expterm*( tyy + 2*ep*sfty**iy*(-2*iy+2*ep*sfty2-1) )
+			GTFdzz=sftx**ix *sfty**iy *expterm*( tzz + 2*ep*sftz**iz*(-2*iz+2*ep*sftz2-1) )
+			ttx=tx-2*ep*sftx**(ix+1)
+			tty=ty-2*ep*sfty**(iy+1)
+			ttz=tz-2*ep*sftz**(iz+1)
+			GTFdxy=sftz**iz *expterm*ttx*tty
+			GTFdyz=sftx**ix *expterm*tty*ttz
+			GTFdxz=sfty**iy *expterm*ttx*ttz
+			!Calculate diagonal Hessian elements for orbitals
+			do imo=istart,iend
+				hess(1,1,imo)=hess(1,1,imo)+CO(imo,j)*GTFdxx !dxx
+				hess(2,2,imo)=hess(2,2,imo)+CO(imo,j)*GTFdyy !dyy
+				hess(3,3,imo)=hess(3,3,imo)+CO(imo,j)*GTFdzz !dzz
+			end do
+			if (runtype>=4) then !Also process nondiagonal elements
+				do imo=istart,iend
+					hess(1,2,imo)=hess(1,2,imo)+CO(imo,j)*GTFdxy !dxy
+					hess(2,3,imo)=hess(2,3,imo)+CO(imo,j)*GTFdyz !dyz
+					hess(1,3,imo)=hess(1,3,imo)+CO(imo,j)*GTFdxz !dxz
+				end do
+				hess(2,1,:)=hess(1,2,:)
+				hess(3,2,:)=hess(2,3,:)
+				hess(3,1,:)=hess(1,3,:)
+			end if
+			
+			if (runtype>=5) then
+				!Calculate 3-order derivative for current GTF
+				ep2=ep*2D0
+				ep4=ep*4D0
+				epep4=ep2*ep2
+				epep8=epep4*2D0
+				!dxyz
+				a1=0D0
+				b1=0D0
+				c1=0D0
+				if (ix>=1) a1=ix*sftx**(ix-1)
+				if (iy>=1) b1=iy*sfty**(iy-1)
+				if (iz>=1) c1=iz*sftz**(iz-1)
+				a2=-ep2*sftx**(ix+1)
+				b2=-ep2*sfty**(iy+1)
+				c2=-ep2*sftz**(iz+1)
+				GTFdxyz=(a1+a2)*(b1+b2)*(c1+c2)*expterm
+				!dxyy,dxxy,dxxz,dxzz,dyzz,dyyz
+				atmp=0D0
+				btmp=0D0
+				ctmp=0D0
+				if (ix>=2) atmp=ix*(ix-1)*sftx**(ix-2)
+				if (iy>=2) btmp=iy*(iy-1)*sfty**(iy-2)
+				if (iz>=2) ctmp=iz*(iz-1)*sftz**(iz-2)
+				GTFdxyy=(a1+a2)*sftz**iz *expterm*(-ep4*iy*sfty**iy+epep4*sfty**(iy+2)+btmp-ep2*sfty**iy)
+				GTFdxxy=(b1+b2)*sftz**iz *expterm*(-ep4*ix*sftx**ix+epep4*sftx**(ix+2)+atmp-ep2*sftx**ix) !=dyxx
+				GTFdxxz=(c1+c2)*sfty**iy *expterm*(-ep4*ix*sftx**ix+epep4*sftx**(ix+2)+atmp-ep2*sftx**ix) !=dzxx
+				GTFdxzz=(a1+a2)*sfty**iy *expterm*(-ep4*iz*sftz**iz+epep4*sftz**(iz+2)+ctmp-ep2*sftz**iz)
+				GTFdyzz=(b1+b2)*sftx**ix *expterm*(-ep4*iz*sftz**iz+epep4*sftz**(iz+2)+ctmp-ep2*sftz**iz)
+				GTFdyyz=(c1+c2)*sftx**ix *expterm*(-ep4*iy*sfty**iy+epep4*sfty**(iy+2)+btmp-ep2*sfty**iy) !=dzyy
+				!dxxx,dyyy,dzzz
+				aatmp1=0D0
+				bbtmp1=0D0
+				cctmp1=0D0
+				if (ix>=1) aatmp1=ep2*ix*sftx**(ix-1)
+				if (iy>=1) bbtmp1=ep2*iy*sfty**(iy-1)
+				if (iz>=1) cctmp1=ep2*iz*sftz**(iz-1)
+				aatmp2=0D0
+				bbtmp2=0D0
+				cctmp2=0D0
+				if (ix>=2) aatmp2=ep2*ix*(ix-1)*sftx**(ix-1)
+				if (iy>=2) bbtmp2=ep2*iy*(iy-1)*sfty**(iy-1)
+				if (iz>=2) cctmp2=ep2*iz*(iz-1)*sftz**(iz-1)
+				aatmp3=0D0
+				bbtmp3=0D0
+				cctmp3=0D0
+				if (ix>=3) aatmp3=ix*(ix-1)*(ix-2)*sftx**(ix-3)
+				if (iy>=3) bbtmp3=iy*(iy-1)*(iy-2)*sfty**(iy-3)
+				if (iz>=3) cctmp3=iz*(iz-1)*(iz-2)*sftz**(iz-3)
+				GTFdxxx=sfty**iy*sftz**iz*expterm*( (-2*ix+ep2*sftx2-1)*(-epep4*sftx**(ix+1) + aatmp1) - aatmp2 + epep8*sftx**(ix+1) + aatmp3 )
+				GTFdyyy=sftx**ix*sftz**iz*expterm*( (-2*iy+ep2*sfty2-1)*(-epep4*sfty**(iy+1) + bbtmp1) - bbtmp2 + epep8*sfty**(iy+1) + bbtmp3 )
+				GTFdzzz=sfty**iy*sftx**ix*expterm*( (-2*iz+ep2*sftz2-1)*(-epep4*sftz**(iz+1) + cctmp1) - cctmp2 + epep8*sftz**(iz+1) + cctmp3 )
+				
+				!Calculate 3-order derivative tensor for orbital wavefunction
+				do imo=istart,iend
+					tens3(1,1,1,imo)=tens3(1,1,1,imo)+CO(imo,j)*GTFdxxx !dxxx
+					tens3(2,2,2,imo)=tens3(2,2,2,imo)+CO(imo,j)*GTFdyyy !dyyy
+					tens3(3,3,3,imo)=tens3(3,3,3,imo)+CO(imo,j)*GTFdzzz !dzzz
+					tens3(1,2,2,imo)=tens3(1,2,2,imo)+CO(imo,j)*GTFdxyy !dxyy
+					tens3(1,1,2,imo)=tens3(1,1,2,imo)+CO(imo,j)*GTFdxxy !dxxy
+					tens3(1,1,3,imo)=tens3(1,1,3,imo)+CO(imo,j)*GTFdxxz !dxxz
+					tens3(1,3,3,imo)=tens3(1,3,3,imo)+CO(imo,j)*GTFdxzz !dxzz
+					tens3(2,3,3,imo)=tens3(2,3,3,imo)+CO(imo,j)*GTFdyzz !dyzz
+					tens3(2,2,3,imo)=tens3(2,2,3,imo)+CO(imo,j)*GTFdyyz !dyyz
+					tens3(1,2,3,imo)=tens3(1,2,3,imo)+CO(imo,j)*GTFdxyz !dxyz
+				end do
+				tens3(1,2,1,:)=tens3(1,1,2,:) !dxyx=dxxy
+				tens3(1,3,1,:)=tens3(1,1,3,:) !dxzx=dxxz
+				tens3(1,3,2,:)=tens3(1,2,3,:) !dxzy=dxyz
+				tens3(2,1,1,:)=tens3(1,1,2,:) !dyxx=dxxy
+				tens3(2,1,2,:)=tens3(1,2,2,:) !dyxy=dxyy
+				tens3(2,1,3,:)=tens3(1,2,3,:) !dyxz=dxyz
+				tens3(2,2,1,:)=tens3(1,2,2,:) !dyyx=dxyy
+				tens3(2,3,1,:)=tens3(1,2,3,:) !dyzx=dxyz
+				tens3(2,3,2,:)=tens3(2,2,3,:) !dyzy=dyyz
+				tens3(3,1,1,:)=tens3(1,1,3,:) !dzxx=dxxz
+				tens3(3,1,2,:)=tens3(1,2,3,:) !dzxy=dxyz
+				tens3(3,1,3,:)=tens3(1,3,3,:) !dzxz=dxzz
+				tens3(3,2,1,:)=tens3(1,2,3,:) !dzyx=dxyz
+				tens3(3,2,2,:)=tens3(2,2,3,:) !dzyy=dyyz
+				tens3(3,2,3,:)=tens3(2,3,3,:) !dzyz=dyzz
+				tens3(3,3,1,:)=tens3(1,3,3,:) !dzzx=dxzz
+				tens3(3,3,2,:)=tens3(2,3,3,:) !dzzy=dyzz
+			end if !end runtype>=5
+			
+		end if !end runtype>=3
+	end if !end runtype>=2
+end do
+
+else !Using very slow method: Looping all candidate GTFs in all possible cells. Unique GTF can be utilized
 
 call getpointcell(x,y,z,ic,jc,kc)
 do icell=ic-PBCnx,ic+PBCnx
@@ -1229,6 +1431,9 @@ do icell=ic-PBCnx,ic+PBCnx
         end do
 	end do
 end do
+
+end if
+
 end subroutine
 
 

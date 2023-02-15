@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2023-Feb-8"
+write(*,*) "Version 3.8(dev), release date: 2023-Feb-15"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -243,7 +243,7 @@ if (allocated(a)) then
 end if
 
 !Special treatment and test new code
-!call plotBS
+!call CP2K_bandgap(2)
 
 !!!--------------------- Now everything start ---------------------!!!
 do while(.true.) !Main loop
@@ -309,8 +309,6 @@ do while(.true.) !Main loop
         read(*,*) iuserfunc
         call init_func
         write(*,*) "Done!"
-    else if (c200tmp=="cp2kbs".or.c200tmp=="bs") then
-		call CP2K_BS
     else if (c200tmp=="geomparm") then
 		iallowPBC=0
 		if (ifPBC>0) then
@@ -378,10 +376,6 @@ do while(.true.) !Main loop
 				    write(*,"(' Index of SOMO orbitals:',10i6)") (i,i=nint(nbelec+1),nint(naelec))
 			    end if
 		    end if
-            if (allocated(b)) then
-				write(*,*) "Constructing unique GTF information..."
-				call gen_GTFuniq(0) !Generate unique GTF information, for faster evaluation in orbderv
-            end if
 		    if (ifiletype==7.or.ifiletype==8) then !Visualize grid data
 			    if (isilent==0) call drawisosurgui(1)
 		    else
@@ -389,9 +383,9 @@ do while(.true.) !Main loop
 		    end if
             iorbvis=0 !Recover its status. iorbvis=0 makes saved image file has DISLIN prefix
             ishowdatarange=0 !Do not show data range if showing it
-            call del_GTFuniq !Destory unique GTF information
             call setfil("dislin."//trim(graphformat)) !The file name of saved image file may have been modified (e.g. equal to orbital index), so recover to default
 
+            
 	    !!!-------------------------------------------------
 	    !1!-------------------- Output properties at a point
 	    else if (isel==1) then
@@ -415,10 +409,12 @@ do while(.true.) !Main loop
 	    else if (isel==4) then
 		    call study2dim
 
+            
 	    !!!--------------------------------------------------------
 	    !5!------------------- Calculate, show and output grid file
 	    else if (isel==5) then
 		    call study3dim
+            
 
 	    !!!--------------------------------------------------------------------------------
 	    !6!!------------------- Check & Modify wavefunction or show GTF/Orbital information

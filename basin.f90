@@ -775,7 +775,11 @@ do while(.true.)
 			containing GTF information of your system, such as .wfn/.wfx/.mwfn/.fch/.molden file. e.g. C:\abc.wfn"
 			read(*,"(a)") c200tmp
 			call readinfile(c200tmp,1)
-			call gen_GTFuniq(1) !Generate unique GTFs, for faster evaluation in orbderv
+            if (ifPBC==0) then
+				call gen_GTFuniq(1) !Generate unique GTFs, for faster evaluation in orbderv
+            else
+				call gen_neigh_GTF !Generate neighbouring GTFs list at reduced grids, for faster evaluation
+            end if
 		end if
 		if (isel==4) then !Output LI and DI
 			call LIDIbasin

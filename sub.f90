@@ -47,6 +47,7 @@ do while(.true.)
 	if (allocated(MOsym)) write(*,*) "35 Keep or discard orbital contributions according to irreducible rep."
 	write(*,*) "36 Invert phase of some orbitals"
 	write(*,*) "37 Split spatial orbitals as alpha and beta spin orbitals"
+    write(*,*) "38 Make occupation satisfy Aufbau principle"
 	read(*,*) isel
 	
 	if (isel==-1) then
@@ -1005,6 +1006,49 @@ do while(.true.)
         end if
         imodwfn=1
         write(*,*) "Finished!"
+	
+	else if (isel==38) then
+		MOocc=0
+        if (wfntype==0.or.wfntype==3) then !Closed-shell or RO
+			diffint=abs(nelec-nint(nelec)) !Due to recording accuracy, the difference is not exactly zero even total number of electron actually is integer
+            if (diffint<1D-6) then
+				write(*,"(a)") " Note: The difference between number of electrons and integer is less than 1E-6, so number of electrons is set to integer"
+                nelec=nint(nelec)
+            end if
+            nintocc=floor(nelec/2D0)
+			MOocc(1:nintocc)=2
+            write(*,*) "Done!"
+            if (diffint<1D-6.and.wfntype==3) then
+				wfntype=0
+				write(*,*) "Note: The wavefunction has been set to single-determinant closed-shell type"
+            else
+				MOocc(nintocc+1)=mod(nelec,2D0)
+            end if
+        else if (wfntype==1.or.wfntype==4) then !Unrestricted
+			diffinta=abs(naelec-nint(naelec))
+			diffintb=abs(nbelec-nint(nbelec))
+            if (diffinta<1D-6.and.diffintb<1D-6) then
+				write(*,"(a)") " Note: The difference between number of electrons and integer is less than 1E-6, so number of electrons is set to integer"
+                naelec=nint(naelec)
+                nbelec=nint(nbelec)
+                nelec=nint(nelec)
+            end if
+            nintocca=floor(naelec)
+            nintoccb=floor(nbelec)
+            do ibeta=1,nmo
+				if (MOtype(ibeta)==2) exit
+            end do
+			MOocc(1:nintocca)=1
+			MOocc(ibeta:ibeta+nintoccb-1)=1
+            write(*,*) "Done!"
+            if (diffinta<1D-6.and.diffintb<1D-6.and.wfntype==4) then
+				wfntype=1
+				write(*,"(a)") " Note: The wavefunction has been set to single-determinant unrestricted open-shell type"
+            else
+				MOocc(nintocca+1)=mod(naelec,1D0)
+				MOocc(ibeta:ibeta+nintoccb)=mod(nbelec,1D0)
+            end if
+        end if
 	end if
     
 end do
@@ -2351,6 +2395,110 @@ end subroutine
 
 
 
+
+!!------- Generate neighbouring list of GTFs at reduced grids
+!The grid positions are determined based on present grid (orgx/y/z to endx/y/z)
+subroutine gen_neigh_GTF
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+real*8 tvec(3)
+
+spcred=1.5D0/b2a !Spacing of reduced grid, this is fund to be optimal value
+!Define a orthogonal box for reduced grid
+call cellmaxxyz(xmax,ymax,zmax)
+call cellminxyz(orgx_neigh,orgy_neigh,orgz_neigh)
+nx_red=floor((xmax-orgx_neigh)/spcred) !after +1 is number of reduced grids
+ny_red=floor((ymax-orgy_neigh)/spcred)
+nz_red=floor((zmax-orgz_neigh)/spcred)
+if (allocated(neighGTF)) then
+    if (size(neighnGTF,1)==nx_red+1 .and. size(neighnGTF,2)==ny_red+1 .and. size(neighnGTF,3)==nz_red+1) return !Proper arrays have already been allocated
+    deallocate(neighnGTF,neighGTF,neighGTFcell)
+end if
+
+!write(*,"(' X/Y/Z max:',3f12.6)") xmax,ymax,zmax
+!write(*,"(' X/Y/Z min:',3f12.6)") orgx_neigh,orgy_neigh,orgz_neigh
+!write(*,"(' Number of reduced grids in X, Y, Z:',3i5)") nx_red,ny_red,nz_red
+allocate(neighnGTF(0:nx_red,0:ny_red,0:nz_red))
+cencordist=spcred/2*dsqrt(3D0) !Distance between center position and corner of (cubic) reduced grid
+cencordist2=cencordist**2
+
+!itime=1: Count maximum number of neighbouring GTFs at all grids so that arrays can be located
+!itime=2: Filling neighGTF,neighnGTF,neighGTFcell
+write(*,*) "Constructing neighbouring list of GTFs at reduced grids..."
+call walltime(iwalltime1)
+maxneighGTF=0
+do itime=1,2
+    !Loop reduced grids
+    !$OMP PARALLEL DO SHARED(neighGTF,neighGTFcell) PRIVATE(x,y,z,ix,iy,iz,neighnGTF_tmp,icell,jcell,kcell,ic,jc,kc,lastcen,tvec,iGTF,icen,sftx,sfty,sftz,rr,iadd,rrtmp,tmpval) &
+    !$OMP schedule(dynamic) NUM_THREADS(nthreads)
+    do iz=0,nz_red
+        z=orgz_neigh+iz*spcred+spcred/2
+        do iy=0,ny_red
+            y=orgy_neigh+iy*spcred+spcred/2
+            do ix=0,nx_red
+                x=orgx_neigh+ix*spcred+spcred/2
+                call getpointcell(x,y,z,ic,jc,kc)
+                neighnGTF_tmp=0
+                !Loop cells
+                do icell=ic-PBCnx,ic+PBCnx
+                    do jcell=jc-PBCny,jc+PBCny
+                        do kcell=kc-PBCnz,kc+PBCnz
+			                lastcen=-1 !Arbitrary value
+                            call tvec_PBC(icell,jcell,kcell,tvec)
+                            !Loop GTFs
+                            do iGTF=1,nprims
+					            icen=b(iGTF)%center
+					            if (icen/=lastcen) then
+						            sftx=x-(a(icen)%x+tvec(1))
+						            sfty=y-(a(icen)%y+tvec(2))
+						            sftz=z-(a(icen)%z+tvec(3))
+	            			            rr=sftx*sftx+sfty*sfty+sftz*sftz
+					            end if
+					            lastcen=icen
+                                iadd=0
+                                if (rr<cencordist2) then
+                                    iadd=1
+					            else
+                                    rrtmp=(dsqrt(rr)-cencordist)**2
+					                tmpval=-b(iGTF)%exp*rrtmp
+                                    if (tmpval>expcutoff_PBC.or.expcutoff_PBC>0) iadd=1
+					            end if
+                                if (iadd==1) then
+                                    neighnGTF_tmp=neighnGTF_tmp+1
+	            			            if (itime==2) then
+                                        neighGTF(neighnGTF_tmp,ix,iy,iz)=iGTF
+                                        neighGTFcell(1,neighnGTF_tmp,ix,iy,iz)=icell
+                                        neighGTFcell(2,neighnGTF_tmp,ix,iy,iz)=jcell
+                                        neighGTFcell(3,neighnGTF_tmp,ix,iy,iz)=kcell
+                                    end if
+                                end if
+                            end do
+                            !End loop GTFs
+                        end do
+                    end do
+                end do
+                !End loop cells
+                if (itime==1) neighnGTF(ix,iy,iz)=neighnGTF_tmp
+            end do
+        end do
+    end do
+    !$OMP END PARALLEL DO
+    !End loop reduced grids
+    if (itime==1) then
+        maxneighGTF=maxval(neighnGTF(:,:,:))
+        !write(*,"(' Maximum number of neighbouring GTFs at a reduced grid:',i10)") maxneighGTF
+        allocate(neighGTF(maxneighGTF,0:nx_red,0:ny_red,0:nz_red))
+        allocate(neighGTFcell(3,maxneighGTF,0:nx_red,0:ny_red,0:nz_red))
+    end if
+end do
+call walltime(iwalltime2)
+!write(*,"(' Constructing neighbouring list of GTFs took up',i10,' s')") iwalltime2-iwalltime1
+end subroutine
+
+
+
+
 !!----------- Generate unique GTF information (b_uniq, CO_uniq)
 !This reduce number of GTFs if generally contracted basis set is used, then cost in subroutine "orbserv" can be lowered
 !infomode=0: Print number of unique GTFs. =1: Do not print
@@ -2483,6 +2631,8 @@ if (allocated(Pbeta_prim)) deallocate(Pbeta_prim)
 if (allocated(Dprim)) deallocate(Dprim)
 if (allocated(Quadprim)) deallocate(Quadprim)
 if (allocated(Octoprim)) deallocate(Octoprim)
+
+if (allocated(neighGTF)) deallocate(neighGTF,neighnGTF,neighGTFcell)
 
 if (imode==0) then
 	if (allocated(frag1)) deallocate(frag1)

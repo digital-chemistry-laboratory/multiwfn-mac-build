@@ -64,12 +64,8 @@ character ictmp*5,molorblist*600000 !Max 99999 orbitals (the 0th is "none"), eac
 isavepic=0
 if (ifPBC>0) then
     aug3D_main0=-1 !For PBC system, make box size consistent with cell
-    ishowdatarange=1 !Show box
-    if (allocated(b)) then
-		nprevorbgrid=25000 !Corresponding to very poor quality
-		write(*,"(a)") " Note: Because this is a periodic system, the default grid quality is set to ""very poor"" to reduce &
-        possibly high cost for visualizing orbitals. To use better grid qualtiy, choose ""Isosur. quality"" in menu bar of GUI"
-    end if
+    call getcellabc(asize,bsize,csize,alpha,beta,gamma)
+    if (nint(alpha)/=90.or.nint(beta)/=90.or.nint(gamma)/=90) ishowdatarange=1 !If the cell if orthogonal, do not show grid data range, since it will overlap with cell frame
 end if
 !Set variables for viewing orbitals
 molorblist(1:5)="None"
@@ -131,7 +127,7 @@ call wgapp(idisisosurquality,"Set number of grid points",idisisosurnumpt)
 call wgapp(idisisosurquality,"Very poor quality (super fast, 25k points)",idisisosurverypoor)
 call wgapp(idisisosurquality,"Poor quality (very fast, 50k points)",idisisosurpoor)
 call wgapp(idisisosurquality,"Default (fast, 120k points)",idisisosurdef)
-call wgapp(idisisosurquality,"good quality (300k points)",idisisosurgood)
+call wgapp(idisisosurquality,"Good quality (300k points)",idisisosurgood)
 call wgapp(idisisosurquality,"High quality (500k points)",idisisosurhigh)
 call wgapp(idisisosurquality,"Very high quality (1000k points)",idisisosurveryhigh)
 call wgapp(idisisosurquality,"Perfect quality (1500k points)",idisisosurperfect)
@@ -224,7 +220,14 @@ if (isys==1.and.(imodlayout==0.or.imodlayout==2)) then
 	call swgwin(100,5,70,115)
 	call swgtyp("VERT","SCALE")
 	call swgstp(0.002D0)
-	call wgscl(idisbotrig,"Isovalue",0D0,0.4D0,sur_value_orb,3,idisisosurscl)
+    if (ncenter<200) then
+		call wgscl(idisbotrig,"Isovalue",0D0,0.4D0,sur_value_orb,3,idisisosurscl)
+    else if (ncenter<400) then
+		call wgscl(idisbotrig,"Isovalue",0D0,0.2D0,sur_value_orb,3,idisisosurscl)
+    else
+		call swgstp(0.001D0)
+		call wgscl(idisbotrig,"Isovalue",0D0,0.1D0,sur_value_orb,3,idisisosurscl)
+    end if
 else if ((isys==1.and.imodlayout==1).or.isys==2) then !Use different layout for linux, since the sizes of widgets relative to Windows version are different
 	CALL SWGSPC(0D0,0.5D0)
 	call WGLAB(idisright2,"Orbitals:",iorbseltext)
@@ -236,7 +239,14 @@ else if ((isys==1.and.imodlayout==1).or.isys==2) then !Use different layout for 
 	call swgtyp("HORI","PBAR")
 	call swgtyp("HORI","SCALE")
 	call swgstp(0.002D0)
-	call wgscl(idisright2,"Isovalue of orbital",0D0,0.4D0,sur_value_orb,3,idisisosurscl)
+    if (ncenter<200) then
+		call wgscl(idisbotrig2,"Isovalue of orbital",0D0,0.4D0,sur_value_orb,3,idisisosurscl)
+    else if (ncenter<400) then
+		call wgscl(idisbotrig2,"Isovalue of orbital",0D0,0.2D0,sur_value_orb,3,idisisosurscl)
+    else
+		call swgstp(0.001D0)
+		call wgscl(idisbotrig2,"Isovalue of orbital",0D0,0.1D0,sur_value_orb,3,idisisosurscl)
+    end if
 end if
 
 call SWGCBK(idisorbinfo,showorbinfo1)
@@ -1348,7 +1358,12 @@ end subroutine
 
 subroutine resetview(id)
 integer,intent (in) :: id
-iorthoview=0
+if (ifPBC/=0) then
+	ishowcell=1 !Show cell
+    iorthoview=1 !Use orthographic view
+else
+	iorthoview=0
+end if
 XVU=150D0
 YVU=30D0
 XFAC=1D0
@@ -1683,6 +1698,8 @@ else
 		if (allocated(cubmat)) deallocate(cubmat)
 		allocate(cubmat(nx,ny,nz))
         ifinish=0
+        if (ifPBC>0) call gen_neigh_GTF
+		!call walltime(iwalltime1)
 		!$OMP parallel do PRIVATE(i,j,k,tmpx,tmpy,tmpz) SHARED(cubmat,ifinish) NUM_THREADS(nthreads) collapse(2)
 		do k=1,nz
 			do j=1,ny
@@ -1700,6 +1717,8 @@ else
 			!!$OMP end CRITICAL
 		end do
 		!$OMP end parallel do
+		!call walltime(iwalltime2)
+		!write(*,"(' Generate orbital wavefunction took up',i10,' s')") iwalltime2-iwalltime1
 		if (ifixorbsign==1.and.sum(cubmat)<0) cubmat=-cubmat
 	else if (isosursec==1) then !Save cube data for isosurface 2 to cubmattmp
 		if (allocated(cubmattmp)) deallocate(cubmattmp)

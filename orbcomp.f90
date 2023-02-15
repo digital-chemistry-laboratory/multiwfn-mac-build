@@ -102,7 +102,7 @@ integer fragtmp(nbasis)
 integer termtmp(nbasis) !Store each time read serial number
 integer vectmp(nbasis) !used by "inv" command
 integer atmsellist(ncenter),bassellist(nbasis)
-character c2000tmp*2000,lchar
+character c10000tmp*10000,c80tmp*80,lchar
 fragtmp=0
 if (isel==1.and.allocated(frag1)) then
 	fragtmp(1:size(frag1))=frag1(:)
@@ -124,17 +124,18 @@ write(*,*) "a 2,5-8,12: Add all basis functions in atoms 2,5,6,7,8,12 to fragmen
 write(*,*) "s 2,5-8,12: Add all basis functions in shells 2,5,6,7,8,12 to fragment"
 write(*,*) "b 2,5-8,12: Add basis functions 2,5,6,7,8,12 to fragment"
 write(*,*) "l s,d: Add basis functions of s and d angular moments to fragment"
+write(*,*) "e Fe: Add all atoms of Fe element to fragment"
 write(*,*) "da 5,7,11-13: Delete all basis functions in atoms 5,7,11,12,13 from fragment"
 write(*,*) "db 5,7,11-13: Delete basis functions 5,7,11,12,13 from fragment"
 
 do while(.true.)
-	read(*,"(a)") c2000tmp
-	if (c2000tmp(1:4)=="help") then
+	read(*,"(a)") c10000tmp
+	if (c10000tmp(1:4)=="help") then
 		goto 10
-	else if (c2000tmp(1:6)=="addall") then
+	else if (c10000tmp(1:6)=="addall") then
 		forall(i=1:nbasis) fragtmp(i)=i
 		write(*,*) "Done!"
-	else if (c2000tmp(1:1)=="q") then
+	else if (c10000tmp(1:1)=="q") then
 		numbas=count(fragtmp/=0)
 		if (isel==1.and.numbas>=1) allocate(frag1(numbas))
 		if (isel==2.and.numbas>=1) allocate(frag2(numbas))
@@ -143,7 +144,7 @@ do while(.true.)
 			write(*,*) "None"
 		else
 			do i=1,nbasis
-				if (fragtmp(i)/=0) write(*,"(i5)",advance="no") fragtmp(i)
+				if (fragtmp(i)/=0) write(*,"(i6)",advance="no") fragtmp(i)
 			end do
 		end if
 		write(*,*)
@@ -154,10 +155,10 @@ do while(.true.)
 			if (isel==2) frag2=pack(fragtmp,fragtmp/=0)
 		end if
 		exit
-	else if (c2000tmp(1:5)=="clean") then
+	else if (c10000tmp(1:5)=="clean") then
 		fragtmp=0
 		write(*,*) "Done!"
-	else if (c2000tmp(1:3)=="all") then
+	else if (c10000tmp(1:3)=="all") then
 		write(*,*) "The basis functions with asterisk are those presented in current fragment"
 		do i=1,nbasis
 			if (any(fragtmp==i)) then
@@ -168,7 +169,7 @@ do while(.true.)
 				 i,basshell(i),bascen(i),a(bascen(i))%name,GTFtype2name(bastype(i))
 			end if
 		end do
-	else if (c2000tmp(1:4)=="list") then
+	else if (c10000tmp(1:4)=="list") then
 		write(*,*) "Basis functions in current fragment:"
 		if (all(fragtmp==0)) then
 			write(*,*) "None"
@@ -183,7 +184,7 @@ do while(.true.)
             write(*,"(/,' Totally',i8,' basis functions')") ntmp
 			write(*,*)
 		end if
-	else if (c2000tmp(1:3)=="inv") then
+	else if (c10000tmp(1:3)=="inv") then
 		vectmp=fragtmp
 		fragtmp=0
 		itmp=0
@@ -194,20 +195,20 @@ do while(.true.)
 			end if 
 		end do
 		write(*,*) "Done!"
-	else if (c2000tmp(1:4)=="cond") then
+	else if (c10000tmp(1:4)=="cond") then
 		write(*,"(a)") " Note: You will be prompted to input three conditions in turn, &
 		the basis functions satisfying all conditions will be added to current fragment"
 		write(*,*)
 		write(*,*) "Condition 1: Input range of atoms, e.g. 2,5-8,12"
         write(*,*) "You can also input one element name (case sensitive), e.g. Fe"
 		write(*,*) "If you press ENTER button directly, the atom will be arbitrary"
-		read(*,"(a)") c2000tmp
-		if (c2000tmp==" ".or.index(c2000tmp,'a')/=0) then
+		read(*,"(a)") c10000tmp
+		if (c10000tmp==" ".or.index(c10000tmp,'a')/=0) then
 			nselatm=ncenter
 			forall(i=1:nselatm) atmsellist(i)=i
 		else
-			if (iachar(c2000tmp(1:1))>=48.and.iachar(c2000tmp(1:1))<=57) then !Inputted number
-				call str2arr(c2000tmp,nselatm,atmsellist)
+			if (iachar(c10000tmp(1:1))>=48.and.iachar(c10000tmp(1:1))<=57) then !Inputted number
+				call str2arr(c10000tmp,nselatm,atmsellist)
 				if (any(atmsellist(1:nselatm)>ncenter)) then
 					write(*,*) "Error: One or more atom indices exceeded valid range!"
 					cycle
@@ -215,7 +216,7 @@ do while(.true.)
             else !Inputted element
 				nselatm=0
 				do iatm=1,ncenter
-					if (a(iatm)%name==c2000tmp) then
+					if (a(iatm)%name==c10000tmp) then
 						nselatm=nselatm+1
                         atmsellist(nselatm)=iatm
                     end if
@@ -224,12 +225,12 @@ do while(.true.)
 		end if
 		write(*,*) "Condition 2: Input range of basis functions, e.g. 2,5-8,12"
 		write(*,*) "If you press ENTER button directly, the basis function index will be arbitrary"
-		read(*,"(a)") c2000tmp
-		if (c2000tmp==" ".or.index(c2000tmp,'a')/=0) then
+		read(*,"(a)") c10000tmp
+		if (c10000tmp==" ".or.index(c10000tmp,'a')/=0) then
 			nselbas=nbasis
 			forall(i=1:nselbas) bassellist(i)=i
 		else
-			call str2arr(c2000tmp,nselbas,bassellist)
+			call str2arr(c10000tmp,nselbas,bassellist)
 			if (any(bassellist(1:nselbas)>nbasis)) then
 				write(*,*) "Error: One or more basis function indices exceeded valid range!"
 				cycle
@@ -239,23 +240,23 @@ do while(.true.)
         write(*,*) "Could be one of such as S, Y, Z, XY, YY, ZZZ, D+1, D 0 ..."
 		write(*,*) "You can also choose shell type, one of S, P, D, F, G, H"
 		write(*,*) "If you press ENTER button directly, the type will be arbitrary"
-		read(*,"(a)") c2000tmp
+		read(*,"(a)") c10000tmp
 		naddbas=0
 		do ibasidx=1,nselbas !Examine all basis functions
 			ibas=bassellist(ibasidx)
 			iadd=0
 			if ( any(fragtmp==ibas) ) cycle !Skip if already presented in current fragment
 			if ( all(atmsellist(1:nselatm)/=bascen(ibas)) ) cycle !Atom index condition
-			if ( index(c2000tmp,'a')/=0.or.c2000tmp==" ") then
+			if ( index(c10000tmp,'a')/=0.or.c10000tmp==" ") then
 				iadd=1
 			else !Basis function type condition is defined
 				itype=bastype(ibas)
-				if ( trim(c2000tmp)=='P' .and. ( itype>=2.and.itype<=4 ) ) iadd=1
-				if ( trim(c2000tmp)=='D' .and. ( (itype>=-5 .and.itype<=-1 ).or.(itype>=5 .and.itype<=10) ) ) iadd=1
-				if ( trim(c2000tmp)=='F' .and. ( (itype>=-12.and.itype<=-6 ).or.(itype>=11.and.itype<=20) ) ) iadd=1
-				if ( trim(c2000tmp)=='G' .and. ( (itype>=-21.and.itype<=-13).or.(itype>=21.and.itype<=35) ) ) iadd=1
-				if ( trim(c2000tmp)=='H' .and. ( (itype>=-32.and.itype<=-22).or.(itype>=36.and.itype<=56) ) ) iadd=1
-				if ( trim(c2000tmp)==GTFtype2name(bastype(ibas)) ) iadd=1 !Inputted is detailed type
+				if ( trim(c10000tmp)=='P' .and. ( itype>=2.and.itype<=4 ) ) iadd=1
+				if ( trim(c10000tmp)=='D' .and. ( (itype>=-5 .and.itype<=-1 ).or.(itype>=5 .and.itype<=10) ) ) iadd=1
+				if ( trim(c10000tmp)=='F' .and. ( (itype>=-12.and.itype<=-6 ).or.(itype>=11.and.itype<=20) ) ) iadd=1
+				if ( trim(c10000tmp)=='G' .and. ( (itype>=-21.and.itype<=-13).or.(itype>=21.and.itype<=35) ) ) iadd=1
+				if ( trim(c10000tmp)=='H' .and. ( (itype>=-32.and.itype<=-22).or.(itype>=36.and.itype<=56) ) ) iadd=1
+				if ( trim(c10000tmp)==GTFtype2name(bastype(ibas)) ) iadd=1 !Inputted is detailed type
 			end if
 			if (iadd==1) then
 				do i=1,nbasis !Find space slot to save this basis function
@@ -269,9 +270,9 @@ do while(.true.)
 		end do
 		write(*,"(' Done!',i6,' new basis functions have been added to current fragment')") naddbas
 		
-	else if (c2000tmp(1:2)=="a ".or.c2000tmp(1:2)=="s ".or.c2000tmp(1:2)=="b ".or.c2000tmp(1:2)=="db".or.c2000tmp(1:2)=="da") then
-		call str2arr(c2000tmp(3:),nterm,termtmp)
-		if (c2000tmp(1:2)=="a ") then
+	else if (c10000tmp(1:2)=="a ".or.c10000tmp(1:2)=="s ".or.c10000tmp(1:2)=="b ".or.c10000tmp(1:2)=="db".or.c10000tmp(1:2)=="da") then
+		call str2arr(c10000tmp(3:),nterm,termtmp)
+		if (c10000tmp(1:2)=="a ") then
 			if (any(termtmp(1:nterm)<=0).or.any(termtmp(1:nterm)>ncenter)) then
 				write(*,*) "Error: Atom index exceeded valid range! Ignored"
 				cycle
@@ -290,7 +291,7 @@ do while(.true.)
 					end if
 				end do
 			end do
-		else if (c2000tmp(1:2)=="s ") then
+		else if (c10000tmp(1:2)=="s ") then
 			do ibas=1,nbasis
 				if (any(termtmp(1:nterm)==basshell(ibas)).and.all(fragtmp/=ibas)) then
 					do j=1,nbasis !Find an empty slot to record this basis function
@@ -301,7 +302,7 @@ do while(.true.)
 					end do
 				end if
 			end do
-		else if (c2000tmp(1:2)=="b ") then
+		else if (c10000tmp(1:2)=="b ") then
 			do i=1,nterm
 				if (all(fragtmp/=termtmp(i)).and.termtmp(i)<=nbasis.and.termtmp(i)>0) then
 					do j=1,nbasis !Find empty slot to save this basis function
@@ -312,11 +313,11 @@ do while(.true.)
 					end do
 				end if
 			end do
-		else if (c2000tmp(1:2)=="db") then
+		else if (c10000tmp(1:2)=="db") then
 			do i=1,nterm
 				where(fragtmp==termtmp(i)) fragtmp=0
 			end do
-		else if (c2000tmp(1:2)=="da") then
+		else if (c10000tmp(1:2)=="da") then
 			do idx=1,nterm
 				iatm=termtmp(idx)
 				if (basstart(iatm)==0) cycle
@@ -326,18 +327,42 @@ do while(.true.)
 			end do
 		end if
 		write(*,*) "Done!"
-		
-	else if (c2000tmp(1:2)=="l ") then
+    else if (c10000tmp(1:2)=="e ") then
+		read(c10000tmp(3:),*) c80tmp
+        call elename2idx(c80tmp,idx)
+        if (idx==0) then
+			write(*,*) "Error: Unable to identify the element!"
+        else
+			naddatm=0
+			do iatm=1,ncenter
+				if (a(iatm)%index==idx) then
+					naddatm=naddatm+1
+					if (basstart(iatm)==0) cycle
+					do ibas=basstart(iatm),basend(iatm)
+						if (all(fragtmp/=ibas)) then
+							do i=1,nbasis !Find an empty slot to record this basis function
+								if (fragtmp(i)==0) then
+									fragtmp(i)=ibas
+									exit
+								end if
+							end do
+						end if
+					end do
+                end if
+			end do
+            write(*,"(' Done!',i6,' atoms have been added')") naddatm
+        end if
+	else if (c10000tmp(1:2)=="l ") then
 		naddbas=0
 		do ibas=1,nbasis
 			ido=0
 			itype=bastype(ibas)
-			if ( (index(c2000tmp,'s')/=0.or.index(c2000tmp,'S')/=0).and.itype==1 ) ido=1
-			if ( (index(c2000tmp,'p')/=0.or.index(c2000tmp,'P')/=0).and.( itype>=2.and.itype<=4) ) ido=1
-			if ( (index(c2000tmp,'d')/=0.or.index(c2000tmp,'D')/=0).and.( (itype>=-5 .and.itype<=-1 ).or.(itype>=5 .and.itype<=10) ) ) ido=1
-			if ( (index(c2000tmp,'f')/=0.or.index(c2000tmp,'F')/=0).and.( (itype>=-12.and.itype<=-6 ).or.(itype>=11.and.itype<=20) ) ) ido=1
-			if ( (index(c2000tmp,'g')/=0.or.index(c2000tmp,'G')/=0).and.( (itype>=-21.and.itype<=-13).or.(itype>=21.and.itype<=35) ) ) ido=1
-			if ( (index(c2000tmp,'h')/=0.or.index(c2000tmp,'H')/=0).and.( (itype>=-32.and.itype<=-22).or.(itype>=36.and.itype<=56) ) ) ido=1
+			if ( (index(c10000tmp,'s')/=0.or.index(c10000tmp,'S')/=0).and.itype==1 ) ido=1
+			if ( (index(c10000tmp,'p')/=0.or.index(c10000tmp,'P')/=0).and.( itype>=2.and.itype<=4) ) ido=1
+			if ( (index(c10000tmp,'d')/=0.or.index(c10000tmp,'D')/=0).and.( (itype>=-5 .and.itype<=-1 ).or.(itype>=5 .and.itype<=10) ) ) ido=1
+			if ( (index(c10000tmp,'f')/=0.or.index(c10000tmp,'F')/=0).and.( (itype>=-12.and.itype<=-6 ).or.(itype>=11.and.itype<=20) ) ) ido=1
+			if ( (index(c10000tmp,'g')/=0.or.index(c10000tmp,'G')/=0).and.( (itype>=-21.and.itype<=-13).or.(itype>=21.and.itype<=35) ) ) ido=1
+			if ( (index(c10000tmp,'h')/=0.or.index(c10000tmp,'H')/=0).and.( (itype>=-32.and.itype<=-22).or.(itype>=36.and.itype<=56) ) ) ido=1
 			if (ido==1.and.all(fragtmp/=ibas)) then
 				do j=1,nbasis !Find an empty slot to record this basis function
 					if (fragtmp(j)==0) then

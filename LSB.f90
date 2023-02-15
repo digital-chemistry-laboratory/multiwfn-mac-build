@@ -478,7 +478,7 @@ do iatm=1,ncenter !Cycle each atom
 	!Calculate Becke weight
 	call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid,covr_tianlu,3)
 	
-	!Calculate Hirshfeld weight
+	!Calculate atom densities for evaluating Hirshfeld weight later
 	do jatm=1,ncenter_org
 		call dealloall(0)
 		call readwfn(custommapname(jatm),1)
@@ -1616,7 +1616,7 @@ use util
 use functions
 implicit real*8 (a-h,o-z)
 character refsysname*200
-real*8 intval,funcval(radpot*sphpot),beckeweigrid(radpot*sphpot)
+real*8 intval,funcval(radpot*sphpot),beckeweigrid(radpot*sphpot),atmintval(ncenter)
 type(content) gridatmorg(radpot*sphpot),gridatm(radpot*sphpot)
 real*8 eval(radpot*sphpot),egrad(3,radpot*sphpot),elapl(radpot*sphpot)
 real*8 e0val(radpot*sphpot),e0grad(3,radpot*sphpot),e0lapl(radpot*sphpot)
@@ -1689,6 +1689,7 @@ write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per ce
 call gen1cintgrid(gridatmorg,iradcut)
 call walltime(iwalltime1)
 intval=0
+atmintval=0
 do iatm=1,ncenter
 	write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
 	gridatm%x=gridatmorg%x+a(iatm)%x
@@ -1762,12 +1763,16 @@ do iatm=1,ncenter
 	end do
     
 	call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid,covr_tianlu,3)
+    valthis=0
 	do ipt=1+iradcut*sphpot,radpot*sphpot
-		intval=intval+funcval(ipt)*gridatmorg(ipt)%value*beckeweigrid(ipt)
+		valthis=valthis+funcval(ipt)*gridatmorg(ipt)%value*beckeweigrid(ipt)
 	end do
+    intval=intval+valthis
+	write(*,"(' Contribution of center',i6,':',1PE20.10)") iatm,valthis
 end do
 call walltime(iwalltime2)
 write(*,"(' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
+write(*,*) "Note: The center contributions correspond to Becke partition"
 
 write(*,"(/,' Result is',1PE20.10)") intval
 
