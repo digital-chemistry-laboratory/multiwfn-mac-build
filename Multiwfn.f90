@@ -243,7 +243,7 @@ if (allocated(a)) then
 end if
 
 !Special treatment and test new code
-!call CP2K_bandgap(2)
+!call calc_Fermi_level
 
 !!!--------------------- Now everything start ---------------------!!!
 do while(.true.) !Main loop

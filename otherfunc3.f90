@@ -13,6 +13,7 @@ do while(.true.)
     write(*,*) "6 Calculate energies of present orbitals by inputting Fock matrix"
     write(*,*) "7 Geometry operation on the present system"
     write(*,*) "8 Plot surface distance projection map"
+    write(*,*) "9 Determine Fermi level"
     
 	read(*,*) isel
 	if (isel==0) then
@@ -33,6 +34,8 @@ do while(.true.)
         call geom_operation
     else if (isel==8) then
         call molsurf_distmap
+    else if (isel==9) then
+        call calc_Fermi_level
 	end if
 end do
 end subroutine
@@ -3269,4 +3272,141 @@ do iatm=1,ncenter
         return
     end if
 end do
+end subroutine
+
+
+
+
+!!-------- Calculate Fermi-level based on Fermi-Dirac distribution using energies of molecular orbitals
+subroutine calc_Fermi_level
+use defvar
+implicit real*8 (a-h,o-z)
+character c80tmp*80
+real*8 numelec,numelec_tmp
+
+if (allocated(b)) then
+    if (wfntype==3.or.wfntype==4) then
+        write(*,"(a)") " Note: Because orbital occupation numbers are not all integer, now make orbital occupations integer and satisfy Aufbau principle"
+        call make_occ_integer_Aufbau
+    end if
+    call getHOMOidx
+    if (idxHOMO==nmo) then
+        write(*,*)
+        write(*,*) "Error: This function cannot be used because there is no unoccupied orbitals!"
+        return
+    end if
+else !Load orbital energies from plain text file
+    if (allocated(MOene)) deallocate(MOene)
+    open(10,file=filename,status="old")
+    read(10,"(a)") c80tmp
+    read(c80tmp,*,iostat=ierror) nocc,nvir,noccB,nvirB
+    if (ierror==0) then !Unrestricted
+        wfntype=1
+        nelec=nocc+noccB
+        nmo=nocc+nvir+noccB+nvirB
+        idxHOMO=nocc
+        idxHOMOb=nocc+nvir+noccB
+    else !Restricted
+        read(c80tmp,*) nocc,nvir
+        wfntype=0
+        nelec=2*nocc
+        nmo=nocc+nvir
+        idxHOMO=nocc
+    end if
+    allocate(MOene(nmo))
+    read(10,*) MOene(1:nocc)
+    read(10,*) MOene(nocc+1:nocc+nvir)
+    if (wfntype==1) then
+        read(10,*) MOene(nocc+nvir+1:nocc+nvir+noccB)
+        read(10,*) MOene(nocc+nvir+noccB+1:nocc+nvir+noccB+nvirB)
+    end if
+    close(10)
+    write(*,*) "Loading orbital energies from input file finished!"
+end if
+
+!call nelec_Ef_T(0.14448977718533D0,300D0,numelec)
+!write(*,*) numelec
+
+do while(.true.)
+    write(*,*)
+    write(*,*) "Input temperature (K) for determining Fermi level, e.g. 400"
+    write(*,*) "If press ENTER button directly, 298.15 K will be used"
+    write(*,*) "Input ""q"" can exit"
+    read(*,"(a)") c80tmp
+    if (index(c80tmp,'q')/=0) exit
+    if (c80tmp==" ") then
+        T=298.15D0
+    else
+        read(c80tmp,*) T
+    end if
+    if (T==0) then
+        write(*,"(a)") " Error: Fermi level is ill-defined at 0 K! Any value between E_HOMO and E_LUMO may be acceptable. Press ENTER button to return"
+        read(*,*)
+        cycle
+    end if
+    !Use bisection method to determine Fermi level
+    if (wfntype==0) then
+        vallow=MOene(idxHOMO)
+        valhigh=MOene(idxHOMO+1)
+    else
+        vallow=min(MOene(idxHOMO),MOene(idxHOMOb))
+        valhigh=max(MOene(idxHOMO+1),MOene(idxHOMOb+1))
+    end if
+    if (valhigh==0) then
+        write(*,"(a)") " Warning: This file does not contain actually calculated unoccupied orbitals! The result is meaningless!"
+        write(*,*) "Press ENTER button to return"
+        read(*,*)
+        exit
+    end if
+    iter=0
+    write(*,*) "Starting bisection method to determine Fermi level"
+    write(*,"(a,f10.1)") " Expected number of electrons:",nelec
+    write(*,*) "Convergence threshold of deviation to expected number of electrons: 1E-6"
+    write(*,"(a,2f14.8,a)") " Initial lower and upper limits:",vallow,valhigh," Hartree"
+    call nelec_Ef_T(vallow,T,tmp_low)
+    call nelec_Ef_T(valhigh,T,tmp_high)
+    write(*,"(a,2f18.8)") " Corresponding number of electrons:",tmp_low,tmp_high
+    write(*,*)
+    do while(.true.)
+        iter=iter+1
+        Ef=(vallow+valhigh)/2D0
+        call nelec_Ef_T(Ef,T,numelec)
+        write(*,"(' Iter:',i5,'  Nelec:',f16.8,'  Dev.:',D13.5,'  Ef:',f14.8,' a.u.')") iter,numelec,numelec-nelec,Ef
+        if (iter>=1000) then
+            write(*,*) "Error: Number of electrons failed to converge to 1E-6 within 1000 iterations!"
+            exit
+        else if (abs(numelec-nelec)<1D-6) then
+            write(*,"(' Converged! Fermi level is',f14.8,' Hartree',f14.6,' eV')") Ef,Ef*au2eV
+            exit
+        end if
+        if (numelec>nelec) then
+            valhigh=Ef
+            call nelec_Ef_T(vallow,T,numelec_tmp)
+            if (numelec_tmp>nelec) then
+                vallow=vallow-0.01D0
+                write(*,"(' Decrease lower limit by 0.01 to ',f16.8,' a.u.')") vallow
+            end if
+        else
+            vallow=Ef
+            call nelec_Ef_T(valhigh,T,numelec_tmp)
+            if (numelec_tmp<nelec) then
+                valhigh=valhigh+0.01D0
+                write(*,"(' Increase upper limit by 0.01 to ',f16.8,' a.u.')") valhigh
+            end if
+        end if
+    end do
+end do
+end subroutine
+!--------- Get number of electrons at given Fermi level (a.u.) and temperature (K) based on Fermi-Dirac distribution using current orbitals
+subroutine nelec_Ef_T(Ef,T,numelec)
+use defvar
+real*8 occtmp(nmo),Ef,T,numelec
+occtmp=0
+do imo=1,nmo
+    if (MOene(imo)==0) cycle !Skip falsely filled MOs
+    occtmp(imo)= 1D0/( 1+exp( (MOene(imo)-Ef)/(boltzcau*T) ) )
+    !write(*,"(i5,f16.8)") imo,occtmp(imo)
+end do
+numelec=sum(occtmp)
+if (wfntype==0.or.wfntype==2) numelec=numelec*2 !For spatial orbitals, the occupation should be doubled
 end subroutine

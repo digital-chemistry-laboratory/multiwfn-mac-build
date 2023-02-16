@@ -47,7 +47,7 @@ do while(.true.)
 	if (allocated(MOsym)) write(*,*) "35 Keep or discard orbital contributions according to irreducible rep."
 	write(*,*) "36 Invert phase of some orbitals"
 	write(*,*) "37 Split spatial orbitals as alpha and beta spin orbitals"
-    write(*,*) "38 Make occupation satisfy Aufbau principle"
+    write(*,*) "38 Make orbital occupations integer and satisfy Aufbau principle"
 	read(*,*) isel
 	
 	if (isel==-1) then
@@ -1008,50 +1008,60 @@ do while(.true.)
         write(*,*) "Finished!"
 	
 	else if (isel==38) then
-		MOocc=0
-        if (wfntype==0.or.wfntype==3) then !Closed-shell or RO
-			diffint=abs(nelec-nint(nelec)) !Due to recording accuracy, the difference is not exactly zero even total number of electron actually is integer
-            if (diffint<1D-6) then
-				write(*,"(a)") " Note: The difference between number of electrons and integer is less than 1E-6, so number of electrons is set to integer"
-                nelec=nint(nelec)
-            end if
-            nintocc=floor(nelec/2D0)
-			MOocc(1:nintocc)=2
-            write(*,*) "Done!"
-            if (diffint<1D-6.and.wfntype==3) then
-				wfntype=0
-				write(*,*) "Note: The wavefunction has been set to single-determinant closed-shell type"
-            else
-				MOocc(nintocc+1)=mod(nelec,2D0)
-            end if
-        else if (wfntype==1.or.wfntype==4) then !Unrestricted
-			diffinta=abs(naelec-nint(naelec))
-			diffintb=abs(nbelec-nint(nbelec))
-            if (diffinta<1D-6.and.diffintb<1D-6) then
-				write(*,"(a)") " Note: The difference between number of electrons and integer is less than 1E-6, so number of electrons is set to integer"
-                naelec=nint(naelec)
-                nbelec=nint(nbelec)
-                nelec=nint(nelec)
-            end if
-            nintocca=floor(naelec)
-            nintoccb=floor(nbelec)
-            do ibeta=1,nmo
-				if (MOtype(ibeta)==2) exit
-            end do
-			MOocc(1:nintocca)=1
-			MOocc(ibeta:ibeta+nintoccb-1)=1
-            write(*,*) "Done!"
-            if (diffinta<1D-6.and.diffintb<1D-6.and.wfntype==4) then
-				wfntype=1
-				write(*,"(a)") " Note: The wavefunction has been set to single-determinant unrestricted open-shell type"
-            else
-				MOocc(nintocca+1)=mod(naelec,1D0)
-				MOocc(ibeta:ibeta+nintoccb)=mod(nbelec,1D0)
-            end if
-        end if
+		call make_occ_integer_Aufbau
 	end if
     
 end do
+end subroutine
+
+
+
+
+!!-------- Make orbital occupations integer and satisfy Aufbau principle
+subroutine make_occ_integer_Aufbau
+use defvar
+implicit real*8 (a-h,o-z)
+MOocc=0
+if (wfntype==0.or.wfntype==3) then !Closed-shell or RO
+	diffint=abs(nelec-nint(nelec)) !Due to recording accuracy, the difference is not exactly zero even total number of electron actually is integer
+    if (diffint<1D-6) then
+		write(*,"(a)") " Note: The difference between number of electrons and integer is less than 1E-6, so number of electrons is set to integer"
+        nelec=nint(nelec)
+    end if
+    nintocc=floor(nelec/2D0)
+	MOocc(1:nintocc)=2
+    write(*,*) "Done!"
+    if (diffint<1D-6.and.wfntype==3) then
+		wfntype=0
+		write(*,*) "Note: The wavefunction has been set to single-determinant closed-shell type"
+    else
+		MOocc(nintocc+1)=mod(nelec,2D0)
+    end if
+else if (wfntype==1.or.wfntype==4) then !Unrestricted
+	diffinta=abs(naelec-nint(naelec))
+	diffintb=abs(nbelec-nint(nbelec))
+    if (diffinta<1D-6.and.diffintb<1D-6) then
+		write(*,"(a)") " Note: The difference between number of electrons and integer is less than 1E-6, so number of electrons is set to integer"
+        naelec=nint(naelec)
+        nbelec=nint(nbelec)
+        nelec=nint(nelec)
+    end if
+    nintocca=floor(naelec)
+    nintoccb=floor(nbelec)
+    do ibeta=1,nmo
+		if (MOtype(ibeta)==2) exit
+    end do
+	MOocc(1:nintocca)=1
+	MOocc(ibeta:ibeta+nintoccb-1)=1
+    write(*,*) "Done!"
+    if (diffinta<1D-6.and.diffintb<1D-6.and.wfntype==4) then
+		wfntype=1
+		write(*,"(a)") " Note: The wavefunction has been set to single-determinant unrestricted open-shell type"
+    else
+		MOocc(nintocca+1)=mod(naelec,1D0)
+		MOocc(ibeta:ibeta+nintoccb)=mod(nbelec,1D0)
+    end if
+end if
 end subroutine
 
 
