@@ -983,8 +983,8 @@ if (idir==1) then
     if (gridv1(2)==0.and.gridv1(3)==0.and.sum(gridv1*gridv2)==0.and.sum(gridv1*gridv3)==0) then
         continue
     else
-        write(*,"(a)") " Error: To integrate along X axis, grid vector 1 is must be parallel &
-        along X axis and the other two are in YZ plane. The present grid does not meet this conditions"
+        write(*,"(a)") " Error: To integrate along X axis, grid vector 1 must be parallel &
+        to X axis and the other two should be in YZ plane. The present grid does not meet this condition"
         write(*,*) "Press ENTER button to continue"
         read(*,*)
         return
@@ -993,8 +993,8 @@ else if (idir==2) then
     if (gridv2(1)==0.and.gridv2(3)==0.and.sum(gridv2*gridv1)==0.and.sum(gridv2*gridv3)==0) then
         continue
     else
-        write(*,"(a)") " Error: To integrate along Y axis, grid vector 2 is must be parallel &
-        along Y axis and the other two are in XZ plane. The present grid does not meet this conditions"
+        write(*,"(a)") " Error: To integrate along Y axis, grid vector 2 must be parallel &
+        to Y axis and the other two should be in XZ plane. The present grid does not meet this condition"
         write(*,*) "Press ENTER button to continue"
         read(*,*)
         return
@@ -1003,8 +1003,8 @@ else if (idir==3) then
     if (gridv3(1)==0.and.gridv3(2)==0.and.sum(gridv3*gridv1)==0.and.sum(gridv3*gridv2)==0) then
         continue
     else
-        write(*,"(a)") " Error: To integrate along Z axis, grid vector 3 is must be parallel &
-        along Z axis and the other two are in XY plane. The present grid does not meet this conditions"
+        write(*,"(a)") " Error: To integrate along Z axis, grid vector 3 must be parallel &
+        to Z axis and the other two should be in XY plane. The present grid does not meet this condition"
         write(*,*) "Press ENTER button to continue"
         read(*,*)
         return

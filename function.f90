@@ -380,6 +380,11 @@ case (1210) !Potential of KED
 case (1303) !\xi^\alpha Fractional integrals/derivatives, close to Lagkin, fdens routines
     userfunc=fracderiv(x,y,z)
 end select
+
+if (iuserfunc>10000) then
+	userfunc=calcfuncall(iuserfunc-10000,x,y,z)
+end if
+
 !Below are other examples
 ! userfunc=hamkin(x,y,z,3)-0.5D0*(hamkin(x,y,z,1)+hamkin(x,y,z,2)) !Anisotropy of Hamiltonian kinetic energy in Z, namely K_Z-0.5*(K_X+K_Y)
 ! userfunc=-x*y*fdens(x,y,z) !Integrand of XY component of electric quadrupole moment
