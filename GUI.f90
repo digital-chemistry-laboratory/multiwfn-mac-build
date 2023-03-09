@@ -240,12 +240,12 @@ else if ((isys==1.and.imodlayout==1).or.isys==2) then !Use different layout for 
 	call swgtyp("HORI","SCALE")
 	call swgstp(0.002D0)
     if (ncenter<200) then
-		call wgscl(idisbotrig2,"Isovalue of orbital",0D0,0.4D0,sur_value_orb,3,idisisosurscl)
+		call wgscl(idisright2,"Isovalue of orbital",0D0,0.4D0,sur_value_orb,3,idisisosurscl)
     else if (ncenter<400) then
-		call wgscl(idisbotrig2,"Isovalue of orbital",0D0,0.2D0,sur_value_orb,3,idisisosurscl)
+		call wgscl(idisright2,"Isovalue of orbital",0D0,0.2D0,sur_value_orb,3,idisisosurscl)
     else
 		call swgstp(0.001D0)
-		call wgscl(idisbotrig2,"Isovalue of orbital",0D0,0.1D0,sur_value_orb,3,idisisosurscl)
+		call wgscl(idisright2,"Isovalue of orbital",0D0,0.1D0,sur_value_orb,3,idisisosurscl)
     end if
 end if
 
@@ -2822,22 +2822,21 @@ subroutine getatmidx_by_ele(id)
 use defvar
 use util
 integer,intent (in) :: id
-character c80tmp*80,c2000tmp*2000
+character c20000tmp*20000
 integer array(ncenter)
-c80tmp=" "
 CALL SWGWTH(50)
 CALL swgtit("Get atom indices via element")
-call dwgtxt("Input element name, e.g. Fe",c80tmp)
-if (c80tmp==" ") return
+call myDWGTXT("Input element name, e.g. Fe"," ")
+if (myDWGTXTstr==" ") return
 
 nsel=0
 do iatm=1,ncenter
-    if (a(iatm)%name==trim(c80tmp)) then
+    if (a(iatm)%name==trim(adjustl(myDWGTXTstr))) then
         nsel=nsel+1
         array(nsel)=iatm
     end if
 end do
-call arr2str_2(array(1:nsel),c2000tmp) !Convert indices of the selected atoms to string
+call arr2str_2(array(1:nsel),c20000tmp) !Convert indices of the selected atoms to string
 
 !Highlight selected atoms
 if (allocated(highlightatomlist)) deallocate(highlightatomlist)
@@ -2847,9 +2846,14 @@ call drawmol
 
 CALL SWGWTH(50)
 if (isys==1) then
-    call dwgtxt("Indices of selected atoms:",c2000tmp)
+    if (len_trim(c20000tmp)<=256) then !WGTXT can at most shown 256 characters
+		call myDWGTXT("Indices of selected atoms:",trim(c20000tmp))
+    else
+		write(*,"(/,' Indices of selected atoms:',/,a)") trim(c20000tmp)
+		call dwgmsg("Indices of selected atoms have been shown in console window")
+    end if
 else
-    write(*,"(/,' Indices of selected atoms:',/,a)") trim(c2000tmp)
+    write(*,"(/,' Indices of selected atoms:',/,a)") trim(c20000tmp)
     call dwgmsg("Indices of selected atoms have been shown in console window")
 end if
 deallocate(highlightatomlist)

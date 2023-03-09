@@ -74,8 +74,9 @@ integer,allocatable :: atmcons(:),thermoatm(:)
 real*8 :: efieldvec(3)=0,vacsizex=5/b2a,vacsizey=5/b2a,vacsizez=5/b2a
 real*8 :: frag1chg,frag2chg
 integer :: frag1multi,frag2multi,totalmulti
-integer :: iprestype=1,ioutSbas=0,ioutorbene=0,istate_force=1,idiaglib=1,iGAPW=0,iLSSCF=0,iLRIGPW=0,iPSOLVER=1,niter_evGW=1,niter_scGW0=1
+integer :: iprestype=1,ioutSbas=0,ioutorbene=0,istate_force=1,idiaglib=1,iGAPW=0,iLSSCF=0,iLRIGPW=0,iPSOLVER=1,niter_evGW=1,niter_scGW0=1,istructfile=0
 real*8 :: Piso=1.01325D0,Ptens(3,3)=reshape( [1.01325D0,0D0,0D0, 0D0,1.01325D0,0D0, 0D0,0D0,1.01325D0], shape=shape(Ptens))
+real*8 :: PBEh_HFX=45
 integer :: CUTOFF=350,REL_CUTOFF=50
 real*8 :: cellv1_pseudo(3),cellv2_pseudo(3),cellv3_pseudo(3) !Pseudo cell for low-dimensional system
 real*8 :: cellv1_tmp(3),cellv2_tmp(3),cellv3_tmp(3)
@@ -83,6 +84,10 @@ real*8 :: cellv1_tmp(3),cellv2_tmp(3),cellv3_tmp(3)
 integer :: nCDFTgroup=0 !Number of CDFT groups
 integer,allocatable,save :: CDFTatm(:,:),CDFTtype(:),CDFTnatm(:) !Atom indices, constraint type and number of involved atoms of CDFT groups
 real*8,allocatable,save :: CDFTtarget(:) !Target value of CDFT groups
+!XAS related
+integer :: iXAS_SOC=0,iGW2X=0
+integer,allocatable,save :: XASatm(:)
+character,save :: kindnameXAS*8
 
 !Status information of current system. ",save" is used so that for the same system we can enter this interface multiple times to generate various input files
 integer,save :: netchg,multispin
@@ -194,14 +199,16 @@ do while(.true.)
         if (iMDformat==-2) write(*,*) "-5 Choose format of outputted trajectory, current: dcd_aligned_cell"
         if (iMDformat==3) write(*,*) "-5 Choose format of outputted trajectory, current: pdb"
     end if
-    if (iatomcharge==0) write(*,*) "-4 Calculate atomic charges, current: None"
-    if (iatomcharge==1) write(*,*) "-4 Calculate atomic charges, current: Mulliken"
-    if (iatomcharge==2) write(*,*) "-4 Calculate atomic charges, current: Lowdin"
-    if (iatomcharge==3) write(*,*) "-4 Calculate atomic charges, current: Hirshfeld"
-    if (iatomcharge==4) write(*,*) "-4 Calculate atomic charges, current: Hirshfeld-I"
-    if (iatomcharge==5) write(*,*) "-4 Calculate atomic charges, current: Voronoi"
-    if (iatomcharge==6) write(*,*) "-4 Calculate atomic charges, current: RESP"
-    if (iatomcharge==7) write(*,*) "-4 Calculate atomic charges, current: REPEAT"
+    if (method/="FIST") then
+        if (iatomcharge==0) write(*,*) "-4 Calculate atomic charges, current: None"
+        if (iatomcharge==1) write(*,*) "-4 Calculate atomic charges, current: Mulliken"
+        if (iatomcharge==2) write(*,*) "-4 Calculate atomic charges, current: Lowdin"
+        if (iatomcharge==3) write(*,*) "-4 Calculate atomic charges, current: Hirshfeld"
+        if (iatomcharge==4) write(*,*) "-4 Calculate atomic charges, current: Hirshfeld-I"
+        if (iatomcharge==5) write(*,*) "-4 Calculate atomic charges, current: Voronoi"
+        if (iatomcharge==6) write(*,*) "-4 Calculate atomic charges, current: RESP"
+        if (iatomcharge==7) write(*,*) "-4 Calculate atomic charges, current: REPEAT"
+    end if
     if (ioutcube==0) write(*,*) "-3 Set exporting cube file, current: None"
     if (ioutcube==1) write(*,*) "-3 Set exporting cube file, current: Electron density"
     if (ioutcube==2) write(*,*) "-3 Set exporting cube file, current: ELF"
@@ -224,37 +231,44 @@ do while(.true.)
     if (itask==11) write(*,*) "-1 Choose task, current: BSSE"
     if (itask==13) write(*,*) "-1 Choose task, current: Real-time propagation for electron dynamics"
     if (itask==14) write(*,*) "-1 Choose task, current: Path-integral molecular dynamics (PIMD)"
+    if (itask==15) write(*,*) "-1 Choose task, current: X-ray absorption spectroscopy"
     write(*,*) " 0 Generate input file now!"
-    write(*,*) " 1 Choose theoretical method, current: "//trim(method)
-    if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") write(*,*) " 2 Choose basis set and pseudopotential, current: "//trim(basname(ibas))
-    if (index(method,"MP2")==0.and.index(method,"RPA")==0.and.index(method,"GW")==0.and.method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB".and.method/="BEEFVDW") then
+    if (index(method,"PBEh")==0) then
+        write(*,*) " 1 Choose theoretical method, current: "//trim(method)
+    else
+        write(*,"(a,f7.3,' %')") "  1 Choose theoretical method, current: "//trim(method)//" with HFX of",PBEh_HFX
+    end if
+    if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB".and.method/="FIST") write(*,*) " 2 Choose basis set and pseudopotential, current: "//trim(basname(ibas))
+    if (index(method,"MP2")==0.and.index(method,"RPA")==0.and.index(method,"GW")==0.and.method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB".and.method/="BEEFVDW".and.method/="FIST") then
         if (idispcorr==0) write(*,*) " 3 Set dispersion correction, current: None"
         if (idispcorr==1) write(*,*) " 3 Set dispersion correction, current: DFT-D3"
         if (idispcorr==2) write(*,*) " 3 Set dispersion correction, current: DFT-D3(BJ)"
         if (idispcorr==5) write(*,*) " 3 Set dispersion correction, current: rVV10"
     end if
-    if (iLSSCF==0) then
-        if (idiagOT==1) then
-            write(*,*) " 4 Switching between diagonalization and OT, current: Diagonalization"
-            if (method/="PM6") then !I found PM6 can only use Direct mixing
-                if (imixing==1) write(*,*) " 5 Set density matrix mixing, current: Direct mixing + DIIS"
-                if (imixing==2) write(*,*) " 5 Set density matrix mixing, current: Broyden mixing"
-                if (imixing==3) write(*,*) " 5 Set density matrix mixing, current: Pulay mixing"
+    if (method/="FIST") then
+        if (iLSSCF==0) then
+            if (idiagOT==1) then
+                write(*,*) " 4 Switching between diagonalization and OT, current: Diagonalization"
+                if (method/="PM6") then !I found PM6 can only use Direct mixing
+                    if (imixing==1) write(*,*) " 5 Set density matrix mixing, current: Direct mixing + DIIS"
+                    if (imixing==2) write(*,*) " 5 Set density matrix mixing, current: Broyden mixing"
+                    if (imixing==3) write(*,*) " 5 Set density matrix mixing, current: Pulay mixing"
+                end if
+                if (ismear==0) write(*,*) " 6 Toggle smearing electron occupation, current: No"
+                if (ismear==1) write(*,*) " 6 Toggle smearing electron occupation, current: Yes"
+            else if (idiagOT==2) then
+                write(*,*) " 4 Switching between diagonalization and OT, current: OT"
+                if (iouterSCF==0) write(*,*) " 5 Toggle using outer SCF process, current: No"
+                if (iouterSCF==1) write(*,*) " 5 Toggle using outer SCF process, current: Yes"
             end if
-            if (ismear==0) write(*,*) " 6 Toggle smearing electron occupation, current: No"
-            if (ismear==1) write(*,*) " 6 Toggle smearing electron occupation, current: Yes"
-        else if (idiagOT==2) then
-            write(*,*) " 4 Switching between diagonalization and OT, current: OT"
-            if (iouterSCF==0) write(*,*) " 5 Toggle using outer SCF process, current: No"
-            if (iouterSCF==1) write(*,*) " 5 Toggle using outer SCF process, current: Yes"
         end if
-    end if
-    if (iSCCS==0) write(*,*) " 7 Toggle using self-consistent continuum solvation (SCCS), current: No"
-    if (iSCCS==1) write(*,*) " 7 Toggle using self-consistent continuum solvation (SCCS), current: Yes"
-    if (ikpoint1==1.and.ikpoint2==1.and.ikpoint3==1) then
-        write(*,*) " 8 Set k-points, current: GAMMA only"
-    else
-        write(*,"(a,3i3)") "  8 Set k-points, current: MONKHORST-PACK",ikpoint1,ikpoint2,ikpoint3
+        if (iSCCS==0) write(*,*) " 7 Toggle using self-consistent continuum solvation (SCCS), current: No"
+        if (iSCCS==1) write(*,*) " 7 Toggle using self-consistent continuum solvation (SCCS), current: Yes"
+        if (ikpoint1==1.and.ikpoint2==1.and.ikpoint3==1) then
+            write(*,*) " 8 Set k-points, current: GAMMA only"
+        else
+            write(*,"(a,3i3)") "  8 Set k-points, current: MONKHORST-PACK",ikpoint1,ikpoint2,ikpoint3
+        end if
     end if
     !!!! Below are task specific options
     if (itask>=3.and.itask<=8) then
@@ -280,8 +294,10 @@ do while(.true.)
         if (ibarostat==0) write(*,*) "12 Set barostat, current: None"
         if (ibarostat==1) write(*,*) "12 Set barostat, current: Yes, flexible cell"
         if (ibarostat==2) write(*,*) "12 Set barostat, current: Yes, isotropic cell"
-        if (inoSCFinfo==0) write(*,*) "13 Toggle suppressing printing SCF information during MD, current: No"
-        if (inoSCFinfo==1) write(*,*) "13 Toggle suppressing printing SCF information during MD, current: Yes"
+        if (method/="FIST") then
+            if (inoSCFinfo==0) write(*,*) "13 Toggle suppressing printing SCF information during MD, current: No"
+            if (inoSCFinfo==1) write(*,*) "13 Toggle suppressing printing SCF information during MD, current: Yes"
+        end if
     else if (itask==3.or.itask==4) then
         if (ioptmethod==1) write(*,*) "10 Set optimization method, current: BFGS"
         if (ioptmethod==2) write(*,*) "10 Set optimization method, current: LBFGS"
@@ -289,6 +305,11 @@ do while(.true.)
     else if (itask==5) then
         if (ioutvibmol==0) write(*,*) "10 Toggle exporting Molden file recording vibrational modes, current: No"
         if (ioutvibmol==1) write(*,*) "10 Toggle exporting Molden file recording vibrational modes, current: Yes"
+    else if (itask==15) then
+        if (iXAS_SOC==0) write(*,*) "10 Toggle considering spin-orbit coupling, current: No"
+        if (iXAS_SOC==1) write(*,*) "10 Toggle considering spin-orbit coupling, current: Yes"
+        if (iGW2X==0) write(*,*) "11 Toggle using GW2X correction, current: No"
+        if (iGW2X==1) write(*,*) "11 Toggle using GW2X correction, current: Yes"
     end if
     if (itask==4) then
         write(*,*) "11 Set constraint of cell length(s) during optimization, current: "//trim(cellfix)
@@ -302,22 +323,24 @@ do while(.true.)
         if (iraman==0) write(*,"(a)") " 13 Toggle calculating Raman activities, current: No"
         if (iraman==1) write(*,"(a)") " 13 Toggle calculating Raman activities, current: Yes"
     end if
-    if (iTDDFT==0) then
-        write(*,*) "15 Toggle calculating excited states via TDDFT, current: No"
-    else if (iTDDFT==1) then
-        write(*,*) "15 Toggle calculating excited states via TDDFT, current: Yes"
-        write(*,"(' 16 Set number of excited states to solve by TDDFT, current:',i5)") nstates_TD
-        if (.not.(multispin>1.or.any(kindmag(1:nkind)/=0))) then !Current is closed-shell
-            if (iTDtriplet==0) write(*,*) "17 Toggle spin of the excited states to be calculated, current: Singlet"
-            if (iTDtriplet==1) write(*,*) "17 Toggle spin of the excited states to be calculated, current: Triplet"
-        end if
-        if (isTDA==0) write(*,*) "18 Toggle using sTDA approximation in TDDFT, current: No"
-        if (isTDA==1) write(*,*) "18 Toggle using sTDA approximation in TDDFT, current: Yes"
-        !At least for CP2K 8.1, 9.1, the occupied NTOs are wrong, so do not let user know this feature
-        !if (iNTO==0) write(*,*) "19 Toggle if performing NTO analysis, current: No"
-        !if (iNTO==1) write(*,*) "19 Toggle if performing NTO analysis, current: Yes"
-        if (itask==2.or.itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==8) then !Need force
-            write(*,"(a,i5)") " 20 Choose the state to evaluate force, current:",istate_force
+    if (method/="FIST") then
+        if (iTDDFT==0) then
+            write(*,*) "15 Toggle calculating excited states via TDDFT, current: No"
+        else if (iTDDFT==1) then
+            write(*,*) "15 Toggle calculating excited states via TDDFT, current: Yes"
+            write(*,"(' 16 Set number of excited states to solve by TDDFT, current:',i5)") nstates_TD
+            if (.not.(multispin>1.or.any(kindmag(1:nkind)/=0))) then !Current is closed-shell
+                if (iTDtriplet==0) write(*,*) "17 Toggle spin of the excited states to be calculated, current: Singlet"
+                if (iTDtriplet==1) write(*,*) "17 Toggle spin of the excited states to be calculated, current: Triplet"
+            end if
+            if (isTDA==0) write(*,*) "18 Toggle using sTDA approximation in TDDFT, current: No"
+            if (isTDA==1) write(*,*) "18 Toggle using sTDA approximation in TDDFT, current: Yes"
+            !At least for CP2K 8.1, 9.1, the occupied NTOs are wrong, so do not let user know this feature
+            !if (iNTO==0) write(*,*) "19 Toggle if performing NTO analysis, current: No"
+            !if (iNTO==1) write(*,*) "19 Toggle if performing NTO analysis, current: Yes"
+            if (itask==2.or.itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==8) then !Need force
+                write(*,"(a,i5)") " 20 Choose the state to evaluate force, current:",istate_force
+            end if
         end if
     end if
     read(*,*) isel
@@ -416,6 +439,8 @@ do while(.true.)
                 if (idipcorr==2) write(*,*) "23 Set surface dipole correction, current: Y direction"
                 if (idipcorr==3) write(*,*) "23 Set surface dipole correction, current: Z direction"
             end if
+            if (istructfile==1) write(*,*) "30 Toggle giving path of file instead of &COORD, current: Yes"
+            if (istructfile==0) write(*,*) "30 Toggle giving path of file instead of &COORD, current: No"
             read(*,*) isel2
             if (isel2==0) then
                 exit
@@ -666,6 +691,12 @@ do while(.true.)
                 write(*,*) "2 Use surface dipole correction in Y direction"
                 write(*,*) "3 Use surface dipole correction in Z direction"
                 read(*,*) idipcorr
+            else if (isel2==30) then
+                if (istructfile==1) then
+                    istructfile=0
+                else
+                    istructfile=1
+                end if
             end if
         end do
     else if (isel==-7) then
@@ -761,6 +792,7 @@ do while(.true.)
         write(*,*) "11 Correct for basis set superposition error (BSSE)"
         write(*,*) "13 Real-time propagation for electron dynamics"
         write(*,*) "14 Path-integral molecular dynamics (PIMD)"
+        write(*,*) "15 X-ray absorption spectroscopy (XAS)"
         read(*,*) itask
         if (itask==9.and.ibas<=5) then
             ibas=10 !Use 6-31G* if current basis set is a pseudopotential basis set
@@ -807,6 +839,25 @@ do while(.true.)
             REL_CUTOFF=55
         end if
         if (itask==9.or.itask==10) call determine_vacuumsize(itask,iPSOLVER,vacsizex,vacsizey,vacsizez,icentering) !Set vacuum size for NMR and polar tasks larger
+        if (itask==15) then !PBEh with HFX=45% is recommended for XAS
+            method="PBEh_ADMM"
+            PBEh_HFX=45
+            iHFX=1
+            if (allocated(XASatm)) deallocate(XASatm)
+            write(*,*) "Input the indices of the atoms for which XAS will be calculated, e.g. 2,4"
+            write(*,*) "Note: Multiwfn assumes the atoms correspond to the same element"
+            read(*,"(a)") c2000tmp
+            call str2arr(c2000tmp,nXASatm)
+            allocate(XASatm(nXASatm))
+            call str2arr(c2000tmp,nXASatm,XASatm)
+            kindnameXAS=trim(a(XASatm(1))%name)//'x'
+            write(*,*) "IMPORTANT NOTE:"
+            write(*,"(a)") " After choosing option 0, Multiwfn will generate XAS_TDP task. The input file corresponding to BHandHLYP(with ADMM)/DZVP-MOLOPT-SR-GTH level with GAPW, &
+            and there is a special &KIND correpsonding to pcseg-2 all-electron basis set accompanied with admm-2 auxiliary ADMM basis set. You should do following things before running the task:"
+            write(*,"(a)") " 1 Copy basis set definition of pcseg-2 from BSE basis set library to a file named ""pcseg"" and put it to the ""data"" folder of CP2K"
+            write(*,"(a)") " 2 Copy basis set definition of admm-2 from BSE basis set library to a file named ""pcseg-admm"" and put it to the ""data"" folder of CP2K"
+            write(*,"(a)") " 3 Properly modify &XAS_TDP / STATE_TYPES according to requirement"
+        end if
     else if (isel==1) then !Functionals description: https://manual.cp2k.org/trunk/CP2K_INPUT/ATOM/METHOD/XC/XC_FUNCTIONAL.html
         !write(*,*) "-1 Molecular mechanism (MM)"
         write(*,*) "1 Pade (LDA)"
@@ -825,6 +876,8 @@ do while(.true.)
         write(*,*) "25 RI-B2PLYP  26 RI-B2GP-PLYP  27 RI-DSD-BLYP  28 RI-revDSD-PBEP86 with ADMM"
         write(*,*) "30 GFN1-xTB   40 PM6           50 SCC-DFTB"
         write(*,*) "60 GW@BHandHLYP with ADMM      61 GW@MN15L"
+        write(*,*) "80 PBEh      -80 PBEh with ADMM  (customize HFX composition)"
+        write(*,*) "100 FIST module (molecular mechanics)"
         read(*,*) isel2
         iwfc=0 !Do not involve wavefunction-based correlation
         iHFX=0 !Do not involve HF exchange
@@ -845,6 +898,13 @@ do while(.true.)
         if (isel2==-9) method="BHandHLYP_ADMM"
         if (isel2==10) method="M06-2X"
         if (isel2==-10) method="M06-2X_ADMM"
+        if (abs(isel2)==80) then
+            if (isel2==80) method="PBEh"
+            if (isel2==-80) method="PBEh_ADMM"
+            write(*,*) "Input HF exchange hybrid composition (%), e.g. 45"
+            read(*,*) PBEh_HFX
+        end if
+        if (isel2==100) method="FIST"
         if (isel2==11) then
             method="B97M-rV_LIBXC"
             idispcorr=5
@@ -901,7 +961,7 @@ do while(.true.)
             ""POTENTIAL_FILE_NAME  POTENTIAL"" with ""POTENTIAL_FILE_NAME  POTENTIAL_UZH"", and replace ""BASIS_SET_FILE_NAME  BASIS_MOLOPT"" with ""BASIS_SET_FILE_NAME  BASIS_MOLOPT_UZH"", &
             and manually specify proper GTH potential and corresponding valence basis set optimized for PBE0 calculation"
         end if
-        if (abs(isel2)==6.or.abs(isel2)==7.or.abs(isel2)==8.or.abs(isel2)==9.or.abs(isel2)==10.or.iwfc==1) then !Hybrid functionals and wavefunction-based correlation methods need HF exchange
+        if (abs(isel2)==6.or.abs(isel2)==7.or.abs(isel2)==8.or.abs(isel2)==9.or.abs(isel2)==10.or.abs(isel2)==80.or.iwfc==1) then !Hybrid functionals and wavefunction-based correlation methods need HF exchange
             iHFX=1
             if (method=="RI-(EXX+RPA)@PBE".or.method=="GW@MN15L") iHFX=0 !Based on PBE orbitals, HFX is not involved in SCF process
         end if
@@ -1042,6 +1102,12 @@ do while(.true.)
             else
                 ioutvibmol=0
             end if
+        else if (itask==15) then
+            if (iXAS_SOC==0) then
+                iXAS_SOC=1
+            else
+                iXAS_SOC=0
+            end if
         end if
     else if (isel==11) then
         if (itask==6) then
@@ -1054,6 +1120,12 @@ do while(.true.)
             write(*,*) "Input constraint on cell optimization, please input one of following terms:"
             write(*,*) "NONE, X, Y, Z, XY, XZ, YZ"
             read(*,"(a)") cellfix
+        else if (itask==15) then
+            if (iGW2X==0) then
+                iGW2X=1
+            else
+                iGW2X=0
+            end if
         end if
     else if (isel==12) then
         if (itask==6) then
@@ -1176,7 +1248,7 @@ if (iprintlevel==0) write(ifileid,"(a)") "  PRINT_LEVEL SILENT"
 if (iprintlevel==1) write(ifileid,"(a)") "  PRINT_LEVEL LOW"
 if (iprintlevel==2) write(ifileid,"(a)") "  PRINT_LEVEL MEDIUM"
 if (iprintlevel==3) write(ifileid,"(a)") "  PRINT_LEVEL HIGH"
-if (itask==1) write(ifileid,"(a)") "  RUN_TYPE ENERGY"
+if (itask==1.or.itask==15) write(ifileid,"(a)") "  RUN_TYPE ENERGY"
 if (itask==2) write(ifileid,"(a)") "  RUN_TYPE ENERGY_FORCE"
 if (itask==3) write(ifileid,"(a)") "  RUN_TYPE GEO_OPT"
 if (itask==4) write(ifileid,"(a)") "  RUN_TYPE CELL_OPT"
@@ -1190,15 +1262,51 @@ if (itask==13) write(ifileid,"(a)") "  RUN_TYPE RT_PROPAGATION"
 if (itask==14) write(ifileid,"(a)") "  RUN_TYPE PINT"
 write(ifileid,"(a)") "&END GLOBAL"
 write(ifileid,"(/,a)") "&FORCE_EVAL"
-write(ifileid,"(a)") "  METHOD Quickstep"
+if (method=="FIST") then
+    write(ifileid,"(a)") "  METHOD FIST"
+else
+    write(ifileid,"(a)") "  METHOD Quickstep"
+end if
 
 write(ifileid,"(a)") "  &SUBSYS"
-if (nrep1/=1.or.nrep2/=1.or.nrep3/=1.or.icentering==1) then !This is needed even not for classical force field calculation
+if (nrep1/=1.or.nrep2/=1.or.nrep3/=1.or.icentering==1.or.method=="FIST".or.istructfile==1) then
     write(ifileid,"(a)") "    &TOPOLOGY"
     if (nrep1/=1.or.nrep2/=1.or.nrep3/=1) write(ifileid,"(a,3i3)") "      MULTIPLE_UNIT_CELL",nrep1,nrep2,nrep3
     if (icentering==1) then
         write(ifileid,"(a)") "      &CENTER_COORDINATES #Centering atoms in the box"
         write(ifileid,"(a)") "      &END CENTER_COORDINATES"
+    end if
+    if (istructfile==1) then
+        inamelen=len_trim(filename)
+        if (filename(inamelen-2:inamelen)=="xyz".or.filename(inamelen-2:inamelen)=="XYZ") then
+            write(ifileid,"(a)") "      COORD_FILE_FORMAT XYZ #The format of the file providing coordinates"
+        else if (filename(inamelen-2:inamelen)=="pdb".or.filename(inamelen-2:inamelen)=="PDB") then
+            write(ifileid,"(a)") "      COORD_FILE_FORMAT PDB #The format of the file providing coordinates"
+        else if (filename(inamelen-2:inamelen)=="cif".or.filename(inamelen-2:inamelen)=="CIF") then
+            write(ifileid,"(a)") "      COORD_FILE_FORMAT CIF #The format of the file providing coordinates"
+        else if (filename(inamelen-2:inamelen)=="gro".or.filename(inamelen-2:inamelen)=="GRO") then
+            write(ifileid,"(a)") "      COORD_FILE_FORMAT G96 #The format of the file providing coordinates"
+        else if (filename(inamelen-6:inamelen)=="restart") then
+            write(ifileid,"(a)") "      COORD_FILE_FORMAT CP2K #The format of the file providing coordinates"
+        else
+            write(ifileid,"(a)") "      COORD_FILE_FORMAT ? #The format of the file providing coordinates"
+        end if
+        call path2filename(filename,c200tmp) !Remove folder part
+        ipos=index(filename,'.',back=.true.)
+        write(ifileid,"(a)") "      COORD_FILE_NAME "//trim(c200tmp)//trim(filename(ipos:))
+    end if
+    if (method=="FIST") then
+        write(ifileid,"(a)") "      #CONN_FILE_FORMAT PSF #Determining connectivity from topology file rather than automatic generating"
+        write(ifileid,"(a)") "      #CONN_FILE_NAME foo.psf"
+        if (istructfile==0) then
+            write(ifileid,"(a)") "      #COORD_FILE_FORMAT PDB #The format of the file providing coordinates"
+            write(ifileid,"(a)") "      #COORD_FILE_NAME foo.pdb"
+        end if
+        write(ifileid,"(a)") "      #&DUMP_PSF #Dumping the .psf file containing connectivity"
+        write(ifileid,"(a)") "      #&END DUMP_PSF"
+        write(ifileid,"(a)") "      #&DUMP_PDB #Dumping .pdb file at starting geometry"
+        write(ifileid,"(a)") "      #  CHARGE_BETA #Write atomic charges to beta field"
+        write(ifileid,"(a)") "      #&END DUMP_PDB"
     end if
     write(ifileid,"(a)") "    &END TOPOLOGY"
 end if
@@ -1262,29 +1370,39 @@ if (nrep1/=1.or.nrep2/=1.or.nrep3/=1) write(ifileid,"(a,3i3)") "      MULTIPLE_U
 write(ifileid,"(a)") "    &END CELL"
 
 !---- &COORD
-write(ifileid,"(a)") "    &COORD"
-do iatm=1,ncenter
-    write(ifileid,"(6x,a,3f14.8)") kindname(atmkind(iatm)),a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%z*b2a
-end do
-write(ifileid,"(a)") "    &END COORD"
-if (itask==6) then
-    write(ifileid,"(a)") "#   &VELOCITY #You can set initial atomic velocities in this section"
-    write(ifileid,"(a)") "#   &END VELOCITY"
+if (istructfile==0) then
+    write(ifileid,"(a)") "    &COORD"
+    do iatm=1,ncenter
+        if (itask==15.or.allocated(XASatm)) then !XAS, use special KIND for excited atom
+            if (any(XASatm(:)==iatm)) then
+                write(ifileid,"(6x,a,3f14.8)") kindnameXAS,a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%z*b2a
+            else
+                write(ifileid,"(6x,a,3f14.8)") kindname(atmkind(iatm)),a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%z*b2a
+            end if
+        else
+            write(ifileid,"(6x,a,3f14.8)") kindname(atmkind(iatm)),a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%z*b2a
+        end if
+    end do
+    write(ifileid,"(a)") "    &END COORD"
+    if (itask==6) then
+        write(ifileid,"(a)") "#   &VELOCITY #You can set initial atomic velocities in this section"
+        write(ifileid,"(a)") "#   &END VELOCITY"
+    end if
 end if
 
 !---- &KIND
-if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") then !Semi-empirical methods do not need to define these
+if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB".and.method/="FIST") then !Semi-empirical methods and forcefield do not need to define these
     ntime=1
     if (itask==11) ntime=2 !For BSSE task, the second time write same kinds but with _ghost suffix
     do itime=1,ntime
         do ikind=1,nkind
             if (count(atmkind(:)==ikind)==0) cycle
             if (itime==1) then
-                write(ifileid,"(a)") "    &KIND "//kindname(ikind)
+                write(ifileid,"(a)") "    &KIND "//trim(kindname(ikind))
             else if (itime==2) then
                 write(ifileid,"(a)") "    &KIND "//trim(kindname(ikind))//"_ghost"
             end if
-            write(ifileid,"(a)") "      ELEMENT "//ind2name(kindeleidx(ikind))
+            write(ifileid,"(a)") "      ELEMENT "//trim(ind2name(kindeleidx(ikind)))
             if (ibas==19) then
                 write(ifileid,"(a)") "      BASIS_SET def2-QZVP"
                 write(ifileid,"(a)") "      BASIS_SET RI_AUX RI-5Z"
@@ -1353,10 +1471,87 @@ if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") then !Semi-empi
             if (kindmag(ikind)/=0) write(ifileid,"(a,i3)") "      MAGNETIZATION",kindmag(ikind)
             write(ifileid,"(a)") "    &END KIND"
         end do
+        if (itask==15.or.allocated(XASatm)) then !For XAS_TDP, provide a dummy KIND so that user can easily specify the atom to be excited
+            write(ifileid,"(a)") "    &KIND "//kindnameXAS//" #For atom to be excited in XAS task"
+            write(ifileid,"(a)") "      ELEMENT "//trim(a(XASatm(1))%name)
+            if (iGW2X==1) then
+                write(ifileid,"(a)") "      BASIS_SET pcseg-3"
+                if (itask==15) write(ifileid,"(a)") "      BASIS_SET AUX_FIT admm-3"
+            else
+                write(ifileid,"(a)") "      BASIS_SET pcseg-2"
+                if (itask==15) write(ifileid,"(a)") "      BASIS_SET AUX_FIT admm-2"
+            end if
+            write(ifileid,"(a)") "      POTENTIAL ALL"
+            write(ifileid,"(a)") "    &END KIND"
+        end if
     end do
 end if
 
 write(ifileid,"(a)") "  &END SUBSYS"
+
+
+!---- &FIST
+if (method=="FIST") then
+    write(ifileid,"(/,a)") "  #Ref: https://manual.cp2k.org/trunk/CP2K_INPUT/FORCE_EVAL/MM/FORCEFIELD.html"
+    write(ifileid,"(a)") "  &MM"
+    write(ifileid,"(a)") "    &FORCEFIELD"
+    write(ifileid,"(a)") "      &SPLINE"
+    write(ifileid,"(a)") "        #EMAX_SPLINE 5.0 #Maximum value of the potential up to which splines will be constructed, in Hartree"
+    write(ifileid,"(a)") "        #RCUT_NB 12.0 #Cutoff radius for nonbonded interactions, overrides that specified in potential definitions and is global for all potentials"
+    write(ifileid,"(a)") "      &END SPLINE"
+    write(ifileid,"(a)") "      IGNORE_MISSING_CRITICAL_PARAMS F"
+    write(ifileid,"(a)") "      #PARM_FILE_NAME sobereva.prm"
+    write(ifileid,"(a)") "      #PARMTYPE CHM"
+    write(ifileid,"(a)") "      #&CHARGE"
+    write(ifileid,"(a)") "      #  ATOM X"
+    write(ifileid,"(a)") "      #  CHARGE 0.0"
+    write(ifileid,"(a)") "      #&END CHARGE"
+    write(ifileid,"(a)") "      #&BOND"
+    write(ifileid,"(a)") "      #  ATOMS X X"
+    write(ifileid,"(a)") "      #  KIND HARMONIC"
+    write(ifileid,"(a)") "      #  R0 [angstrom] 0.0"
+    write(ifileid,"(a)") "      #  K [angstrom^-2kcalmol] 0.0"
+    write(ifileid,"(a)") "      #&END BOND"
+    write(ifileid,"(a)") "      #&BEND"
+    write(ifileid,"(a)") "      #  ATOMS X X X"
+    write(ifileid,"(a)") "      #  KIND HARMONIC"
+    write(ifileid,"(a)") "      #  THETA0 [deg] 0.0"
+    write(ifileid,"(a)") "      #  K [rad^-2kcalmol] 0.0"
+    write(ifileid,"(a)") "      #&END BEND"
+    write(ifileid,"(a)") "      #&NONBONDED"
+    write(ifileid,"(a)") "      #  &LENNARD-JONES"
+    write(ifileid,"(a)") "      #    ATOMS X X"
+    write(ifileid,"(a)") "      #    EPSILON [kcalmol]  0.0"
+    write(ifileid,"(a)") "      #    SIGMA   [angstrom] 0.0"
+    write(ifileid,"(a)") "      #    RCUT    [angstrom] 12.0"
+    write(ifileid,"(a)") "      #  &END LENNARD-JONES"
+    write(ifileid,"(a)") "      #&END NONBONDED"
+    write(ifileid,"(a)") "      #&PRINT"
+    write(ifileid,"(a)") "      #  &FF_INFO #Print employed forcefield parameters, missing non-critical parameters, atomic charges, etc."
+    write(ifileid,"(a)") "      #    SPLINE_INFO F"
+    write(ifileid,"(a)") "      #  &END FF_INFO"
+    write(ifileid,"(a)") "      #&END PRINT"
+    write(ifileid,"(a)") "    &END FORCEFIELD"
+    write(ifileid,"(a)") "    &POISSON"
+    write(ifileid,"(a)") "      &EWALD"
+    if (PBCdir=="NONE") then
+        write(ifileid,"(a)") "        EWALD_TYPE NONE"
+    else
+        write(ifileid,"(a)") "        EWALD_TYPE SPME"
+        ngmax1=ceiling(cellv1_pseudo(1)*nrep1*b2a) !Make Gmax approximately 1 pt/Angstrom in each direction
+        ngmax2=ceiling(cellv2_pseudo(2)*nrep2*b2a)
+        ngmax3=ceiling(cellv3_pseudo(3)*nrep3*b2a)
+        !Only for Ewald Gmax should be odd, while we default to use SPME
+        !if (mod(ngmax1,2)==0) ngmax1=ngmax1+1
+        !if (mod(ngmax2,2)==0) ngmax2=ngmax2+1
+        !if (mod(ngmax3,2)==0) ngmax3=ngmax3+1
+        write(ifileid,"(a,3i4,a)") "        GMAX",ngmax1,ngmax2,ngmax3," #Number of grid points for Ewald/SPME in each direction"
+    end if
+    write(ifileid,"(a)") "      &END EWALD"
+    write(ifileid,"(a)") "    &END POISSON"
+    write(ifileid,"(a)") "  &END MM"
+
+else
 
 !---- &DFT
 write(ifileid,"(/,a)") "  &DFT"
@@ -1379,6 +1574,11 @@ if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") then
     end if
     if (iLRIGPW==1) then !Set basis set file for LRIGPW
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_LRIGPW_AUXMOLOPT"
+    end if
+    if (itask==15.or.allocated(XASatm)) then
+        write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  pcseg"
+        write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  pcseg-admm"
+        if (itask==15) write(ifileid,"(a)") "    AUTO_BASIS RI_XAS MEDIUM #Generate auxiliary basis set for XAS"
     end if
     if (index(method,"MP2")/=0) then
         write(ifileid,"(a)") "    POTENTIAL_FILE_NAME  HF_POTENTIALS"
@@ -1420,7 +1620,11 @@ end if
 if (iDFTplusU==1) write(ifileid,"(a)") "    PLUS_U_METHOD MULLIKEN #The method used in DFT+U. Can also be Lowdin"
 if (iTDDFT==1.and.(itask==2.or.itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==8)) then !Evaluate force for excited state
     write(ifileid,"(a)") "    &EXCITED_STATES"
-    write(ifileid,"(a,i5,a)") "      STATE",istate_force," #For which excited state the force will be evaluated. Negative value indicates state following"
+    if (itask==2) then !Only calculate force
+        write(ifileid,"(a,i5,a)") "      STATE",istate_force," #For which excited state the force will be evaluated. Negative value indicates state following"
+    else !State following
+        write(ifileid,"(a,i5,a)") "      STATE",-istate_force," #For which excited state the force will be evaluated. Negative value indicates state following"
+    end if
     write(ifileid,"(a)") "    &END EXCITED_STATES"
 end if
 
@@ -1429,7 +1633,7 @@ write(ifileid,"(a)") "    &QS"
 
 if (iLSSCF==1) write(ifileid,"(a)") "      LS_SCF #Use linear scaling self consistent field method"
 !Set proper EPS_SCF (default is 1E-5) and EPS_DEFAULT (default is 1E-10)
-if (itask==1) then !Single point, do not need high accuracy
+if (itask==1.and.iTDDFT==0) then !Single point of ground state, does not need high accuracy
     eps_scf=5D-6
     eps_def=1D-11
     if (iwfc==1) then
@@ -1490,7 +1694,7 @@ else if (method=="SCC-DFTB") then
     write(ifileid,"(a)") "          UFF_FORCE_FIELD  uff_table"
     write(ifileid,"(a)") "        &END PARAMETER"
     write(ifileid,"(a)") "      &END DFTB"
-else if (iGAPW==1) then
+else if (iGAPW==1.or.itask==15.or.allocated(XASatm)) then !XAS always need GAPW
     write(ifileid,"(a)") "      METHOD GAPW"
 else !GPW with GTH pseudopotential
     if (iLRIGPW==1) then
@@ -1597,6 +1801,8 @@ if (index(method,"ADMM")/=0) then !Use ADMM
     write(ifileid,"(a)") "      METHOD BASIS_PROJECTION #Method used for wavefunction fitting"
     if (iTDDFT==1) then
         write(ifileid,"(a)") "      ADMM_PURIFICATION_METHOD NONE #NONE is the only choice for TDDFT with ADMM"
+    else if (itask==15) then !It is recommended by XAS_TDP tutorial to use NONE, although purification version seems also to be supported by XAS_TDP
+        write(ifileid,"(a)") "      ADMM_PURIFICATION_METHOD NONE"
     else
         if (idiagOT==1) then !Diagonalization cannot be used with purification
             write(ifileid,"(a)") "      ADMM_PURIFICATION_METHOD NONE"
@@ -1667,6 +1873,12 @@ else if (index(method,"PBE0")/=0) then
     write(ifileid,"(a)") "        &PBE"
     write(ifileid,"(a)") "          SCALE_X 0.75"
     write(ifileid,"(a)") "          SCALE_C 1.0"
+    write(ifileid,"(a)") "        &END PBE"
+    write(ifileid,"(a)") "      &END XC_FUNCTIONAL"
+else if (index(method,"PBEh")/=0) then
+    write(ifileid,"(a)") "      &XC_FUNCTIONAL"
+    write(ifileid,"(a)") "        &PBE"
+    write(ifileid,"(a,f10.5)") "          SCALE_X",(100-PBEh_HFX)/100
     write(ifileid,"(a)") "        &END PBE"
     write(ifileid,"(a)") "      &END XC_FUNCTIONAL"
 else if (index(method,"B3LYP")/=0) then
@@ -1789,6 +2001,7 @@ if (iHFX==1) then !HFX potential
     if (index(method,"PBE0")/=0.or.index(method,"HSE")/=0) write(ifileid,"(a)") "        FRACTION 0.25 #HF composition"
     if (index(method,"B3LYP")/=0) write(ifileid,"(a)") "        FRACTION 0.2 #HF composition"
     if (index(method,"BHandHLYP")/=0) write(ifileid,"(a)") "        FRACTION 0.5 #HF composition"
+    if (index(method,"PBEh")/=0) write(ifileid,"(a,f10.5,' #HF composition')") "        FRACTION",PBEh_HFx/100
     if (index(method,"M06-2X")/=0) write(ifileid,"(a)") "        FRACTION 0.54 #HF composition"
     if (index(method,"MP2")/=0) write(ifileid,"(a)") "        FRACTION 1.0 #HF composition"
     if (index(method,"B2PLYP")/=0) write(ifileid,"(a)") "        FRACTION 0.53 #HF composition"
@@ -1898,8 +2111,8 @@ if (iwfc==1) then
             write(ifileid,"(a)") "        SCALE_S 0.46"
             write(ifileid,"(a)") "        SCALE_T 0.37"
         else if (index(method,"revDSD-PBEP86")/=0) then
-            write(ifileid,"(a)") "        SCALE_S 0.0799"
-            write(ifileid,"(a)") "        SCALE_T 0.5785"
+            write(ifileid,"(a)") "        SCALE_S 0.5785"
+            write(ifileid,"(a)") "        SCALE_T 0.0799"
         end if
     end if
     write(ifileid,"(a)") "        &INTEGRALS"
@@ -2045,7 +2258,7 @@ else !&SCF
         if (method=="GFN1-xTB".or.method=="PM6".or.method=="SCC-DFTB") then !Semi-empirical cannot use FULL_KINETIC. For large system FULL_SINGLE_INVERSE is the only good choice
             write(ifileid,"(a)") "        PRECONDITIONER FULL_SINGLE_INVERSE"
         else
-            if (ncenter<300.or.iGAPW==1) then !GAPW should use FULL_ALL even if the system is large, because it converges much better than FULL_KINETIC according to my test and suggestion by Hutter 
+            if (ncenter<300.or.iGAPW==1.or.itask==15) then !GAPW (XAS task implies it) should use FULL_ALL even if the system is large, because it converges much better than FULL_KINETIC according to my test and suggestion by Hutter 
                 write(ifileid,"(a)") "        PRECONDITIONER FULL_ALL #Usually best but expensive for large system. Cheaper: FULL_SINGLE_INVERSE and FULL_KINETIC"
             else !GPW for large systems, using FULL_ALL will cause too high cost at the first step
                 write(ifileid,"(a)") "        PRECONDITIONER FULL_KINETIC #FULL_SINGLE_INVERSE is also worth to try. FULL_ALL is better but quite expensive for large system"
@@ -2274,9 +2487,67 @@ if (itask==13) then !Real-time propagation
     write(ifileid,"(a)") "      &END PRINT"
     write(ifileid,"(a)") "    &END REAL_TIME_PROPAGATION"
 end if
+if (itask==15) then !XAS
+    write(ifileid,"(a)") "    &XAS_TDP"
+    write(ifileid,"(a)") "      GRID "//kindnameXAS//" 150 200"
+    write(ifileid,"(a)") "      ENERGY_RANGE 30 #The energy range in eV for which excitations are considered"
+    write(ifileid,"(a)") "      &DONOR_STATES"
+    write(ifileid,"(a)") "        DEFINE_EXCITED BY_INDEX"
+    call outCP2K_LIST(ifileid,XASatm,nXASatm,"        ","ATOM_LIST")
+    write(ifileid,"(a)",advance="no") "        STATE_TYPES"
+    do iatm=1,nXASatm
+        write(ifileid,"(a)",advance="no") " 1S"
+    end do
+    write(ifileid,*) "#Types of orbitals that are excited"
+    if (iGW2X==1) then !GW2X requires LOCALIZE
+        write(ifileid,"(a)") "        LOCALIZE #Perform orbital localization before searching potential donor states"
+        write(ifileid,"(a,i6)") "        N_SEARCH 1"
+    else
+        write(ifileid,"(a)") "        N_SEARCH -1 #-1 means searching donor orbitals from all occupied orbitals from low to high energy"
+        write(ifileid,"(a)") "        #LOCALIZE #Perform orbital localization before searching potential donor states"
+    end if
+    write(ifileid,"(a)") "      &END DONOR_STATES"
+    write(ifileid,"(a)") "      &KERNEL"
+    write(ifileid,"(a)") "        RI_REGION 2.0"
+    write(ifileid,"(a)") "        &XC_FUNCTIONAL PBE"
+    write(ifileid,"(a)") "          &PBE"
+    write(ifileid,"(a,f10.5)") "            SCALE_X",(100-PBEh_HFX)/100
+    write(ifileid,"(a)") "          &END PBE"
+    write(ifileid,"(a)") "        &END XC_FUNCTIONAL"
+    write(ifileid,"(a)") "        &EXACT_EXCHANGE"
+    write(ifileid,"(a,f10.5,a)") "          FRACTION ",PBEh_HFX/100," #HF composition"
+    if (PBCdir/="NONE") then
+        write(ifileid,"(a)") "          POTENTIAL_TYPE TRUNCATED"
+        if (trunc_rad>6) then !If half of shortest box length is larger than 6 Angstrom, simply use 6, this is usually adequate
+            write(ifileid,"(a,f8.4)") "          CUTOFF_RADIUS 6.0 #Cutoff radius (Angstrom) for truncated 1/r Coulomb operator"
+        else
+            write(ifileid,"(a,f8.4,a)") "          CUTOFF_RADIUS",trunc_rad," #Cutoff radius (Angstrom) for truncated 1/r Coulomb operator"
+        end if
+    end if
+    write(ifileid,"(a)") "        &END EXACT_EXCHANGE"
+    write(ifileid,"(a)") "      &END KERNEL"
+    if (iXAS_SOC==1) then
+        if (multispin>1.or.any(kindmag(1:nkind)/=0)) then !Didn't test
+            write(ifileid,"(a)") "      EXCITATIONS OS_SPIN_CONS #Spin-conserving excitations on top of open-shell ground state"
+            write(ifileid,"(a)") "      EXCITATIONS OS_SPIN_FLIP #Spin-flip excitation on top of open-shell ground state"
+        else !Closed-shell
+            write(ifileid,"(a)") "      EXCITATIONS RCS_SINGLET #Calculate singlet excitation on top of restricted closed-shell ground state"
+            write(ifileid,"(a)") "      EXCITATIONS RCS_TRIPLET #Calculate triplet excitation on top of restricted closed-shell ground state"
+        end if
+        write(ifileid,"(a)") "      SOC #Consider spin-orbit coupling"
+    end if
+    if (iGW2X==1) then
+        write(ifileid,"(a)") "      &GW2X #Enable GW2X correction"
+        write(ifileid,"(a)") "      &END GW2X"
+    end if
+    write(ifileid,"(a)") "    &END XAS_TDP"
+end if
 write(ifileid,"(a)") "  &END DFT"
 
-if (itask==2.or.itask==4.or.inoSCFinfo==1) then !FORCE_EVAL/PRINT
+end if !END distinguishing FIST and DFT
+
+
+if (itask==2.or.itask==4.or.inoSCFinfo==1.or.method=="FIST") then !&FORCE_EVAL / &PRINT
     write(ifileid,"(a)") "  &PRINT"
     if (itask==2) then
         write(ifileid,"(a)") "    &FORCES ON #Print atomic forces"
@@ -2286,7 +2557,7 @@ if (itask==2.or.itask==4.or.inoSCFinfo==1) then !FORCE_EVAL/PRINT
         write(ifileid,"(a)") "    &STRESS_TENSOR ON #Print stress tensor"
         write(ifileid,"(a)") "    &END STRESS_TENSOR"
     end if
-    if (inoSCFinfo==1) then
+    if (inoSCFinfo==1.or.method=="FIST") then
         write(ifileid,"(a)") "    &PROGRAM_RUN_INFO"
         write(ifileid,"(a)") "      &EACH"
         write(ifileid,"(a)") "        MD 0 #Frequency of printing evaluated energies during MD. 0 means never"
@@ -2349,18 +2620,36 @@ if ((itask==5.and.iraman==1).or.itask==9.or.itask==10.or.iTDDFT==1) then !Raman,
         if (isTDA==1) then
             write(ifileid,"(a)") "      KERNEL STDA #Using sTDA approximation"
             write(ifileid,"(a)") "      &STDA"
-            if (PBCdir/="NONE") write(ifileid,"(a)") "        DO_EWALD .T. #Use Ewald type method for periodic Coulomb interaction"
-            write(ifileid,"(a)") "        FRACTION 0.2 #Fraction of TB Hartree-Fock exchange to use in the kernel"
+            if (ifPBC==0.or.PBCdir=="NONE") then
+                write(ifileid,"(a)") "        DO_EWALD F #Use Ewald type method for periodic Coulomb interaction"
+            else
+                write(ifileid,"(a)") "        DO_EWALD T #Use Ewald type method for periodic Coulomb interaction"
+            end if
+            if (index(method,"PBE0")/=0) then
+                write(ifileid,"(a)") "        FRACTION 0.25 #Fraction of TB Hartree-Fock exchange to use in the kernel"
+            else if (index(method,"BHandHLYP")/=0) then
+                write(ifileid,"(a)") "        FRACTION 0.5 #Fraction of TB Hartree-Fock exchange to use in the kernel"
+            else if (index(method,"PBEh")/=0) then
+                write(ifileid,"(a,f10.5,a)") "        FRACTION",PBEh_HFX/100," #Fraction of TB Hartree-Fock exchange to use in the kernel"
+            else if (index(method,"M06-2X")/=0) then
+                write(ifileid,"(a)") "        FRACTION 0.54 #Fraction of TB Hartree-Fock exchange to use in the kernel"
+            else
+                write(ifileid,"(a)") "        FRACTION 0.2 #Fraction of TB Hartree-Fock exchange to use in the kernel"
+            end if
             write(ifileid,"(a)") "      &END STDA"
         end if
         if (iTDtriplet==1) then
-            write(ifileid,"(a)") "      RKS_TRIPLETS .T. #If calculating triplet rather than singlet excited states"
+            write(ifileid,"(a)") "      RKS_TRIPLETS T #If calculating triplet rather than singlet excited states"
         else
-            write(ifileid,"(a,i5)") "      RKS_TRIPLETS .F. #If calculating triplet rather than singlet excited states"
+            write(ifileid,"(a,i5)") "      RKS_TRIPLETS F #If calculating triplet rather than singlet excited states"
         end if
-        write(ifileid,"(a)") "      CONVERGENCE [eV] 1E-4 #Convergence criterion of all excitation energies"
+        if (itask==2.or.itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==8) then !Involve force
+            write(ifileid,"(a)") "      CONVERGENCE [eV] 1E-6 #Convergence criterion of all excitation energies"
+        else
+            write(ifileid,"(a)") "      CONVERGENCE [eV] 1E-4 #Convergence criterion of all excitation energies"
+        end if
         write(ifileid,"(a)") "      MIN_AMPLITUDE 0.01 #The smallest excitation amplitude to print"
-        write(ifileid,"(a)") "#     RESTART .T. #If restarting TDDFT calculation. If true, WFN_RESTART_FILE_NAME should be set to previous .tdwfn file"
+        write(ifileid,"(a)") "#     RESTART T #If restarting TDDFT calculation. If true, WFN_RESTART_FILE_NAME should be set to previous .tdwfn file"
         write(ifileid,"(a)") "#     WFN_RESTART_FILE_NAME "//trim(c200tmp)//"-RESTART.tdwfn"
         !if (ifPBC==3) then !The default VELOCITY is also correct for both periodic and isolated systems
         !    write(ifileid,"(a)") "      &DIPOLE_MOMENTS"
@@ -2370,6 +2659,10 @@ if ((itask==5.and.iraman==1).or.itask==9.or.itask==10.or.iTDDFT==1) then !Raman,
         if (index(method,"_ADMM")/=0.and.(itask==2.or.itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==8)) then !Need force
             write(ifileid,"(a)") "      ADMM_KERNEL_CORRECTION_SYMMETRIC T"
         end if
+        write(ifileid,"(a)") "      &PRINT"
+        write(ifileid,"(a)") "        #&DETAILED_ENERGY #Print excitation energies at every Davidson iteration"
+        write(ifileid,"(a)") "        #&END DETAILED_ENERGY"
+        write(ifileid,"(a)") "      &END PRINT"
         !Current version, at least 2022.1, does not force to specify &TDDFPT / &XC
         !if (index(method,"_ADMM")==0) then !When ADMM is used for TDDFT, &XC should not appear, otherwise error shows: "ADMM is not implemented for a TDDFT kernel XC-functional which is different from the one used for the ground-state calculation"
         !    write(ifileid,"(a)") "      &XC"
@@ -2464,11 +2757,11 @@ if ((itask==5.and.iraman==1).or.itask==9.or.itask==10.or.iTDDFT==1) then !Raman,
         !end if
         if (iNTO==1) then
             write(ifileid,"(a)") "      &PRINT"
-            write(ifileid,"(a)") "        &NTO_ANALYSIS ON #Do NTO analysis for all excited states"
+            write(ifileid,"(a)") "        &NTO_ANALYSIS #Do NTO analysis for all excited states"
             !write(ifileid,"(a)") "          FILENAME NTO" !Seems not to affect name of actually exported .molden file
             write(ifileid,"(a)") "        &END NTO_ANALYSIS"
             write(ifileid,"(a)") "        &MOS_MOLDEN #Output .molden file containing NTO of the ""NSTATES""th state"
-            write(ifileid,"(a)") "          NDIGITS 8"
+            write(ifileid,"(a)") "          NDIGITS 9"
             write(ifileid,"(a)") "          FILENAME NTO #Filename of NTO .molden file"
             write(ifileid,"(a)") "        &END MOS_MOLDEN"
             write(ifileid,"(a)") "      &END PRINT"
@@ -2520,7 +2813,7 @@ end if
 if (iatomcharge==6.or.iatomcharge==7) then !Atomic charges
     write(ifileid,"(/,a)") "  &PROPERTIES"
     write(ifileid,"(a)") "    &RESP"
-    if (iatomcharge==7) write(ifileid,"(a)") "    USE_REPEAT_METHOD T"
+    if (iatomcharge==7) write(ifileid,"(a)") "      USE_REPEAT_METHOD T"
     write(ifileid,"(a)") "      &SPHERE_SAMPLING"
     write(ifileid,"(a)") "        AUTO_VDW_RADII_TABLE CAMBRIDGE #vdW radii type. This is default. Can also be UFF"
     write(ifileid,"(a)") "        AUTO_RMIN_SCALE 1.0 #Scaled factor of vdW radii determining the inner boundary of sampling"
@@ -2607,7 +2900,11 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==8.or.itas
             write(ifileid,"(a)") "      &END DIMER"
             write(ifileid,"(a)") "    &END TRANSITION_STATE"
         end if
-        write(ifileid,"(a)") "    MAX_ITER 500 #Maximum number of geometry optimization"
+        if (method=="FIST") then
+            write(ifileid,"(a)") "    MAX_ITER 3000 #Maximum number of geometry optimization"
+        else
+            write(ifileid,"(a)") "    MAX_ITER 500 #Maximum number of geometry optimization"
+        end if
         write(ifileid,"(a)") "    MAX_DR 3E-3 #Maximum geometry change"
         write(ifileid,"(a)") "    RMS_DR 1.5E-3 #RMS geometry change"
         if (itightopt==1) then
@@ -2902,7 +3199,11 @@ integer list(nlist)
 call testidx_contiguous(list,nlist,ifconti)
 if (ifconti==1) then
     write(c80tmp,*) maxval(list(1:nlist))
-    write(ifileid,"(a,i7,'..',a)") spacestr//header//' ',minval(list(1:nlist)),adjustl(c80tmp)
+    if (nlist==1) then
+        write(ifileid,"(a)") spacestr//header//' '//trim(adjustl(c80tmp))
+    else
+        write(ifileid,"(a,i7,'..',a)") spacestr//header//' ',minval(list(1:nlist)),trim(adjustl(c80tmp))
+    end if
 else
     iline=1
     i=0

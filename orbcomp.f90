@@ -51,7 +51,7 @@ do while(.true.)
 	else if (icompana==-2) then
 		call deffrag(2)
 	else if (icompana==1.or.icompana==2.or.icompana==3) then
-        call ask_Sbas_PBC
+        if (icompana==1.or.icompana==2) call ask_Sbas_PBC
 		if (icompana==1) call orballcomp_MMPA(1)
 		if (icompana==2) call orballcomp_MMPA(2)
 		if (icompana==3) call orballcomp_MMPA(3)
@@ -63,7 +63,7 @@ do while(.true.)
 			cycle
 		end if
 		if (.not.allocated(frag2).and.(icompana==4.or.icompana==5)) write(*,*) "Note: Fragment 2 was not be defined"
-        call ask_Sbas_PBC
+        if (icompana==4.or.icompana==5) call ask_Sbas_PBC
 		write(*,*)
 		if (icompana==4) call orbfragcomp_MMPA(1)
 		if (icompana==5) call orbfragcomp_MMPA(2)
@@ -430,6 +430,7 @@ do imo=1,nmo
 	crossint=0D0
 	crossext=0D0 !fragment 1 part of all overlap between fragment 1 and external atoms
 	if (isel==3) allsqr=sum(tmpmat(:,irealmo)**2)
+    if (allsqr==0) cycle !This orbital should be an artificially filled one
 	do i=1,size(frag1)
 		ibas=frag1(i)
 		if (isel==1.or.isel==2) floc=floc+tmpmat(ibas,irealmo)**2
