@@ -234,7 +234,7 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
 			call loclabel(10,"Excited State",ifound,0)
 			if (ifound==1) then
 				read(10,"(a)") c80tmp
-                if (index(c80tmp,'f=')/=0) nstates=nstates+1
+                if ((index(c80tmp,'f=')/=0.and.ifiletypeexc==1).or.ifiletypeexc==3) nstates=nstates+1 !For Gaussian case, the line must contain f= to avoiding count irrelevant lines
 			else
 				exit
 			end if
