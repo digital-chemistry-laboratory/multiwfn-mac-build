@@ -1453,19 +1453,28 @@ if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB".and.method/="FIS
                 write(ifileid,"(a)") "      POTENTIAL ALL"
             end if
             if (itime==2.and.itask==11) write(ifileid,"(a)") "      GHOST"
-            if (iDFTplusU==1) then
+            if (iDFTplusU==1) then !DFT+U
                 ie=kindeleidx(ikind)
-                if ((ie>=21.and.ie<=28).or.(ie>=39.and.ie<=46).or.(ie>=57.and.ie<=78).or.ie>=89) then !Only +U for d or f element
-                    !if (ie/=24.and.ie/=25.and.ie/=42.and.ie/=43.and.ie/=46.and.ie/=75) then !Ignore half-occupied d shell elements
-                        write(ifileid,"(a)") "      &DFT_PLUS_U"
-                        if ((ie>=57.and.ie<=71).or.(ie>=89.and.ie<=103)) then
-                            write(ifileid,"(a)") "        L 3 #Quantum number of angular momentum the atomic orbitals to +U. 0=s, 1=p, 2=d, 3=f"
-                        else
-                            write(ifileid,"(a)") "        L 2 #Quantum number of angular momentum the atomic orbitals to +U. 0=s, 1=p, 2=d, 3=f"
-                        end if
-                        write(ifileid,"(a)") "        U_MINUS_J [eV] 2.0 #Effective on-site Coulomb interaction parameter U(eff) = U - J"
-                        write(ifileid,"(a)") "      &END DFT_PLUS_U"
-                    !end if
+                if ((ie>=57.and.ie<=70).or.(ie>=89.and.ie<=102)) then !f elements
+                    write(ifileid,"(a)") "      &DFT_PLUS_U"
+                    write(ifileid,"(a)") "        L 3 #Quantum number of angular momentum the atomic orbitals to +U. 0=s, 1=p, 2=d, 3=f"
+                    write(ifileid,"(a)") "        U_MINUS_J [eV] 2.0 #Effective on-site Coulomb interaction parameter U(eff) = U - J"
+                    write(ifileid,"(a)") "      &END DFT_PLUS_U"
+                else if ((ie>=21.and.ie<=28).or.(ie>=39.and.ie<=46).or.(ie>=71.and.ie<=78)) then !d elements
+                    write(ifileid,"(a)") "      &DFT_PLUS_U"
+                    write(ifileid,"(a)") "        L 2 #Quantum number of angular momentum the atomic orbitals to +U. 0=s, 1=p, 2=d, 3=f"
+                    write(ifileid,"(a)") "        U_MINUS_J [eV] 2.0 #Effective on-site Coulomb interaction parameter U(eff) = U - J"
+                    write(ifileid,"(a)") "      &END DFT_PLUS_U"
+                else if ((ie>=5.and.ie<=9).or.(ie>=13.and.ie<=17).or.(ie>=31.and.ie<=35).or.(ie>=49.and.ie<=53).or.(ie>=81.and.ie<=85)) then !p elements
+                    write(ifileid,"(a)") "      #&DFT_PLUS_U"
+                    write(ifileid,"(a)") "      #  L 1 #Quantum number of angular momentum the atomic orbitals to +U. 0=s, 1=p, 2=d, 3=f"
+                    write(ifileid,"(a)") "      #  U_MINUS_J [eV] 2.0 #Effective on-site Coulomb interaction parameter U(eff) = U - J"
+                    write(ifileid,"(a)") "      #&END DFT_PLUS_U"
+                else if ((ie>=3.and.ie<=4).or.(ie>=11.and.ie<=12).or.(ie>=19.and.ie<=20).or.(ie>=37.and.ie<=38).or.(ie>=55.and.ie<=56).or.(ie>=87.and.ie<=88)) then !s elements
+                    write(ifileid,"(a)") "      #&DFT_PLUS_U"
+                    write(ifileid,"(a)") "      #  L 0 #Quantum number of angular momentum the atomic orbitals to +U. 0=s, 1=p, 2=d, 3=f"
+                    write(ifileid,"(a)") "      #  U_MINUS_J [eV] 2.0 #Effective on-site Coulomb interaction parameter U(eff) = U - J"
+                    write(ifileid,"(a)") "      #&END DFT_PLUS_U"
                 end if
             end if
             if (kindmag(ikind)/=0) write(ifileid,"(a,i3)") "      MAGNETIZATION",kindmag(ikind)
@@ -2338,7 +2347,7 @@ else !&SCF
 end if
 
 !--- &PRINT of DFT level, FORCE_EVAL/DFT/PRINT
-if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imoment==1.or.ihyperfine==1.or.ioutorbene==1.or.iSCCS==1) then
+if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imoment==1.or.ihyperfine==1.or.ioutorbene==1.or.iSCCS==1.or.iDFTplusU==1) then
     write(ifileid,"(a)") "    &PRINT"
     if (ioutSbas==1) then
         write(ifileid,"(a)") "      &S_CSR_WRITE #Exporting .csr file containing overlap matrix"
@@ -2358,6 +2367,14 @@ if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imom
         write(ifileid,"(a)") "      &MO_MOLDEN #Exporting .molden file containing wavefunction information"
         write(ifileid,"(a)") "        NDIGITS 9 #Output orbital coefficients if absolute value is larger than 1E-9"
         write(ifileid,"(a)") "      &END MO_MOLDEN"
+    end if
+    if (iDFTplusU==1) then
+        write(ifileid,"(a)") "      #Uncomment following lines can print occupation for which +U is applied when PRINT_LEVEL is medium"
+        write(ifileid,"(a)") "      #&PLUS_U"
+        write(ifileid,"(a)") "      #  &EACH"
+        write(ifileid,"(a)") "      #    QS_SCF 1"
+        write(ifileid,"(a)") "      #  &END EACH"
+        write(ifileid,"(a)") "      #&END PLUS_U"
     end if
     if (ioutcube>0) then
         if (ioutcube==1) then

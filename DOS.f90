@@ -896,23 +896,8 @@ else if (isel==0.or.isel==10) then
 				ntime=2 !Unrestricted wavefunction and both spins are considered, twice calculation respectively using CObas of different spin
             end if
             if (icompmethod<=2) then !Mulliken/SCPA orbital composition analysis method
-				if ((icompmethod==1.or.idoOPDOS==1).and.(.not.allocated(Sbas))) then !Generate overlap matrix if not available, which is needed by Mulliken or OPDOS
-					inquire(file="CP2K_overlap.txt",exist=alive)
-					if (alive) then !Directly use existing overlap matrix to save time
-						write(*,"(a)") " CP2K_overlap.txt has been found in current folder, directly load it and use the overlap matrix? (y/n)"
-						read(*,*) c80tmp
-						if (c80tmp=='y'.or.c80tmp=='Y') then
-							write(*,*) "Loading CP2K_overlap.txt ..."
-							open(10,file="CP2K_overlap.txt",status="old")
-							allocate(Sbas(nbasis,nbasis))
-							call readmatgau(10,Sbas,1,"?",7,5)
-							close(10)
-							write(*,*) "Loading overlap matrix finished!"
-						end if
-					end if
-					call ask_Sbas_PBC
-                end if
-		        OPfrag12=0
+				if (icompmethod==1.or.idoOPDOS==1) call ask_Sbas_PBC !Generate overlap matrix if not available, which is needed by Mulliken or OPDOS
+				OPfrag12=0
 				call walltime(iwalltime1)
 			    do itime=1,ntime
                     if (ispin/=3) then

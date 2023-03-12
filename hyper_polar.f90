@@ -219,7 +219,8 @@ if (isel==1.or.isel==4.or.isel==5.or.isel==7) then !Standard orientation
 	read(10,*) rnouse,alpha(3,1),alpha(3,2),alpha(3,3)
 else if (isel==2.or.isel==3) then !Standard orientation
 	call loclabel(10,"Exact polarizability")
-	read(10,"(23x,6f8.3)",iostat=ierror) alpha(1,1),alpha(2,1),alpha(2,2),alpha(3,1),alpha(3,2),alpha(3,3)
+    read(10,"(a)") c200tmp
+	read(c200tmp(24:),*,iostat=ierror) alpha(1,1),alpha(2,1),alpha(2,2),alpha(3,1),alpha(3,2),alpha(3,3)
     !Sometimes magnitude of polarizability is quite large, leading to *** in this part. In this case load data from archive part instead
     if (ierror/=0) ireadalpha_archive=1 
 end if

@@ -227,7 +227,26 @@ end subroutine
 !!!----------- Generate Sbas for PBC if it has not been generated
 subroutine ask_Sbas_PBC
 use defvar
-if (ifPBC>0.and.(.not.allocated(Sbas))) then
+use util
+character c80tmp*80
+
+if (allocated(Sbas)) return
+
+inquire(file="CP2K_overlap.txt",exist=alive)
+if (alive) then !Directly use existing overlap matrix to save time
+	write(*,"(a)") " CP2K_overlap.txt has been found in current folder, load and use the overlap matrix in it later? (y/n)"
+	read(*,*) c80tmp
+	if (c80tmp=='y'.or.c80tmp=='Y') then
+		write(*,*) "Loading CP2K_overlap.txt ..."
+		open(10,file="CP2K_overlap.txt",status="old")
+		allocate(Sbas(nbasis,nbasis))
+		call readmatgau(10,Sbas,1,"?",7,5)
+		close(10)
+		write(*,*) "Loading overlap matrix finished!"
+	end if
+end if
+
+if (ifPBC>0.and.(.not.allocated(Sbas))) then !If ifPBC=0, Sbas is always generated when loading the file
     write(*,*)
     write(*,*) "Generating overlap matrix..."
     call genSbas_curr
