@@ -955,7 +955,7 @@ use defvar
 use util
 use GUI
 implicit real*8 (a-h,o-z)
-character c200tmp*200
+character c200tmp*200,c80tmp*80
 real*8,allocatable :: intcurve(:),locintcurve(:),pleavgcurve(:),curvepos(:)
 
 if (gridv1(2)==0.and.gridv1(3)==0) then !Can integrate along X axis
@@ -1012,9 +1012,11 @@ else if (idir==3) then
 end if
 
 write(*,*) "Input lower and upper limits of the position (in Angstrom), e.g. -30,51.5"
-write(*,*) "Input ""a"" can choose the entire range"
+write(*,*) "Press ENTER button directly or input ""a"" can choose the entire range"
 read(*,"(a)") c200tmp
-if (index(c200tmp,"a")==0) then
+if (c200tmp==" ".or.index(c200tmp,"a")/=0) then
+	continue
+else
 	read(c200tmp,*) rlow,rhigh
 	rlow=rlow/b2a
 	rhigh=rhigh/b2a
@@ -1025,7 +1027,7 @@ if (idir==1) then !Direction 1
 	allocate(intcurve(nx),locintcurve(nx),curvepos(nx),pleavgcurve(nx))
 	ncurpt=nx
     v1len=dsqrt(sum(gridv1**2))
-	if (index(c200tmp,"a")/=0) then
+	if (c200tmp==" ".or.index(c200tmp,"a")/=0) then
 		rlow=orgx
 		rhigh=orgx+(nx-1)*v1len
 	end if
@@ -1042,7 +1044,7 @@ else if (idir==2) then !Direction 2
 	allocate(intcurve(ny),locintcurve(ny),curvepos(ny),pleavgcurve(ny))
 	ncurpt=ny
     v2len=dsqrt(sum(gridv2**2))
-	if (index(c200tmp,"a")/=0) then
+	if (c200tmp==" ".or.index(c200tmp,"a")/=0) then
 		rlow=orgy
 		rhigh=orgy+(ny-1)*v2len
 	end if
@@ -1059,7 +1061,7 @@ else if (idir==3) then !Direction 3
 	allocate(intcurve(nz),locintcurve(nz),curvepos(nz),pleavgcurve(nz))
 	ncurpt=nz
     v3len=dsqrt(sum(gridv3**2))
-	if (index(c200tmp,"a")/=0) then
+	if (c200tmp==" ".or.index(c200tmp,"a")/=0) then
 		rlow=orgz
 		rhigh=orgz+(nz-1)*v3len
 	end if
@@ -1080,12 +1082,14 @@ write(*,*)
 write(*,"(' Minimum and maximum of plane-averaged curve:',2E16.8)") minval(pleavgcurve),maxval(pleavgcurve)
 write(*,"(' Minimum and maximum of local integral curve:',2E16.8)") minval(locintcurve),maxval(locintcurve)
 write(*,"(' Minimum and maximum of integral curve:      ',2E16.8)") minval(intcurve),maxval(intcurve)
+rlowlim=1
+ruplim=1
 
 do while(.true.)
 	write(*,*)
 	write(*,*) "-2 Set format of saving graphical file, current: "//graphformat
-	if (ilenunit1D==1) write(*,*) "-1 Change length unit of the graph to Angstrom"
-	if (ilenunit1D==2) write(*,*) "-1 Change length unit of the graph to Bohr"
+	if (ilenunit1D==1) write(*,*) "-1 Change length unit of the graph from Bohr to Angstrom"
+	if (ilenunit1D==2) write(*,*) "-1 Change length unit of the graph from Angstrom to Bohr"
 	write(*,*) "0 Return"
 	write(*,*) "1 Plot graph of integral curve"
 	write(*,*) "2 Plot graph of local integral curve"
@@ -1096,6 +1100,12 @@ do while(.true.)
 	write(*,*) "7 Export data of integral curve to intcurve.txt in current folder"
 	write(*,*) "8 Export data of local integral curve to locintcurve.txt in current folder"
 	write(*,*) "9 Export data of plane-averaged curve to pleavgcurve.txt in current folder"
+	if (rlowlim==ruplim) then
+		write(*,*) "10 Set lower and upper limits of Y-axis, current: Auto"
+    else
+		write(*,"(a,2E14.6)") " 10 Set lower and upper limits of Y-axis, current:",rlowlim,ruplim
+    end if
+    write(*,*) "11 Calculate value a given position (via linear interpolation)"
 	read(*,*) isel2
     if (isel2==-2) then
         call setgraphformat
@@ -1107,36 +1117,54 @@ do while(.true.)
 		end if
 	else if (isel2==0) then
 		exit
-	else if (isel2==1.or.isel2==4) then
-		disminmax=maxval(intcurve)-minval(intcurve)
-		ylow=minval(intcurve)-0.1D0*disminmax
-		yhigh=maxval(intcurve)+0.1D0*disminmax
+	else if (isel2==1.or.isel2==4) then !Integral curve
+        if (rlowlim==ruplim) then
+			disminmax=maxval(intcurve)-minval(intcurve)
+			ylow=minval(intcurve)-0.1D0*disminmax
+			yhigh=maxval(intcurve)+0.1D0*disminmax
+        else
+			ylow=rlowlim
+            yhigh=ruplim
+        end if
 		stplabx=(rhigh-rlow)/10
 		stplaby=(yhigh-ylow)/10
+        call showcurveminmax(ncurpt,curvepos,intcurve,ilenunit1D)
 		if (isel2==1) then
 			call drawcurve(curvepos,intcurve,ncurpt,rlow,rhigh,stplabx,ylow,yhigh,stplaby,"show")
 		else if (isel2==4) then
 			call drawcurve(curvepos,intcurve,ncurpt,rlow,rhigh,stplabx,ylow,yhigh,stplaby,"save")
             write(*,"(a)") " Done! Image file of integral curve has been saved to current folder with DISLIN prefix"
         end if
-	else if (isel2==2.or.isel2==5) then
-		disminmax=maxval(locintcurve)-minval(locintcurve)
-		ylow=minval(locintcurve)-0.1D0*disminmax
-		yhigh=maxval(locintcurve)+0.1D0*disminmax
+	else if (isel2==2.or.isel2==5) then !Local integral curve
+        if (rlowlim==ruplim) then
+			disminmax=maxval(locintcurve)-minval(locintcurve)
+			ylow=minval(locintcurve)-0.1D0*disminmax
+			yhigh=maxval(locintcurve)+0.1D0*disminmax
+        else
+			ylow=rlowlim
+            yhigh=ruplim
+        end if
 		stplabx=(rhigh-rlow)/10
 		stplaby=(yhigh-ylow)/10
+        call showcurveminmax(ncurpt,curvepos,locintcurve,ilenunit1D)
 		if (isel2==2) then
 			call drawcurve(curvepos,locintcurve,ncurpt,rlow,rhigh,stplabx,ylow,yhigh,stplaby,"show")
 		else if (isel2==5) then
 			call drawcurve(curvepos,locintcurve,ncurpt,rlow,rhigh,stplabx,ylow,yhigh,stplaby,"save")
             write(*,"(a)") " Done! Image file of local integral curve has been saved to current folder with DISLIN prefix"
         end if
-	else if (isel2==3.or.isel2==6) then
-		disminmax=maxval(pleavgcurve)-minval(pleavgcurve)
-		ylow=minval(pleavgcurve)-0.1D0*disminmax
-		yhigh=maxval(pleavgcurve)+0.1D0*disminmax
+	else if (isel2==3.or.isel2==6) then !Plane-averaged curve
+        if (rlowlim==ruplim) then
+			disminmax=maxval(pleavgcurve)-minval(pleavgcurve)
+			ylow=minval(pleavgcurve)-0.1D0*disminmax
+			yhigh=maxval(pleavgcurve)+0.1D0*disminmax
+        else
+			ylow=rlowlim
+            yhigh=ruplim
+        end if
 		stplabx=(rhigh-rlow)/10
 		stplaby=(yhigh-ylow)/10
+        call showcurveminmax(ncurpt,curvepos,pleavgcurve,ilenunit1D)
 		if (isel2==3) then
 			call drawcurve(curvepos,pleavgcurve,ncurpt,rlow,rhigh,stplabx,ylow,yhigh,stplaby,"show")
 		else if (isel2==6) then
@@ -1167,6 +1195,41 @@ do while(.true.)
 		end do
 		close(10)
 		write(*,"(a)") " Done! 1,2,3 columns correspond to the coordinate (in Bohr and in Angstrom) in the direction you selected and the plane-averaged value, respectively"						
+	else if (isel2==10) then
+		write(*,*) "Input lower and upper limits of Y-axis, e.g. -2.3,16.8"
+        write(*,*) "If pressing ENTER button directly, the limits will be automatically determined"
+        read(*,"(a)") c80tmp
+        if (c80tmp==" ") then
+			rlowlim=1
+            ruplim=1
+        else
+	        read(c80tmp,*) rlowlim,ruplim
+        end if
+    else if (isel2==11) then
+		write(*,*) "Calculate value a given point for which curve?"
+        write(*,*) "1 Integral curve"
+        write(*,*) "2 Local integral curve"
+        write(*,*) "3 Plane-averaged curve"
+        read(*,*) itype
+        if (ilenunit1D==1) write(*,*) "Input position in Bohr, e.g. 2.3"
+        if (ilenunit1D==2) write(*,*) "Input position in Angstrom, e.g. 2.3"
+        read(*,*) posinp
+        if (ilenunit1D==2) posinp=posinp/b2a
+        if (posinp<minval(curvepos)) then
+			write(*,*) "Error: The inputted position is smaller than lower limit!"
+            write(*,*) "Press ENTER button to return"
+            read(*,*)
+            cycle
+        else if (posinp>maxval(curvepos)) then
+			write(*,*) "Error: The inputted position is larger than upper limit!"
+            write(*,*) "Press ENTER button to return"
+            read(*,*)
+            cycle
+        end if
+        if (itype==1) call linintpol(curvepos,intcurve,ncurpt,posinp,val)
+        if (itype==2) call linintpol(curvepos,locintcurve,ncurpt,posinp,val)
+        if (itype==3) call linintpol(curvepos,pleavgcurve,ncurpt,posinp,val)
+        write(*,"(' The value is ',1PE18.8)") val
 	end if
 end do
 end subroutine

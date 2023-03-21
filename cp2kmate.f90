@@ -439,8 +439,8 @@ do while(.true.)
                 if (idipcorr==2) write(*,*) "23 Set surface dipole correction, current: Y direction"
                 if (idipcorr==3) write(*,*) "23 Set surface dipole correction, current: Z direction"
             end if
-            if (istructfile==1) write(*,*) "30 Toggle giving path of file instead of &COORD, current: Yes"
-            if (istructfile==0) write(*,*) "30 Toggle giving path of file instead of &COORD, current: No"
+            if (istructfile==1) write(*,*) "30 Toggle giving path of geometry file instead of &COORD, current: Yes"
+            if (istructfile==0) write(*,*) "30 Toggle giving path of geometry file instead of &COORD, current: No"
             read(*,*) isel2
             if (isel2==0) then
                 exit
@@ -758,6 +758,7 @@ do while(.true.)
         write(*,*) "4 Hartree potential (negative of ESP)"
         write(*,*) "5 Each component of electric field"
         write(*,*) "6 Molecular orbital(s)"
+        write(*,*) "7 Electron density + Hartree potential"
         read(*,*) ioutcube
         if (ioutcube==6) then
             write(*,*) "Output how many highest occupied orbitals? e.g. 5"
@@ -2403,6 +2404,13 @@ if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imom
             write(ifileid,"(a,i6)") "        NHOMO",NHOMO
             write(ifileid,"(a,i6)") "        NLUMO",NLUMO
             write(ifileid,"(a)") "      &END MO_CUBES"
+        else if (ioutcube==7) then
+            write(ifileid,"(a)") "      &E_DENSITY_CUBE"
+            write(ifileid,"(a)") "        STRIDE 1 #Stride of exported cube file"
+            write(ifileid,"(a)") "      &END E_DENSITY_CUBE"
+            write(ifileid,"(a)") "      &V_HARTREE_CUBE"
+            write(ifileid,"(a)") "        STRIDE 1 #Stride of exported cube file"
+            write(ifileid,"(a)") "      &END V_HARTREE_CUBE"
         end if
     end if
     if (iatomcharge>0) then
@@ -3715,6 +3723,7 @@ if (iopsh==1) then
     close(11)
 end if
 
+ispin=1
 if (iopsh==1) then
     write(*,*)
     write(*,*) "Plot which spin?"
@@ -3777,13 +3786,22 @@ end if
 !Determine X-pos of HOCO and LUCO
 do ipath=1,npath
     do ikp=pathkpbeg(ipath),pathkpend(ipath)
-        do iocc=1,nocc
-            if (occene(ikp,iocc,ipath)==E_HOCO) iHOCO=ikp
-        end do
-        do ivir=1,nvir
-            if (virene(ikp,ivir,ipath)==E_LUCO) iLUCO=ikp
-        end do
-        if (nspin==2) then
+        if (nspin==1.and.ispin==3) then !Consider only beta spin
+            do iocc=1,noccB
+                if (occeneB(ikp,iocc,ipath)==E_HOCO) iHOCO=ikp
+            end do
+            do ivir=1,nvirB
+                if (vireneB(ikp,ivir,ipath)==E_LUCO) iLUCO=ikp
+            end do
+        else !Alpha spin only, or alpha part of both spin
+            do iocc=1,nocc
+                if (occene(ikp,iocc,ipath)==E_HOCO) iHOCO=ikp
+            end do
+            do ivir=1,nvir
+                if (virene(ikp,ivir,ipath)==E_LUCO) iLUCO=ikp
+            end do
+        end if
+        if (nspin==2) then !Beta part of both spin case
             do iocc=1,noccB
                 if (occeneB(ikp,iocc,ipath)==E_HOCO_B) iHOCOB=ikp
             end do
@@ -3911,19 +3929,33 @@ do while(.true.)
             write(c80tmp,*) ipath
             outname="path"//trim(adjustl(c80tmp))//".txt"
             write(*,*) "Outputting "//trim(outname)
+            !non-spin or alpha spin
             open(10,file=outname,status="replace")
-            do ikp=pathkpbeg(ipath),pathkpend(ipath)
-                write(10,"(f7.4)",advance="no") kpXpos(ikp)
-                do iorb=1,nocc
-                    write(10,"(f12.6)",advance="no") occene(ikp,iorb,ipath)+eneshift
+            if (nspin==1.and.ispin==3) then !Beta only case
+                do ikp=pathkpbeg(ipath),pathkpend(ipath)
+                    write(10,"(f7.4)",advance="no") kpXpos(ikp)
+                    do iorb=1,noccB
+                        write(10,"(f12.6)",advance="no") occeneB(ikp,iorb,ipath)+eneshift
+                    end do
+                    do iorb=1,nvirB
+                        write(10,"(f12.6)",advance="no") vireneB(ikp,iorb,ipath)+eneshift
+                    end do
+                    write(10,*)
                 end do
-                do iorb=1,nvir
-                    write(10,"(f12.6)",advance="no") virene(ikp,iorb,ipath)+eneshift
+            else !Alpha only or alpha part of both spin
+                do ikp=pathkpbeg(ipath),pathkpend(ipath)
+                    write(10,"(f7.4)",advance="no") kpXpos(ikp)
+                    do iorb=1,nocc
+                        write(10,"(f12.6)",advance="no") occene(ikp,iorb,ipath)+eneshift
+                    end do
+                    do iorb=1,nvir
+                        write(10,"(f12.6)",advance="no") virene(ikp,iorb,ipath)+eneshift
+                    end do
+                    write(10,*)
                 end do
-                write(10,*)
-            end do
+            end if
             close(10)
-            if (iopsh==1) then !Beta spin
+            if (nspin==2) then !Beta spin
                 outname="path"//trim(adjustl(c80tmp))//"_B.txt"
                 write(*,*) "Outputting "//trim(outname)
                 open(10,file=outname,status="replace")
@@ -4170,15 +4202,27 @@ do while(.true.)
         !Only one spin case, plot total for closed-shell, or selected spin of open-shell
         if (ishowtype==0.or.ishowtype==1) then !Plot occupied levels
             call setcolor(icurveclr_occ)
-            do iocc=1,nocc
-                CALL CURVE(kpXpos(ibeg:iend),occene(ibeg:iend,iocc,ipath)+eneshift,nkptmp)
-            end do
+            if (nspin==1.and.ispin==3) then !Only consider Beta
+                do iocc=1,noccB
+                    CALL CURVE(kpXpos(ibeg:iend),occeneB(ibeg:iend,iocc,ipath)+eneshift,nkptmp)
+                end do
+            else !Alpha only, or alpha part of both spin case
+                do iocc=1,nocc
+                    CALL CURVE(kpXpos(ibeg:iend),occene(ibeg:iend,iocc,ipath)+eneshift,nkptmp)
+                end do
+            end if
         end if
         if (ishowtype==0.or.ishowtype==2) then !Plot virtual levels
             call setcolor(icurveclr_vir)
-            do ivir=1,nvir
-                CALL CURVE(kpXpos(ibeg:iend),virene(ibeg:iend,ivir,ipath)+eneshift,nkptmp)
-            end do
+            if (nspin==1.and.ispin==3) then !Only consider Beta
+                do ivir=1,nvirB
+                    CALL CURVE(kpXpos(ibeg:iend),vireneB(ibeg:iend,ivir,ipath)+eneshift,nkptmp)
+                end do
+            else !Alpha only, or alpha part of both spin case
+                do ivir=1,nvir
+                    CALL CURVE(kpXpos(ibeg:iend),virene(ibeg:iend,ivir,ipath)+eneshift,nkptmp)
+                end do
+            end if
         end if
         if (nspin==2) then !Two spins case, plot beta part
             if (ishowtype==0.or.ishowtype==1) then !Plot occupied levels

@@ -376,8 +376,8 @@ do while(.true.)
 	write(*,"(a,a)") " 9 Change the line color, current: ",trim(colorname(iclrcurve))
 	if (ilog10y==0) write(*,"(a,f8.3,1PE14.5)") " 10 Set label intervals in X and Y axes, current:",steplabx,steplaby
 	if (ilog10y==1) write(*,"(a,f8.3)") " 10 Set label interval in X axis, current:",steplabx
-	if (ilenunit1D==1) write(*,*) "11 Change length unit of the graph to Angstrom"
-	if (ilenunit1D==2) write(*,*) "11 Change length unit of the graph to Bohr"
+	if (ilenunit1D==1) write(*,*) "11 Change length unit of the graph from Bohr to Angstrom"
+	if (ilenunit1D==2) write(*,*) "11 Change length unit of the graph from Angstrom to Bohr"
 	write(*,"(a,i3)") " 12 Set width of curve line, current:",icurvethick
 
 	read(*,*) isel
@@ -428,30 +428,7 @@ do while(.true.)
 		write(*,*) "Input the ratio, e.g. 0.6"
 		read(*,*) curvexyratio
 	else if (isel==6) then
-		numlocmin=0
-		numlocmax=0
-		do ipt=2,npointcurve-1
-			gradold=curvey(ipt)-curvey(ipt-1)
-			gradnew=curvey(ipt+1)-curvey(ipt)
-			if (gradold*gradnew<0D0) then
-				if (gradold>gradnew) then
-					numlocmax=numlocmax+1
-					if (ilenunit1D==1) then
-						write(*,"(' Maximum X (Bohr):',f12.6,'  Value:',E18.8)") curvex(ipt),curvey(ipt)
-					else
-						write(*,"(' Maximum X (Angstrom):',f12.6,'  Value:',E18.8)") curvex(ipt)*b2a,curvey(ipt)
-					end if
-				else if (gradold<gradnew) then
-					numlocmin=numlocmin+1
-					if (ilenunit1D==1) then
-						write(*,"(' Minimum X (Bohr):',f12.6,'  Value:',E18.8)") curvex(ipt),curvey(ipt)
-					else
-						write(*,"(' Minimum X (Angstrom):',f12.6,'  Value:',E18.8)") curvex(ipt)*b2a,curvey(ipt)
-					end if
-				end if
-			end if
-		end do
-		write(*,"(' Totally found',i5,' minima,',i5,' maxima')") numlocmin,numlocmax
+		call showcurveminmax(npointcurve,curvex,curvey,ilenunit1D)
 	else if (isel==7) then
 		write(*,*) "Input a value, e.g. 0.4"
 		read(*,*) specvalue

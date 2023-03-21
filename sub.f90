@@ -5204,3 +5204,41 @@ basend(indcen)=nbasis
 !	write(*,*) iatm,basstart(iatm),basend(iatm)
 !end do
 end subroutine
+
+
+
+
+!!------- Show minimum and maximum of a curve
+!npointcurve: Number of points of xdata and ydata
+!ixunit=1: xdata is in Bohr, =2: xdata is in Angstrom
+subroutine showcurveminmax(npointcurve,xdata,ydata,ixunit)
+use defvar
+implicit real*8 (a-h,o-z)
+integer npointcurve
+real*8 xdata(npointcurve),ydata(npointcurve)
+
+numlocmin=0
+numlocmax=0
+do ipt=2,npointcurve-1
+	gradold=ydata(ipt)-ydata(ipt-1)
+	gradnew=ydata(ipt+1)-ydata(ipt)
+	if (gradold*gradnew<0D0) then
+		if (gradold>gradnew) then
+			numlocmax=numlocmax+1
+			if (ixunit==1) then
+				write(*,"(' Maximum X (Bohr):',f12.6,'  Value:',E18.8)") xdata(ipt),ydata(ipt)
+			else
+				write(*,"(' Maximum X (Angstrom):',f12.6,'  Value:',E18.8)") xdata(ipt)*b2a,ydata(ipt)
+			end if
+		else if (gradold<gradnew) then
+			numlocmin=numlocmin+1
+			if (ixunit==1) then
+				write(*,"(' Minimum X (Bohr):',f12.6,'  Value:',E18.8)") xdata(ipt),ydata(ipt)
+			else
+				write(*,"(' Minimum X (Angstrom):',f12.6,'  Value:',E18.8)") xdata(ipt)*b2a,ydata(ipt)
+			end if
+		end if
+	end if
+end do
+write(*,"(' Totally found',i5,' minima,',i5,' maxima')") numlocmin,numlocmax
+end subroutine

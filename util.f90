@@ -2651,6 +2651,37 @@ end subroutine
 
 
 
+
+!!--------- Linear interpolation in 1D
+!r: position, should within bound
+!val: interpolated value
+!ptpos: must vary from small to large
+subroutine linintpol(ptpos,ptval,npt,r,val)
+implicit real*8 (a-h,o-z)
+real*8 ptpos(npt),ptval(npt),r,val
+
+if (r==ptpos(1)) then
+	val=ptval(1)
+    return
+else if (r==ptpos(npt)) then
+	val=ptval(npt)
+    return
+end if
+do ipt=1,npt
+	if (ptpos(ipt)<r) then
+		lowpt=ipt
+    else
+		highpt=ipt
+        exit
+    end if
+end do
+der=(ptval(highpt)-ptval(lowpt))/(ptpos(highpt)-ptpos(lowpt))
+val=ptval(lowpt)+der*(r-ptpos(lowpt))
+end subroutine
+
+
+
+
 !--------- Show progress bar
 subroutine showprog(inow,nall)
 integer inow,nall
