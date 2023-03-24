@@ -64,8 +64,8 @@ real*8,allocatable :: OPVScomp(:) !composition of OPVS in vibrational mode i
 integer PVSnterm(maxPVSfrag) !Number of terms (atoms or RICs) in each PVS fragment
 integer,allocatable :: PVSterm(:,:) !PVSterm(k,i) is index of term k in PVS fragment i
 real*8,allocatable :: normmat_atm(:,:,:) !Temporarily record X/Y/Z component of all atoms in all normal vectors, normmat_atm(1:3,1:ncenter,1:numdata)
-real*8 PVScurve(maxPVSfrag,num1Dpoints),OPVScurve(num1Dpoints) !Data point of PVS/PVDOS and OPVS/OPVDOS
-real*8 PVScurveintra(maxPVSfrag,num1Dpoints) !Data point of intrafragment part of PVS-I
+real*8,allocatable :: PVScurve(:,:),OPVScurve(:) !Data point of PVS/PVDOS and OPVS/OPVDOS
+real*8,allocatable :: PVScurveintra(:,:) !Data point of intrafragment part of PVS-I
 integer :: iPVSshow(maxPVSfrag)=1,iOPVSshow=1 !If showing PVS/PVDOS and OPVS/OPVDOS curves
 character(len=80) PVSlegend(maxPVSfrag) !Legends of PVS/PVDOS curves
 integer PVScart(maxPVSfrag) !Temporarily use, considered Cartesian components of atoms in fragment
@@ -81,6 +81,8 @@ real*8,allocatable :: fragdipcomp(:,:,:,:) !x/y/z of fragment atoms contribution
 integer,allocatable :: cartlist(:,:) !(3*ncenter,maxPVSfrag), if (j,i) is 1, then Cartesian coordinate j belongs to fragment i, otherwise belongs to others
 real*8,allocatable :: dipder(:,:,:) !dipder(i,A,1/2/3) is derivative of x/y/z of dipole moment w.r.t i Cartesian coordinate of atom A
 real*8,allocatable :: redmass(:) !Reduced masses of vibrational modes
+!For predicting colors
+real*8 CIE_Xfunc(830),CIE_Yfunc(830),CIE_Zfunc(830)
 
 
 if (ifiletype/=0) then
@@ -273,6 +275,7 @@ if (allocated(curvey)) deallocate(curvey) !Global array
 if (allocated(curveytmp)) deallocate(curveytmp) !Global array
 allocate(curvex(num1Dpoints),curvey(num1Dpoints),curveytmp(num1Dpoints),curveyall(nsystem,num1Dpoints))
 allocate(linexall(nsystem,3*numdata),lineyall(nsystem,3*numdata))
+allocate(PVScurve(maxPVSfrag,num1Dpoints),OPVScurve(num1Dpoints),PVScurveintra(maxPVSfrag,num1Dpoints))
  
 
 !! Main interface
@@ -365,6 +368,7 @@ do while(.true.)
     if (ispectrum==1.or.ispectrum==2.or.ispectrum==5.or.ispectrum==6) then !IR, Raman, VCD, ROA
 		write(*,*) "24 Set partial vibrational spectra (PVS) or vibrational DOS (VDOS)"
     end if
+    if (ispectrum==3) write(*,*) "25 Evaluate color based on the spectrum in visible range"
 	read(*,"(a)") c80tmp
     
     if (index(c80tmp,'s')/=0) then
@@ -436,6 +440,7 @@ do while(.true.)
         write(10,"('thk_OPVS',i5)") thk_OPVS
         write(10,"('iVDOS',i5)") iVDOS
         write(10,"('labtype_Yright',i5)") labtype_Yright
+        write(10,"('num1Dpoints',i8)") num1Dpoints
         close(10)
         write(*,*) "Done!"
         cycle
@@ -514,6 +519,7 @@ do while(.true.)
         call readoption_int(10,"thk_OPVS",' ',thk_OPVS)
         call readoption_int(10,"iVDOS",' ',iVDOS)
         call readoption_int(10,"labtype_Yright",' ',labtype_Yright)
+        call readoption_int(10,"num1Dpoints",' ',num1Dpoints)
         close(10)
         write(*,*) "Loading finished!"
         cycle
@@ -975,6 +981,7 @@ do while(.true.)
             if (iYeq0==0) write(*,*) "12 Toggle drawing a line corresponding to Y=0, current: No"
             if (iYeq0==1) write(*,*) "12 Toggle drawing a line corresponding to Y=0, current: Yes"
             if (nsystem>1.and.ishowweicurve/=1) write(*,*) "13 Set color of line and curve of different systems"
+            write(*,"(a,i8)") " 14 Set number of points in the curve, current:",num1Dpoints
             read(*,*) isel2
             if (isel2==0) then
                 exit
@@ -1054,6 +1061,14 @@ do while(.true.)
                     write(*,*) "Set to which color?"
                     call selcolor(currclr(isystem))
                 end do
+            else if (isel2==14) then
+				write(*,*) "Input number of points in the curve(s), e.g. 350"
+                write(*,"(a)") " Note: Assume that the energy range for plotting is 380 to 760 nm, &
+                if you set number of points to (760-380)+1=381, then spacing between adjacent two points will be exactly 1 nm"
+                read(*,*) num1Dpoints
+                deallocate(curvex,curvey,curveytmp,curveyall,PVScurve,OPVScurve,PVScurveintra)
+                allocate(curvex(num1Dpoints),curvey(num1Dpoints),curveytmp(num1Dpoints),curveyall(nsystem,num1Dpoints))
+                allocate(PVScurve(maxPVSfrag,num1Dpoints),OPVScurve(num1Dpoints),PVScurveintra(maxPVSfrag,num1Dpoints))
             end if
         end do
         
@@ -2013,7 +2028,7 @@ do while(.true.)
 				end if
             end if
 		end do !End menu loop of PVS
-        
+    
     end if
 	
 	if (isel==15.and.nsystem>1) then !Showing individual transition contribution is not possible when multiple files are involved
@@ -2022,8 +2037,16 @@ do while(.true.)
 		read(*,*)
 		cycle
 	end if
-	
-    
+	if (isel==25) then !For predicting color, making range and point spacing in line with CIE1931 tristimulus functions
+    		xlow=360
+		xhigh=830
+		stepx=50
+		iusersetX=1
+		num1Dpoints=471
+        deallocate(curvex,curvey,curveytmp,curveyall,PVScurve,OPVScurve,PVScurveintra)
+        allocate(curvex(num1Dpoints),curvey(num1Dpoints),curveytmp(num1Dpoints),curveyall(nsystem,num1Dpoints))
+        allocate(PVScurve(maxPVSfrag,num1Dpoints),OPVScurve(num1Dpoints),PVScurveintra(maxPVSfrag,num1Dpoints))
+    end if
     
     
     
@@ -2033,7 +2056,7 @@ do while(.true.)
 	!!=============== Below functions need calculation of curves ============!!
 	!!=======================================================================!!
 	!!=======================================================================!!
-	if (isel==0.or.isel==1.or.isel==2.or.isel==15) then
+	if (isel==0.or.isel==1.or.isel==2.or.isel==15.or.isel==25) then
 		!====== Construct correspondence array if outputting individual bands. Only available when one file is loaded
 		!This function is not available when multiple systems are considered
 		if (isel==15) then
@@ -2249,22 +2272,28 @@ do while(.true.)
 			if (nsystem==1) then
 				open(10,file="spectrum_curve.txt",status="replace")
 				do ipt=1,num1Dpoints
-					write(10,"(f13.5,1PE18.8E3)") curvex(ipt),curvey(ipt)
+                    if (ispecial==0) then
+						write(10,"(f13.5,1PE18.8E3)") curvex(ipt),curvey(ipt)
+                    else !Format is compatible with requirement of input file of CIE1931xy.V.1.6.0.2.exe
+						write(c200tmp,"(i8)") nint(curvex(ipt))
+						write(c200tmp2,"(f16.3)") curvey(ipt)
+                        write(10,"(a)") trim(adjustl(c200tmp))//' '//trim(adjustl(c200tmp2))
+                    end if
 				end do
 				close(10)
-				write(*,*) "Curve data has been written to spectrum_curve.txt in current folder"
+				write(*,*) "Curve data has been exported to spectrum_curve.txt in current folder"
 			else !Also output curve for all systems
 				if (any(weight/=1)) then !Output weighted spectrum 
 					open(10,file="spectrum_curve.txt",status="replace")
 					do ipt=1,num1Dpoints
-						write(10,"(f13.5,1PE18.8E3)") curvex(ipt),curvey(ipt)
+                        write(10,"(f13.5,1PE18.8E3)") curvex(ipt),curvey(ipt)
 					end do
 					close(10)
-					write(*,"(a)") " The curve data corresponding to weighted spectrum has been written to spectrum_curve.txt in current folder"
+					write(*,"(a)") " The curve data corresponding to weighted spectrum has been exported to spectrum_curve.txt in current folder"
 				end if
 				open(10,file="curveall.txt",status="replace")
 				do ipt=1,num1Dpoints
-					write(10,"(f13.5)",advance="no") curvex(ipt)
+                    write(10,"(f13.5)",advance="no") curvex(ipt)
 					do imol=1,nsystem
 						write(10,"(1PE18.8E3)",advance="no") curveyall(imol,ipt)
 					end do
@@ -2446,7 +2475,7 @@ do while(.true.)
 	!========================================
 	!============ Draw spectrum =============
 	!========================================
-	if (isel==0.or.isel==1) then
+	if (isel==0.or.isel==1.or.isel==25) then
 
 		if (iusersetY1==0) then !Set default lower and upper limit of left Y axis
 			endy1=1.1D0*max(maxval(abs(curvey)),maxval(abs(curveyall)))
@@ -2877,6 +2906,101 @@ do while(.true.)
         
 		call disfin
 		if (isavepic==1) write(*,*) "Graphical file has been saved to current folder with ""dislin"" prefix"
+        
+        !Show color based on spectrum
+        if (isel==25) then
+			call gen_CIE_tristimulus_func(CIE_Xfunc,CIE_Yfunc,CIE_Zfunc)
+			CIE_X=0
+			CIE_Y=0
+			CIE_Z=0
+			do ipoint=1,num1Dpoints !In the present case, the X of spectrum curve starts from 360 and ends to 830 with spacing of 1 nm, which in line with tristimulus functions
+				inm=ipoint-1+360
+				CIE_X=CIE_X+curvey(ipoint)*CIE_Xfunc(inm)
+				CIE_Y=CIE_Y+curvey(ipoint)*CIE_Yfunc(inm)
+				CIE_Z=CIE_Z+curvey(ipoint)*CIE_Zfunc(inm)
+			end do
+			write(*,"(/,' CIE1931 XYZ:       ',3f18.3)") CIE_X,CIE_Y,CIE_Z
+			tmp=max(max(CIE_X,CIE_Y),CIE_Z)
+			sCIE_X=CIE_X/tmp
+			sCIE_Y=CIE_Y/tmp
+			sCIE_Z=CIE_Z/tmp
+			write(*,"(' Fractional CIE1931 XYZ:',3f18.10)") sCIE_X,sCIE_Y,sCIE_Z
+			CIE_smallx=CIE_X/(CIE_X+CIE_Y+CIE_Z)
+			CIE_smally=CIE_Y/(CIE_X+CIE_Y+CIE_Z)
+			write(*,"(' CIE1931 xy:        ',2f18.10)") CIE_smallx,CIE_smally
+			Rcomp =  3.2404542D0*sCIE_X  -1.5371385D0*sCIE_Y  -0.4985314D0*sCIE_Z
+			Gcomp = -0.9692660D0*sCIE_X + 1.8760108D0*sCIE_Y + 0.0415560D0*sCIE_Z
+			Bcomp =  0.0556434D0*sCIE_X  -0.2040259D0*sCIE_Y + 1.0572252D0*sCIE_Z
+			write(*,"(a)") " Note the R,G,B values show below correspond to standard RGB (sRGB) color space"
+			write(*,"(' RGB (0-1):  ',3f10.6)") Rcomp,Gcomp,Bcomp
+			intRcomp=nint(Rcomp*255);intGcomp=nint(Gcomp*255);intBcomp=nint(Bcomp*255)
+			write(*,"(' RGB (0-255):',3i6)") intRcomp,intGcomp,intBcomp
+			!Gamma correction. I think this is redundant
+	   !     if (Rcomp<=0.0031308D0) then
+				!Rcomp=12.92D0*Rcomp
+	   !     else
+				!Rcomp=1.055D0*Rcomp**(1D0/2.4D0)-0.055D0
+	   !     end if
+	   !     if (Gcomp<=0.0031308D0) then
+				!Gcomp=12.92D0*Gcomp
+	   !     else
+				!Gcomp=1.055D0*Gcomp**(1D0/2.4D0)-0.055D0
+	   !     end if
+	   !     if (Bcomp<=0.0031308D0) then
+				!Bcomp=12.92D0*Bcomp
+	   !     else
+				!Bcomp=1.055D0*Bcomp**(1D0/2.4D0)-0.055D0
+	   !     end if
+	   !     intRcomp=nint(Rcomp*255);intGcomp=nint(Gcomp*255);intBcomp=nint(Bcomp*255)
+        
+			if (Rcomp<0.or.Rcomp>1.or.Gcomp<0.or.Gcomp>1.or.Bcomp<0.or.Bcomp>1) then
+				write(*,"(a)") " Note: The color exceeds sRGB color space! Now the R,G,B values are scaled into valid range:"
+				if (Rcomp<0) Rcomp=0;if (Gcomp<0) Gcomp=0;if (Bcomp<0) Bcomp=0
+				if (Rcomp>1) Rcomp=1;if (Gcomp>1) Gcomp=1;if (Bcomp>1) Bcomp=1
+				write(*,"(' RGB (0-1):  ',3f10.6)") Rcomp,Gcomp,Bcomp
+				intRcomp=nint(Rcomp*255);intGcomp=nint(Gcomp*255);intBcomp=nint(Bcomp*255)
+				write(*,"(' RGB (0-255):',3i6)") intRcomp,intGcomp,intBcomp
+			end if
+			Rcomp_op=1-Rcomp !Opposite color
+			Gcomp_op=1-Gcomp
+			Bcomp_op=1-Bcomp
+			write(*,"(' RGB of complementary color:',3i6)") nint(Rcomp_op*255),nint(Gcomp_op*255),nint(Bcomp_op*255)
+			shiftval=1-max(max(Rcomp,Gcomp),Bcomp)
+			Rcomp_maxbr=Rcomp+shiftval
+			Gcomp_maxbr=Gcomp+shiftval
+			Bcomp_maxbr=Bcomp+shiftval
+			shiftval=1-max(max(Rcomp_op,Gcomp_op),Bcomp_op)
+			Rcomp_op_maxbr=Rcomp_op+shiftval
+			Gcomp_op_maxbr=Gcomp_op+shiftval
+			Bcomp_op_maxbr=Bcomp_op+shiftval
+			write(*,"(' RGB of original color (maximum brightness):     ',3i6)") nint(Rcomp_maxbr*255),nint(Gcomp_maxbr*255),nint(Bcomp_maxbr*255)
+			write(*,"(' RGB of complementary color (maximum brightness):',3i6)") nint(Rcomp_op_maxbr*255),nint(Gcomp_op_maxbr*255),nint(Bcomp_op_maxbr*255)
+            !Show color on screen
+            CALL SCRMOD('REVERS')
+			CALL METAFL('CONS')
+			call window(200,100,848,600)
+			!CALL PAGE(1600,1000)
+			CALL DISINI
+		    call ERRMOD("ALL","OFF")
+            call WINTIT("Click right mouse button to close...")
+            !call PAGERA
+			call hwfont
+            call shdpat(16)
+            call SETRGB(Rcomp,Gcomp,Bcomp)
+            call rectan(300,200,600,400)
+            call SETRGB(Rcomp_op,Gcomp_op,Bcomp_op)
+            call rectan(1200,200,600,400)
+            call SETRGB(Rcomp_maxbr,Gcomp_maxbr,Bcomp_maxbr)
+            call rectan(300,900,600,400)
+            call SETRGB(Rcomp_op_maxbr,Gcomp_op_maxbr,Bcomp_op_maxbr)
+            call rectan(1200,900,600,400)
+            call SETRGB(0D0,0D0,0D0)
+            call height(60)
+			call messag("color",500,100)
+			call messag("complementary color",1100,100)
+			call messag("Maximum brightness of above colors:",350,800)
+			CALL DISFIN
+        end if
 	end if
 
 end do
@@ -5405,4 +5529,482 @@ else if (iprog==0) then !Undetermined
 end if
 close(10)
 
+end subroutine
+
+
+
+!!---------- Generate CIE 1931 two-degree tristimulus functions, element index corresponds to nm value. Obtained from http://cvrl.ucl.ac.uk/cmfs.htm
+subroutine gen_CIE_tristimulus_func(CIE_Xfunc,CIE_Yfunc,CIE_Zfunc)
+real*8 CIE_Xfunc(830),CIE_Yfunc(830),CIE_Zfunc(830)
+CIE_Xfunc(360)=0.000129900000D0;CIE_Yfunc(360)=0.000003917000D0;CIE_Zfunc(360)=0.000606100000D0 
+CIE_Xfunc(361)=0.000145847000D0;CIE_Yfunc(361)=0.000004393581D0;CIE_Zfunc(361)=0.000680879200D0 
+CIE_Xfunc(362)=0.000163802100D0;CIE_Yfunc(362)=0.000004929604D0;CIE_Zfunc(362)=0.000765145600D0 
+CIE_Xfunc(363)=0.000184003700D0;CIE_Yfunc(363)=0.000005532136D0;CIE_Zfunc(363)=0.000860012400D0 
+CIE_Xfunc(364)=0.000206690200D0;CIE_Yfunc(364)=0.000006208245D0;CIE_Zfunc(364)=0.000966592800D0 
+CIE_Xfunc(365)=0.000232100000D0;CIE_Yfunc(365)=0.000006965000D0;CIE_Zfunc(365)=0.001086000000D0 
+CIE_Xfunc(366)=0.000260728000D0;CIE_Yfunc(366)=0.000007813219D0;CIE_Zfunc(366)=0.001220586000D0 
+CIE_Xfunc(367)=0.000293075000D0;CIE_Yfunc(367)=0.000008767336D0;CIE_Zfunc(367)=0.001372729000D0 
+CIE_Xfunc(368)=0.000329388000D0;CIE_Yfunc(368)=0.000009839844D0;CIE_Zfunc(368)=0.001543579000D0 
+CIE_Xfunc(369)=0.000369914000D0;CIE_Yfunc(369)=0.000011043230D0;CIE_Zfunc(369)=0.001734286000D0 
+CIE_Xfunc(370)=0.000414900000D0;CIE_Yfunc(370)=0.000012390000D0;CIE_Zfunc(370)=0.001946000000D0 
+CIE_Xfunc(371)=0.000464158700D0;CIE_Yfunc(371)=0.000013886410D0;CIE_Zfunc(371)=0.002177777000D0 
+CIE_Xfunc(372)=0.000518986000D0;CIE_Yfunc(372)=0.000015557280D0;CIE_Zfunc(372)=0.002435809000D0 
+CIE_Xfunc(373)=0.000581854000D0;CIE_Yfunc(373)=0.000017442960D0;CIE_Zfunc(373)=0.002731953000D0 
+CIE_Xfunc(374)=0.000655234700D0;CIE_Yfunc(374)=0.000019583750D0;CIE_Zfunc(374)=0.003078064000D0 
+CIE_Xfunc(375)=0.000741600000D0;CIE_Yfunc(375)=0.000022020000D0;CIE_Zfunc(375)=0.003486000000D0 
+CIE_Xfunc(376)=0.000845029600D0;CIE_Yfunc(376)=0.000024839650D0;CIE_Zfunc(376)=0.003975227000D0 
+CIE_Xfunc(377)=0.000964526800D0;CIE_Yfunc(377)=0.000028041260D0;CIE_Zfunc(377)=0.004540880000D0 
+CIE_Xfunc(378)=0.001094949000D0;CIE_Yfunc(378)=0.000031531040D0;CIE_Zfunc(378)=0.005158320000D0 
+CIE_Xfunc(379)=0.001231154000D0;CIE_Yfunc(379)=0.000035215210D0;CIE_Zfunc(379)=0.005802907000D0 
+CIE_Xfunc(380)=0.001368000000D0;CIE_Yfunc(380)=0.000039000000D0;CIE_Zfunc(380)=0.006450001000D0 
+CIE_Xfunc(381)=0.001502050000D0;CIE_Yfunc(381)=0.000042826400D0;CIE_Zfunc(381)=0.007083216000D0 
+CIE_Xfunc(382)=0.001642328000D0;CIE_Yfunc(382)=0.000046914600D0;CIE_Zfunc(382)=0.007745488000D0 
+CIE_Xfunc(383)=0.001802382000D0;CIE_Yfunc(383)=0.000051589600D0;CIE_Zfunc(383)=0.008501152000D0 
+CIE_Xfunc(384)=0.001995757000D0;CIE_Yfunc(384)=0.000057176400D0;CIE_Zfunc(384)=0.009414544000D0 
+CIE_Xfunc(385)=0.002236000000D0;CIE_Yfunc(385)=0.000064000000D0;CIE_Zfunc(385)=0.010549990000D0 
+CIE_Xfunc(386)=0.002535385000D0;CIE_Yfunc(386)=0.000072344210D0;CIE_Zfunc(386)=0.011965800000D0 
+CIE_Xfunc(387)=0.002892603000D0;CIE_Yfunc(387)=0.000082212240D0;CIE_Zfunc(387)=0.013655870000D0 
+CIE_Xfunc(388)=0.003300829000D0;CIE_Yfunc(388)=0.000093508160D0;CIE_Zfunc(388)=0.015588050000D0 
+CIE_Xfunc(389)=0.003753236000D0;CIE_Yfunc(389)=0.000106136100D0;CIE_Zfunc(389)=0.017730150000D0 
+CIE_Xfunc(390)=0.004243000000D0;CIE_Yfunc(390)=0.000120000000D0;CIE_Zfunc(390)=0.020050010000D0 
+CIE_Xfunc(391)=0.004762389000D0;CIE_Yfunc(391)=0.000134984000D0;CIE_Zfunc(391)=0.022511360000D0 
+CIE_Xfunc(392)=0.005330048000D0;CIE_Yfunc(392)=0.000151492000D0;CIE_Zfunc(392)=0.025202880000D0 
+CIE_Xfunc(393)=0.005978712000D0;CIE_Yfunc(393)=0.000170208000D0;CIE_Zfunc(393)=0.028279720000D0 
+CIE_Xfunc(394)=0.006741117000D0;CIE_Yfunc(394)=0.000191816000D0;CIE_Zfunc(394)=0.031897040000D0 
+CIE_Xfunc(395)=0.007650000000D0;CIE_Yfunc(395)=0.000217000000D0;CIE_Zfunc(395)=0.036210000000D0 
+CIE_Xfunc(396)=0.008751373000D0;CIE_Yfunc(396)=0.000246906700D0;CIE_Zfunc(396)=0.041437710000D0 
+CIE_Xfunc(397)=0.010028880000D0;CIE_Yfunc(397)=0.000281240000D0;CIE_Zfunc(397)=0.047503720000D0 
+CIE_Xfunc(398)=0.011421700000D0;CIE_Yfunc(398)=0.000318520000D0;CIE_Zfunc(398)=0.054119880000D0 
+CIE_Xfunc(399)=0.012869010000D0;CIE_Yfunc(399)=0.000357266700D0;CIE_Zfunc(399)=0.060998030000D0 
+CIE_Xfunc(400)=0.014310000000D0;CIE_Yfunc(400)=0.000396000000D0;CIE_Zfunc(400)=0.067850010000D0 
+CIE_Xfunc(401)=0.015704430000D0;CIE_Yfunc(401)=0.000433714700D0;CIE_Zfunc(401)=0.074486320000D0 
+CIE_Xfunc(402)=0.017147440000D0;CIE_Yfunc(402)=0.000473024000D0;CIE_Zfunc(402)=0.081361560000D0 
+CIE_Xfunc(403)=0.018781220000D0;CIE_Yfunc(403)=0.000517876000D0;CIE_Zfunc(403)=0.089153640000D0 
+CIE_Xfunc(404)=0.020748010000D0;CIE_Yfunc(404)=0.000572218700D0;CIE_Zfunc(404)=0.098540480000D0 
+CIE_Xfunc(405)=0.023190000000D0;CIE_Yfunc(405)=0.000640000000D0;CIE_Zfunc(405)=0.110200000000D0 
+CIE_Xfunc(406)=0.026207360000D0;CIE_Yfunc(406)=0.000724560000D0;CIE_Zfunc(406)=0.124613300000D0 
+CIE_Xfunc(407)=0.029782480000D0;CIE_Yfunc(407)=0.000825500000D0;CIE_Zfunc(407)=0.141701700000D0 
+CIE_Xfunc(408)=0.033880920000D0;CIE_Yfunc(408)=0.000941160000D0;CIE_Zfunc(408)=0.161303500000D0 
+CIE_Xfunc(409)=0.038468240000D0;CIE_Yfunc(409)=0.001069880000D0;CIE_Zfunc(409)=0.183256800000D0 
+CIE_Xfunc(410)=0.043510000000D0;CIE_Yfunc(410)=0.001210000000D0;CIE_Zfunc(410)=0.207400000000D0 
+CIE_Xfunc(411)=0.048995600000D0;CIE_Yfunc(411)=0.001362091000D0;CIE_Zfunc(411)=0.233692100000D0 
+CIE_Xfunc(412)=0.055022600000D0;CIE_Yfunc(412)=0.001530752000D0;CIE_Zfunc(412)=0.262611400000D0 
+CIE_Xfunc(413)=0.061718800000D0;CIE_Yfunc(413)=0.001720368000D0;CIE_Zfunc(413)=0.294774600000D0 
+CIE_Xfunc(414)=0.069212000000D0;CIE_Yfunc(414)=0.001935323000D0;CIE_Zfunc(414)=0.330798500000D0 
+CIE_Xfunc(415)=0.077630000000D0;CIE_Yfunc(415)=0.002180000000D0;CIE_Zfunc(415)=0.371300000000D0 
+CIE_Xfunc(416)=0.086958110000D0;CIE_Yfunc(416)=0.002454800000D0;CIE_Zfunc(416)=0.416209100000D0 
+CIE_Xfunc(417)=0.097176720000D0;CIE_Yfunc(417)=0.002764000000D0;CIE_Zfunc(417)=0.465464200000D0 
+CIE_Xfunc(418)=0.108406300000D0;CIE_Yfunc(418)=0.003117800000D0;CIE_Zfunc(418)=0.519694800000D0 
+CIE_Xfunc(419)=0.120767200000D0;CIE_Yfunc(419)=0.003526400000D0;CIE_Zfunc(419)=0.579530300000D0 
+CIE_Xfunc(420)=0.134380000000D0;CIE_Yfunc(420)=0.004000000000D0;CIE_Zfunc(420)=0.645600000000D0 
+CIE_Xfunc(421)=0.149358200000D0;CIE_Yfunc(421)=0.004546240000D0;CIE_Zfunc(421)=0.718483800000D0 
+CIE_Xfunc(422)=0.165395700000D0;CIE_Yfunc(422)=0.005159320000D0;CIE_Zfunc(422)=0.796713300000D0 
+CIE_Xfunc(423)=0.181983100000D0;CIE_Yfunc(423)=0.005829280000D0;CIE_Zfunc(423)=0.877845900000D0 
+CIE_Xfunc(424)=0.198611000000D0;CIE_Yfunc(424)=0.006546160000D0;CIE_Zfunc(424)=0.959439000000D0 
+CIE_Xfunc(425)=0.214770000000D0;CIE_Yfunc(425)=0.007300000000D0;CIE_Zfunc(425)=1.039050100000D0 
+CIE_Xfunc(426)=0.230186800000D0;CIE_Yfunc(426)=0.008086507000D0;CIE_Zfunc(426)=1.115367300000D0 
+CIE_Xfunc(427)=0.244879700000D0;CIE_Yfunc(427)=0.008908720000D0;CIE_Zfunc(427)=1.188497100000D0 
+CIE_Xfunc(428)=0.258777300000D0;CIE_Yfunc(428)=0.009767680000D0;CIE_Zfunc(428)=1.258123300000D0 
+CIE_Xfunc(429)=0.271807900000D0;CIE_Yfunc(429)=0.010664430000D0;CIE_Zfunc(429)=1.323929600000D0 
+CIE_Xfunc(430)=0.283900000000D0;CIE_Yfunc(430)=0.011600000000D0;CIE_Zfunc(430)=1.385600000000D0 
+CIE_Xfunc(431)=0.294943800000D0;CIE_Yfunc(431)=0.012573170000D0;CIE_Zfunc(431)=1.442635200000D0 
+CIE_Xfunc(432)=0.304896500000D0;CIE_Yfunc(432)=0.013582720000D0;CIE_Zfunc(432)=1.494803500000D0 
+CIE_Xfunc(433)=0.313787300000D0;CIE_Yfunc(433)=0.014629680000D0;CIE_Zfunc(433)=1.542190300000D0 
+CIE_Xfunc(434)=0.321645400000D0;CIE_Yfunc(434)=0.015715090000D0;CIE_Zfunc(434)=1.584880700000D0 
+CIE_Xfunc(435)=0.328500000000D0;CIE_Yfunc(435)=0.016840000000D0;CIE_Zfunc(435)=1.622960000000D0 
+CIE_Xfunc(436)=0.334351300000D0;CIE_Yfunc(436)=0.018007360000D0;CIE_Zfunc(436)=1.656404800000D0 
+CIE_Xfunc(437)=0.339210100000D0;CIE_Yfunc(437)=0.019214480000D0;CIE_Zfunc(437)=1.685295900000D0 
+CIE_Xfunc(438)=0.343121300000D0;CIE_Yfunc(438)=0.020453920000D0;CIE_Zfunc(438)=1.709874500000D0 
+CIE_Xfunc(439)=0.346129600000D0;CIE_Yfunc(439)=0.021718240000D0;CIE_Zfunc(439)=1.730382100000D0 
+CIE_Xfunc(440)=0.348280000000D0;CIE_Yfunc(440)=0.023000000000D0;CIE_Zfunc(440)=1.747060000000D0 
+CIE_Xfunc(441)=0.349599900000D0;CIE_Yfunc(441)=0.024294610000D0;CIE_Zfunc(441)=1.760044600000D0 
+CIE_Xfunc(442)=0.350147400000D0;CIE_Yfunc(442)=0.025610240000D0;CIE_Zfunc(442)=1.769623300000D0 
+CIE_Xfunc(443)=0.350013000000D0;CIE_Yfunc(443)=0.026958570000D0;CIE_Zfunc(443)=1.776263700000D0 
+CIE_Xfunc(444)=0.349287000000D0;CIE_Yfunc(444)=0.028351250000D0;CIE_Zfunc(444)=1.780433400000D0 
+CIE_Xfunc(445)=0.348060000000D0;CIE_Yfunc(445)=0.029800000000D0;CIE_Zfunc(445)=1.782600000000D0 
+CIE_Xfunc(446)=0.346373300000D0;CIE_Yfunc(446)=0.031310830000D0;CIE_Zfunc(446)=1.782968200000D0 
+CIE_Xfunc(447)=0.344262400000D0;CIE_Yfunc(447)=0.032883680000D0;CIE_Zfunc(447)=1.781699800000D0 
+CIE_Xfunc(448)=0.341808800000D0;CIE_Yfunc(448)=0.034521120000D0;CIE_Zfunc(448)=1.779198200000D0 
+CIE_Xfunc(449)=0.339094100000D0;CIE_Yfunc(449)=0.036225710000D0;CIE_Zfunc(449)=1.775867100000D0 
+CIE_Xfunc(450)=0.336200000000D0;CIE_Yfunc(450)=0.038000000000D0;CIE_Zfunc(450)=1.772110000000D0 
+CIE_Xfunc(451)=0.333197700000D0;CIE_Yfunc(451)=0.039846670000D0;CIE_Zfunc(451)=1.768258900000D0 
+CIE_Xfunc(452)=0.330041100000D0;CIE_Yfunc(452)=0.041768000000D0;CIE_Zfunc(452)=1.764039000000D0 
+CIE_Xfunc(453)=0.326635700000D0;CIE_Yfunc(453)=0.043766000000D0;CIE_Zfunc(453)=1.758943800000D0 
+CIE_Xfunc(454)=0.322886800000D0;CIE_Yfunc(454)=0.045842670000D0;CIE_Zfunc(454)=1.752466300000D0 
+CIE_Xfunc(455)=0.318700000000D0;CIE_Yfunc(455)=0.048000000000D0;CIE_Zfunc(455)=1.744100000000D0 
+CIE_Xfunc(456)=0.314025100000D0;CIE_Yfunc(456)=0.050243680000D0;CIE_Zfunc(456)=1.733559500000D0 
+CIE_Xfunc(457)=0.308884000000D0;CIE_Yfunc(457)=0.052573040000D0;CIE_Zfunc(457)=1.720858100000D0 
+CIE_Xfunc(458)=0.303290400000D0;CIE_Yfunc(458)=0.054980560000D0;CIE_Zfunc(458)=1.705936900000D0 
+CIE_Xfunc(459)=0.297257900000D0;CIE_Yfunc(459)=0.057458720000D0;CIE_Zfunc(459)=1.688737200000D0 
+CIE_Xfunc(460)=0.290800000000D0;CIE_Yfunc(460)=0.060000000000D0;CIE_Zfunc(460)=1.669200000000D0 
+CIE_Xfunc(461)=0.283970100000D0;CIE_Yfunc(461)=0.062601970000D0;CIE_Zfunc(461)=1.647528700000D0 
+CIE_Xfunc(462)=0.276721400000D0;CIE_Yfunc(462)=0.065277520000D0;CIE_Zfunc(462)=1.623412700000D0 
+CIE_Xfunc(463)=0.268917800000D0;CIE_Yfunc(463)=0.068042080000D0;CIE_Zfunc(463)=1.596022300000D0 
+CIE_Xfunc(464)=0.260422700000D0;CIE_Yfunc(464)=0.070911090000D0;CIE_Zfunc(464)=1.564528000000D0 
+CIE_Xfunc(465)=0.251100000000D0;CIE_Yfunc(465)=0.073900000000D0;CIE_Zfunc(465)=1.528100000000D0 
+CIE_Xfunc(466)=0.240847500000D0;CIE_Yfunc(466)=0.077016000000D0;CIE_Zfunc(466)=1.486111400000D0 
+CIE_Xfunc(467)=0.229851200000D0;CIE_Yfunc(467)=0.080266400000D0;CIE_Zfunc(467)=1.439521500000D0 
+CIE_Xfunc(468)=0.218407200000D0;CIE_Yfunc(468)=0.083666800000D0;CIE_Zfunc(468)=1.389879900000D0 
+CIE_Xfunc(469)=0.206811500000D0;CIE_Yfunc(469)=0.087232800000D0;CIE_Zfunc(469)=1.338736200000D0 
+CIE_Xfunc(470)=0.195360000000D0;CIE_Yfunc(470)=0.090980000000D0;CIE_Zfunc(470)=1.287640000000D0 
+CIE_Xfunc(471)=0.184213600000D0;CIE_Yfunc(471)=0.094917550000D0;CIE_Zfunc(471)=1.237422300000D0 
+CIE_Xfunc(472)=0.173327300000D0;CIE_Yfunc(472)=0.099045840000D0;CIE_Zfunc(472)=1.187824300000D0 
+CIE_Xfunc(473)=0.162688100000D0;CIE_Yfunc(473)=0.103367400000D0;CIE_Zfunc(473)=1.138761100000D0 
+CIE_Xfunc(474)=0.152283300000D0;CIE_Yfunc(474)=0.107884600000D0;CIE_Zfunc(474)=1.090148000000D0 
+CIE_Xfunc(475)=0.142100000000D0;CIE_Yfunc(475)=0.112600000000D0;CIE_Zfunc(475)=1.041900000000D0 
+CIE_Xfunc(476)=0.132178600000D0;CIE_Yfunc(476)=0.117532000000D0;CIE_Zfunc(476)=0.994197600000D0 
+CIE_Xfunc(477)=0.122569600000D0;CIE_Yfunc(477)=0.122674400000D0;CIE_Zfunc(477)=0.947347300000D0 
+CIE_Xfunc(478)=0.113275200000D0;CIE_Yfunc(478)=0.127992800000D0;CIE_Zfunc(478)=0.901453100000D0 
+CIE_Xfunc(479)=0.104297900000D0;CIE_Yfunc(479)=0.133452800000D0;CIE_Zfunc(479)=0.856619300000D0 
+CIE_Xfunc(480)=0.095640000000D0;CIE_Yfunc(480)=0.139020000000D0;CIE_Zfunc(480)=0.812950100000D0 
+CIE_Xfunc(481)=0.087299550000D0;CIE_Yfunc(481)=0.144676400000D0;CIE_Zfunc(481)=0.770517300000D0 
+CIE_Xfunc(482)=0.079308040000D0;CIE_Yfunc(482)=0.150469300000D0;CIE_Zfunc(482)=0.729444800000D0 
+CIE_Xfunc(483)=0.071717760000D0;CIE_Yfunc(483)=0.156461900000D0;CIE_Zfunc(483)=0.689913600000D0 
+CIE_Xfunc(484)=0.064580990000D0;CIE_Yfunc(484)=0.162717700000D0;CIE_Zfunc(484)=0.652104900000D0 
+CIE_Xfunc(485)=0.057950010000D0;CIE_Yfunc(485)=0.169300000000D0;CIE_Zfunc(485)=0.616200000000D0 
+CIE_Xfunc(486)=0.051862110000D0;CIE_Yfunc(486)=0.176243100000D0;CIE_Zfunc(486)=0.582328600000D0 
+CIE_Xfunc(487)=0.046281520000D0;CIE_Yfunc(487)=0.183558100000D0;CIE_Zfunc(487)=0.550416200000D0 
+CIE_Xfunc(488)=0.041150880000D0;CIE_Yfunc(488)=0.191273500000D0;CIE_Zfunc(488)=0.520337600000D0 
+CIE_Xfunc(489)=0.036412830000D0;CIE_Yfunc(489)=0.199418000000D0;CIE_Zfunc(489)=0.491967300000D0 
+CIE_Xfunc(490)=0.032010000000D0;CIE_Yfunc(490)=0.208020000000D0;CIE_Zfunc(490)=0.465180000000D0 
+CIE_Xfunc(491)=0.027917200000D0;CIE_Yfunc(491)=0.217119900000D0;CIE_Zfunc(491)=0.439924600000D0 
+CIE_Xfunc(492)=0.024144400000D0;CIE_Yfunc(492)=0.226734500000D0;CIE_Zfunc(492)=0.416183600000D0 
+CIE_Xfunc(493)=0.020687000000D0;CIE_Yfunc(493)=0.236857100000D0;CIE_Zfunc(493)=0.393882200000D0 
+CIE_Xfunc(494)=0.017540400000D0;CIE_Yfunc(494)=0.247481200000D0;CIE_Zfunc(494)=0.372945900000D0 
+CIE_Xfunc(495)=0.014700000000D0;CIE_Yfunc(495)=0.258600000000D0;CIE_Zfunc(495)=0.353300000000D0 
+CIE_Xfunc(496)=0.012161790000D0;CIE_Yfunc(496)=0.270184900000D0;CIE_Zfunc(496)=0.334857800000D0 
+CIE_Xfunc(497)=0.009919960000D0;CIE_Yfunc(497)=0.282293900000D0;CIE_Zfunc(497)=0.317552100000D0 
+CIE_Xfunc(498)=0.007967240000D0;CIE_Yfunc(498)=0.295050500000D0;CIE_Zfunc(498)=0.301337500000D0 
+CIE_Xfunc(499)=0.006296346000D0;CIE_Yfunc(499)=0.308578000000D0;CIE_Zfunc(499)=0.286168600000D0 
+CIE_Xfunc(500)=0.004900000000D0;CIE_Yfunc(500)=0.323000000000D0;CIE_Zfunc(500)=0.272000000000D0 
+CIE_Xfunc(501)=0.003777173000D0;CIE_Yfunc(501)=0.338402100000D0;CIE_Zfunc(501)=0.258817100000D0 
+CIE_Xfunc(502)=0.002945320000D0;CIE_Yfunc(502)=0.354685800000D0;CIE_Zfunc(502)=0.246483800000D0 
+CIE_Xfunc(503)=0.002424880000D0;CIE_Yfunc(503)=0.371698600000D0;CIE_Zfunc(503)=0.234771800000D0 
+CIE_Xfunc(504)=0.002236293000D0;CIE_Yfunc(504)=0.389287500000D0;CIE_Zfunc(504)=0.223453300000D0 
+CIE_Xfunc(505)=0.002400000000D0;CIE_Yfunc(505)=0.407300000000D0;CIE_Zfunc(505)=0.212300000000D0 
+CIE_Xfunc(506)=0.002925520000D0;CIE_Yfunc(506)=0.425629900000D0;CIE_Zfunc(506)=0.201169200000D0 
+CIE_Xfunc(507)=0.003836560000D0;CIE_Yfunc(507)=0.444309600000D0;CIE_Zfunc(507)=0.190119600000D0 
+CIE_Xfunc(508)=0.005174840000D0;CIE_Yfunc(508)=0.463394400000D0;CIE_Zfunc(508)=0.179225400000D0 
+CIE_Xfunc(509)=0.006982080000D0;CIE_Yfunc(509)=0.482939500000D0;CIE_Zfunc(509)=0.168560800000D0 
+CIE_Xfunc(510)=0.009300000000D0;CIE_Yfunc(510)=0.503000000000D0;CIE_Zfunc(510)=0.158200000000D0 
+CIE_Xfunc(511)=0.012149490000D0;CIE_Yfunc(511)=0.523569300000D0;CIE_Zfunc(511)=0.148138300000D0 
+CIE_Xfunc(512)=0.015535880000D0;CIE_Yfunc(512)=0.544512000000D0;CIE_Zfunc(512)=0.138375800000D0 
+CIE_Xfunc(513)=0.019477520000D0;CIE_Yfunc(513)=0.565690000000D0;CIE_Zfunc(513)=0.128994200000D0 
+CIE_Xfunc(514)=0.023992770000D0;CIE_Yfunc(514)=0.586965300000D0;CIE_Zfunc(514)=0.120075100000D0 
+CIE_Xfunc(515)=0.029100000000D0;CIE_Yfunc(515)=0.608200000000D0;CIE_Zfunc(515)=0.111700000000D0 
+CIE_Xfunc(516)=0.034814850000D0;CIE_Yfunc(516)=0.629345600000D0;CIE_Zfunc(516)=0.103904800000D0 
+CIE_Xfunc(517)=0.041120160000D0;CIE_Yfunc(517)=0.650306800000D0;CIE_Zfunc(517)=0.096667480000D0 
+CIE_Xfunc(518)=0.047985040000D0;CIE_Yfunc(518)=0.670875200000D0;CIE_Zfunc(518)=0.089982720000D0 
+CIE_Xfunc(519)=0.055378610000D0;CIE_Yfunc(519)=0.690842400000D0;CIE_Zfunc(519)=0.083845310000D0 
+CIE_Xfunc(520)=0.063270000000D0;CIE_Yfunc(520)=0.710000000000D0;CIE_Zfunc(520)=0.078249990000D0 
+CIE_Xfunc(521)=0.071635010000D0;CIE_Yfunc(521)=0.728185200000D0;CIE_Zfunc(521)=0.073208990000D0 
+CIE_Xfunc(522)=0.080462240000D0;CIE_Yfunc(522)=0.745463600000D0;CIE_Zfunc(522)=0.068678160000D0 
+CIE_Xfunc(523)=0.089739960000D0;CIE_Yfunc(523)=0.761969400000D0;CIE_Zfunc(523)=0.064567840000D0 
+CIE_Xfunc(524)=0.099456450000D0;CIE_Yfunc(524)=0.777836800000D0;CIE_Zfunc(524)=0.060788350000D0 
+CIE_Xfunc(525)=0.109600000000D0;CIE_Yfunc(525)=0.793200000000D0;CIE_Zfunc(525)=0.057250010000D0 
+CIE_Xfunc(526)=0.120167400000D0;CIE_Yfunc(526)=0.808110400000D0;CIE_Zfunc(526)=0.053904350000D0 
+CIE_Xfunc(527)=0.131114500000D0;CIE_Yfunc(527)=0.822496200000D0;CIE_Zfunc(527)=0.050746640000D0 
+CIE_Xfunc(528)=0.142367900000D0;CIE_Yfunc(528)=0.836306800000D0;CIE_Zfunc(528)=0.047752760000D0 
+CIE_Xfunc(529)=0.153854200000D0;CIE_Yfunc(529)=0.849491600000D0;CIE_Zfunc(529)=0.044898590000D0 
+CIE_Xfunc(530)=0.165500000000D0;CIE_Yfunc(530)=0.862000000000D0;CIE_Zfunc(530)=0.042160000000D0 
+CIE_Xfunc(531)=0.177257100000D0;CIE_Yfunc(531)=0.873810800000D0;CIE_Zfunc(531)=0.039507280000D0 
+CIE_Xfunc(532)=0.189140000000D0;CIE_Yfunc(532)=0.884962400000D0;CIE_Zfunc(532)=0.036935640000D0 
+CIE_Xfunc(533)=0.201169400000D0;CIE_Yfunc(533)=0.895493600000D0;CIE_Zfunc(533)=0.034458360000D0 
+CIE_Xfunc(534)=0.213365800000D0;CIE_Yfunc(534)=0.905443200000D0;CIE_Zfunc(534)=0.032088720000D0 
+CIE_Xfunc(535)=0.225749900000D0;CIE_Yfunc(535)=0.914850100000D0;CIE_Zfunc(535)=0.029840000000D0 
+CIE_Xfunc(536)=0.238320900000D0;CIE_Yfunc(536)=0.923734800000D0;CIE_Zfunc(536)=0.027711810000D0 
+CIE_Xfunc(537)=0.251066800000D0;CIE_Yfunc(537)=0.932092400000D0;CIE_Zfunc(537)=0.025694440000D0 
+CIE_Xfunc(538)=0.263992200000D0;CIE_Yfunc(538)=0.939922600000D0;CIE_Zfunc(538)=0.023787160000D0 
+CIE_Xfunc(539)=0.277101700000D0;CIE_Yfunc(539)=0.947225200000D0;CIE_Zfunc(539)=0.021989250000D0 
+CIE_Xfunc(540)=0.290400000000D0;CIE_Yfunc(540)=0.954000000000D0;CIE_Zfunc(540)=0.020300000000D0 
+CIE_Xfunc(541)=0.303891200000D0;CIE_Yfunc(541)=0.960256100000D0;CIE_Zfunc(541)=0.018718050000D0 
+CIE_Xfunc(542)=0.317572600000D0;CIE_Yfunc(542)=0.966007400000D0;CIE_Zfunc(542)=0.017240360000D0 
+CIE_Xfunc(543)=0.331438400000D0;CIE_Yfunc(543)=0.971260600000D0;CIE_Zfunc(543)=0.015863640000D0 
+CIE_Xfunc(544)=0.345482800000D0;CIE_Yfunc(544)=0.976022500000D0;CIE_Zfunc(544)=0.014584610000D0 
+CIE_Xfunc(545)=0.359700000000D0;CIE_Yfunc(545)=0.980300000000D0;CIE_Zfunc(545)=0.013400000000D0 
+CIE_Xfunc(546)=0.374083900000D0;CIE_Yfunc(546)=0.984092400000D0;CIE_Zfunc(546)=0.012307230000D0 
+CIE_Xfunc(547)=0.388639600000D0;CIE_Yfunc(547)=0.987418200000D0;CIE_Zfunc(547)=0.011301880000D0 
+CIE_Xfunc(548)=0.403378400000D0;CIE_Yfunc(548)=0.990312800000D0;CIE_Zfunc(548)=0.010377920000D0 
+CIE_Xfunc(549)=0.418311500000D0;CIE_Yfunc(549)=0.992811600000D0;CIE_Zfunc(549)=0.009529306000D0 
+CIE_Xfunc(550)=0.433449900000D0;CIE_Yfunc(550)=0.994950100000D0;CIE_Zfunc(550)=0.008749999000D0 
+CIE_Xfunc(551)=0.448795300000D0;CIE_Yfunc(551)=0.996710800000D0;CIE_Zfunc(551)=0.008035200000D0 
+CIE_Xfunc(552)=0.464336000000D0;CIE_Yfunc(552)=0.998098300000D0;CIE_Zfunc(552)=0.007381600000D0 
+CIE_Xfunc(553)=0.480064000000D0;CIE_Yfunc(553)=0.999112000000D0;CIE_Zfunc(553)=0.006785400000D0 
+CIE_Xfunc(554)=0.495971300000D0;CIE_Yfunc(554)=0.999748200000D0;CIE_Zfunc(554)=0.006242800000D0 
+CIE_Xfunc(555)=0.512050100000D0;CIE_Yfunc(555)=1.000000000000D0;CIE_Zfunc(555)=0.005749999000D0 
+CIE_Xfunc(556)=0.528295900000D0;CIE_Yfunc(556)=0.999856700000D0;CIE_Zfunc(556)=0.005303600000D0 
+CIE_Xfunc(557)=0.544691600000D0;CIE_Yfunc(557)=0.999304600000D0;CIE_Zfunc(557)=0.004899800000D0 
+CIE_Xfunc(558)=0.561209400000D0;CIE_Yfunc(558)=0.998325500000D0;CIE_Zfunc(558)=0.004534200000D0 
+CIE_Xfunc(559)=0.577821500000D0;CIE_Yfunc(559)=0.996898700000D0;CIE_Zfunc(559)=0.004202400000D0 
+CIE_Xfunc(560)=0.594500000000D0;CIE_Yfunc(560)=0.995000000000D0;CIE_Zfunc(560)=0.003900000000D0 
+CIE_Xfunc(561)=0.611220900000D0;CIE_Yfunc(561)=0.992600500000D0;CIE_Zfunc(561)=0.003623200000D0 
+CIE_Xfunc(562)=0.627975800000D0;CIE_Yfunc(562)=0.989742600000D0;CIE_Zfunc(562)=0.003370600000D0 
+CIE_Xfunc(563)=0.644760200000D0;CIE_Yfunc(563)=0.986444400000D0;CIE_Zfunc(563)=0.003141400000D0 
+CIE_Xfunc(564)=0.661569700000D0;CIE_Yfunc(564)=0.982724100000D0;CIE_Zfunc(564)=0.002934800000D0 
+CIE_Xfunc(565)=0.678400000000D0;CIE_Yfunc(565)=0.978600000000D0;CIE_Zfunc(565)=0.002749999000D0 
+CIE_Xfunc(566)=0.695239200000D0;CIE_Yfunc(566)=0.974083700000D0;CIE_Zfunc(566)=0.002585200000D0 
+CIE_Xfunc(567)=0.712058600000D0;CIE_Yfunc(567)=0.969171200000D0;CIE_Zfunc(567)=0.002438600000D0 
+CIE_Xfunc(568)=0.728828400000D0;CIE_Yfunc(568)=0.963856800000D0;CIE_Zfunc(568)=0.002309400000D0 
+CIE_Xfunc(569)=0.745518800000D0;CIE_Yfunc(569)=0.958134900000D0;CIE_Zfunc(569)=0.002196800000D0 
+CIE_Xfunc(570)=0.762100000000D0;CIE_Yfunc(570)=0.952000000000D0;CIE_Zfunc(570)=0.002100000000D0 
+CIE_Xfunc(571)=0.778543200000D0;CIE_Yfunc(571)=0.945450400000D0;CIE_Zfunc(571)=0.002017733000D0 
+CIE_Xfunc(572)=0.794825600000D0;CIE_Yfunc(572)=0.938499200000D0;CIE_Zfunc(572)=0.001948200000D0 
+CIE_Xfunc(573)=0.810926400000D0;CIE_Yfunc(573)=0.931162800000D0;CIE_Zfunc(573)=0.001889800000D0 
+CIE_Xfunc(574)=0.826824800000D0;CIE_Yfunc(574)=0.923457600000D0;CIE_Zfunc(574)=0.001840933000D0 
+CIE_Xfunc(575)=0.842500000000D0;CIE_Yfunc(575)=0.915400000000D0;CIE_Zfunc(575)=0.001800000000D0 
+CIE_Xfunc(576)=0.857932500000D0;CIE_Yfunc(576)=0.907006400000D0;CIE_Zfunc(576)=0.001766267000D0 
+CIE_Xfunc(577)=0.873081600000D0;CIE_Yfunc(577)=0.898277200000D0;CIE_Zfunc(577)=0.001737800000D0 
+CIE_Xfunc(578)=0.887894400000D0;CIE_Yfunc(578)=0.889204800000D0;CIE_Zfunc(578)=0.001711200000D0 
+CIE_Xfunc(579)=0.902318100000D0;CIE_Yfunc(579)=0.879781600000D0;CIE_Zfunc(579)=0.001683067000D0 
+CIE_Xfunc(580)=0.916300000000D0;CIE_Yfunc(580)=0.870000000000D0;CIE_Zfunc(580)=0.001650001000D0 
+CIE_Xfunc(581)=0.929799500000D0;CIE_Yfunc(581)=0.859861300000D0;CIE_Zfunc(581)=0.001610133000D0 
+CIE_Xfunc(582)=0.942798400000D0;CIE_Yfunc(582)=0.849392000000D0;CIE_Zfunc(582)=0.001564400000D0 
+CIE_Xfunc(583)=0.955277600000D0;CIE_Yfunc(583)=0.838622000000D0;CIE_Zfunc(583)=0.001513600000D0 
+CIE_Xfunc(584)=0.967217900000D0;CIE_Yfunc(584)=0.827581300000D0;CIE_Zfunc(584)=0.001458533000D0 
+CIE_Xfunc(585)=0.978600000000D0;CIE_Yfunc(585)=0.816300000000D0;CIE_Zfunc(585)=0.001400000000D0 
+CIE_Xfunc(586)=0.989385600000D0;CIE_Yfunc(586)=0.804794700000D0;CIE_Zfunc(586)=0.001336667000D0 
+CIE_Xfunc(587)=0.999548800000D0;CIE_Yfunc(587)=0.793082000000D0;CIE_Zfunc(587)=0.001270000000D0 
+CIE_Xfunc(588)=1.009089200000D0;CIE_Yfunc(588)=0.781192000000D0;CIE_Zfunc(588)=0.001205000000D0 
+CIE_Xfunc(589)=1.018006400000D0;CIE_Yfunc(589)=0.769154700000D0;CIE_Zfunc(589)=0.001146667000D0 
+CIE_Xfunc(590)=1.026300000000D0;CIE_Yfunc(590)=0.757000000000D0;CIE_Zfunc(590)=0.001100000000D0 
+CIE_Xfunc(591)=1.033982700000D0;CIE_Yfunc(591)=0.744754100000D0;CIE_Zfunc(591)=0.001068800000D0 
+CIE_Xfunc(592)=1.040986000000D0;CIE_Yfunc(592)=0.732422400000D0;CIE_Zfunc(592)=0.001049400000D0 
+CIE_Xfunc(593)=1.047188000000D0;CIE_Yfunc(593)=0.720003600000D0;CIE_Zfunc(593)=0.001035600000D0 
+CIE_Xfunc(594)=1.052466700000D0;CIE_Yfunc(594)=0.707496500000D0;CIE_Zfunc(594)=0.001021200000D0 
+CIE_Xfunc(595)=1.056700000000D0;CIE_Yfunc(595)=0.694900000000D0;CIE_Zfunc(595)=0.001000000000D0 
+CIE_Xfunc(596)=1.059794400000D0;CIE_Yfunc(596)=0.682219200000D0;CIE_Zfunc(596)=0.000968640000D0 
+CIE_Xfunc(597)=1.061799200000D0;CIE_Yfunc(597)=0.669471600000D0;CIE_Zfunc(597)=0.000929920000D0 
+CIE_Xfunc(598)=1.062806800000D0;CIE_Yfunc(598)=0.656674400000D0;CIE_Zfunc(598)=0.000886880000D0 
+CIE_Xfunc(599)=1.062909600000D0;CIE_Yfunc(599)=0.643844800000D0;CIE_Zfunc(599)=0.000842560000D0 
+CIE_Xfunc(600)=1.062200000000D0;CIE_Yfunc(600)=0.631000000000D0;CIE_Zfunc(600)=0.000800000000D0 
+CIE_Xfunc(601)=1.060735200000D0;CIE_Yfunc(601)=0.618155500000D0;CIE_Zfunc(601)=0.000760960000D0 
+CIE_Xfunc(602)=1.058443600000D0;CIE_Yfunc(602)=0.605314400000D0;CIE_Zfunc(602)=0.000723680000D0 
+CIE_Xfunc(603)=1.055224400000D0;CIE_Yfunc(603)=0.592475600000D0;CIE_Zfunc(603)=0.000685920000D0 
+CIE_Xfunc(604)=1.050976800000D0;CIE_Yfunc(604)=0.579637900000D0;CIE_Zfunc(604)=0.000645440000D0 
+CIE_Xfunc(605)=1.045600000000D0;CIE_Yfunc(605)=0.566800000000D0;CIE_Zfunc(605)=0.000600000000D0 
+CIE_Xfunc(606)=1.039036900000D0;CIE_Yfunc(606)=0.553961100000D0;CIE_Zfunc(606)=0.000547866700D0 
+CIE_Xfunc(607)=1.031360800000D0;CIE_Yfunc(607)=0.541137200000D0;CIE_Zfunc(607)=0.000491600000D0 
+CIE_Xfunc(608)=1.022666200000D0;CIE_Yfunc(608)=0.528352800000D0;CIE_Zfunc(608)=0.000435400000D0 
+CIE_Xfunc(609)=1.013047700000D0;CIE_Yfunc(609)=0.515632300000D0;CIE_Zfunc(609)=0.000383466700D0 
+CIE_Xfunc(610)=1.002600000000D0;CIE_Yfunc(610)=0.503000000000D0;CIE_Zfunc(610)=0.000340000000D0 
+CIE_Xfunc(611)=0.991367500000D0;CIE_Yfunc(611)=0.490468800000D0;CIE_Zfunc(611)=0.000307253300D0 
+CIE_Xfunc(612)=0.979331400000D0;CIE_Yfunc(612)=0.478030400000D0;CIE_Zfunc(612)=0.000283160000D0 
+CIE_Xfunc(613)=0.966491600000D0;CIE_Yfunc(613)=0.465677600000D0;CIE_Zfunc(613)=0.000265440000D0 
+CIE_Xfunc(614)=0.952847900000D0;CIE_Yfunc(614)=0.453403200000D0;CIE_Zfunc(614)=0.000251813300D0 
+CIE_Xfunc(615)=0.938400000000D0;CIE_Yfunc(615)=0.441200000000D0;CIE_Zfunc(615)=0.000240000000D0 
+CIE_Xfunc(616)=0.923194000000D0;CIE_Yfunc(616)=0.429080000000D0;CIE_Zfunc(616)=0.000229546700D0 
+CIE_Xfunc(617)=0.907244000000D0;CIE_Yfunc(617)=0.417036000000D0;CIE_Zfunc(617)=0.000220640000D0 
+CIE_Xfunc(618)=0.890502000000D0;CIE_Yfunc(618)=0.405032000000D0;CIE_Zfunc(618)=0.000211960000D0 
+CIE_Xfunc(619)=0.872920000000D0;CIE_Yfunc(619)=0.393032000000D0;CIE_Zfunc(619)=0.000202186700D0 
+CIE_Xfunc(620)=0.854449900000D0;CIE_Yfunc(620)=0.381000000000D0;CIE_Zfunc(620)=0.000190000000D0 
+CIE_Xfunc(621)=0.835084000000D0;CIE_Yfunc(621)=0.368918400000D0;CIE_Zfunc(621)=0.000174213300D0 
+CIE_Xfunc(622)=0.814946000000D0;CIE_Yfunc(622)=0.356827200000D0;CIE_Zfunc(622)=0.000155640000D0 
+CIE_Xfunc(623)=0.794186000000D0;CIE_Yfunc(623)=0.344776800000D0;CIE_Zfunc(623)=0.000135960000D0 
+CIE_Xfunc(624)=0.772954000000D0;CIE_Yfunc(624)=0.332817600000D0;CIE_Zfunc(624)=0.000116853300D0 
+CIE_Xfunc(625)=0.751400000000D0;CIE_Yfunc(625)=0.321000000000D0;CIE_Zfunc(625)=0.000100000000D0 
+CIE_Xfunc(626)=0.729583600000D0;CIE_Yfunc(626)=0.309338100000D0;CIE_Zfunc(626)=0.000086133330D0 
+CIE_Xfunc(627)=0.707588800000D0;CIE_Yfunc(627)=0.297850400000D0;CIE_Zfunc(627)=0.000074600000D0 
+CIE_Xfunc(628)=0.685602200000D0;CIE_Yfunc(628)=0.286593600000D0;CIE_Zfunc(628)=0.000065000000D0 
+CIE_Xfunc(629)=0.663810400000D0;CIE_Yfunc(629)=0.275624500000D0;CIE_Zfunc(629)=0.000056933330D0 
+CIE_Xfunc(630)=0.642400000000D0;CIE_Yfunc(630)=0.265000000000D0;CIE_Zfunc(630)=0.000049999990D0 
+CIE_Xfunc(631)=0.621514900000D0;CIE_Yfunc(631)=0.254763200000D0;CIE_Zfunc(631)=0.000044160000D0 
+CIE_Xfunc(632)=0.601113800000D0;CIE_Yfunc(632)=0.244889600000D0;CIE_Zfunc(632)=0.000039480000D0 
+CIE_Xfunc(633)=0.581105200000D0;CIE_Yfunc(633)=0.235334400000D0;CIE_Zfunc(633)=0.000035720000D0 
+CIE_Xfunc(634)=0.561397700000D0;CIE_Yfunc(634)=0.226052800000D0;CIE_Zfunc(634)=0.000032640000D0 
+CIE_Xfunc(635)=0.541900000000D0;CIE_Yfunc(635)=0.217000000000D0;CIE_Zfunc(635)=0.000030000000D0 
+CIE_Xfunc(636)=0.522599500000D0;CIE_Yfunc(636)=0.208161600000D0;CIE_Zfunc(636)=0.000027653330D0 
+CIE_Xfunc(637)=0.503546400000D0;CIE_Yfunc(637)=0.199548800000D0;CIE_Zfunc(637)=0.000025560000D0 
+CIE_Xfunc(638)=0.484743600000D0;CIE_Yfunc(638)=0.191155200000D0;CIE_Zfunc(638)=0.000023640000D0 
+CIE_Xfunc(639)=0.466193900000D0;CIE_Yfunc(639)=0.182974400000D0;CIE_Zfunc(639)=0.000021813330D0 
+CIE_Xfunc(640)=0.447900000000D0;CIE_Yfunc(640)=0.175000000000D0;CIE_Zfunc(640)=0.000020000000D0 
+CIE_Xfunc(641)=0.429861300000D0;CIE_Yfunc(641)=0.167223500000D0;CIE_Zfunc(641)=0.000018133330D0 
+CIE_Xfunc(642)=0.412098000000D0;CIE_Yfunc(642)=0.159646400000D0;CIE_Zfunc(642)=0.000016200000D0 
+CIE_Xfunc(643)=0.394644000000D0;CIE_Yfunc(643)=0.152277600000D0;CIE_Zfunc(643)=0.000014200000D0 
+CIE_Xfunc(644)=0.377533300000D0;CIE_Yfunc(644)=0.145125900000D0;CIE_Zfunc(644)=0.000012133330D0 
+CIE_Xfunc(645)=0.360800000000D0;CIE_Yfunc(645)=0.138200000000D0;CIE_Zfunc(645)=0.000010000000D0 
+CIE_Xfunc(646)=0.344456300000D0;CIE_Yfunc(646)=0.131500300000D0;CIE_Zfunc(646)=0.000007733333D0 
+CIE_Xfunc(647)=0.328516800000D0;CIE_Yfunc(647)=0.125024800000D0;CIE_Zfunc(647)=0.000005400000D0 
+CIE_Xfunc(648)=0.313019200000D0;CIE_Yfunc(648)=0.118779200000D0;CIE_Zfunc(648)=0.000003200000D0 
+CIE_Xfunc(649)=0.298001100000D0;CIE_Yfunc(649)=0.112769100000D0;CIE_Zfunc(649)=0.000001333333D0 
+CIE_Xfunc(650)=0.283500000000D0;CIE_Yfunc(650)=0.107000000000D0;CIE_Zfunc(650)=0.000000000000D0 
+CIE_Xfunc(651)=0.269544800000D0;CIE_Yfunc(651)=0.101476200000D0;CIE_Zfunc(651)=0.000000000000D0 
+CIE_Xfunc(652)=0.256118400000D0;CIE_Yfunc(652)=0.096188640000D0;CIE_Zfunc(652)=0.000000000000D0 
+CIE_Xfunc(653)=0.243189600000D0;CIE_Yfunc(653)=0.091122960000D0;CIE_Zfunc(653)=0.000000000000D0 
+CIE_Xfunc(654)=0.230727200000D0;CIE_Yfunc(654)=0.086264850000D0;CIE_Zfunc(654)=0.000000000000D0 
+CIE_Xfunc(655)=0.218700000000D0;CIE_Yfunc(655)=0.081600000000D0;CIE_Zfunc(655)=0.000000000000D0 
+CIE_Xfunc(656)=0.207097100000D0;CIE_Yfunc(656)=0.077120640000D0;CIE_Zfunc(656)=0.000000000000D0 
+CIE_Xfunc(657)=0.195923200000D0;CIE_Yfunc(657)=0.072825520000D0;CIE_Zfunc(657)=0.000000000000D0 
+CIE_Xfunc(658)=0.185170800000D0;CIE_Yfunc(658)=0.068710080000D0;CIE_Zfunc(658)=0.000000000000D0 
+CIE_Xfunc(659)=0.174832300000D0;CIE_Yfunc(659)=0.064769760000D0;CIE_Zfunc(659)=0.000000000000D0 
+CIE_Xfunc(660)=0.164900000000D0;CIE_Yfunc(660)=0.061000000000D0;CIE_Zfunc(660)=0.000000000000D0 
+CIE_Xfunc(661)=0.155366700000D0;CIE_Yfunc(661)=0.057396210000D0;CIE_Zfunc(661)=0.000000000000D0 
+CIE_Xfunc(662)=0.146230000000D0;CIE_Yfunc(662)=0.053955040000D0;CIE_Zfunc(662)=0.000000000000D0 
+CIE_Xfunc(663)=0.137490000000D0;CIE_Yfunc(663)=0.050673760000D0;CIE_Zfunc(663)=0.000000000000D0 
+CIE_Xfunc(664)=0.129146700000D0;CIE_Yfunc(664)=0.047549650000D0;CIE_Zfunc(664)=0.000000000000D0 
+CIE_Xfunc(665)=0.121200000000D0;CIE_Yfunc(665)=0.044580000000D0;CIE_Zfunc(665)=0.000000000000D0 
+CIE_Xfunc(666)=0.113639700000D0;CIE_Yfunc(666)=0.041758720000D0;CIE_Zfunc(666)=0.000000000000D0 
+CIE_Xfunc(667)=0.106465000000D0;CIE_Yfunc(667)=0.039084960000D0;CIE_Zfunc(667)=0.000000000000D0 
+CIE_Xfunc(668)=0.099690440000D0;CIE_Yfunc(668)=0.036563840000D0;CIE_Zfunc(668)=0.000000000000D0 
+CIE_Xfunc(669)=0.093330610000D0;CIE_Yfunc(669)=0.034200480000D0;CIE_Zfunc(669)=0.000000000000D0 
+CIE_Xfunc(670)=0.087400000000D0;CIE_Yfunc(670)=0.032000000000D0;CIE_Zfunc(670)=0.000000000000D0 
+CIE_Xfunc(671)=0.081900960000D0;CIE_Yfunc(671)=0.029962610000D0;CIE_Zfunc(671)=0.000000000000D0 
+CIE_Xfunc(672)=0.076804280000D0;CIE_Yfunc(672)=0.028076640000D0;CIE_Zfunc(672)=0.000000000000D0 
+CIE_Xfunc(673)=0.072077120000D0;CIE_Yfunc(673)=0.026329360000D0;CIE_Zfunc(673)=0.000000000000D0 
+CIE_Xfunc(674)=0.067686640000D0;CIE_Yfunc(674)=0.024708050000D0;CIE_Zfunc(674)=0.000000000000D0 
+CIE_Xfunc(675)=0.063600000000D0;CIE_Yfunc(675)=0.023200000000D0;CIE_Zfunc(675)=0.000000000000D0 
+CIE_Xfunc(676)=0.059806850000D0;CIE_Yfunc(676)=0.021800770000D0;CIE_Zfunc(676)=0.000000000000D0 
+CIE_Xfunc(677)=0.056282160000D0;CIE_Yfunc(677)=0.020501120000D0;CIE_Zfunc(677)=0.000000000000D0 
+CIE_Xfunc(678)=0.052971040000D0;CIE_Yfunc(678)=0.019281080000D0;CIE_Zfunc(678)=0.000000000000D0 
+CIE_Xfunc(679)=0.049818610000D0;CIE_Yfunc(679)=0.018120690000D0;CIE_Zfunc(679)=0.000000000000D0 
+CIE_Xfunc(680)=0.046770000000D0;CIE_Yfunc(680)=0.017000000000D0;CIE_Zfunc(680)=0.000000000000D0 
+CIE_Xfunc(681)=0.043784050000D0;CIE_Yfunc(681)=0.015903790000D0;CIE_Zfunc(681)=0.000000000000D0 
+CIE_Xfunc(682)=0.040875360000D0;CIE_Yfunc(682)=0.014837180000D0;CIE_Zfunc(682)=0.000000000000D0 
+CIE_Xfunc(683)=0.038072640000D0;CIE_Yfunc(683)=0.013810680000D0;CIE_Zfunc(683)=0.000000000000D0 
+CIE_Xfunc(684)=0.035404610000D0;CIE_Yfunc(684)=0.012834780000D0;CIE_Zfunc(684)=0.000000000000D0 
+CIE_Xfunc(685)=0.032900000000D0;CIE_Yfunc(685)=0.011920000000D0;CIE_Zfunc(685)=0.000000000000D0 
+CIE_Xfunc(686)=0.030564190000D0;CIE_Yfunc(686)=0.011068310000D0;CIE_Zfunc(686)=0.000000000000D0 
+CIE_Xfunc(687)=0.028380560000D0;CIE_Yfunc(687)=0.010273390000D0;CIE_Zfunc(687)=0.000000000000D0 
+CIE_Xfunc(688)=0.026344840000D0;CIE_Yfunc(688)=0.009533311000D0;CIE_Zfunc(688)=0.000000000000D0 
+CIE_Xfunc(689)=0.024452750000D0;CIE_Yfunc(689)=0.008846157000D0;CIE_Zfunc(689)=0.000000000000D0 
+CIE_Xfunc(690)=0.022700000000D0;CIE_Yfunc(690)=0.008210000000D0;CIE_Zfunc(690)=0.000000000000D0 
+CIE_Xfunc(691)=0.021084290000D0;CIE_Yfunc(691)=0.007623781000D0;CIE_Zfunc(691)=0.000000000000D0 
+CIE_Xfunc(692)=0.019599880000D0;CIE_Yfunc(692)=0.007085424000D0;CIE_Zfunc(692)=0.000000000000D0 
+CIE_Xfunc(693)=0.018237320000D0;CIE_Yfunc(693)=0.006591476000D0;CIE_Zfunc(693)=0.000000000000D0 
+CIE_Xfunc(694)=0.016987170000D0;CIE_Yfunc(694)=0.006138485000D0;CIE_Zfunc(694)=0.000000000000D0 
+CIE_Xfunc(695)=0.015840000000D0;CIE_Yfunc(695)=0.005723000000D0;CIE_Zfunc(695)=0.000000000000D0 
+CIE_Xfunc(696)=0.014790640000D0;CIE_Yfunc(696)=0.005343059000D0;CIE_Zfunc(696)=0.000000000000D0 
+CIE_Xfunc(697)=0.013831320000D0;CIE_Yfunc(697)=0.004995796000D0;CIE_Zfunc(697)=0.000000000000D0 
+CIE_Xfunc(698)=0.012948680000D0;CIE_Yfunc(698)=0.004676404000D0;CIE_Zfunc(698)=0.000000000000D0 
+CIE_Xfunc(699)=0.012129200000D0;CIE_Yfunc(699)=0.004380075000D0;CIE_Zfunc(699)=0.000000000000D0 
+CIE_Xfunc(700)=0.011359160000D0;CIE_Yfunc(700)=0.004102000000D0;CIE_Zfunc(700)=0.000000000000D0 
+CIE_Xfunc(701)=0.010629350000D0;CIE_Yfunc(701)=0.003838453000D0;CIE_Zfunc(701)=0.000000000000D0 
+CIE_Xfunc(702)=0.009938846000D0;CIE_Yfunc(702)=0.003589099000D0;CIE_Zfunc(702)=0.000000000000D0 
+CIE_Xfunc(703)=0.009288422000D0;CIE_Yfunc(703)=0.003354219000D0;CIE_Zfunc(703)=0.000000000000D0 
+CIE_Xfunc(704)=0.008678854000D0;CIE_Yfunc(704)=0.003134093000D0;CIE_Zfunc(704)=0.000000000000D0 
+CIE_Xfunc(705)=0.008110916000D0;CIE_Yfunc(705)=0.002929000000D0;CIE_Zfunc(705)=0.000000000000D0 
+CIE_Xfunc(706)=0.007582388000D0;CIE_Yfunc(706)=0.002738139000D0;CIE_Zfunc(706)=0.000000000000D0 
+CIE_Xfunc(707)=0.007088746000D0;CIE_Yfunc(707)=0.002559876000D0;CIE_Zfunc(707)=0.000000000000D0 
+CIE_Xfunc(708)=0.006627313000D0;CIE_Yfunc(708)=0.002393244000D0;CIE_Zfunc(708)=0.000000000000D0 
+CIE_Xfunc(709)=0.006195408000D0;CIE_Yfunc(709)=0.002237275000D0;CIE_Zfunc(709)=0.000000000000D0 
+CIE_Xfunc(710)=0.005790346000D0;CIE_Yfunc(710)=0.002091000000D0;CIE_Zfunc(710)=0.000000000000D0 
+CIE_Xfunc(711)=0.005409826000D0;CIE_Yfunc(711)=0.001953587000D0;CIE_Zfunc(711)=0.000000000000D0 
+CIE_Xfunc(712)=0.005052583000D0;CIE_Yfunc(712)=0.001824580000D0;CIE_Zfunc(712)=0.000000000000D0 
+CIE_Xfunc(713)=0.004717512000D0;CIE_Yfunc(713)=0.001703580000D0;CIE_Zfunc(713)=0.000000000000D0 
+CIE_Xfunc(714)=0.004403507000D0;CIE_Yfunc(714)=0.001590187000D0;CIE_Zfunc(714)=0.000000000000D0 
+CIE_Xfunc(715)=0.004109457000D0;CIE_Yfunc(715)=0.001484000000D0;CIE_Zfunc(715)=0.000000000000D0 
+CIE_Xfunc(716)=0.003833913000D0;CIE_Yfunc(716)=0.001384496000D0;CIE_Zfunc(716)=0.000000000000D0 
+CIE_Xfunc(717)=0.003575748000D0;CIE_Yfunc(717)=0.001291268000D0;CIE_Zfunc(717)=0.000000000000D0 
+CIE_Xfunc(718)=0.003334342000D0;CIE_Yfunc(718)=0.001204092000D0;CIE_Zfunc(718)=0.000000000000D0 
+CIE_Xfunc(719)=0.003109075000D0;CIE_Yfunc(719)=0.001122744000D0;CIE_Zfunc(719)=0.000000000000D0 
+CIE_Xfunc(720)=0.002899327000D0;CIE_Yfunc(720)=0.001047000000D0;CIE_Zfunc(720)=0.000000000000D0 
+CIE_Xfunc(721)=0.002704348000D0;CIE_Yfunc(721)=0.000976589600D0;CIE_Zfunc(721)=0.000000000000D0 
+CIE_Xfunc(722)=0.002523020000D0;CIE_Yfunc(722)=0.000911108800D0;CIE_Zfunc(722)=0.000000000000D0 
+CIE_Xfunc(723)=0.002354168000D0;CIE_Yfunc(723)=0.000850133200D0;CIE_Zfunc(723)=0.000000000000D0 
+CIE_Xfunc(724)=0.002196616000D0;CIE_Yfunc(724)=0.000793238400D0;CIE_Zfunc(724)=0.000000000000D0 
+CIE_Xfunc(725)=0.002049190000D0;CIE_Yfunc(725)=0.000740000000D0;CIE_Zfunc(725)=0.000000000000D0 
+CIE_Xfunc(726)=0.001910960000D0;CIE_Yfunc(726)=0.000690082700D0;CIE_Zfunc(726)=0.000000000000D0 
+CIE_Xfunc(727)=0.001781438000D0;CIE_Yfunc(727)=0.000643310000D0;CIE_Zfunc(727)=0.000000000000D0 
+CIE_Xfunc(728)=0.001660110000D0;CIE_Yfunc(728)=0.000599496000D0;CIE_Zfunc(728)=0.000000000000D0 
+CIE_Xfunc(729)=0.001546459000D0;CIE_Yfunc(729)=0.000558454700D0;CIE_Zfunc(729)=0.000000000000D0 
+CIE_Xfunc(730)=0.001439971000D0;CIE_Yfunc(730)=0.000520000000D0;CIE_Zfunc(730)=0.000000000000D0 
+CIE_Xfunc(731)=0.001340042000D0;CIE_Yfunc(731)=0.000483913600D0;CIE_Zfunc(731)=0.000000000000D0 
+CIE_Xfunc(732)=0.001246275000D0;CIE_Yfunc(732)=0.000450052800D0;CIE_Zfunc(732)=0.000000000000D0 
+CIE_Xfunc(733)=0.001158471000D0;CIE_Yfunc(733)=0.000418345200D0;CIE_Zfunc(733)=0.000000000000D0 
+CIE_Xfunc(734)=0.001076430000D0;CIE_Yfunc(734)=0.000388718400D0;CIE_Zfunc(734)=0.000000000000D0 
+CIE_Xfunc(735)=0.000999949300D0;CIE_Yfunc(735)=0.000361100000D0;CIE_Zfunc(735)=0.000000000000D0 
+CIE_Xfunc(736)=0.000928735800D0;CIE_Yfunc(736)=0.000335383500D0;CIE_Zfunc(736)=0.000000000000D0 
+CIE_Xfunc(737)=0.000862433200D0;CIE_Yfunc(737)=0.000311440400D0;CIE_Zfunc(737)=0.000000000000D0 
+CIE_Xfunc(738)=0.000800750300D0;CIE_Yfunc(738)=0.000289165600D0;CIE_Zfunc(738)=0.000000000000D0 
+CIE_Xfunc(739)=0.000743396000D0;CIE_Yfunc(739)=0.000268453900D0;CIE_Zfunc(739)=0.000000000000D0 
+CIE_Xfunc(740)=0.000690078600D0;CIE_Yfunc(740)=0.000249200000D0;CIE_Zfunc(740)=0.000000000000D0 
+CIE_Xfunc(741)=0.000640515600D0;CIE_Yfunc(741)=0.000231301900D0;CIE_Zfunc(741)=0.000000000000D0 
+CIE_Xfunc(742)=0.000594502100D0;CIE_Yfunc(742)=0.000214685600D0;CIE_Zfunc(742)=0.000000000000D0 
+CIE_Xfunc(743)=0.000551864600D0;CIE_Yfunc(743)=0.000199288400D0;CIE_Zfunc(743)=0.000000000000D0 
+CIE_Xfunc(744)=0.000512429000D0;CIE_Yfunc(744)=0.000185047500D0;CIE_Zfunc(744)=0.000000000000D0 
+CIE_Xfunc(745)=0.000476021300D0;CIE_Yfunc(745)=0.000171900000D0;CIE_Zfunc(745)=0.000000000000D0 
+CIE_Xfunc(746)=0.000442453600D0;CIE_Yfunc(746)=0.000159778100D0;CIE_Zfunc(746)=0.000000000000D0 
+CIE_Xfunc(747)=0.000411511700D0;CIE_Yfunc(747)=0.000148604400D0;CIE_Zfunc(747)=0.000000000000D0 
+CIE_Xfunc(748)=0.000382981400D0;CIE_Yfunc(748)=0.000138301600D0;CIE_Zfunc(748)=0.000000000000D0 
+CIE_Xfunc(749)=0.000356649100D0;CIE_Yfunc(749)=0.000128792500D0;CIE_Zfunc(749)=0.000000000000D0 
+CIE_Xfunc(750)=0.000332301100D0;CIE_Yfunc(750)=0.000120000000D0;CIE_Zfunc(750)=0.000000000000D0 
+CIE_Xfunc(751)=0.000309758600D0;CIE_Yfunc(751)=0.000111859500D0;CIE_Zfunc(751)=0.000000000000D0 
+CIE_Xfunc(752)=0.000288887100D0;CIE_Yfunc(752)=0.000104322400D0;CIE_Zfunc(752)=0.000000000000D0 
+CIE_Xfunc(753)=0.000269539400D0;CIE_Yfunc(753)=0.000097335600D0;CIE_Zfunc(753)=0.000000000000D0 
+CIE_Xfunc(754)=0.000251568200D0;CIE_Yfunc(754)=0.000090845870D0;CIE_Zfunc(754)=0.000000000000D0 
+CIE_Xfunc(755)=0.000234826100D0;CIE_Yfunc(755)=0.000084800000D0;CIE_Zfunc(755)=0.000000000000D0 
+CIE_Xfunc(756)=0.000219171000D0;CIE_Yfunc(756)=0.000079146670D0;CIE_Zfunc(756)=0.000000000000D0 
+CIE_Xfunc(757)=0.000204525800D0;CIE_Yfunc(757)=0.000073858000D0;CIE_Zfunc(757)=0.000000000000D0 
+CIE_Xfunc(758)=0.000190840500D0;CIE_Yfunc(758)=0.000068916000D0;CIE_Zfunc(758)=0.000000000000D0 
+CIE_Xfunc(759)=0.000178065400D0;CIE_Yfunc(759)=0.000064302670D0;CIE_Zfunc(759)=0.000000000000D0 
+CIE_Xfunc(760)=0.000166150500D0;CIE_Yfunc(760)=0.000060000000D0;CIE_Zfunc(760)=0.000000000000D0 
+CIE_Xfunc(761)=0.000155023600D0;CIE_Yfunc(761)=0.000055981870D0;CIE_Zfunc(761)=0.000000000000D0 
+CIE_Xfunc(762)=0.000144621900D0;CIE_Yfunc(762)=0.000052225600D0;CIE_Zfunc(762)=0.000000000000D0 
+CIE_Xfunc(763)=0.000134909800D0;CIE_Yfunc(763)=0.000048718400D0;CIE_Zfunc(763)=0.000000000000D0 
+CIE_Xfunc(764)=0.000125852000D0;CIE_Yfunc(764)=0.000045447470D0;CIE_Zfunc(764)=0.000000000000D0 
+CIE_Xfunc(765)=0.000117413000D0;CIE_Yfunc(765)=0.000042400000D0;CIE_Zfunc(765)=0.000000000000D0 
+CIE_Xfunc(766)=0.000109551500D0;CIE_Yfunc(766)=0.000039561040D0;CIE_Zfunc(766)=0.000000000000D0 
+CIE_Xfunc(767)=0.000102224500D0;CIE_Yfunc(767)=0.000036915120D0;CIE_Zfunc(767)=0.000000000000D0 
+CIE_Xfunc(768)=0.000095394450D0;CIE_Yfunc(768)=0.000034448680D0;CIE_Zfunc(768)=0.000000000000D0 
+CIE_Xfunc(769)=0.000089023900D0;CIE_Yfunc(769)=0.000032148160D0;CIE_Zfunc(769)=0.000000000000D0 
+CIE_Xfunc(770)=0.000083075270D0;CIE_Yfunc(770)=0.000030000000D0;CIE_Zfunc(770)=0.000000000000D0 
+CIE_Xfunc(771)=0.000077512690D0;CIE_Yfunc(771)=0.000027991250D0;CIE_Zfunc(771)=0.000000000000D0 
+CIE_Xfunc(772)=0.000072313040D0;CIE_Yfunc(772)=0.000026113560D0;CIE_Zfunc(772)=0.000000000000D0 
+CIE_Xfunc(773)=0.000067457780D0;CIE_Yfunc(773)=0.000024360240D0;CIE_Zfunc(773)=0.000000000000D0 
+CIE_Xfunc(774)=0.000062928440D0;CIE_Yfunc(774)=0.000022724610D0;CIE_Zfunc(774)=0.000000000000D0 
+CIE_Xfunc(775)=0.000058706520D0;CIE_Yfunc(775)=0.000021200000D0;CIE_Zfunc(775)=0.000000000000D0 
+CIE_Xfunc(776)=0.000054770280D0;CIE_Yfunc(776)=0.000019778550D0;CIE_Zfunc(776)=0.000000000000D0 
+CIE_Xfunc(777)=0.000051099180D0;CIE_Yfunc(777)=0.000018452850D0;CIE_Zfunc(777)=0.000000000000D0 
+CIE_Xfunc(778)=0.000047676540D0;CIE_Yfunc(778)=0.000017216870D0;CIE_Zfunc(778)=0.000000000000D0 
+CIE_Xfunc(779)=0.000044485670D0;CIE_Yfunc(779)=0.000016064590D0;CIE_Zfunc(779)=0.000000000000D0 
+CIE_Xfunc(780)=0.000041509940D0;CIE_Yfunc(780)=0.000014990000D0;CIE_Zfunc(780)=0.000000000000D0 
+CIE_Xfunc(781)=0.000038733240D0;CIE_Yfunc(781)=0.000013987280D0;CIE_Zfunc(781)=0.000000000000D0 
+CIE_Xfunc(782)=0.000036142030D0;CIE_Yfunc(782)=0.000013051550D0;CIE_Zfunc(782)=0.000000000000D0 
+CIE_Xfunc(783)=0.000033723520D0;CIE_Yfunc(783)=0.000012178180D0;CIE_Zfunc(783)=0.000000000000D0 
+CIE_Xfunc(784)=0.000031464870D0;CIE_Yfunc(784)=0.000011362540D0;CIE_Zfunc(784)=0.000000000000D0 
+CIE_Xfunc(785)=0.000029353260D0;CIE_Yfunc(785)=0.000010600000D0;CIE_Zfunc(785)=0.000000000000D0 
+CIE_Xfunc(786)=0.000027375730D0;CIE_Yfunc(786)=0.000009885877D0;CIE_Zfunc(786)=0.000000000000D0 
+CIE_Xfunc(787)=0.000025524330D0;CIE_Yfunc(787)=0.000009217304D0;CIE_Zfunc(787)=0.000000000000D0 
+CIE_Xfunc(788)=0.000023793760D0;CIE_Yfunc(788)=0.000008592362D0;CIE_Zfunc(788)=0.000000000000D0 
+CIE_Xfunc(789)=0.000022178700D0;CIE_Yfunc(789)=0.000008009133D0;CIE_Zfunc(789)=0.000000000000D0 
+CIE_Xfunc(790)=0.000020673830D0;CIE_Yfunc(790)=0.000007465700D0;CIE_Zfunc(790)=0.000000000000D0 
+CIE_Xfunc(791)=0.000019272260D0;CIE_Yfunc(791)=0.000006959567D0;CIE_Zfunc(791)=0.000000000000D0 
+CIE_Xfunc(792)=0.000017966400D0;CIE_Yfunc(792)=0.000006487995D0;CIE_Zfunc(792)=0.000000000000D0 
+CIE_Xfunc(793)=0.000016749910D0;CIE_Yfunc(793)=0.000006048699D0;CIE_Zfunc(793)=0.000000000000D0 
+CIE_Xfunc(794)=0.000015616480D0;CIE_Yfunc(794)=0.000005639396D0;CIE_Zfunc(794)=0.000000000000D0 
+CIE_Xfunc(795)=0.000014559770D0;CIE_Yfunc(795)=0.000005257800D0;CIE_Zfunc(795)=0.000000000000D0 
+CIE_Xfunc(796)=0.000013573870D0;CIE_Yfunc(796)=0.000004901771D0;CIE_Zfunc(796)=0.000000000000D0 
+CIE_Xfunc(797)=0.000012654360D0;CIE_Yfunc(797)=0.000004569720D0;CIE_Zfunc(797)=0.000000000000D0 
+CIE_Xfunc(798)=0.000011797230D0;CIE_Yfunc(798)=0.000004260194D0;CIE_Zfunc(798)=0.000000000000D0 
+CIE_Xfunc(799)=0.000010998440D0;CIE_Yfunc(799)=0.000003971739D0;CIE_Zfunc(799)=0.000000000000D0 
+CIE_Xfunc(800)=0.000010253980D0;CIE_Yfunc(800)=0.000003702900D0;CIE_Zfunc(800)=0.000000000000D0 
+CIE_Xfunc(801)=0.000009559646D0;CIE_Yfunc(801)=0.000003452163D0;CIE_Zfunc(801)=0.000000000000D0 
+CIE_Xfunc(802)=0.000008912044D0;CIE_Yfunc(802)=0.000003218302D0;CIE_Zfunc(802)=0.000000000000D0 
+CIE_Xfunc(803)=0.000008308358D0;CIE_Yfunc(803)=0.000003000300D0;CIE_Zfunc(803)=0.000000000000D0 
+CIE_Xfunc(804)=0.000007745769D0;CIE_Yfunc(804)=0.000002797139D0;CIE_Zfunc(804)=0.000000000000D0 
+CIE_Xfunc(805)=0.000007221456D0;CIE_Yfunc(805)=0.000002607800D0;CIE_Zfunc(805)=0.000000000000D0 
+CIE_Xfunc(806)=0.000006732475D0;CIE_Yfunc(806)=0.000002431220D0;CIE_Zfunc(806)=0.000000000000D0 
+CIE_Xfunc(807)=0.000006276423D0;CIE_Yfunc(807)=0.000002266531D0;CIE_Zfunc(807)=0.000000000000D0 
+CIE_Xfunc(808)=0.000005851304D0;CIE_Yfunc(808)=0.000002113013D0;CIE_Zfunc(808)=0.000000000000D0 
+CIE_Xfunc(809)=0.000005455118D0;CIE_Yfunc(809)=0.000001969943D0;CIE_Zfunc(809)=0.000000000000D0 
+CIE_Xfunc(810)=0.000005085868D0;CIE_Yfunc(810)=0.000001836600D0;CIE_Zfunc(810)=0.000000000000D0 
+CIE_Xfunc(811)=0.000004741466D0;CIE_Yfunc(811)=0.000001712230D0;CIE_Zfunc(811)=0.000000000000D0 
+CIE_Xfunc(812)=0.000004420236D0;CIE_Yfunc(812)=0.000001596228D0;CIE_Zfunc(812)=0.000000000000D0 
+CIE_Xfunc(813)=0.000004120783D0;CIE_Yfunc(813)=0.000001488090D0;CIE_Zfunc(813)=0.000000000000D0 
+CIE_Xfunc(814)=0.000003841716D0;CIE_Yfunc(814)=0.000001387314D0;CIE_Zfunc(814)=0.000000000000D0 
+CIE_Xfunc(815)=0.000003581652D0;CIE_Yfunc(815)=0.000001293400D0;CIE_Zfunc(815)=0.000000000000D0 
+CIE_Xfunc(816)=0.000003339127D0;CIE_Yfunc(816)=0.000001205820D0;CIE_Zfunc(816)=0.000000000000D0 
+CIE_Xfunc(817)=0.000003112949D0;CIE_Yfunc(817)=0.000001124143D0;CIE_Zfunc(817)=0.000000000000D0 
+CIE_Xfunc(818)=0.000002902121D0;CIE_Yfunc(818)=0.000001048009D0;CIE_Zfunc(818)=0.000000000000D0 
+CIE_Xfunc(819)=0.000002705645D0;CIE_Yfunc(819)=0.000000977058D0;CIE_Zfunc(819)=0.000000000000D0 
+CIE_Xfunc(820)=0.000002522525D0;CIE_Yfunc(820)=0.000000910930D0;CIE_Zfunc(820)=0.000000000000D0 
+CIE_Xfunc(821)=0.000002351726D0;CIE_Yfunc(821)=0.000000849251D0;CIE_Zfunc(821)=0.000000000000D0 
+CIE_Xfunc(822)=0.000002192415D0;CIE_Yfunc(822)=0.000000791721D0;CIE_Zfunc(822)=0.000000000000D0 
+CIE_Xfunc(823)=0.000002043902D0;CIE_Yfunc(823)=0.000000738090D0;CIE_Zfunc(823)=0.000000000000D0 
+CIE_Xfunc(824)=0.000001905497D0;CIE_Yfunc(824)=0.000000688110D0;CIE_Zfunc(824)=0.000000000000D0 
+CIE_Xfunc(825)=0.000001776509D0;CIE_Yfunc(825)=0.000000641530D0;CIE_Zfunc(825)=0.000000000000D0 
+CIE_Xfunc(826)=0.000001656215D0;CIE_Yfunc(826)=0.000000598090D0;CIE_Zfunc(826)=0.000000000000D0 
+CIE_Xfunc(827)=0.000001544022D0;CIE_Yfunc(827)=0.000000557575D0;CIE_Zfunc(827)=0.000000000000D0 
+CIE_Xfunc(828)=0.000001439440D0;CIE_Yfunc(828)=0.000000519808D0;CIE_Zfunc(828)=0.000000000000D0 
+CIE_Xfunc(829)=0.000001341977D0;CIE_Yfunc(829)=0.000000484612D0;CIE_Zfunc(829)=0.000000000000D0 
+CIE_Xfunc(830)=0.000001251141D0;CIE_Yfunc(830)=0.000000451810D0;CIE_Zfunc(830)=0.000000000000D0 
 end subroutine

@@ -2182,6 +2182,7 @@ if (ifound==1) then
     close(10)
     return
 end if
+rewind(10)
 read(10,"(a)") titleline
 read(10,*)
 read(10,*)
@@ -7742,8 +7743,13 @@ character(80) c80tmp1,c80tmp2
 real*8 primshcoefftmp(nprimshell)
 real*8,allocatable :: halfmat(:)
 real*8,external :: normgau
-integer bastype2NBO(50),nptr(nshell)
+integer bastype2NBO(-5:50),nptr(nshell)
 integer ifileid
+bastype2NBO(-5)=255 !z2
+bastype2NBO(-4)=252 !xz
+bastype2NBO(-3)=253 !yz
+bastype2NBO(-2)=254 !x2-y2
+bastype2NBO(-1)=251 !xy
 bastype2NBO(1 )=1   !s
 bastype2NBO(2 )=101 !x
 bastype2NBO(3 )=102 !y
@@ -7781,10 +7787,14 @@ bastype2NBO(23)=413 !YYZZ
 bastype2NBO(22)=414 !YZZZ
 bastype2NBO(21)=415 !ZZZZ
 
-if (any(shtype<0)) then
-	write(*,*) "Error: This function only works when all basis functions are Cartesian type!"
-	write(*,"(a)") " Hint: If you set ""iloadasCart"" in settings.ini to 1, then all spherical harmonic type of &
-	basis functions will be converted to Cartesian type when loading input file, and then this function will be usable"
+if (any(shtype<=-6)) then
+	write(*,"(a)") " Error: This function cannot be used if any spherical-harmonic basis function has >=f angular moment!"
+	write(*,"(a)") " To make this function usable, there are three ways:"
+    write(*,"(a)") " (1) Reduce quality of basis set so that highest angular moment does not exceed d"
+    write(*,"(a)") " (2) Perform calculation based on Cartesian instead of spherical-harmonic basis functions"
+    write(*,"(a)") " (3) Before booting up Multiwfn, set ""iloadasCart"" in settings.ini to 1. After that all spherical-harmonic &
+    basis functions will be converted to Cartesian ones when loading input file. However, note that in this case Multiwfn is unable &
+    to correctly generate Fock matrix based on orbital energies and coeffcients"
 	write(*,*) "Press ENTER button to return"
 	read(*,*)
 	return
@@ -7807,13 +7817,12 @@ do iatm=1,ncenter
 	write(ifileid,"(2i6,3f12.6)") a(iatm)%index,int(a(iatm)%charge),a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%z*b2a
 end do
 write(ifileid,*) "$END"
-
 !Basis function information
 write(ifileid,*) "$BASIS"
 write(ifileid,"(' CENTER =')")
-write(ifileid,"(10i6)") bascen(:)
+write(ifileid,"(10i6)") bascen(1:nbasis)
 write(ifileid,"(' LABEL =')")
-write(ifileid,"(10i6)") bastype2NBO(bastype(:))
+write(ifileid,"(10i6)") bastype2NBO(bastype(1:nbasis))
 write(ifileid,"(' $END')")
 
 !Shell information
@@ -7832,8 +7841,9 @@ write(ifileid,"('   NPTR =')")
 write(ifileid,"(10i6)") nptr(:)
 write(ifileid,"('    EXP =')")
 write(ifileid,"(4E16.7)") primshexp(:)
-!In standard .47 and .37 file, the shell contraction coefficients include normalization coefficients
-!For d, f, g, the normalization coefficients are for XX/YY/ZZ, XXX/YYY/ZZZ, XXXX/YYYY/ZZZZ, respectively
+!In standard .47 and .31 files, the shell contraction coefficients include normalization coefficients
+!For d, f, g, the normalization coefficients are for XX/YY/ZZ, XXX/YYY/ZZZ, XXXX/YYYY/ZZZZ, respectively. &
+!I think in fact this is problematic, because normalization coefficient of e.g. XX and XY is different, I don't know how NBO deal with this issue
 do iang=0,maxval(abs(shtype))
 	primshcoefftmp=0
 	if (iang==0) then
