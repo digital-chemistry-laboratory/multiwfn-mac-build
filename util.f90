@@ -2653,17 +2653,17 @@ end subroutine
 
 
 !!--------- Linear interpolation in 1D
-!r: position, should within bound
+!r: position
 !val: interpolated value
 !ptpos: must vary from small to large
 subroutine linintpol(ptpos,ptval,npt,r,val)
 implicit real*8 (a-h,o-z)
 real*8 ptpos(npt),ptval(npt),r,val
 
-if (r==ptpos(1)) then
+if (r<=ptpos(1)) then
 	val=ptval(1)
     return
-else if (r==ptpos(npt)) then
+else if (r>=ptpos(npt)) then
 	val=ptval(npt)
     return
 end if

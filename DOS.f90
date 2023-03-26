@@ -190,6 +190,14 @@ else
 	return
 end if
 
+if (all(MOene==0)) then
+	write(*,*) "Error: All orbitals have zero energy! In this case DOS cannot be plotted!"
+    if (ifiletype==9) write(*,"(a)") " If the molden file was produced by CP2K, note that OT should not be used, which does not produce orbital energies"
+    write(*,*) "Press ENTER button to return"
+    read(*,*)
+    return
+end if
+
 !Allocate all arrays that may be used, do not consider if they will actually be used, because memory consuming is very little
 allocate(DOSlinex(3*nmo),TDOSliney(3*nmo),TDOSliney_unocc(3*nmo),PDOSliney(3*nmo,nfragmax),OPDOSliney(3*nmo),LDOSliney(3*nmo))
 allocate(compfrag(nmo,0:nfragmax),OPfrag12(nmo))

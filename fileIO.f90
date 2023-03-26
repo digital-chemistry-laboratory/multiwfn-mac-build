@@ -7259,7 +7259,7 @@ write(ifileid,"(a)") "<Number of Perturbations>"
 write(ifileid,"(i6)") 0
 write(ifileid,"(a)") "</Number of Perturbations>"
 write(ifileid,"(a)") "<Net Charge>"
-write(ifileid,"(i6)") sum(a%charge)-nint(nelec)
+write(ifileid,"(i6)") nint(sum(a%charge)-nelec)
 write(ifileid,"(a)") "</Net Charge>"
 write(ifileid,"(a)") "<Number of Electrons>"
 write(ifileid,"(i6)") nint(nelec)
@@ -7790,7 +7790,7 @@ bastype2NBO(21)=415 !ZZZZ
 if (any(shtype<=-6)) then
 	write(*,"(a)") " Error: This function cannot be used if any spherical-harmonic basis function has >=f angular moment!"
 	write(*,"(a)") " To make this function usable, there are three ways:"
-    write(*,"(a)") " (1) Reduce quality of basis set so that highest angular moment does not exceed d"
+    write(*,"(a)") " (1) Reduce quality of basis set so that highest angular moment does not exceed d. Note that most NBO analyses are quite insensitive to basis set"
     write(*,"(a)") " (2) Perform calculation based on Cartesian instead of spherical-harmonic basis functions"
     write(*,"(a)") " (3) Before booting up Multiwfn, set ""iloadasCart"" in settings.ini to 1. After that all spherical-harmonic &
     basis functions will be converted to Cartesian ones when loading input file. However, note that in this case Multiwfn is unable &

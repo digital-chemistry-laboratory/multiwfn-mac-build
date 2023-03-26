@@ -81,8 +81,6 @@ real*8,allocatable :: fragdipcomp(:,:,:,:) !x/y/z of fragment atoms contribution
 integer,allocatable :: cartlist(:,:) !(3*ncenter,maxPVSfrag), if (j,i) is 1, then Cartesian coordinate j belongs to fragment i, otherwise belongs to others
 real*8,allocatable :: dipder(:,:,:) !dipder(i,A,1/2/3) is derivative of x/y/z of dipole moment w.r.t i Cartesian coordinate of atom A
 real*8,allocatable :: redmass(:) !Reduced masses of vibrational modes
-!For predicting colors
-real*8 CIE_Xfunc(830),CIE_Yfunc(830),CIE_Zfunc(830)
 
 
 if (ifiletype/=0) then
@@ -132,8 +130,9 @@ PVSnterm(:)=0
 iUVdir=0
 
 write(*,*) "Select type of the spectrum to plot"
-write(*,*) "1:IR  2:Raman (or pre-resonance Raman)  3:UV-Vis  4:ECD  5:VCD  6:ROA  7:NMR"
+write(*,*) " 1:IR  2:Raman (or pre-resonance Raman)  3:UV-Vis  4:ECD  5:VCD  6:ROA  7:NMR"
 write(*,*) "-3: Directional UV-Vis"
+write(*,*) " 0: Predicting color based on UV-Vis spectrum"
 read(*,*) ispectrum
 if (ispectrum==-3) then
 	ispectrum=3
@@ -156,6 +155,10 @@ else if (ispectrum==1.or.ispectrum==2.or.ispectrum==5.or.ispectrum==6) then !IR,
 else if (ispectrum==3.or.ispectrum==4) then !UV-Vis, ECD
 	ibroadfunc=2 !Use Gaussian broadening
 	iunitx=2 !nm is default unit. But transition energies are loaded as eV
+else if (ispectrum==0) then
+	call gen_vis_curve
+	call predict_color
+	return
 end if
 
 if (ispectrum==2.or.ispectrum==4.or.ispectrum==5.or.ispectrum==6) then
@@ -2908,99 +2911,7 @@ do while(.true.)
 		if (isavepic==1) write(*,*) "Graphical file has been saved to current folder with ""dislin"" prefix"
         
         !Show color based on spectrum
-        if (isel==25) then
-			call gen_CIE_tristimulus_func(CIE_Xfunc,CIE_Yfunc,CIE_Zfunc)
-			CIE_X=0
-			CIE_Y=0
-			CIE_Z=0
-			do ipoint=1,num1Dpoints !In the present case, the X of spectrum curve starts from 360 and ends to 830 with spacing of 1 nm, which in line with tristimulus functions
-				inm=ipoint-1+360
-				CIE_X=CIE_X+curvey(ipoint)*CIE_Xfunc(inm)
-				CIE_Y=CIE_Y+curvey(ipoint)*CIE_Yfunc(inm)
-				CIE_Z=CIE_Z+curvey(ipoint)*CIE_Zfunc(inm)
-			end do
-			write(*,"(/,' CIE1931 XYZ:       ',3f18.3)") CIE_X,CIE_Y,CIE_Z
-			tmp=max(max(CIE_X,CIE_Y),CIE_Z)
-			sCIE_X=CIE_X/tmp
-			sCIE_Y=CIE_Y/tmp
-			sCIE_Z=CIE_Z/tmp
-			write(*,"(' Fractional CIE1931 XYZ:',3f18.10)") sCIE_X,sCIE_Y,sCIE_Z
-			CIE_smallx=CIE_X/(CIE_X+CIE_Y+CIE_Z)
-			CIE_smally=CIE_Y/(CIE_X+CIE_Y+CIE_Z)
-			write(*,"(' CIE1931 xy:        ',2f18.10)") CIE_smallx,CIE_smally
-			Rcomp =  3.2404542D0*sCIE_X  -1.5371385D0*sCIE_Y  -0.4985314D0*sCIE_Z
-			Gcomp = -0.9692660D0*sCIE_X + 1.8760108D0*sCIE_Y + 0.0415560D0*sCIE_Z
-			Bcomp =  0.0556434D0*sCIE_X  -0.2040259D0*sCIE_Y + 1.0572252D0*sCIE_Z
-			write(*,"(a)") " Note the R,G,B values show below correspond to standard RGB (sRGB) color space"
-			write(*,"(' RGB (0-1):  ',3f10.6)") Rcomp,Gcomp,Bcomp
-			intRcomp=nint(Rcomp*255);intGcomp=nint(Gcomp*255);intBcomp=nint(Bcomp*255)
-			write(*,"(' RGB (0-255):',3i6)") intRcomp,intGcomp,intBcomp
-			!Gamma correction. I think this is redundant
-	   !     if (Rcomp<=0.0031308D0) then
-				!Rcomp=12.92D0*Rcomp
-	   !     else
-				!Rcomp=1.055D0*Rcomp**(1D0/2.4D0)-0.055D0
-	   !     end if
-	   !     if (Gcomp<=0.0031308D0) then
-				!Gcomp=12.92D0*Gcomp
-	   !     else
-				!Gcomp=1.055D0*Gcomp**(1D0/2.4D0)-0.055D0
-	   !     end if
-	   !     if (Bcomp<=0.0031308D0) then
-				!Bcomp=12.92D0*Bcomp
-	   !     else
-				!Bcomp=1.055D0*Bcomp**(1D0/2.4D0)-0.055D0
-	   !     end if
-	   !     intRcomp=nint(Rcomp*255);intGcomp=nint(Gcomp*255);intBcomp=nint(Bcomp*255)
-        
-			if (Rcomp<0.or.Rcomp>1.or.Gcomp<0.or.Gcomp>1.or.Bcomp<0.or.Bcomp>1) then
-				write(*,"(a)") " Note: The color exceeds sRGB color space! Now the R,G,B values are scaled into valid range:"
-				if (Rcomp<0) Rcomp=0;if (Gcomp<0) Gcomp=0;if (Bcomp<0) Bcomp=0
-				if (Rcomp>1) Rcomp=1;if (Gcomp>1) Gcomp=1;if (Bcomp>1) Bcomp=1
-				write(*,"(' RGB (0-1):  ',3f10.6)") Rcomp,Gcomp,Bcomp
-				intRcomp=nint(Rcomp*255);intGcomp=nint(Gcomp*255);intBcomp=nint(Bcomp*255)
-				write(*,"(' RGB (0-255):',3i6)") intRcomp,intGcomp,intBcomp
-			end if
-			Rcomp_op=1-Rcomp !Opposite color
-			Gcomp_op=1-Gcomp
-			Bcomp_op=1-Bcomp
-			write(*,"(' RGB of complementary color:',3i6)") nint(Rcomp_op*255),nint(Gcomp_op*255),nint(Bcomp_op*255)
-			shiftval=1-max(max(Rcomp,Gcomp),Bcomp)
-			Rcomp_maxbr=Rcomp+shiftval
-			Gcomp_maxbr=Gcomp+shiftval
-			Bcomp_maxbr=Bcomp+shiftval
-			shiftval=1-max(max(Rcomp_op,Gcomp_op),Bcomp_op)
-			Rcomp_op_maxbr=Rcomp_op+shiftval
-			Gcomp_op_maxbr=Gcomp_op+shiftval
-			Bcomp_op_maxbr=Bcomp_op+shiftval
-			write(*,"(' RGB of original color (maximum brightness):     ',3i6)") nint(Rcomp_maxbr*255),nint(Gcomp_maxbr*255),nint(Bcomp_maxbr*255)
-			write(*,"(' RGB of complementary color (maximum brightness):',3i6)") nint(Rcomp_op_maxbr*255),nint(Gcomp_op_maxbr*255),nint(Bcomp_op_maxbr*255)
-            !Show color on screen
-            CALL SCRMOD('REVERS')
-			CALL METAFL('CONS')
-			call window(200,100,848,600)
-			!CALL PAGE(1600,1000)
-			CALL DISINI
-		    call ERRMOD("ALL","OFF")
-            call WINTIT("Click right mouse button to close...")
-            !call PAGERA
-			call hwfont
-            call shdpat(16)
-            call SETRGB(Rcomp,Gcomp,Bcomp)
-            call rectan(300,200,600,400)
-            call SETRGB(Rcomp_op,Gcomp_op,Bcomp_op)
-            call rectan(1200,200,600,400)
-            call SETRGB(Rcomp_maxbr,Gcomp_maxbr,Bcomp_maxbr)
-            call rectan(300,900,600,400)
-            call SETRGB(Rcomp_op_maxbr,Gcomp_op_maxbr,Bcomp_op_maxbr)
-            call rectan(1200,900,600,400)
-            call SETRGB(0D0,0D0,0D0)
-            call height(60)
-			call messag("color",500,100)
-			call messag("complementary color",1100,100)
-			call messag("Maximum brightness of above colors:",350,800)
-			CALL DISFIN
-        end if
+        if (isel==25) call predict_color
 	end if
 
 end do
@@ -5530,6 +5441,165 @@ end if
 close(10)
 
 end subroutine
+
+
+
+
+!!---- Load spectrum curve X-Y data from input file, and generate curve from 360 to 830 with 1 as spacing by interpolation
+!The new curve is stored in global arrays curvex and curvey
+subroutine gen_vis_curve
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+real*8,allocatable :: rawx(:),rawy(:)
+
+if (allocated(curvex)) deallocate(curvex,curvey)
+num1Dpoints=471
+allocate(curvex(num1Dpoints),curvey(num1Dpoints))
+
+write(*,*) "Loading data points..."
+open(10,file=filename,status="old")
+nraw=totlinenum(10,1)
+allocate(rawx(nraw),rawy(nraw))
+do idata=1,nraw
+    read(10,*) rawx(idata),rawy(idata)
+end do
+write(*,"(' Number of data points:',i8)") nraw
+write(*,"(' Range of X data:',f8.2,' to',f8.2)") minval(rawx),maxval(rawx)
+close(10)
+
+!Use Lagrangian interpolation to generate needed curve
+do ipt=1,num1Dpoints
+    inm=360+ipt-1
+    curvex(ipt)=inm
+    call lagintpol(rawx(:),rawy(:),nraw,dfloat(inm),curvey(ipt),der1,der2,1)
+    !call linintpol(rawx(:),rawy(:),nraw,dfloat(inm),curvey(ipt))
+    !write(11,*) curvex(ipt),curvey(ipt)
+end do
+end subroutine
+
+
+
+
+!!---------- Predict color based on spectrum curve (curvex and curvey, from 360 to 830 nm with 1 nm spacing)
+subroutine predict_color
+use defvar
+use plot
+implicit real*8 (a-h,o-z)
+character selectyn
+real*8 CIE_Xfunc(830),CIE_Yfunc(830),CIE_Zfunc(830)
+
+call gen_CIE_tristimulus_func(CIE_Xfunc,CIE_Yfunc,CIE_Zfunc)
+CIE_X=0
+CIE_Y=0
+CIE_Z=0
+do ipoint=1,num1Dpoints !In the present case, the X of spectrum curve starts from 360 and ends to 830 with spacing of 1 nm, which in line with tristimulus functions
+	inm=ipoint-1+360
+	CIE_X=CIE_X+curvey(ipoint)*CIE_Xfunc(inm)
+	CIE_Y=CIE_Y+curvey(ipoint)*CIE_Yfunc(inm)
+	CIE_Z=CIE_Z+curvey(ipoint)*CIE_Zfunc(inm)
+end do
+write(*,"(/,' CIE1931 XYZ:       ',3f18.3)") CIE_X,CIE_Y,CIE_Z
+tmp=max(max(CIE_X,CIE_Y),CIE_Z)
+sCIE_X=CIE_X/tmp
+sCIE_Y=CIE_Y/tmp
+sCIE_Z=CIE_Z/tmp
+write(*,"(' Fractional CIE1931 XYZ:',3f18.10)") sCIE_X,sCIE_Y,sCIE_Z
+CIE_smallx=CIE_X/(CIE_X+CIE_Y+CIE_Z)
+CIE_smally=CIE_Y/(CIE_X+CIE_Y+CIE_Z)
+write(*,"(' CIE1931 xy:        ',2f18.10)") CIE_smallx,CIE_smally
+Rcomp =  3.2404542D0*sCIE_X  -1.5371385D0*sCIE_Y  -0.4985314D0*sCIE_Z
+Gcomp = -0.9692660D0*sCIE_X + 1.8760108D0*sCIE_Y + 0.0415560D0*sCIE_Z
+Bcomp =  0.0556434D0*sCIE_X  -0.2040259D0*sCIE_Y + 1.0572252D0*sCIE_Z
+write(*,"(a)") " Note the R,G,B values show below correspond to standard RGB (sRGB) color space"
+write(*,"(' RGB (0-1):  ',3f10.6)") Rcomp,Gcomp,Bcomp
+intRcomp=nint(Rcomp*255);intGcomp=nint(Gcomp*255);intBcomp=nint(Bcomp*255)
+write(*,"(' RGB (0-255):',3i6)") intRcomp,intGcomp,intBcomp
+
+!Gamma correction. I think this is redundant and often makes result worse
+!if (Rcomp<=0.0031308D0) then
+!	Rcomp=12.92D0*Rcomp
+!else
+!	Rcomp=1.055D0*Rcomp**(1D0/2.4D0)-0.055D0
+!end if
+!if (Gcomp<=0.0031308D0) then
+!	Gcomp=12.92D0*Gcomp
+!else
+!	Gcomp=1.055D0*Gcomp**(1D0/2.4D0)-0.055D0
+!end if
+!if (Bcomp<=0.0031308D0) then
+!	Bcomp=12.92D0*Bcomp
+!else
+!	Bcomp=1.055D0*Bcomp**(1D0/2.4D0)-0.055D0
+!end if
+        
+if (Rcomp<0.or.Rcomp>1.or.Gcomp<0.or.Gcomp>1.or.Bcomp<0.or.Bcomp>1) then
+	write(*,"(a)") " Note: The color exceeds sRGB color space! Now the R,G,B values are scaled into valid range:"
+	if (Rcomp<0) Rcomp=0;if (Gcomp<0) Gcomp=0;if (Bcomp<0) Bcomp=0
+	if (Rcomp>1) Rcomp=1;if (Gcomp>1) Gcomp=1;if (Bcomp>1) Bcomp=1
+	write(*,"(' RGB (0-1):  ',3f10.6)") Rcomp,Gcomp,Bcomp
+	intRcomp=nint(Rcomp*255);intGcomp=nint(Gcomp*255);intBcomp=nint(Bcomp*255)
+	write(*,"(' RGB (0-255):',3i6)") intRcomp,intGcomp,intBcomp
+end if
+Rcomp_op=1-Rcomp !Opposite color
+Gcomp_op=1-Gcomp
+Bcomp_op=1-Bcomp
+write(*,"(' RGB of complementary color:',3i6)") nint(Rcomp_op*255),nint(Gcomp_op*255),nint(Bcomp_op*255)
+shiftval=1-max(max(Rcomp,Gcomp),Bcomp)
+Rcomp_maxbr=Rcomp+shiftval
+Gcomp_maxbr=Gcomp+shiftval
+Bcomp_maxbr=Bcomp+shiftval
+shiftval=1-max(max(Rcomp_op,Gcomp_op),Bcomp_op)
+Rcomp_op_maxbr=Rcomp_op+shiftval
+Gcomp_op_maxbr=Gcomp_op+shiftval
+Bcomp_op_maxbr=Bcomp_op+shiftval
+write(*,"(' RGB of original color (maximum brightness):     ',3i6)") nint(Rcomp_maxbr*255),nint(Gcomp_maxbr*255),nint(Bcomp_maxbr*255)
+write(*,"(' RGB of complementary color (maximum brightness):',3i6)") nint(Rcomp_op_maxbr*255),nint(Gcomp_op_maxbr*255),nint(Bcomp_op_maxbr*255)
+!Show color on screen
+do itime=1,2
+	CALL SCRMOD('REVERS')
+	if (itime==1) CALL METAFL('CONS')
+	if (itime==2) call METAFL(graphformat)
+	call window(200,100,848,600)
+	!CALL PAGE(1600,1000)
+	CALL DISINI
+	call ERRMOD("ALL","OFF")
+	if (itime==1) then
+		call WINTIT("Click right mouse button to close...")
+		call hwfont
+    else
+		call COMPLX
+    end if
+	call shdpat(16)
+	call SETRGB(Rcomp,Gcomp,Bcomp)
+	call rectan(700,500,600,400)
+	call SETRGB(Rcomp_op,Gcomp_op,Bcomp_op)
+	call rectan(1600,500,600,400)
+	call SETRGB(Rcomp_maxbr,Gcomp_maxbr,Bcomp_maxbr)
+	call rectan(700,1200,600,400)
+	call SETRGB(Rcomp_op_maxbr,Gcomp_op_maxbr,Bcomp_op_maxbr)
+	call rectan(1600,1200,600,400)
+	call SETRGB(0D0,0D0,0D0)
+	call height(60)
+	call messag("color",900,400)
+    call messag("complementary color",1500,400)
+    if (itime==1) then
+		call messag("Maximum brightness of above colors:",750,1100)
+    else
+		call messag("Maximum brightness of above colors:",550,1100)
+    end if
+	CALL DISFIN
+    if (itime==1) then
+		write(*,*)
+		write(*,*) "Do you want to save the colors to image file? (y/n)"
+		read(*,*) selectyn
+		if (selectyn=='n'.or.selectyn=='N') exit
+    else
+		write(*,*) "Done! The image file has been saved to current folder with ""DISLIN"" as prefix"
+    end if
+end do
+end subroutine
+
 
 
 
