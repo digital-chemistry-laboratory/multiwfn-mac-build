@@ -5508,6 +5508,13 @@ write(*,"(' Fractional CIE1931 XYZ:',3f18.10)") sCIE_X,sCIE_Y,sCIE_Z
 CIE_smallx=CIE_X/(CIE_X+CIE_Y+CIE_Z)
 CIE_smally=CIE_Y/(CIE_X+CIE_Y+CIE_Z)
 write(*,"(' CIE1931 xy:        ',2f18.10)") CIE_smallx,CIE_smally
+
+!I also tried to take complementary color for X,Y,Z and then convert to RGB, in principle this is better. &
+!But my test found this doesn't bring notable advantage compared to first convering to RGB and then take complementary color, the result is also not worsen
+!sCIE_X=1-sCIE_X
+!sCIE_Y=1-sCIE_Y
+!sCIE_Z=1-sCIE_Z
+
 Rcomp =  3.2404542D0*sCIE_X  -1.5371385D0*sCIE_Y  -0.4985314D0*sCIE_Z
 Gcomp = -0.9692660D0*sCIE_X + 1.8760108D0*sCIE_Y + 0.0415560D0*sCIE_Z
 Bcomp =  0.0556434D0*sCIE_X  -0.2040259D0*sCIE_Y + 1.0572252D0*sCIE_Z

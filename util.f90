@@ -2345,7 +2345,7 @@ end subroutine
 subroutine inputprog(ifileid,iprog)
 integer ifileid,iprog
 iprog=0
-call loclabel(ifileid,"&COORD ",ifound,maxline=500)
+call loclabel(ifileid,"&COORD ",ifound,maxline=10000) !Various information may present before &COORD, so maxline should be large
 if (ifound==1) then
     iprog=1
     return
