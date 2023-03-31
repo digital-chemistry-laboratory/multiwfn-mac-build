@@ -1043,7 +1043,11 @@ else if (ifiletypeexc==2) then !ORCA output file
     if (iORCAsTD==0) then !Regular case
 	    !Worthnotingly, in at least ORCA 4.0, de-excitation is not separately outputted as <-, but combined into ->
 	    !Here we still check <-, because hopefully Neese may change the convention of ORCA output in the future...
-	    call loclabel(10,"the weight of the individual excitations are printed")
+        do igeom=1,numexctime
+            call loclabel(10,"TD-DFT XC SETUP",ifound,0)
+            read(10,*)
+        end do
+	    call loclabel(10,"the weight of the individual excitations are printed",ifound,0)
 	    if (allexcmulti(1)==3) then !When triplets=on, ORCA calculates both singlet and triplet excited states, now move to the latter
 		    read(10,*)
 		    call loclabel(10,"the weight of the individual excitations are printed",ifound,0)
