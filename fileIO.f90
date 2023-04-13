@@ -7787,7 +7787,7 @@ bastype2NBO(23)=413 !YYZZ
 bastype2NBO(22)=414 !YZZZ
 bastype2NBO(21)=415 !ZZZZ
 
-if (any(shtype<=-6)) then
+if (any(shtype<=-3)) then
 	write(*,"(a)") " Error: This function cannot be used if any spherical-harmonic basis function has >=f angular moment!"
 	write(*,"(a)") " To make this function usable, there are three ways:"
     write(*,"(a)") " (1) Reduce quality of basis set so that highest angular moment does not exceed d. Note that most NBO analyses are quite insensitive to basis set"

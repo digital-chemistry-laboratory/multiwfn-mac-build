@@ -250,7 +250,7 @@ integer :: shtype2nbas(-5:5)=(/ 11,9,7,5,4,1,3,6,10,15,21 /)
 !-------- Variables for wfn information(_org means using for backuping the first loaded molecule)
 integer :: ibasmode=0 !0/1 = GTO/STO is used in current wavefunction
 integer :: nmo=0,nprims=0,ncenter=0,ncenter_org=0,nmo_org=0,nprims_org=0 !Number of orbitals, primitive functions, nuclei
-integer :: idxHOMO=0,idxHOMOb=0 !Index of total/alpha and beta-HOMO. Can be determined by subroutine getHOMOidx
+integer :: idxHOMO=0,idxHOMOb=0 !shtype of total/alpha and beta-HOMO. Can be determined by subroutine getHOMOidx
 integer :: ifiletype=0 !Plain text=0, fch/fchk=1, wfn=2, wfx=3, chg/pqr=4, pdb/xyz=5, NBO .31=6, cube/VASP grid=7, grd/dx/vti=8, molden=9, gms=10, MDL mol/sdf=11, gjf or ORCA inp or mop =12, mol2=13, mwfn=14, gro=15, cp2k input=16, cif=17, POSCAR=18
 integer :: wfntype=0 !0/1/2= R/U/RO single determinant wavefunction, 3/4=R/U multiconfiguration wavefunction
 real*8 :: totenergy=0,virialratio=2,nelec=0,naelec=0,nbelec=0

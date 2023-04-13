@@ -1760,6 +1760,7 @@ do iatm=1,ncenter
         else if (ieneinfo==6) then
 			funcval(ipt)=elapl(ipt)*log(eval(ipt)/e0val(ipt))
         end if
+        !write(15,*) ipt,funcval(ipt),eval(ipt),e0val(ipt),gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z
 	end do
     
 	call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid,covr_tianlu,3)
@@ -1779,3 +1780,8 @@ write(*,"(/,' Result is',1PE20.10)") intval
 end do
 
 end subroutine
+
+
+
+
+

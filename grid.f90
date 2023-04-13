@@ -242,11 +242,16 @@ else
 	do while(.true.)
 		write(*,*)
 		write(*,*) "Please select a method to set up grid"
-		write(*,"(a,f7.3,a)") " -10 Set extension distance of grid range for mode 1~4, current:",aug3D," Bohr"
-		write(*,*) "1 Low quality grid,    covering whole system, about 125000 points in total"
-		write(*,*) "2 Medium quality grid, covering whole system, about 512000 points in total"
-		write(*,*) "3 High quality grid,   covering whole system, about 1728000 points in total"
-		write(*,*) "4 Input the number of points or grid spacing in X,Y,Z, covering whole system"
+        if (ifPBC>0) then
+			write(*,"(a)") " **** NOTE: For periodic systems, if you hope the grid points evenly distribute in the whole cell, usually you should choose option 9 to define the grid ****"
+        end if
+        if (ifPBC==0) then
+			write(*,"(a,f7.3,a)") " -10 Set extension distance of grid range for mode 1~4, current:",aug3D," Bohr"
+			write(*,*) "1 Low quality grid,    covering whole system, about 125000 points in total"
+			write(*,*) "2 Medium quality grid, covering whole system, about 512000 points in total"
+			write(*,*) "3 High quality grid,   covering whole system, about 1728000 points in total"
+			write(*,*) "4 Input the number of points or grid spacing in X,Y,Z, covering whole system"
+        end if
 		write(*,*) "5 Input original point, grid spacings, and the number of points"
 		write(*,*) "6 Input center coordinate, number of points and extension distance"
 		write(*,*) "7 The same as 6, but input two atoms, the midpoint will be defined as center"

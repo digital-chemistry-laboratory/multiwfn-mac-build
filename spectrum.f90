@@ -2991,6 +2991,7 @@ end if
 
 !Check if is Gaussian output file
 call loclabel(10,"Gaussian, Inc",igauout,maxline=100)
+if (igauout==0) call loclabel(10,"Entering Gaussian System",igauout,maxline=200)
 rewind(10)
 if (igauout==1) then
 	if (imode==0) write(*,*) "Recognized as a Gaussian output file"
@@ -5463,6 +5464,14 @@ nraw=totlinenum(10,1)
 allocate(rawx(nraw),rawy(nraw))
 do idata=1,nraw
     read(10,*) rawx(idata),rawy(idata)
+    if (idata>1) then
+	    if (rawx(idata)<=rawx(idata-1)) then
+			write(*,"(a)") " Error: The X data in the input file must be ordered from small to large! Please manually fix your input file"
+            write(*,*) "Press ENTER button to exit Multiwfn"
+            read(*,*)
+            stop
+        end if
+    end if
 end do
 write(*,"(' Number of data points:',i8)") nraw
 write(*,"(' Range of X data:',f8.2,' to',f8.2)") minval(rawx),maxval(rawx)
