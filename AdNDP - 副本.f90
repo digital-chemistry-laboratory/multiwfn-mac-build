@@ -207,59 +207,48 @@ do while(.true.)
         
 	else if (isel==-1) then
 		call adndpdeflist(searchlist,lensearchlist)
-        
 	else if (isel==0) then
-		write(*,*) "Input indices of the candidate orbitals to be picked out, e.g. 1,4-10,15,16"
-		write(*,"(a)") " Note: If only inputting one number (N), then N orbitals with largest occupation will be picked out"
-        write(*,"(a)") " To pick out e.g. the 7th orbital, input 7-7"
-		read(*,"(a)") c2000tmp
-		if (index(c2000tmp,',')/=0.or.index(c2000tmp,'-')/=0) then !Inputted indices
-            call str2arr(c2000tmp,npickout)
-			allocate(tmparr(npickout))
-			call str2arr(c2000tmp,npickout,tmparr)
-            write(*,"(i5,' orbitals are picked out')") npickout
+		write(*,*) "Input the index range of the candidate orbitals to be picked out, e.g. 1,4"
+		write(*,"(a)") " Note: If only input one number (N), then N orbitals with the largest occupations will be picked out"
+		read(*,"(a)") c80tmp
+		if (index(c80tmp,',')/=0) then !Inputted two numbers
+			read(c80tmp,*) ilow,ihigh
+		else if (c80tmp==" ".or.index(c80tmp,'-')/=0) then
+			write(*,*) "Error: Unknown command"
+			cycle
 		else
-			read(c2000tmp,*) npickout
-			allocate(tmparr(npickout))
-            forall(i=1:npickout) tmparr(i)=i
+			ilow=1
+			read(c80tmp,*) ihigh
 		end if
-		if (any(tmparr>numcandi)) then
-			write(*,"(a)") " Error: Index of any orbital to be picked out should not be larger than the total number of candidate orbitals!"
+		npickout=ihigh-ilow+1
+		if (ihigh>numcandi) then
+			write(*,*) "Error: Picked orbitals should not be larger than candidate orbitals!"
             write(*,*) "Press ENTER button to continue"
             read(*,*)
-            deallocate(tmparr)
 			goto 1
 		end if
-        
 		!Pick some orbitals from candidate list to permanent list
-        do ipick=1,npickout
-			iorb=tmparr(ipick)
-			savedocc(numsaved+ipick)=candiocc(iorb)
-			savedvec(numsaved+ipick,:)=candivec(iorb,:)
-			savedatmlist(numsaved+ipick,:)=candiatmlist(iorb,:)
-			savednatm(numsaved+ipick)=candinatm(iorb)
+		do i=ilow,ihigh
+			iaug=i-ilow+1
+			savedocc(numsaved+iaug)=candiocc(i)
+			savedvec(numsaved+iaug,:)=candivec(i,:)
+			savedatmlist(numsaved+iaug,:)=candiatmlist(i,:)
+			savednatm(numsaved+iaug)=candinatm(i)
 			!Deplete the density of the picked orbitals from DMNAO
-			colvec(:,1)=candivec(iorb,:)
-			rowvec(1,:)=candivec(iorb,:)
-			DMNAO=DMNAO-candiocc(iorb)*matmul(colvec,rowvec)
-        end do
+			colvec(:,1)=candivec(i,:)
+			rowvec(1,:)=candivec(i,:)
+			DMNAO=DMNAO-candiocc(i)*matmul(colvec,rowvec)
+		end do
 		numsaved=numsaved+npickout
-        
-		!Make candidate list contiguous
-        do ipick=1,npickout
-			iorb=tmparr(ipick)
-            if (iorb<numcandi) then
-				candiocc(iorb:numcandi-1)=candiocc(iorb+1:numcandi)
-				candivec(iorb:numcandi-1,:)=candivec(iorb+1:numcandi,:)
-				candiatmlist(iorb:numcandi-1,:)=candiatmlist(iorb+1:numcandi,:)
-				candinatm(iorb:numcandi-1)=candinatm(iorb+1:numcandi)
-				where(tmparr>iorb) tmparr=tmparr-1
-            end if
-			numcandi=numcandi-1
-        end do
-        
-        deallocate(tmparr)
-        
+		!Shift candidate list to fill the gap
+		newnumcandi=numcandi-npickout
+		if (numcandi>=ihigh+1) then
+			candiocc(ilow:newnumcandi)=candiocc(ihigh+1:numcandi)
+			candivec(ilow:newnumcandi,:)=candivec(ihigh+1:numcandi,:)
+			candiatmlist(ilow:newnumcandi,:)=candiatmlist(ihigh+1:numcandi,:)
+			candinatm(ilow:newnumcandi)=candinatm(ihigh+1:numcandi)
+		end if
+		numcandi=newnumcandi
 		!Recalculate eigenval and eigenvec of remained candidate orbitals
 		!Since an atom combination may have many orbitals exceed threshold, we first specify which eigenvalue of each combination will be used. If the combination is unique, then the largest one will be used
 		nlenlist=candinatm(1) !The same to other candidate orbitals
@@ -417,7 +406,6 @@ do while(.true.)
 		
 		if (isel==2) write(*,"(' Tried',i9,' combinations, totally found',i9,' candidate orbitals',/)") ntotcomb,numcandi
 		if (ncenana<lensearchlist.and.isel==2) ncenana=ncenana+1
-        
 	else if (isel==3) then
 		write(*,"(a,i6)") " Input a number, should between 1 and",lensearchlist
 		read(*,*) ncenanatmp
@@ -426,18 +414,15 @@ do while(.true.)
 			goto 1
 		end if
 		ncenana=ncenanatmp
-        
 	else if (isel==4) then
 		write(*,*) "Input a number, e.g. 1.9"
 		read(*,*) bndcrit
-        
 	else if (isel==5) then
 		write(*,*) "                         ---- AdNDP orbital list ----"
 		do i=1,numsaved
 			write(*,"(' #',i5,' Occ:',f8.4,' Atom:',9(i4,a))") i,savedocc(i),(savedatmlist(i,ii),a(savedatmlist(i,ii))%name,ii=1,savednatm(i))
 		end do
 		write(*,"(' Total occupation number in above orbitals:',f10.4,/)") sum(savedocc(1:numsaved))
-        
 	else if (isel==6) then
 		write(*,*) "Input orbital index range that will be removed, e.g. 7,10"
 		write(*,*) "Note: The density of these orbitals will not be returned to density matrix"

@@ -118,7 +118,7 @@ do while(.true.)
 	write(*,*) "14 Set value of the grid points outside overlap region of two fragments"
 	write(*,*) "15 If data value is within certain range, set it to a specified value"
 	write(*,*) "16 Scale data range of present grid data"
-	write(*,*) "17 Show statistic data of the points in specific spatial and value range"
+	write(*,*) "17 Show statistic data of grid points in specific spatial and value ranges"
 	write(*,*) "18 Plot (local) integral curve or plane-averaged in X/Y/Z direction"
 	read(*,*) isel
     
