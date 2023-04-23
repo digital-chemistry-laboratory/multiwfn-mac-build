@@ -27,6 +27,12 @@ if (ifPBC>0) then
         call getcellabc(asize,bsize,csize,alpha,beta,gamma)
         write(*,"(' Cell angles:  Alpha=',f9.4,'  Beta=',f9.4,'  Gamma=',f9.4,' degree')") alpha,beta,gamma
         call calc_cellvol(cellvol)
+        call calc_vecarea(cellv1*b2a,cellv2*b2a,area)
+        write(*,"(' Area between a and b:',f12.4,' Angstrom^2')") area
+        call calc_vecarea(cellv2*b2a,cellv3*b2a,area)
+        write(*,"(' Area between b and c:',f12.4,' Angstrom^2')") area
+        call calc_vecarea(cellv1*b2a,cellv3*b2a,area)
+        write(*,"(' Area between a and c:',f12.4,' Angstrom^2')") area
         write(*,"(' Cell volume:',f16.4,' Bohr^3    (',f16.4,' Angstrom^3 )')") cellvol,cellvol*b2a**3
         dens=sum(atmwei(a%index))*amu2kg*1000  /(cellvol*b2a**3/1D24)
         write(*,"(' Density:',f10.5,' g/cm^3    (',f10.3,' kg/m^3 )')") dens,dens*1000
@@ -368,6 +374,18 @@ cellvol=abs(sum(cellv1(:)*vec(:)))
 !mat(:,2)=cellv2(:)
 !mat(:,3)=cellv3(:)
 !cellvol=abs(detmat(mat))
+end subroutine
+
+
+
+!!---------- Input two vectors, return area     
+subroutine calc_vecarea(vec1,vec2,area)
+implicit real*8 (a-h,o-z)
+real*8 vec1(3),vec2(3),area
+vec2norm=dsqrt(sum(vec2**2))
+tmp=sum(vec1*(vec2/vec2norm)) !Length of vec1 along vector 2
+tmp2=dsqrt(sum(vec1**2)-tmp**2) !Length of vec1 perpendicular to vector 2
+area=tmp2*vec2norm
 end subroutine
 
 

@@ -1203,7 +1203,7 @@ do while(.true.)
 	if (test=="HETATM".or.test=="ATOM  ") then
 		backspace(10)
 		i=i+1
-		read(10,"(12x,a4,1x,a3,2x,i4,4x,3f8.3,22x,a3)") tmpname,a(i)%resname,a(i)%resid,a(i)%x,a(i)%y,a(i)%z,element
+		read(10,"(12x,a4,1x,a3,2x,i4,4x,3f8.3,22x,a2)") tmpname,a(i)%resname,a(i)%resid,a(i)%x,a(i)%y,a(i)%z,element
 		if (ipqr==1) then !Use free-format to load atomic charge
 			backspace(10)
 			read(10,"(a)") c80tmp

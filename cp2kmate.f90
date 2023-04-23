@@ -1352,10 +1352,17 @@ else if (PBCdir=="YZ") then
 else if (PBCdir=="XYZ") then
     !When ifPBC==3, namely the inputted file provides cellv1/2/3, it will be directly used
     !while if the loaded system is nonperiodic while we request to use XYZ periodicity to calculate, then employ extended sizes
-    if (ifPBC/=3) then
+    if (ifPBC==0) then
         cellv1_pseudo(:)=(/ xdist,0D0,0D0 /)
         cellv2_pseudo(:)=(/ 0D0,ydist,0D0 /)
         cellv3_pseudo(:)=(/ 0D0,0D0,zdist /)
+    else if (ifPBC==1) then
+        cellv2_pseudo(:)=(/ 0D0,ydist,0D0 /)
+        cellv3_pseudo(:)=(/ 0D0,0D0,zdist /)
+        write(*,"(a)") " Note: The translation vector in your input file is assumed to correspond to X direction, the cell sizes of Y and Z are automatically determined"
+    else if (ifPBC==2) then
+        cellv3_pseudo(:)=(/ 0D0,0D0,zdist /)
+        write(*,"(a)") " Note: The translation vectors in your input file are assumed to correspond to the directions in XY plane, the cell size of Z is automatically determined"
     end if
 end if
 write(ifileid,"(a,3f15.8)") "      A",cellv1_pseudo(:)*b2a
@@ -1672,7 +1679,7 @@ if (ikpoint1==1.and.ikpoint2==1.and.ikpoint3==1) then !Gamma
     end if
 else !k-point case, wavefunction extrapolation cannot be uesd, so add a line so that users can uncomment it to use previous density matrix
     if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==8) then !Tasks involving geometry change
-        write(ifileid,"(a)") "      #EXTRAPOLATION USE_PREV_P #Use converged density matrix of last geometry as initial guess"
+        write(ifileid,"(a)") "#     EXTRAPOLATION USE_PREV_P #Use converged density matrix of last geometry as initial guess"
     end if
 end if
 if (method=="GFN1-xTB") then
