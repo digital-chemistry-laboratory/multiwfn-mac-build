@@ -146,10 +146,12 @@ else !Plain text file
         open(10,file=thisfilename,status="old")
         call inputprog(10,iprog)
         close(10)
-        if (iprog==1) then
-            if (thisfilename(inamelen-2:inamelen)=="inp".or.thisfilename(inamelen-6:inamelen)=="restart") call readcp2k(thisfilename,infomode)
-        else if (iprog==2) then
+        if (iprog==1) then !Read as CP2K input file
+            if (thisfilename(inamelen-2:inamelen)=="inp".or.thisfilename(inamelen-6:inamelen)=="restart") call readcp2k(thisfilename)
+        else if (iprog==2) then !Read as ORCA input file
             call readORCAinp(thisfilename,infomode)
+        else if (iprog==3) then !Read as Quantum ESPRESSO input file
+            call readQEinp(thisfilename)
         end if
     end if
     !Try to load as Turbomole input file ($coord in the first line)
@@ -1711,7 +1713,7 @@ naelec=(nint(nelec)+loadmulti-1)/2
 nbelec=nelec-naelec
 if (infomode==0) then
 	write(*,"(' Totally',i8,' atoms')") ncenter
-	write(*,"(' The number of alpha and beta electrons:',2i8)") nint(naelec),nint(nbelec)
+	write(*,"(' Number of alpha and beta electrons:',2i8)") nint(naelec),nint(nbelec)
 end if
 end subroutine
 
@@ -1787,8 +1789,7 @@ nelec=sum(a%index)-loadcharge
 naelec=(nint(nelec)+loadmulti-1)/2
 nbelec=nelec-naelec
 if (infomode==0) then
-	write(*,"(' Totally',i8,' atoms')") ncenter
-	write(*,"(' The number of alpha and beta electrons:',2i8)") nint(naelec),nint(nbelec)
+	write(*,"(' Number of alpha and beta electrons:',2i8)") nint(naelec),nint(nbelec)
 end if
 end subroutine
 
@@ -1796,12 +1797,10 @@ end subroutine
 
 !!------------------------------------------------------------------------------
 !!-------------------- Read CP2K input file or restart file --------------------
-! infomode=0: Output summary, =1: do not
-subroutine readcp2k(name,infomode) 
+subroutine readcp2k(name) 
 use defvar
 use util
 implicit real*8 (a-h,o-z)
-integer infomode
 character(len=*) name
 character c40tmp*40,c200tmp*200
 real*8 vec1(3),vec2(3)
@@ -1913,10 +1912,116 @@ end if
 a%charge=a%index
 a%name=ind2name(a%index)
 call guessnelec
-if (infomode==0) then
-	write(*,"(' Totally',i8,' atoms')") ncenter
-	!write(*,"(' The number of alpha and beta electrons:',2i8)") nint(naelec),nint(nbelec)
+end subroutine
+
+
+
+!!--------------------------------------------------------------------------
+!!-------------------- Read Quantum ESPRESSO input file --------------------
+! Only support ibrav=0
+subroutine readQEinp(name)
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+character c80tmp*80,c200tmp*200
+character(len=*) name
+
+ifiletype=19
+open(10,file=name,status="old")
+
+call loclabel(10,"&SYSTEM",ifound)
+if (ifound==0) call loclabel(10,"&system",ifound)
+if (ifound==0) then
+	write(*,*) "Error: &system field cannot be found! Press ENTER button to exit"
+    read(*,*)
+    stop
 end if
+
+!Load &SYSTEM
+alat=0
+read(10,*)
+do while(.true.)
+	read(10,"(a)") c200tmp
+	if (index(c200tmp,'/')/=0) exit
+    
+    itmp=index(c200tmp,'=')
+    read(c200tmp(:itmp-1),*) c80tmp
+	if (c80tmp=="ibrav") then
+		call readaftersign_int(c200tmp,'=',itmp)
+		if (itmp/=0) then
+			write(*,*) "Error: Only ibrav=0 is supported! Press ENTER button to exit"
+			read(*,*)
+			stop
+		end if
+	else if (c80tmp=="nat") then
+		call readaftersign_int(c200tmp,'=',ncenter)
+		if (allocated(a)) deallocate(a)
+		allocate(a(ncenter))
+	else if (c80tmp=="celldm(1)") then
+		call readaftersign_float(c200tmp,'=',alat)
+	else if (c80tmp=="a".or.c80tmp=="A") then
+		call readaftersign_float(c200tmp,'=',alat)
+        alat=alat/b2a
+    end if
+end do
+if (alat/=0) write(*,"(' alat is',f12.6,' Bohr')") alat
+
+!Load CELL_PARAMETERS
+call loclabel(10,"CELL_PARAMETERS",ifound)
+if (ifound==0) call loclabel(10,"cell_parameters",ifound)
+if (ifound==0) then
+	write(*,*) "Error: CELL_PARAMETERS card cannot be found! Press ENTER button to exit"
+    read(*,*)
+    stop
+else
+	read(10,"(a)") c200tmp
+	read(10,*) cellv1(:)
+	read(10,*) cellv2(:)
+	read(10,*) cellv3(:)
+	if (index(c200tmp,'angstrom')/=0.or.index(c200tmp,'Angstrom')/=0) then
+		cellv1=cellv1/b2a
+		cellv2=cellv2/b2a
+		cellv3=cellv3/b2a
+	else if (index(c200tmp,'alat')/=0) then
+		cellv1=cellv1*alat
+		cellv2=cellv2*alat
+		cellv3=cellv3*alat
+	end if
+	ifPBC=3
+end if
+
+!Load ATOMIC_POSITIONS
+call loclabel(10,"ATOMIC_POSITIONS",ifound)
+if (ifound==0) call loclabel(10,"atomic_positions",ifound)
+if (ifound==0) then
+	write(*,*) "Error: ATOMIC_POSITIONS card cannot be found! Press ENTER button to exit"
+    read(*,*)
+    stop
+else
+	read(10,"(a)") c200tmp
+	do iatm=1,ncenter
+		read(10,*) c80tmp,a(iatm)%x,a(iatm)%y,a(iatm)%z
+        !User may use customized name, such as Fe2. So we only keep the first two letter
+        a(iatm)%name=c80tmp(1:2)
+		call lc2uc(a(iatm)%name(1:1))
+		call uc2lc(a(iatm)%name(2:2))
+		call elename2idx(a(iatm)%name,a(iatm)%index)
+	end do
+	if (index(c200tmp,'angstrom')/=0.or.index(c200tmp,'Angstrom')/=0) then
+		a%x=a%x/b2a
+		a%y=a%y/b2a
+		a%z=a%z/b2a
+	else if (index(c200tmp,'alat')/=0) then
+		a%x=a%x*alat
+		a%y=a%y*alat
+		a%z=a%z*alat
+	end if
+end if
+
+close(10)
+
+a%charge=a%index
+call guessnelec
 end subroutine
 
 

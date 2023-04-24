@@ -1558,7 +1558,7 @@ do i=0,nelesupp
 	write(tmp,"(i6)") n
 	if (n/=0) write(*,"(a,a,' ')",advance="no") trim(ind2name(i)),trim(adjustl(tmp))
 end do
-write(*,*)
+write(*,"('     Total atoms:',i8)") ncenter
 end subroutine
 
 

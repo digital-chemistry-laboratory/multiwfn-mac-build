@@ -2341,7 +2341,7 @@ end subroutine
 
 !--------- Determine the present file is input file of which code when the answer cannot be determined from file extension
 !The file must have been opened as "ifileid"
-!iprog=0: Cannot be identified  =1: CP2K  =2: ORCA
+!iprog=0: Cannot be identified  =1: CP2K  =2: ORCA  =3: Quantum ESPRESSO
 subroutine inputprog(ifileid,iprog)
 integer ifileid,iprog
 iprog=0
@@ -2353,6 +2353,12 @@ end if
 call loclabel(ifileid,"* xyz ",ifound,maxline=500)
 if (ifound==1) then
     iprog=2
+    return
+end if
+call loclabel(ifileid,"&control ",ifound,maxline=1000)
+if (ifound==0) call loclabel(ifileid,"&CONTROL ",ifound,maxline=1000)
+if (ifound==1) then
+    iprog=3
     return
 end if
 end subroutine
