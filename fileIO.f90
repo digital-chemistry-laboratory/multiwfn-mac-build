@@ -3365,7 +3365,8 @@ ifiletype=2
 imodwfn=0
 open(10,file=name,status="old")
 read(10,"(a)") wfntitle
-read(10,"(a8,i15,13x,i7,11x,i9)") c80tmp,nmo,nprims,ncenter
+!read(10,"(a8,i15,13x,i7,11x,i9)") c80tmp,nmo,nprims,ncenter
+read(10,*) c80tmp,nmo,c80tmp,c80tmp,nprims,c80tmp,ncenter !Use free format for compatible with .wfn produced by Q-Chem
 ibasmode=1
 if (index(c80tmp,"SLATER")/=0) ibasmode=2
 if (ibasmode==2) then
