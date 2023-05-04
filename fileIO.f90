@@ -4797,7 +4797,7 @@ end subroutine
 
 
 
-!---------- Read GAMESS-US output file to get GTF and basis information, the suffix must be "gms"
+!---------- Read GAMESS-US and Firefly output file to get GTF and basis information, the suffix must be "gms"
 !GAMESS-US always print LCAO cofficients as Cartesian basis functions, while the number of MOs correspond to spherical harmonic functions (if used)
 !infomode=0 means output info, =1 silent
 subroutine readgms(name,infomode)
@@ -4890,20 +4890,22 @@ read(10,*)
 iaddshell=0
 nshell=0
 nprimshell=0
+nshell_tmp=0 !Number of basis shells without splitting SP shell
 do iatm=1,ncenter
 	read(10,*) !Atom name
-	read(10,*)
+	read(10,*) !Space line
 	do while(.true.)
 		read(10,"(a)") c80
 		if (c80==" ") then !Finished loading last shell
 			nshell=nshell+1
+            nshell_tmp=nshell_tmp+1
 			if (iaddshell==1) nshell=nshell+1 !Last shell is L
 			iaddshell=0
 			read(10,"(a)") c80;backspace(10)
-			if (iachar(c80(2:2))>=65) exit !The second column of next line is a letter, indicating that reading present atom has finished
+			if (iachar(c80(2:2))>=65.or.c80(2:2)=='*') exit !The second column of next line is a letter (element name (* for Bq) or string), indicating that reading present atom has finished
 			if (c80==" ") exit !The next line is blank (may occur in the case of Firefly), indicating the whole field of basis set definition has finished
 		else
-            if (c80(2:2)/=" ") then
+            if (iachar(c80(2:2))>=65.or.c80(2:2)=='*') then !The second column of next line is a letter (element name (* for Bq) or string), indicating that reading present atom has finished
                 backspace(10)
                 exit
             end if
@@ -4914,7 +4916,11 @@ do iatm=1,ncenter
 			end if
 		end if
 	end do
+    !write(*,*) iatm,nprimshell,nshell,nshell_tmp
 end do
+write(*,"(' Number of primitive shells (L is splitted as S and P):',i8)") nprimshell
+write(*,"(' Number of basis function shells (L is splitted as S and P):',i8)") nshell
+write(*,"(' Number of basis function shells (without splitting L):',i8)") nshell_tmp
 
 !Second time, read basis set information actually
 allocate(shtype(nshell),shcon(nshell),shcen(nshell))
@@ -4956,7 +4962,7 @@ do iatm=1,ncenter
 			end if
 			ishell=ishell+1
 			read(10,"(a)") c80;backspace(10)
-			if (iachar(c80(2:2))>=65.or.c80(2:2)=='*') exit !The second column of next line is a letter, indicating that reading present atom has finished
+			if (iachar(c80(2:2))>=65.or.c80(2:2)=='*') exit !The second column of next line is a letter (element name (* for Bq) or string), indicating that reading present atom has finished
 			if (c80==" ") exit !The next line is blank (may occur in the case of Firefly), indicating the whole field of basis set definition has finished
 		else !Loading next primitive shell in current basis function shell
             !In very special case, there are two Bq successively occur at the end, below is an example. &
@@ -4971,7 +4977,7 @@ do iatm=1,ncenter
             !
             ! TOTAL NUMBER OF BASIS SET SHELLS             =   84
             !...
-            if (c80(2:2)/=" ") then
+            if (iachar(c80(2:2))>=65.or.c80(2:2)=='*') then !The second column of next line is a letter (element name (* for Bq) or string), indicating that reading present atom has finished
                 backspace(10)
                 exit
             end if
@@ -5013,13 +5019,27 @@ end do
 nbasisCar=nbasis
 
 if (infomode==0) write(*,*) "Loading orbitals..."
-call loclabel(10,"----- BETA SET -----",ibeta)
-call loclabel(10,"TOTAL NUMBER OF MOS IN VARIATION SPACE=",ispher)
-if (ispher==0) then !Cartesian functions
-	nmoactual=nbasis
+
+!  "nmoactual" below is the actual number of MOs (for each spin in unrestricted case), less or equal to nbasis
+!  In GAMESS-US, the actual number of orbitals is nbasis - A - B, where
+!A is "NUMBER OF SPHERICAL CONTAMINANTS DROPPED", namely the difference betweem number of spherical and cartesian basis functions
+!B is "NUMBER OF LINEARLY DEPENDENT MOS DROPPED", namely the number of removed linearly dependent basis functions
+!  In Firefly, the actual number of orbitals is nbasis - "TOTAL NUMBER OF CONTAMINANTS DROPPED"
+if (ifirefly==0) then
+	call loclabel(10,"TOTAL NUMBER OF MOS IN VARIATION SPACE=",ispher)
+	if (ispher==0) then !Cartesian functions
+		nmoactual=nbasis
+	else
+		read(10,"(40x,i8)") nmoactual
+	end if
 else
-	read(10,"(40x,i8)") nmoactual !The actual number of MOs (value is for each spin in unrestricted case), less than nbasis
+	nremove=0
+	call loclabel(10,"TOTAL NUMBER OF CONTAMINANTS DROPPED",ifound)
+    read(10,"(a)") c80
+	if (ifound==1) call readaftersign_int(c80,'=',nremove)
+    nmoactual=nbasis-nremove
 end if
+call loclabel(10,"----- BETA SET -----",ibeta)
 if (ibeta==0) then !Only one set of orbitals
 	nmo=nbasis
 	allocate(amocoeff(nbasis,nmoactual),MOocc(nmo),MOene(nmo),MOtype(nmo),MOsym(nmo))
