@@ -1590,7 +1590,8 @@ write(*,"(' Dipole moment (a.u.): ',3f14.6)") xinttot,yinttot,zinttot
 write(*,"(' Dipole moment (Debye):',3f14.6)") xinttot*au2debye,yinttot*au2debye,zinttot*au2debye
 dipmag=sqrt(xinttot**2+yinttot**2+zinttot**2)
 write(*,"(' Magnitude of dipole moment:',f14.6,' a.u.',f14.6,' Debye')") dipmag,dipmag*au2debye
-
+write(*,*)
+write(*,*) "Note: All units given below are in a.u."
 write(*,"(/,' Quadrupole moments (Standard Cartesian form):')")
 fac=1
 !fac=au2debye*b2a !If using this factor, result will be identical to "Quadrupole moment (field-independent basis, Debye-Ang):" printed by Gaussian
@@ -1651,9 +1652,6 @@ write(*,"(' XXYZ=',f16.4,'  YYXZ=',f16.4,'  ZZXY=',f16.4)") xxyzinttot*fac,yyxzi
 ESE=ESEx+ESEy+ESEz
 write(*,"(/,a,f16.6)") " Electronic spatial extent <r^2>:",ESE
 write(*,"(' Components of <r^2>:  X=',f15.6,'  Y=',f15.6,'  Z=',f15.6)") ESEx,ESEy,ESEz
-
-write(*,*)
-write(*,*) "Note: Unless otherwise specified, all data shown above are in a.u."
 end subroutine
 
 

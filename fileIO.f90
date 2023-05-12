@@ -488,7 +488,7 @@ if (any(tmparrint==0).and.infomode==0) then
 	write(*,"(a)") " Note: If all Bq atoms have corresponding basis functions, then they can be safely loaded. &
 	However, if some of them do not have basis functions, in general they should not be loaded, otherwise problems or crashes may occur &
 	when performing analyses based on wavefunction"
-	read(*,*) selectyn
+	read(*,"(a)") selectyn
 	if (selectyn=='n'.or.selectyn=='N') ncenter=count(tmparrint/=0)
 end if
 if (allocated(a)) deallocate(a)
@@ -8968,7 +8968,7 @@ if (ifound==1) then
         c80tmp2=symopstr(isymop)(itmp+1:jtmp-1)
         c80tmp3=symopstr(isymop)(jtmp+1:)
         !write(*,"(' Symmetry operation',i4,': ',a,1x,a,1x,a)") isymop,trim(c80tmp),trim(c80tmp2),trim(c80tmp3)
-        call parsef(1,trim(c80tmp),var)
+        call parsef(1,trim(c80tmp),var) !Use string to define formula, var(:) defines variables in the formula. Then use evalf to evaluate value
         call parsef(2,trim(c80tmp2),var)
         call parsef(3,trim(c80tmp3),var)
         do iatm=1,ncenter_tmp !Duplicate unique atoms via symmetry operations

@@ -2268,7 +2268,7 @@ else !&SCF
     write(ifileid,"(a)") "#     SCF_GUESS RESTART #Use wavefunction from WFN_RESTART_FILE_NAME file as initial guess"
     if (idiagOT==1) then
         write(ifileid,"(a)") "      &DIAGONALIZATION"
-        write(ifileid,"(a)") "        ALGORITHM STANDARD #Algorithm for diagonalization. DAVIDSON is faster for large systems"
+        write(ifileid,"(a)") "        ALGORITHM STANDARD #Algorithm for diagonalization"
         write(ifileid,"(a)") "      &END DIAGONALIZATION"
     else if (idiagOT==2) then
         write(ifileid,"(a)") "      &OT"
