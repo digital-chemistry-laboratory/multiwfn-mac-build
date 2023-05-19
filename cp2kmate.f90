@@ -323,7 +323,7 @@ do while(.true.)
         if (iraman==0) write(*,"(a)") " 13 Toggle calculating Raman activities, current: No"
         if (iraman==1) write(*,"(a)") " 13 Toggle calculating Raman activities, current: Yes"
     end if
-    if (method/="FIST") then
+    if (method/="FIST".and.itask/=15) then
         if (iTDDFT==0) then
             write(*,*) "15 Toggle calculating excited states via TDDFT, current: No"
         else if (iTDDFT==1) then
@@ -853,11 +853,11 @@ do while(.true.)
             call str2arr(c2000tmp,nXASatm,XASatm)
             kindnameXAS=trim(a(XASatm(1))%name)//'x'
             write(*,*) "IMPORTANT NOTE:"
-            write(*,"(a)") " After choosing option 0, Multiwfn will generate XAS_TDP task. The input file corresponding to BHandHLYP(with ADMM)/DZVP-MOLOPT-SR-GTH level with GAPW, &
+            write(*,"(a)") " After choosing option 0, Multiwfn will generate XAS_TDP task. The input file corresponding to PBE45(with ADMM)/DZVP-MOLOPT-SR-GTH level with GAPW, &
             and there is a special &KIND correpsonding to pcseg-2 all-electron basis set accompanied with admm-2 auxiliary ADMM basis set. You should do following things before running the task:"
             write(*,"(a)") " 1 Copy basis set definition of pcseg-2 from BSE basis set library to a file named ""pcseg"" and put it to the ""data"" folder of CP2K"
             write(*,"(a)") " 2 Copy basis set definition of admm-2 from BSE basis set library to a file named ""pcseg-admm"" and put it to the ""data"" folder of CP2K"
-            write(*,"(a)") " 3 Properly modify &XAS_TDP / STATE_TYPES according to requirement"
+            write(*,"(a)") " 3 Properly modify &XAS_TDP / STATE_TYPES according to practical requirement"
         end if
     else if (isel==1) then !Functionals description: https://manual.cp2k.org/trunk/CP2K_INPUT/ATOM/METHOD/XC/XC_FUNCTIONAL.html
         !write(*,*) "-1 Molecular mechanism (MM)"

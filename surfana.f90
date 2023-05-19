@@ -60,6 +60,7 @@ do while(.true.)
 	if (imapfunc==2) write(*,*) "2 Select mapped function, current: Average local ionization energy (ALIE)"
 	if (imapfunc==3) write(*,"(a)") " 2 Select mapped function, current: Electrostatic potential from atomic charges"
 	if (imapfunc==4) write(*,*) "2 Select mapped function, current: Local electron affinity"
+	if (imapfunc==-4) write(*,*) "2 Select mapped function, current: Local electron attachment energy"
 	if (imapfunc==5) write(*,*) "2 Select mapped function, current: Electron delocalization range function EDR(r;d)" 
 	if (imapfunc==6) write(*,*) "2 Select mapped function, current: Orbital overlap distance function D(r)"	
 	if (imapfunc==10) write(*,*) "2 Select mapped function, current: Pair density"
@@ -181,6 +182,7 @@ do while(.true.)
 		write(*,*) "2 Average local ionization energy (ALIE)"
 		write(*,*) "3 Electrostatic potential from atomic charges in a .chg file"
 		write(*,*) "4 Local electron affinity (LEA)"
+		write(*,*) "-4 Local electron attachment energy"
 		write(*,*) "5 Electron delocalization range function EDR(r;d)"	
 		write(*,*) "6 Orbital overlap length function D(r) which maximizes EDR(r;d)"	
 ! 		if (allocated(b)) write(*,*) "10 Pair density" !Rarely used by normal users, so comment it
@@ -204,7 +206,7 @@ do while(.true.)
 		else
 			ireadextmapval=0
 			if (imapfunc==1.or.imapfunc==11.or.imapfunc==12) grdspc=0.25D0
-			if (imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==5.or.imapfunc==6.or.imapfunc==-1.or.imapfunc==10) grdspc=0.2D0
+			if (imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==-4.or.imapfunc==5.or.imapfunc==6.or.imapfunc==-1.or.imapfunc==10) grdspc=0.2D0
 		end if
 		if (imapfunc==5) then !Input length scale to evaluate EDR(r;d)
 			write(*,*) "The EDR(r;d) computing code was contributed by Arshad Mehmood"
@@ -275,7 +277,7 @@ do while(.true.)
 	else if (isel==3) then
 		write(*,*) "Input a value (in Bohr), e.g. 0.2"
 		if (imapfunc==0.or.imapfunc==1.or.imapfunc==20.or.imapfunc==21.or.imapfunc==22) write(*,*) "Note: In general 0.25 is enough. For higher accuracy, 0.15~0.20 is recommended"
-		if (imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==-1) write(*,*) "Note: In general 0.20 is enough. For higher accuracy, 0.13~0.17 is recommended"
+		if (imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==-4.or.imapfunc==-1) write(*,*) "Note: In general 0.20 is enough. For higher accuracy, 0.13~0.17 is recommended"
 		read(*,*) grdspc
 		critmerge=grdspc*spcmergeratio
 		
@@ -833,6 +835,8 @@ if (ireadextmapval==0) then !Directly calculate
 		write(*,*) "Calculating electrostatic potential based on atomic charges at surface vertices"
 	else if (imapfunc==4) then
 		write(*,*) "Calculating local electron affinity at surface vertices..."
+	else if (imapfunc==-4) then
+		write(*,*) "Calculating local electron attachment energy at surface vertices..."
 	else if (imapfunc==5) then		
 		write(*,*) "Calculating EDR(r;d) at surface vertices..."
 	else if (imapfunc==6) then		
@@ -1094,7 +1098,7 @@ cmin: do ivtx=1,nsurvtx
 	surlocminidx(nsurlocmin)=ivtx
 end do cmin
 write(*,"(a,i6)") " The number of surface minima:",nsurlocmin
-if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4) then
+if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==-4) then
 	write(*,*) "  #       a.u.         eV      kcal/mol           X/Y/Z coordinate(Angstrom)"
 else
 	write(*,*) "  #             Value           X/Y/Z coordinate(Angstrom)"
@@ -1103,7 +1107,7 @@ do i=1,nsurlocmin
 	idx=surlocminidx(i)
 	char1tmp=' '
 	if (idx==indsurfmin) char1tmp='*' !Mark minimum term by asterisk
-	if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4) then
+	if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==-4) then
 		write(*,"(a,i5,f12.8,f12.6,f12.6,4x,3f11.6)") char1tmp,i,survtx(idx)%value,survtx(idx)%value*au2eV,survtx(idx)%value*au2kcal,survtx(idx)%x*b2a,survtx(idx)%y*b2a,survtx(idx)%z*b2a
 	else
 		write(*,"(a,i5,f19.7,3x,3f11.6)") char1tmp,i,survtx(idx)%value,survtx(idx)%x*b2a,survtx(idx)%y*b2a,survtx(idx)%z*b2a
@@ -1131,7 +1135,7 @@ cmax: do ivtx=1,nsurvtx
 	surlocmaxidx(nsurlocmax)=ivtx
 end do cmax
 write(*,"(a,i6)") " The number of surface maxima:",nsurlocmax
-if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4) then
+if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==-4) then
 	write(*,*) "  #       a.u.         eV      kcal/mol           X/Y/Z coordinate(Angstrom)"
 else
 	write(*,*) "  #             Value           X/Y/Z coordinate(Angstrom)"
@@ -1140,7 +1144,7 @@ do i=1,nsurlocmax
 	idx=surlocmaxidx(i) !Convert to absolute surface vertice index
 	char1tmp=' '
 	if (idx==indsurfmax) char1tmp='*' !Mark maximum term by asterisk
-	if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4) then
+	if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==-4) then
 		write(*,"(a,i5,f12.8,f12.6,f12.6,4x,3f11.6)") char1tmp,i,survtx(idx)%value,survtx(idx)%value*au2eV,survtx(idx)%value*au2kcal,survtx(idx)%x*b2a,survtx(idx)%y*b2a,survtx(idx)%z*b2a
 	else
 		write(*,"(a,i5,f19.7,3x,3f11.6)") char1tmp,i,survtx(idx)%value,survtx(idx)%x*b2a,survtx(idx)%y*b2a,survtx(idx)%z*b2a
@@ -1165,7 +1169,7 @@ end if
 
 if (imapfunc==1.or.imapfunc==3) then !ESP or ESP from atomic charges
 	write(*,"(' Minimal value:',f13.5,' kcal/mol   Maximal value:',f13.5,' kcal/mol')") survtx(indsurfmin)%value*au2kcal,survtx(indsurfmax)%value*au2kcal
-else if (imapfunc==2.or.imapfunc==4) then !ALIE or LEA
+else if (imapfunc==2.or.imapfunc==4.or.imapfunc==-4) then !ALIE or LEA or LEAE
 	write(*,"(' Minimal value:',f13.5,' eV,   Maximal value:',f13.5,' eV')") survtx(indsurfmin)%value*au2eV,survtx(indsurfmax)%value*au2eV
 else
 	write(*,"(' Minimal value:',f16.8,'    Maximal value:',f16.8)") survtx(indsurfmin)%value,survtx(indsurfmax)%value
@@ -1212,7 +1216,7 @@ if (imapfunc==1.or.imapfunc==3) then !ESP or ESP from atomic charges
 	write(*,"(' Negative average value:',f13.8,' a.u. (',f13.5,' kcal/mol)')") avgneg,avgneg*au2kcal
 else if (imapfunc==2) then !ALIE is always positive
 	write(*,"(' Average value: ',f13.8,' a.u. (',f13.5,' eV,',f13.5,' kcal/mol)')") avgpos,avgpos*au2eV,avgpos*au2kcal
-else if (imapfunc==4) then !LEA
+else if (imapfunc==4.or.imapfunc==-4) then !LEA or LEAE
 	write(*,"(' Overall average value: ',f11.7,' a.u. (',f10.5,' eV,',f13.5,' kcal/mol)')") avgall,avgall*au2eV,avgall*au2kcal
 	write(*,"(' Positive average value:',f11.7,' a.u. (',f10.5,' eV,',f13.5,' kcal/mol)')") avgpos,avgpos*au2eV,avgpos*au2kcal
 	write(*,"(' Negative average value:',f11.7,' a.u. (',f10.5,' eV,',f13.5,' kcal/mol)')") avgneg,avgneg*au2eV,avgneg*au2kcal
@@ -1256,7 +1260,7 @@ if (imapfunc==1.or.imapfunc==3) then
     write(*,"(' Polar surface area (|ESP| > 10 kcal/mol):    ',f10.2,' Angstrom^2  (',f6.2,' %)')") surfareapol*b2a*b2a,surfareapol/surfareaall*100
 else if (imapfunc==2) then
 	write(*,"(' Variance:  ',f13.8,' a.u.^2  (',f13.5,' eV^2,',E13.5,' kcal/mol^2)')") variall,variall*au2eV**2,variall*au2kcal**2
-else if (imapfunc==4) then
+else if (imapfunc==4.or.imapfunc==-4) then
 	write(*,"(' Overall variance: ',f10.6,' a.u.^2  (',f10.5,' eV^2,',E12.5,' kcal/mol^2)')") variall,variall*au2eV**2,variall*au2kcal**2
 	write(*,"(' Positive variance:',f10.6,' a.u.^2  (',f10.5,' eV^2,',E12.5,' kcal/mol^2)')") varipos,varipos*au2eV**2,varipos*au2kcal**2
 	write(*,"(' Negative variance:',f10.6,' a.u.^2  (',f10.5,' eV^2,',E12.5,' kcal/mol^2)')") varineg,varineg*au2eV**2,varineg*au2kcal**2
@@ -1339,7 +1343,7 @@ do while(.true.)
 			open(ides,file="surfanalysis.txt",status="replace")
 		end if
 		write(ides,"(a,i6)") " Number of surface minima:",count(surlocminidx(1:nsurlocmin)/=0)
-		if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4) then
+		if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==-4) then
 			write(ides,*) "  #       a.u.         eV      kcal/mol           X/Y/Z coordinate(Angstrom)"
 		else
 			write(ides,*) "  #             Value           X/Y/Z coordinate(Angstrom)"
@@ -1349,7 +1353,7 @@ do while(.true.)
 			if (idx==0) cycle !The extreme has already been discarded
 			char1tmp=" "
 			if (idx==indsurfmin) char1tmp="*"
-			if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4) then
+			if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==-4) then
 				write(ides,"(a,i5,f12.8,f12.6,f12.6,4x,3f11.6)") char1tmp,i,survtx(idx)%value,&
 				survtx(idx)%value*au2eV,survtx(idx)%value*au2kcal,survtx(idx)%x*b2a,survtx(idx)%y*b2a,survtx(idx)%z*b2a
 			else
@@ -1358,7 +1362,7 @@ do while(.true.)
 		end do
 		write(ides,*)
 		write(ides,"(a,i6)") " Number of surface maxima:",count(surlocmaxidx(1:nsurlocmax)/=0)
-		if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4) then
+		if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==-4) then
 			write(ides,*) "  #       a.u.         eV      kcal/mol           X/Y/Z coordinate(Angstrom)"
 		else
 			write(ides,*) "  #             Value           X/Y/Z coordinate(Angstrom)"
@@ -1368,7 +1372,7 @@ do while(.true.)
 			if (idx==0) cycle !The extreme has already been discarded
 			char1tmp=" "
 			if (idx==indsurfmax) char1tmp="*"
-			if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4) then
+			if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==-4) then
 				write(ides,"(a,i5,f12.8,f12.6,f12.6,4x,3f11.6)") char1tmp,i,survtx(idx)%value,&
 				survtx(idx)%value*au2eV,survtx(idx)%value*au2kcal,survtx(idx)%x*b2a,survtx(idx)%y*b2a,survtx(idx)%z*b2a
 			else
@@ -1389,12 +1393,16 @@ do while(.true.)
 			call getcellabc(asize,bsize,csize,alpha,beta,gamma)
 			write(10,"('CRYST1',3f9.3,3f7.2)") asize,bsize,csize,alpha,beta,gamma
 		end if
-		if (imapfunc==1.or.imapfunc==3) then
+		if (imapfunc==1.or.imapfunc==3) then !ESP
 			if (iESPev==0) then
 				write(10,"(a)") "REMARK   Unit of B-factor field (i.e. ESP) is kcal/mol"
 			else if (iESPev==1) then
 				write(10,"(a)") "REMARK   Unit of B-factor field (i.e. ESP) is eV"
 			end if
+        else if (imapfunc==2.or.imapfunc==4.or.imapfunc==-4) then
+            if (imapfunc==2) write(10,"(a)") "REMARK   Unit of B-factor field (ALIE) is eV"
+            if (imapfunc==4) write(10,"(a)") "REMARK   Unit of B-factor field (LEA) is eV"
+            if (imapfunc==-4) write(10,"(a)") "REMARK   Unit of B-factor field (LEAE) is eV"
 		end if
         write(10,"(a)") "REMARK   Carbon: Surface maximum    Oxygen: surface minimum"
 		do i=1,nsurlocmax
@@ -1406,7 +1414,7 @@ do while(.true.)
 				else if (iESPev==1) then
 					tmpval=survtx(idx)%value*au2eV
 				end if
-			else if (imapfunc==2.or.imapfunc==4) then
+			else if (imapfunc==2.or.imapfunc==4.or.imapfunc==-4) then
 				tmpval=survtx(idx)%value*au2eV
 			else
 				tmpval=survtx(idx)%value
@@ -1423,7 +1431,7 @@ do while(.true.)
 				else if (iESPev==1) then
 					tmpval=survtx(idx)%value*au2eV
 				end if
-			else if (imapfunc==2.or.imapfunc==4) then
+			else if (imapfunc==2.or.imapfunc==4.or.imapfunc==-4) then
 				tmpval=survtx(idx)%value*au2eV
 			else
 				tmpval=survtx(idx)%value
@@ -1441,7 +1449,7 @@ do while(.true.)
 			else if (iESPev==1) then
 				write(*,"(a)") " B-factor field records mapped function value in eV"
 			end if
-		else if (imapfunc==2.or.imapfunc==4) then
+		else if (imapfunc==2.or.imapfunc==4.or.imapfunc==-4) then
 			write(*,"(a)") " B-factor field records mapped function value in eV"
 		else
 			write(*,"(a)") " B-factor field records mapped function value in original unit"
@@ -1526,7 +1534,7 @@ do while(.true.)
 				else if (iESPev==1) then
 					tmpfuncval=survtx(i)%value*au2eV
 				end if
-			else if (imapfunc==2.or.imapfunc==4) then
+			else if (imapfunc==2.or.imapfunc==4.or.imapfunc==-4) then
 				tmpfuncval=survtx(i)%value*au2eV
 			else if (imapfunc==11.or.imapfunc==12) then
 				tmpfuncval=survtx(i)%value*tmpfac
@@ -1562,7 +1570,7 @@ do while(.true.)
 		if (imapfunc==1.or.imapfunc==3) then
 			if (iESPev==0) write(*,"(a)") " B-factor field records mapped function value in kcal/mol"
 			if (iESPev==1) write(*,"(a)") " B-factor field records mapped function value in eV"
-		else if (imapfunc==2.or.imapfunc==4) then
+		else if (imapfunc==2.or.imapfunc==4.or.imapfunc==-4) then
 			write(*,"(a)") " B-factor field records mapped function value in eV"
 		else
 			write(*,"(a)") " B-factor field records mapped function value in original unit"
@@ -1591,7 +1599,7 @@ do while(.true.)
 		write(10,"(i10)") ncurrvtx
 		do i=1,nsurvtx
 			if (elimvtx(i)==0) then
-				if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4) then
+				if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==-4) then
 					write(10,"(3f13.7,4x,3f16.10)") survtx(i)%x,survtx(i)%y,survtx(i)%z,survtx(i)%value,survtx(i)%value*au2eV,survtx(i)%value*au2kcal
 				else
 					write(10,"(3f13.7,4x,f18.10)") survtx(i)%x,survtx(i)%y,survtx(i)%z,survtx(i)%value
@@ -1599,7 +1607,7 @@ do while(.true.)
 			end if
 		end do
 		write(*,"(a)") " Done, all surface vertices (not including the ones have been eliminated) have been outputted to vtx.txt in current folder"
-		if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4) then
+		if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==-4) then
 			write(*,"(a)") " The first line is the number of points. Column 1,2,3,4,5,6 respectively correspond to coordinate of X/Y/Z in Bohr, mapped function in a.u., eV and kcal/mol"
 		else
 			write(*,"(a)") " The first line is the number of points. Column 1,2,3,4 respectively correspond to coordinate of X/Y/Z in Bohr and mapped function in original unit"
@@ -1686,7 +1694,7 @@ do while(.true.)
 		write(*,*) "Input the number of statistical intervals, e.g. 5"
 		read(*,*) nintval
 		convunit=1D0
-		if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4) then
+		if (imapfunc==1.or.imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==-4) then
 			write(*,*) "The inputted range is in which unit?"
 			write(*,*) "1: a.u.     2: eV     3: kcal/mol"
 			read(*,*) iunit
@@ -1927,7 +1935,7 @@ do while(.true.)
 				write(*,"(' Average value: ',f13.8,' a.u. (',f13.8,' eV,',f14.8,' kcal/mol)')") fragsuravg(1,2),fragsuravg(1,2)*au2eV,fragsuravg(1,2)*au2kcal
 				write(*,"(' Variance:  ',f13.8,' a.u.^2  (',f13.8,' eV^2,',E14.6,' kcal/mol^2)')") fragsurvar(1,2),fragsurvar(1,2)*au2eV**2,fragsurvar(1,2)*au2kcal**2
 			end if
-		else if (imapfunc==4) then
+		else if (imapfunc==4.or.imapfunc==-4) then
 			if (isel==11) then
 				write(*,*) "Note: Below minimal and maximal values are in eV"
 				write(*,*) " Atom#    All/Positive/Negative area (Ang^2)  Minimal value   Maximal value"
@@ -2062,7 +2070,7 @@ do while(.true.)
 			surtriz=sum(survtx(surtriang(itri)%idx(1:3))%z)/3D0
 			if (imapfunc==-1.or.imapfunc==0) tmpfuncval=surtriang(itri)%value
 			if (imapfunc==1.or.imapfunc==3) tmpfuncval=surtriang(itri)%value*au2kcal
-			if (imapfunc==2.or.imapfunc==4) tmpfuncval=surtriang(itri)%value*au2eV
+			if (imapfunc==2.or.imapfunc==4.or.imapfunc==-4) tmpfuncval=surtriang(itri)%value*au2eV
 			if (tmpfuncval>999.99D0) tmpfuncval=999.99D0 !Avoid excess limit then become, because B-factor field only have three integer position
 			if (tmpfuncval<-99.99D0) tmpfuncval=-99.99D0
 			write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") &
@@ -2914,6 +2922,8 @@ else if (imapfunc==3) then
 	calcmapfunc=nucesp(x,y,z)
 else if (imapfunc==4) then
 	calcmapfunc=loceleaff(x,y,z)
+else if (imapfunc==-4) then
+	calcmapfunc=loceleatt(x,y,z)
 else if (imapfunc==5) then
 	calcmapfunc=edr(x,y,z)
 else if (imapfunc==6) then

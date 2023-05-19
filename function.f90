@@ -159,6 +159,8 @@ case (26) !Thomas-Fermi kinetic energy density
     userfunc=KED(x,y,z,3)
 case (27) !Local electron affinity
     userfunc=loceleaff(x,y,z)
+case (-27) !Local electron attachment energy
+    userfunc=loceleatt(x,y,z)
 case (28) !Local Mulliken electronegativity
     userfunc=(avglocion(x,y,z)+loceleaff(x,y,z))/2
 case (29) !Local hardness
@@ -3384,7 +3386,7 @@ call orbderv(1,1,nmo,x,y,z,wfnval)
 loceleaff=0D0
 rho=0D0
 do i=1,nmo
-	if (MOocc(i)==0) then !Only cycles unoccupied orbitals 
+	if (MOocc(i)==0) then !Only cycle unoccupied orbitals
 		loceleaff=loceleaff-MOene(i)*wfnval(i)**2 !Don't need to multiply "occupation number", because ROHF is not allowed, so all orbitals have the same type
 		rho=rho+wfnval(i)**2 !Calculate rho
 	end if
@@ -3393,6 +3395,31 @@ if (rho==0D0) then
 	loceleaff=0D0 !Avoid at distant region rho become zero when exponent cutoff is used
 else
 	loceleaff=loceleaff/rho
+end if
+end function
+
+
+
+
+!!-------- Calculate Local electron attachment energy
+!Since virtual orbitals are involved, such as .fch/.molden/.gms must be used
+real*8 function loceleatt(x,y,z)
+real*8 x,y,z,wfnval(nmo)
+call orbderv(1,1,nmo,x,y,z,wfnval)
+loceleatt=0D0
+rho=0D0
+do i=1,nmo
+	tmp=wfnval(i)**2
+    rho=rho+MOocc(i)*tmp
+	if (MOocc(i)==0.and.MOene(i)<0) then !Only cycle unoccupied orbitals with negative energy
+		loceleatt=loceleatt+MOene(i)*tmp
+	end if
+end do
+if (wfntype==0) loceleatt=loceleatt*2
+if (rho==0D0) then
+	loceleatt=0D0 !Avoid at distant region rho become zero when exponent cutoff is used
+else
+	loceleatt=loceleatt/rho
 end if
 end function
 

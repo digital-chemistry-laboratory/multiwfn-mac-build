@@ -1043,24 +1043,12 @@ end subroutine
 !---------Input path name, e.g. C:\ltwd\MIO.wfn, output file name, e.g. MIO
 subroutine path2filename(pathnamein,filenameout)
 character(len=*) pathnamein,filenameout
-!Find position of last dot
 do i=len_trim(pathnamein),1,-1
-	if (pathnamein(i:i)=='.') then
-		iend=i-1
-		exit
-	end if
+	if (pathnamein(i:i)=='/'.or.pathnamein(i:i)=='\') exit 
 end do
-if (i==0) iend=len_trim(pathnamein) !The path doesn't have a dot!
-!Find position of last slash
-istart=1
-do i=iend,1,-1
-	if (pathnamein(i:i)=='/'.or.pathnamein(i:i)=='\') then
-		istart=i+1
-		exit
-	end if
-end do
-filenameout=' '
-filenameout(1:iend-istart+1)=pathnamein(istart:iend)
+filenameout=pathnamein(i+1:)
+i=index(filenameout,'.')
+if (i/=0) filenameout(i:)=" "
 end subroutine
 
 
