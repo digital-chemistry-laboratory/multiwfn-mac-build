@@ -96,7 +96,7 @@ integer,parameter :: nkindmax=200
 integer,save :: nkind=0 !Current number of kinds
 character(len=8),save :: kindname(nkindmax) !Name of each kind
 integer,save :: kindeleidx(nkindmax) !Element idx of each kind
-integer,save :: kindmag(nkindmax) !Magnetization of each kind
+real*8,save :: kindmag(nkindmax) !Magnetization of each kind
 character,save :: lastinpname*200 !Input file of last time in this interface
 
 !Defining array recording number of valence electrons for various elements of MOLOPT-GTH basis set, so that -q? can be automatically added to basis set name (except for 0)
@@ -521,7 +521,7 @@ do while(.true.)
                         ncount=count(atmkind(:)==ikind)
                         if (ncount>0) then
                             idx=idx+1
-                            write(*,"(' #',i3,':  Kind name: ',a,' Element: ',a,'  Magnetization:',i3,'   Natoms:',i5)") &
+                            write(*,"(' #',i3,':  Kind name: ',a,' Element: ',a,'  Magnetization:',f5.2,'   Natoms:',i5)") &
                             idx,kindname(ikind),ind2name(kindeleidx(ikind)),kindmag(ikind),ncount
                         end if
                     end do
@@ -561,7 +561,7 @@ do while(.true.)
                     end if
                     if (all(a(tmparr(1:ntmp))%index==a(tmparr(1))%index)) then
                         nkind=nkind+1
-                        write(*,*) "Input magnetization (difference between alpha and beta electrons), e.g. 4"
+                        write(*,*) "Input magnetization (difference between alpha and beta electrons), e.g. 3.2"
                         read(*,*) kindmag(nkind)
                         atmkind(tmparr(1:ntmp))=nkind
                         iele=a(tmparr(1))%index
@@ -875,7 +875,7 @@ do while(.true.)
         write(*,*) "17 BEEF-vdW                  18 HLE17 (via LibXC)"
         write(*,*) "20 RI-MP2     21 RI-SCS-MP2    22 RI-(EXX+RPA)@PBE"
         write(*,*) "25 RI-B2PLYP  26 RI-B2GP-PLYP  27 RI-DSD-BLYP  28 RI-revDSD-PBEP86 with ADMM"
-        write(*,*) "30 GFN1-xTB   40 PM6           50 SCC-DFTB"
+        write(*,*) "30 GFN1-xTB   40 PM6           50 SCC-DFTB + disp. corr."
         write(*,*) "60 GW@BHandHLYP with ADMM      61 GW@MN15L"
         write(*,*) "80 PBEh      -80 PBEh with ADMM  (customize HFX composition)"
         write(*,*) "100 FIST module (molecular mechanics)"
@@ -1485,7 +1485,7 @@ if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB".and.method/="FIS
                     write(ifileid,"(a)") "      #&END DFT_PLUS_U"
                 end if
             end if
-            if (kindmag(ikind)/=0) write(ifileid,"(a,i3)") "      MAGNETIZATION",kindmag(ikind)
+            if (kindmag(ikind)/=0) write(ifileid,"(a,f6.2)") "      MAGNETIZATION",kindmag(ikind)
             write(ifileid,"(a)") "    &END KIND"
         end do
         if (itask==15.or.allocated(XASatm)) then !For XAS_TDP, provide a dummy KIND so that user can easily specify the atom to be excited

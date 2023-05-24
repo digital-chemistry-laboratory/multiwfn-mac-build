@@ -11,7 +11,7 @@ integer,allocatable :: exclfragatm(:),tmparrint(:),idxsel(:)
 character(len=3) :: orbtype(0:2)=(/ "A+B"," A "," B " /)
 character symstr*6
 
-write(*,*) "Note: ""GTF"" in this function refers to Gaussian type primitive function"
+write(*,*) "Note: ""GTF"" in this function refers to primitive Gaussian type function"
 call updatenelec !Sometimes the naelec/nbelec/nelec recorded in the input file is not in line with sum of occupation numbers, so update
 do while(.true.)
 	write(*,*)

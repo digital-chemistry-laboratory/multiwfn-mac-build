@@ -87,7 +87,7 @@ do while(.true.)
 	write(*,*) "9 Generating the paths connecting (3,+1) and (3,+3) CPs"
 	write(*,*) "10 Add or delete interbasin surfaces"
 	if (ifunctopo==1) write(*,*) "20 Calculate Shannon aromaticity index"
-	write(*,*) "21 Calculate density curvature perpendicular to a specific plane at a point"
+	write(*,*) "21 Calculate gradient and curvature of electron density along a direction"
     
     read(*,"(a)") c80tmp
     if (c80tmp=="00") then !Special case
@@ -1651,7 +1651,8 @@ do while(.true.)
 			deallocate(shanCPrho)
 		end do
 	else if (isel==21.and.ifunctopo==1) then
-		write(*,*) "Input the coordinate, e.g. 2.0,2.4,1.1   or input indices of a CP, e.g. 4"
+		write(*,*) "Input XYZ coordinate of the point to be calculated, e.g. 2.0,2.4,1.1"
+        write(*,*) "or input index of a CP, e.g. 4"
 		read(*,"(a)") c200
 		if ( index(c200,',')==0 .and. index(trim(c200),' ')==0 ) then
 			read(c200,*) ithisCP
@@ -1668,11 +1669,25 @@ do while(.true.)
 				tmpz=tmpz/b2a
 			end if
 		end if
-		write(*,*) "Input indices of three atoms to define a plane, e.g. 3,4,9"
-		read(*,*) iatm1,iatm2,iatm3
-		call pointABCD(a(iatm1)%x,a(iatm1)%y,a(iatm1)%z,a(iatm2)%x,a(iatm2)%y,a(iatm2)%z,a(iatm3)%x,a(iatm3)%y,a(iatm3)%z,xnor,ynor,znor,rnouse) !Normal vector is (xnor,ynor,znor)
-		facnorm=sqrt(xnor**2+ynor**2+znor**2)
-		xnor=xnor/facnorm !Normalize normal vector, then (xnor,ynor,znor) is the unit vector normal to the plane defined by iatm1,iatm2,iatm3
+        write(*,*) "Calculate gradient and curvature of electron density in which direction?"
+        write(*,*) "1 Along the direction by specifying a vector"
+        write(*,*) "2 Along the direction perpendicular to a given plane"
+        read(*,*) idirtype
+        if (idirtype==1) then
+			write(*,*) "Input X,Y,Z of the direction vector, e.g. 3.2,1.0,5"
+            read(*,*) xnor,ynor,znor
+        else if (idirtype==2) then
+			write(*,*) "Input indices of atoms to define a fitting plane, e.g. 3,4,9-12"
+			write(*,*) "Evidently, at least three atoms should be inputted"
+			read(*,"(a)") c2000tmp
+			call str2arr(c2000tmp,ntmp)
+			allocate(tmparr(ntmp))
+			call str2arr(c2000tmp,ntmp,tmparr)
+			call ptsfitplane(tmparr,ntmp,xnor,ynor,znor,planeD,rmsfit)
+            deallocate(tmparr)
+        end if
+		facnorm=sqrt(xnor**2+ynor**2+znor**2) !Normalize the vector, then (xnor,ynor,znor) is the unit vector
+		xnor=xnor/facnorm
 		ynor=ynor/facnorm
 		znor=znor/facnorm
 		if (allocated(b)) then
@@ -1681,13 +1696,13 @@ do while(.true.)
 			denscurvature=xnor*xnor*hesstmp(1,1)+xnor*ynor*hesstmp(1,2)+xnor*znor*hesstmp(1,3)+&
 						  ynor*xnor*hesstmp(2,1)+ynor*ynor*hesstmp(2,2)+ynor*znor*hesstmp(2,3)+&
 						  znor*xnor*hesstmp(3,1)+znor*ynor*hesstmp(3,2)+znor*znor*hesstmp(3,3)
-			write(*,"(' The unit normal vector is',3f14.8)") xnor,ynor,znor
-			write(*,"(' Electron density is          ',f30.10)") densvalue
-			write(*,"(' Electron density gradient is ',f30.10)") densgrad
-			write(*,"(' Electron density curvature is',f30.10)") denscurvature
+			write(*,"(' X,Y,Z of unit direction vector is',3f14.8)") xnor,ynor,znor
+			write(*,"(' Electron density is          ',f30.10,' a.u.')") densvalue
+			write(*,"(' Electron density gradient is ',f30.10,' a.u.')") densgrad
+			write(*,"(' Electron density curvature is',f30.10,' a.u.')") denscurvature
 		end if
 		write(*,*)
-		write(*,"(a)") " BTW: The X,Y,Z coordinate (row) of current point, the points below and above 1 Angstrom of the plane from current point, respectively (in Angstrom)."
+		write(*,"(a)") " BTW: The X,Y,Z coordinates (row) of current point, the points below and above 1 Angstrom of the plane from current point, respectively (in Angstrom)"
 		write(*,"(3f16.10)") tmpx*b2a,tmpy*b2a,tmpz*b2a
 		write(*,"(3f16.10)") (tmpx-xnor/b2a)*b2a,(tmpy-ynor/b2a)*b2a,(tmpz-znor/b2a)*b2a
 		write(*,"(3f16.10)") (tmpx+xnor/b2a)*b2a,(tmpy+ynor/b2a)*b2a,(tmpz+znor/b2a)*b2a

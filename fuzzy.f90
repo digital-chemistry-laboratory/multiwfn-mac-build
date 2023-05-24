@@ -54,7 +54,7 @@ integer,allocatable :: aromatatm(:)
 real*8 atmpol(ncenter) !Atomic polarizability estimated by TS method
 real*8 quadmom(3,3),tmpvec(3),tmpmat(3,3)
 
-!Atomic polarizability table, 2020 version http://ctcp.massey.ac.nz/index.php?menu=dipole&page=dipole
+!Atomic polarizability table, 2020 version https://ctcp.massey.ac.nz/index.php?group=&page=dipole&menu=dipole
 real*8 :: atmpol_free(1:nelesupp)=(/ &
 4.50711D0,1.38375D0,164.1125D0,37.74D0,20.5D0,11.3D0,7.4D0,5.3D0,3.74D0,2.66110D0,& !H~Ne
 162.7D0,71.2D0,57.8D0,37.3D0,25D0,19.4D0,14.6D0,11.083D0,& !Na~Ar
