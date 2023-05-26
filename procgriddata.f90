@@ -876,7 +876,7 @@ do while(.true.)
             read(*,*) selectyn
             if (selectyn=='y'.or.selectyn=='Y') then
 				open(10,file="grid.xyz",status="replace")
-                write(10,*) count(cub_do==.true.)
+                write(10,*) count(cub_do.eqv..true.)
                 write(10,*)
 				do k=1,nz
 					do j=1,ny

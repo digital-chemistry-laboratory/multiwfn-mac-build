@@ -646,7 +646,10 @@ if (ifound==0) then
 	return
 end if
 
-read(10,"(4x,f12.6,4x,f12.6,4x,f12.6,4x,f12.6,6x,f12.6)",iostat=ierror) ET,EV,EJ,EK,ENuc !EK is useless
+read(10,"(a)") c200tmp
+read(c200tmp(6:),*) ET
+read(c200tmp(37:),*) EJ
+read(c200tmp(71:),*) ENuc
 !Frequently, the EV is quite large making the corresponding output is *****. Therefore, EV will be obtained as EV=ENTVJ-ET-EJ-ENuc
 
 call loclabel(10,"Ex= ")
