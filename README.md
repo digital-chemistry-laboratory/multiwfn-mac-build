@@ -12,6 +12,8 @@ The build has been tested with Homebrew-installed:
 - [GCC](https://formulae.brew.sh/formula/gcc) 
 - [OpenBLAS](https://formulae.brew.sh/formula/openblas)
 - [CMake](https://formulae.brew.sh/formula/cmake)
+- [arb](https://formulae.brew.sh/formula/arb)
+- [flint](https://formulae.brew.sh/formula/flint)
 
 Apple's Accelerate for BLAS/LAPACK also seems to work. No guarantees are given for other combinations of compilers and linear algebra backends. The build recipe might break with future versions of Multiwfn.
 
