@@ -35,7 +35,8 @@ jobs:
         cmake --build build
         cmake --install build --prefix $PWD
       env:
-        FC: gfortran-11
+        FC: gfortran-12
+        CC: gcc-12
 
     - name: Test
       run: build/multiwfn phenol.xyz <<< "q"
@@ -75,6 +76,7 @@ jobs:
         cmake --install build --prefix $PWD
       env:
         FC: gfortran-11
+        CC: gcc-12        
 
     - name: Test
       run: build/multiwfn phenol.xyz <<< "q"      
