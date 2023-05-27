@@ -25,6 +25,10 @@ jobs:
         unzip -o -j Multiwfn_3.8_dev_bin_Linux_noGUI.zip Multiwfn_3.8_dev_bin_Linux_noGUI/{settings.ini,LICENSE.txt,examples/phenol.xyz}
         rm Multiwfn_3.8_dev_bin_Linux_noGUI.zip    
 
+    - name: Install libraries
+      run: |
+        brew install arb flint
+
     - name: Build
       run: |
         cmake -B build -DWITH_OpenMP=ON
@@ -54,7 +58,7 @@ jobs:
 
     - name: Install libraries
       run: |
-        brew install openmotif mesa
+        brew install openmotif mesa arb flint
         wget https://www.dislin.de/downloads/darwin/dislin-11.5.darwin.intel.64.tar.gz
         tar -xvf dislin-11.5.darwin.intel.64.tar.gz
         export DISLIN=$PWD/dislin
