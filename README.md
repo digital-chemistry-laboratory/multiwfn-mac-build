@@ -4,7 +4,7 @@
 
 # Homebrew tap
 
-The easiest way to install is with the [Homebrew tap](https://github.com/kjelljorner/homebrew-multiwfn).
+The easiest way to install is with the [Homebrew tap](https://github.com/digital-chemistry-laboratory/homebrew-multiwfn).
 
 # Requirements
 
@@ -19,10 +19,10 @@ Apple's Accelerate for BLAS/LAPACK also seems to work. No guarantees are given f
 
 # Building from source distribution
 
-The [source_dist](https://github.com/kjelljorner/multiwfn-mac-build/tree/source_dist) branch is updated daily based on the published Multiwfn [source files](http://sobereva.com/multiwfn/download.html). We clone this branch and build with cmake:
+The [source_dist](https://github.com/digital-chemistry-laboratory/multiwfn-mac-build/tree/source_dist) branch is updated daily based on the published Multiwfn [source files](http://sobereva.com/multiwfn/download.html). We clone this branch and build with cmake:
 
 ```zsh
-$ git clone --branch source_dist https://github.com/kjelljorner/multiwfn-mac-build.git
+$ git clone --branch source_dist https://github.com/digital-chemistry-laboratory/multiwfn-mac-build.git
 $ cd multiwfn-mac-build
 $ cmake -B build
 $ cmake --build build
