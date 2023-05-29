@@ -1483,7 +1483,7 @@ end subroutine
 
 !!---------------------------------------------------
 !!-------------------- Read .gro --------------------
-! infomode=0: Output summary, =1: do not
+! infomode=0: Output summary, =1: Do not
 subroutine readgro(name,infomode)
 use defvar
 use util
@@ -1514,13 +1514,22 @@ do iatm=1,ncenter
     end if
     if (ifound==0) then !Guess element according to atomname
 	    do i=1,nelesupp
-		    if (ind2name_up(i)==tmpname_up(1:1)//' ' .or. ind2name_up(i)==tmpname_up(1:2) .or. & !Recognize e.g. C, N11, Li
-		    ((ichar(tmpname_up(1:1))<=57).and.ind2name_up(i)==tmpname_up(2:2)//' ')) then !Recognize such as 1H5*
+		    if (ind2name_up(i)==tmpname_up(1:2)) then !Find matched element name
 			    a(iatm)%index=i
 			    ifound=1
 			    exit
 		    end if
 	    end do
+        if (ifound==0) then
+			do i=1,nelesupp
+				if (ind2name_up(i)==tmpname_up(1:1)//' '.or. & !Recognize e.g. C, N11, Li
+				((ichar(tmpname_up(1:1))<=57).and.ind2name_up(i)==tmpname_up(2:2)//' ')) then !Recognize such as 1H5*
+					a(iatm)%index=i
+					ifound=1
+					exit
+				end if
+			end do
+        end if
     end if
     if (ifound==0) then
 	    write(*,"(a)") " Warning: Element of """//trim(tmpname)//""" cannot be recognized, assume it is carbon"
@@ -1540,9 +1549,11 @@ cellv2=cellv2*10/b2a
 cellv3=cellv3*10/b2a
 ifPBC=3
 close(10)
+
 a%x=a%x*10/b2a
 a%y=a%y*10/b2a
 a%z=a%z*10/b2a
+a%charge=a%index
 iresinfo=1 !Residue information is available in this file
 if (infomode==0) write(*,"(' Totally',i8,' atoms')") ncenter
 end subroutine
