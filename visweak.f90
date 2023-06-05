@@ -352,12 +352,16 @@ if (iIGMtype==1) then
 	write(*,*) "***** Please cite following papers in your work: *****"
     write(*,*) "Phys. Chem. Chem. Phys., 19, 17928 (2017)"
     write(*,*) "J. Comput. Chem., 43, 539 (2022) DOI: 10.1002/jcc.26812"
+    write(*,"(a)") " Review article: Tian Lu, Qinxue Chen, Visualization Analysis of &
+    Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
 else if (iIGMtype==2) then
 	write(*,*)
 	write(*,*) "***** Please cite this introductory paper of IGMH: *****"
     write(*,*) "Tian Lu, Qinxue Chen, J. Comput. Chem., 43, 539 (2022) DOI: 10.1002/jcc.26812"
     write(*,*) "An erratum to the IGMH paper is also suggested to cite together:"
     write(*,*) "Tian Lu, Qinxue Chen, ChemRxiv (2022) DOI: 10.26434/chemrxiv-2022-g1m34"
+    write(*,"(a)") " Review article: Tian Lu, Qinxue Chen, Visualization Analysis of &
+    Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
 end if
 
 !----- Define fragments

@@ -1068,10 +1068,15 @@ real*8,external :: LDOS_STM
 if (allocated(cubmat)) deallocate(cubmat)
 nx=200;ny=200
 !Set initial range, in Bohr
-orgx=minval(a%x)-3
-endx=maxval(a%x)+3
-orgy=minval(a%y)-3
-endy=maxval(a%y)+3
+if (ifPBC==0) then
+    orgx=minval(a%x)-3
+    endx=maxval(a%x)+3
+    orgy=minval(a%y)-3
+    endy=maxval(a%y)+3
+else
+    call cellmaxxyz(endx,endy,zmax)
+    call cellminxyz(orgx,orgy,zmin)
+end if
 orgz=maxval(a%z)+0.7D0/b2a !Scan Z=0.7~2.5 Angstrom with respect to top atom
 endz=orgz+1.8D0/b2a
 
@@ -1083,11 +1088,18 @@ if (.not.allocated(b)) then
 end if
 
 if (wfntype==3.or.wfntype==4) then
-    write(*,"(a)") " Warning: This function does not formally support wavefunction with non-integer orbital occupancy!"
-    write(*,"(a)") " However, if your wavefunction indeed recorded correct orbital energy information, you may still use this function, &
-    but you need to manually specify a proper Fermi level via option 3 and set a bias voltage via option 2"
-    write(*,*) "Press ENTER button to continue"
+    write(*,"(a)") " Error: This function does not formally support wavefunction with non-integer orbital occupancy!"
+    write(*,"(a)") " Please enter subfunction 9 of main function 300 to determine Fermi level, which can be used in the present function, and &
+    at the same time, all orbital occupancies will be set to integer"
+    write(*,*) "Press ENTER button to return"
     read(*,*)
+    return
+else if (wfntype==2) then
+    write(*,"(a)") " Error: Restricted open-shell wavefunction is not directly supported by this function. You should first use subfunction 37 in &
+    main function 6 to transform the wavefunction to equivalent unrestricted open-shell form!"
+    write(*,*) "Press ENTER button to return"
+    read(*,*)
+    return
 else !Single-determinant wavefunction
     if (allocated(CObasa)) then
         call getHOMOidx
@@ -1220,25 +1232,46 @@ do while(.true.)
         end if
         write(*,"(/,' Lower limit of MO energy considered in the calculation:',f12.3,' eV')") Elow*au2eV
         write(*,"(' Upper limit of MO energy considered in the calculation:',f12.3,' eV')") Ehigh*au2eV
-        nconsider=0
         write(*,*) "The MOs taken into account in the current STM simulation:"
+        ialphabeg=0 !Record range of alpha (or spatial) MOs to be considered
+        ialphaend=0
+        ibetabeg=0 !Record range of beta MOs to be considered
+        ibetaend=0
+        nconsider=0
         do imo=1,nmo
+            iadd=0
             if (bias<=0) then !Electron flows from sample to tip
-                if (MOocc(imo)>0.and.MOene(imo)>=Elow.and.MOene(imo)<=Ehigh) then
+                if (MOocc(imo)/=0.and.MOene(imo)>=Elow.and.MOene(imo)<=Ehigh) then
                     write(*,"(' MO',i6,'   Occ=',f6.3,'   Energy=',f12.4,' eV   Type: ',a)") imo,MOocc(imo),MOene(imo)*au2eV,trim(orbtypename(MOtype(imo)))
-                    nconsider=nconsider+1
+                    iadd=1
                 end if
             else if (bias>0) then !Electron flows from tip to sample
                 if (MOocc(imo)==0.and.MOene(imo)>=Elow.and.MOene(imo)<=Ehigh) then
                     write(*,"(' MO',i6,'   Occ=',f6.3,'   Energy=',f12.4,' eV   Type: ',a)") imo,MOocc(imo),MOene(imo)*au2eV,trim(orbtypename(MOtype(imo)))
-                    nconsider=nconsider+1
+                    iadd=1
                 end if
+            end if
+            if (iadd==1) then
+                if (MOtype(imo)<=1) then
+                    if (ialphabeg==0) ialphabeg=imo
+                    ialphaend=imo
+                else
+                    if (ibetabeg==0) ibetabeg=imo
+                    ibetaend=imo
+                end if
+                nconsider=nconsider+1
             end if
         end do
         if (nconsider==0) then
             write(*,*) "None. Therefore the calculation is canceled"
             cycle
         else
+            if (wfntype==0) then
+                write(*,"(' Range of MOs to be taken into account:',2i8)") ialphabeg,ialphaend
+            else
+                write(*,"(' Range of alpha MOs to be taken into account:',2i8)") ialphabeg,ialphaend
+                write(*,"(' Range of beta MOs to be taken into account: ',2i8)") ibetabeg,ibetaend
+            end if
             write(*,"(' Totally',i5,' MOs are taken into account',/)") nconsider
         end if
         
@@ -1264,20 +1297,33 @@ do while(.true.)
             gridv2=(/ 0D0,dy,0D0 /)
             gridv3=(/ 0D0,0D0,dz /)
 	        write(*,"(' Grid spacings in X,Y,Z are',3f12.6,' Bohr')") dx,dy,dz
+            if (ifPBC==0) then
+	            call gen_GTFuniq(0) !Generate unique GTFs, for faster evaluation in orbderv
+            else
+	            call gen_neigh_GTF !Generate neighbouring GTFs list at reduced grids, for faster evaluation
+            end if
             write(*,*) "Calculating, please wait..."
             allocate(cubmat(nx,ny,nz))
             call walltime(iwalltime1)
             ifinish=0
-            !$OMP PARALLEL DO SHARED(cubmat,ifinish) PRIVATE(ix,xpos,iy,ypos,iz,zpos) schedule(dynamic) NUM_THREADS(nthreads)
+            !$OMP PARALLEL DO SHARED(cubmat,ifinish) PRIVATE(ix,xpos,iy,ypos,iz,zpos) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
             do iz=1,nz
                 do iy=1,ny
                     do ix=1,nx
                         call getgridxyz(ix,iy,iz,xpos,ypos,zpos)
-                        cubmat(ix,iy,iz)=LDOS_STM(xpos,ypos,zpos,Ef,bias)
+                        cubmat(ix,iy,iz)=LDOS_STM(xpos,ypos,zpos,ialphabeg,ialphaend)
+                        if (wfntype==0) then
+                            cubmat(ix,iy,iz)=cubmat(ix,iy,iz)*2
+                        else if (wfntype==1.and.ibetaend/=0) then !Beta part
+                            cubmat(ix,iy,iz)=cubmat(ix,iy,iz)+LDOS_STM(xpos,ypos,zpos,ibetabeg,ibetaend)
+                        end if
                     end do
+		            !$OMP CRITICAL
+		            ifinish=ifinish+1
+		            ishowprog=mod(ifinish,floor(ny*nz/100D0))
+		            if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+        	        !$OMP END CRITICAL
                 end do
-                ifinish=ifinish+1
-                call showprog(ifinish,nz)
             end do
             !$OMP END PARALLEL DO
             call walltime(iwalltime2)
@@ -1333,7 +1379,7 @@ do while(.true.)
                     write(*,"(' Maximal Z is',f12.6,' Angstrom')") maxval(planemat)
                     clrlow=minval(planemat)*0.99999D0;clrhigh=maxval(planemat)*1.00001D0 !Avoid a few points marginally exceed upper limit
                     planestpz=(clrhigh-clrlow)/10
-                    orgz2D=0 !In fact this is meaningless for present case, but should be initialized...
+                    orgz2D=endz !In fact this is meaningless for present case, but can be used to determine distance for plotting atomic labels, namely distance between atom and maximum z of calculated region
                     idrawtype=1
                     idrawcontour=0
                     call gencontour(2,clrlow,clrhigh,10) !Generate contour lines evenly covering lower and upper limits
@@ -1351,7 +1397,12 @@ do while(.true.)
                 do ix=1,nx
                     xpos=orgx+(ix-1)*dx
                     ypos=orgy+(iy-1)*dy
-                    planemat(ix,iy)=LDOS_STM(xpos,ypos,orgz,Ef,bias)
+                    planemat(ix,iy)=LDOS_STM(xpos,ypos,orgz,ialphabeg,ialphaend)
+                    if (wfntype==0) then
+                        planemat(ix,iy)=planemat(ix,iy)*2
+                    else if (wfntype==1.and.ibetaend/=0) then !Beta part
+                        planemat(ix,iy)=planemat(ix,iy)+LDOS_STM(xpos,ypos,orgz,ibetabeg,ibetaend)
+                    end if
                 end do
             end do
             !$OMP END PARALLEL DO
@@ -1372,37 +1423,20 @@ end do
 end subroutine
 
 
-!!-------- Return LDOS for MOs from Ef-bias to Ef at x,y,z (Bohr). Invoked by subroutine STM
-real*8 function LDOS_STM(x,y,z,Ef,bias)
+!!-------- Return LDOS at x,y,z (Bohr) contributed by MO from ibeg to iend. Invoked by subroutine STM
+real*8 function LDOS_STM(x,y,z,ibeg,iend)
 use defvar
 use functions
 implicit real*8 (a-h,o-z)
-real*8 x,y,z,Ef,bias,wfnval(nmo)
+real*8 x,y,z,wfnval(nmo)
+integer ibeg,iend
 
-call orbderv(1,1,nmo,x,y,z,wfnval)
-if (bias<=0) then
-    Elow=Ef+bias
-    Ehigh=Ef
-else
-    Elow=Ef
-    Ehigh=Ef+bias
-end if
-
+call orbderv(1,ibeg,iend,x,y,z,wfnval)
 LDOS_STM=0
-do imo=1,nmo
-    if (MOtype(imo)==0) then !Spatial orbital
-        ndup=2
-    else !Spin orbital
-        ndup=1
-    end if
-    if (bias<=0) then !Electron flows from sample to tip
-        if (MOocc(imo)>0.and.MOene(imo)>=Elow.and.MOene(imo)<=Ehigh) LDOS_STM=LDOS_STM+ndup*wfnval(imo)**2
-    else if (bias>0) then !Electron flows from tip to sample
-        if (MOocc(imo)==0.and.MOene(imo)>=Elow.and.MOene(imo)<=Ehigh) LDOS_STM=LDOS_STM+ndup*wfnval(imo)**2
-    end if
+do imo=ibeg,iend
+    LDOS_STM=LDOS_STM+wfnval(imo)**2
 end do
 end function
-
 
 
 

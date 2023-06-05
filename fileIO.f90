@@ -1890,6 +1890,8 @@ do i=1,ncenter
         end if
     end if
 	read(c200tmp,*,iostat=ierror) a(i)%name,a(i)%x,a(i)%y,a(i)%z
+    itmp=index(a(i)%name,'_') !User may use e.g. Fe_1 to indicate special atom kind
+    if (itmp/=0) a(i)%name(itmp:)=" "
     call elename2idx(a(i)%name,a(i)%index)
 end do
 do while(.true.) !User may put SCALED after coordinates
@@ -4332,6 +4334,7 @@ end do
 !!!!! Load orbital information. The sequence: Alpha(high occ / low ene) -> Alpha(low occ / high ene) -> Beta(high occ / low ene) -> Beta(low occ / high ene)
 !Close shell orbitals are formally marked as "Alpha" spin. For singly occupied orbitals of ROHF, the spin marker are also Alpha
 if (infomode==0) write(*,*) "Loading orbitals..."
+!call walltime(iwalltime1)
 nmo=nbasis
 ! Here I don't use call loclabel(10,"Beta",ibeta) to check if there are Beta orbitals, because for very large file, this will be quite expensive
 ! I assume that when the first orbital has occupation number <1.05, then the wavefunction must be unrestricted
@@ -4382,13 +4385,11 @@ do while(.true.)
 		symtmp="?"
 		backspace(10)
 	end if
-	
 	read(10,"(a)") c80 !Read orbital energy. Since there may be no spacing between = and energy (Bagel program), position of = should be tested
-	!write(*,"(a)") trim(c80)
 	ieq=index(c80,'=')
 	read(c80(ieq+1:),*) enetmp
  	!write(*,*) iloadorb,enetmp,nbasis,nmo  !<<------ If encountering problem when loading MOs, using this to locate the problematic MO
-    !When loading is failed, it is suggested to search *** in the molden file
+    !PS: When loading is failed, it is suggested to search *** in the molden file
 	
 	read(10,"(a)") c80 !Read orbital spin
 	ispintmp=1 !Alpha
@@ -4399,9 +4400,14 @@ do while(.true.)
 		MOocc(iMOa)=occtmp
 		MOene(iMOa)=enetmp
         call corrsymlab(MOsym(iMOa),symtmp) !Purify symmetry label to meet standard
-		do while(.true.) !This loading way is compatible with Dalton and .molden by all other programs
-			read(10,*,iostat=ierror) itmp,tmpval
-			if (ierror/=0) then
+		do while(.true.) !This loading way is slow but compatible with Dalton and .molden by all other programs
+			read(10,"(a)",iostat=ierror) c80
+			if (ierror/=0) then !May reached end of file
+				backspace(10)
+				exit
+			end if
+			read(c80,*,iostat=ierror) itmp,tmpval
+			if (ierror/=0) then !New orbital
 				backspace(10)
 				exit
 			end if
@@ -4413,19 +4419,25 @@ do while(.true.)
 		MOene(nbasis+iMOb)=enetmp
         call corrsymlab(MOsym(nbasis+iMOb),symtmp) !Purify symmetry label to meet standard
 		do while(.true.)
-			read(10,*,iostat=ierror) itmp,tmpval
-			if (ierror/=0) then
+			read(10,"(a)",iostat=ierror) c80
+			if (ierror/=0) then !May read to end of file
+				backspace(10)
+				exit
+			end if
+			read(c80,*,iostat=ierror) itmp,tmpval
+			if (ierror/=0) then !New orbital
 				backspace(10)
 				exit
 			end if
 			bmocoeff(iMOb,itmp)=tmpval
 		end do
 	end if
-	
-	read(10,"(a)",iostat=ierror) c80 !Test if the ending of [MO] field is reached
+	read(10,"(a)",iostat=ierror) c80 !Test if the end of [MO] field has reached
 	if (ierror/=0.or.c80==" ".or.index(c80,'[')/=0) exit
 	backspace(10)
 end do
+!call walltime(iwalltime2)
+!write(*,"(' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
 
 !Fix orbital coefficients for ORCA. ORCA is rather rather frantic:
 !the F(+3,-3) and G(+3,-3,+4,-4) and H(+3,-3,+4,-4) in ORCA are normalized to -1 rather than 1

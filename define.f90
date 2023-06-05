@@ -327,7 +327,7 @@ integer :: ifPBC=0,ifPBC_org,ifPBC_bk !Dimension of periodicity. 0=Isolated syst
 integer :: PBCnx,PBCny,PBCnz,ifdoPBCx,ifdoPBCy,ifdoPBCz !PBC setting actually used in calculation, they will be specified by init_PBC
 integer :: PBCnx_in=1,PBCny_in=1,PBCnz_in=1,ifdoPBCx_in=1,ifdoPBCy_in=1,ifdoPBCz_in=1 !PBC setting read from settings.ini
 !Neighbouring information of GTFs (including images) w.r.t. reduced grids
-integer,allocatable :: neighGTF(:,:,:,:),neighnGTF(:,:,:) !neighGTF(1:neighnGTF(i,j,k),i,j,k) contains neighbouring GTF indices at reduced grid (i,j,k)
+integer,allocatable :: neighGTF(:,:,:,:),neighnGTF(:,:,:) !neighGTF(1:neighnGTF(i,j,k),i,j,k) contains neighbouring GTF indices at reduced grid (i,j,k). Grid index range in X is 0 to size(neighnGTF,1)-1
 integer,allocatable :: neighGTFcell(:,:,:,:,:) !neighGTF(1/2/3,m,i,j,k) is cell index in direction 1/2/3 of the m GTF neighbouring to reduced grid (i,j,k)
 real*8 spcred !Spacing of reduced grids
 real*8 orgx_neigh,orgy_neigh,orgz_neigh !Starting position of reduced grids

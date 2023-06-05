@@ -830,11 +830,16 @@ if (present(grad)) grad=0D0
 if (present(hess)) hess=0D0
 if (present(tens3)) tens3=0D0
 
-if (allocated(neighGTF)) then !Using neighbouring GTF list to significantly reduce number of candidate GTFs. Unique GTF cannot be utilized
+iquick=0 !Check for this position if quick code can be used. If this position is out of region covered by reduced grid, the slow conventional code must be used
+if (allocated(neighGTF)) then
+	ix_red=floor((x-orgx_neigh)/spcred)
+	iy_red=floor((y-orgy_neigh)/spcred)
+	iz_red=floor((z-orgz_neigh)/spcred)
+    if (ix_red>=0.and.ix_red<=size(neighnGTF,1)-1 .and. iy_red>=0.and.iy_red<=size(neighnGTF,2)-1 .and. iz_red>=0.and.iz_red<=size(neighnGTF,3)-1) iquick=1
+end if
 
-ix_red=floor((x-orgx_neigh)/spcred)
-iy_red=floor((y-orgy_neigh)/spcred)
-iz_red=floor((z-orgz_neigh)/spcred)
+if (iquick==1) then !Utilizing neighbouring GTF list at reduced grids to significantly reduce number of candidate GTFs. Unique GTF cannot be utilized in this case
+
 nloopGTF=neighnGTF(ix_red,iy_red,iz_red)
 do iloopGTF=1,nloopGTF
 	j=neighGTF(iloopGTF,ix_red,iy_red,iz_red)

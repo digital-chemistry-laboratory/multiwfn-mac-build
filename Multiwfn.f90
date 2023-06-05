@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2023-May-28"
+write(*,*) "Version 3.8(dev), release date: 2023-Jun-4"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -590,7 +590,14 @@ do while(.true.) !Main loop
 		    read(*,*) i
 		    if (i==1) then
 			    write(*,*) "Input x,y,z in Bohr, e.g. 3.0,0.0,1.3"
-			    read(*,*) refx,refy,refz
+                write(*,*) "Note: with ""A"" suffix, the unit will be in Angstrom, e.g. 2,0.12,3.5 A"
+                read(*,"(a)") c200tmp
+			    read(c200tmp,*) refx,refy,refz
+                if (index(c200tmp,'A')/=0) then
+					refx=refx/b2a
+                    refy=refy/b2a
+                    refz=refz/b2a
+                end if
 			    write(*,*) "Done!"
 		    else if (i==2) then
 			    write(*,*) "Input index of the user-defined function, e.g. 24"

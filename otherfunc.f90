@@ -394,8 +394,10 @@ else if (iwork==4) then !IRI
 	iselfunc2=100
 	iuserfunc=99
     write(*,*) "NOTE: Please cite original paper of IRI along with Multiwfn original paper:"
-    write(*,"(a,/)") " Tian Lu, Qinxue Chen, Interaction Region Indicator (IRI): A Simple Real Space Function &
+    write(*,"(a)") " Tian Lu, Qinxue Chen, Interaction Region Indicator (IRI): A Simple Real Space Function &
     Clearly Revealing Both Chemical Bonds and Weak Interactions, Chemistry-Methods, 1, 231-239 (2021) DOI: 10.1002/cmtd.202100007"
+    write(*,"(a,/)") " Review article: Tian Lu, Qinxue Chen, Visualization Analysis of &
+    Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
 else if (iwork==5) then !DORI
 	iselfunc1=15
 	iuserfunc_old=iuserfunc

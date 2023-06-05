@@ -1627,13 +1627,16 @@ do while(.true.)
 			read(*,*) vdwctrstyle
 			write(*,*) "Done, now you can replot the graph to check effect"
 		else if (i==17) then
-			write(*,*) "Input vertical distance threshold for plotting the objects in Bohr, e.g. 0.5"
+			write(*,*) "Input distance threshold for plotting atomic labels (in Bohr), e.g. 0.5"
+            write(*,*) "If you want to input in Angstrom, add ""A"" suffix, e.g. 0.45 A"
 			write(*,*) "Note: The default value can be set by ""disshowlabel"" in settings.ini"
-			read(*,*) disshowlabel
+            read(*,"(a)") c80tmp
+			read(c80tmp,*) disshowlabel
+            if (index(c80tmp,'A')/=0.or.index(c80tmp,'a')/=0) disshowlabel=disshowlabel/b2a
 			disshowCP=disshowlabel
 			disshowpath=disshowlabel
 			if (numCP>0.or.numpath>0) write(*,"(a,/)") " Note: The distance threshold for showing CPs/paths has also been changed to this value"
-			write(*,"(a)") " If also show the labels of the atoms that beyond this criterion as light face type? (y/n)"
+			write(*,"(a)") " If also show labels of the atoms that beyond this criterion as light face type? (y/n)"
 			read(*,*) selectyn
 			if (selectyn=='y'.or.selectyn=='Y') then
 				iatom_on_plane_far=1
@@ -2893,7 +2896,7 @@ use defvar
 use plot
 implicit real*8 (a-h,o-z)
 character(len=*) mapname,outfilename
-character selectyn
+character selectyn,c80tmp*80
 real*8 xlow,xhigh,ylow,yhigh,zlow,zhigh
 
 do while(.true.)
@@ -3012,10 +3015,13 @@ do while(.true.)
 			call selcolor(iclrindatmlab)
 		end if
     else if (isel==4) then
-		write(*,*) "Input vertical distance threshold for plotting the objects in Bohr, e.g. 0.5"
+		write(*,*) "Input distance threshold for plotting atomic labels (in Bohr), e.g. 0.5"
+        write(*,*) "If you want to input in Angstrom, add ""A"" suffix, e.g. 0.45 A"
 		write(*,*) "Note: The default value can be set by ""disshowlabel"" in settings.ini"
-		read(*,*) disshowlabel
-		write(*,"(a)") " If also show the labels of the atoms that beyond this criterion as light face type? (y/n)"
+        read(*,"(a)") c80tmp
+		read(c80tmp,*) disshowlabel
+        if (index(c80tmp,'A')/=0.or.index(c80tmp,'a')/=0) disshowlabel=disshowlabel/b2a
+		write(*,"(a)") " If also show labels of the atoms that beyond this criterion as light face type? (y/n)"
 		read(*,*) selectyn
 		if (selectyn=='y'.or.selectyn=='Y') then
 			iatom_on_plane_far=1

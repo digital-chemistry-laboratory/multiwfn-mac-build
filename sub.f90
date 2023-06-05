@@ -2463,7 +2463,7 @@ do itime=1,2
 						            sftx=x-(a(icen)%x+tvec(1))
 						            sfty=y-(a(icen)%y+tvec(2))
 						            sftz=z-(a(icen)%z+tvec(3))
-	            			            rr=sftx*sftx+sfty*sfty+sftz*sftz
+                                    rr=sftx*sftx+sfty*sfty+sftz*sftz
 					            end if
 					            lastcen=icen
                                 iadd=0
@@ -2476,7 +2476,7 @@ do itime=1,2
 					            end if
                                 if (iadd==1) then
                                     neighnGTF_tmp=neighnGTF_tmp+1
-	            			            if (itime==2) then
+                                    if (itime==2) then
                                         neighGTF(neighnGTF_tmp,ix,iy,iz)=iGTF
                                         neighGTFcell(1,neighnGTF_tmp,ix,iy,iz)=icell
                                         neighGTFcell(2,neighnGTF_tmp,ix,iy,iz)=jcell
