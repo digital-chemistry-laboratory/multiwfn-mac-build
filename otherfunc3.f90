@@ -1935,7 +1935,7 @@ do while(.true.)
             read(*,*)
             cycle
         else
-        	    call outcif_wrapper
+            call outcif_wrapper
         end if
     else if (isel==-3) then
     	    call outgjf_wrapper
@@ -3315,6 +3315,7 @@ use defvar
 implicit real*8 (a-h,o-z)
 character c80tmp*80
 real*8 numelec,numelec_tmp
+real*8 :: thres=1D-6
 
 if (allocated(b)) then
     if (wfntype==3.or.wfntype==4) then
@@ -3363,11 +3364,15 @@ do while(.true.)
     write(*,*)
     write(*,*) "Input temperature (K) for determining Fermi level, e.g. 400"
     write(*,*) "If press ENTER button directly, 298.15 K will be used"
-    write(*,*) "Input ""q"" can exit"
+    write(*,*) "Input ""q"" can exit. Input ""thres"" can modify convergence threshold"
     read(*,"(a)") c80tmp
     if (index(c80tmp,'q')/=0) exit
     if (c80tmp==" ") then
         T=298.15D0
+    else if (c80tmp=="thres") then
+        write(*,*) "Input threshold, e.g. 1E-8"
+        read(*,*) thres
+        cycle
     else
         read(c80tmp,*) T
     end if
@@ -3393,7 +3398,7 @@ do while(.true.)
     iter=0
     write(*,*) "Starting bisection method to determine Fermi level"
     write(*,"(a,f10.1)") " Expected number of electrons:",nelec
-    write(*,*) "Convergence threshold of deviation to expected number of electrons: 1E-6"
+    write(*,"(a,1PE10.1)") " Convergence threshold of deviation to expected number of electrons:",thres
     write(*,"(a,2f14.8,a)") " Initial lower and upper limits:",vallow,valhigh," Hartree"
     call nelec_Ef_T(vallow,T,tmp_low)
     call nelec_Ef_T(valhigh,T,tmp_high)
@@ -3403,11 +3408,12 @@ do while(.true.)
         iter=iter+1
         Ef=(vallow+valhigh)/2D0
         call nelec_Ef_T(Ef,T,numelec)
+        write(*,*) numelec-nelec
         write(*,"(' Iter:',i5,'  Nelec:',f16.8,'  Dev.:',D13.5,'  Ef:',f14.8,' a.u.')") iter,numelec,numelec-nelec,Ef
         if (iter>=1000) then
             write(*,*) "Error: Number of electrons failed to converge to 1E-6 within 1000 iterations!"
             exit
-        else if (abs(numelec-nelec)<1D-6) then
+        else if (abs(numelec-nelec)<thres) then
             write(*,"(' Converged! Fermi level is',f14.8,' Hartree',f14.6,' eV')") Ef,Ef*au2eV
             exit
         end if
@@ -3436,6 +3442,7 @@ real*8 occtmp(nmo),Ef,T,numelec
 occtmp=0
 do imo=1,nmo
     if (MOene(imo)==0) cycle !Skip falsely filled MOs
+    !write(*,"(i5,4E16.8)") imo,(MOene(imo)-Ef),(boltzcau*T),(MOene(imo)-Ef)/(boltzcau*T),1D0/( 1+exp( (MOene(imo)-Ef)/(boltzcau*T) ) )
     occtmp(imo)= 1D0/( 1+exp( (MOene(imo)-Ef)/(boltzcau*T) ) )
     !write(*,"(i5,f16.8)") imo,occtmp(imo)
 end do

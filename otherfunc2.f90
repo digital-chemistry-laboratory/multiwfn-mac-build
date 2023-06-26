@@ -25,6 +25,7 @@ do while(.true.)
     write(*,*) "18 Calculate bond length/order alternation (BLA/BOA)"
     write(*,*) "19 Calculate spatial delocalization index (SDI) for orbitals or a function"
     write(*,*) "20 Bond order density (BOD) and natural adaptive orbital (NAdO) analyses"
+    write(*,*) "21 Perform Lowdin orthogonalization between occupied orbitals"
 	read(*,*) isel
 	if (isel==0) then
 		return
@@ -68,6 +69,8 @@ do while(.true.)
 		call SDI
     else if (isel==20) then
         call BOD
+    else if (isel==21) then
+        call occorb_Lowdinorth_wrapper
 	end if
 end do
 end subroutine

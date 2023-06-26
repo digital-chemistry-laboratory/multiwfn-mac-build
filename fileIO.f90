@@ -172,7 +172,15 @@ end if
 if (allocated(b)) then
     !Determine how to supply EDF information for the file containing GTF information when pseudopotential basis set is involved
     !For .wfn file, EDF has already been added in due case in subroutine "readwfn", and EDF may has been added in subroutine readwfx if EDF is available in the file and readEDF==1
-	if (any(a%index/=nint(a%charge)) .and..not.allocated(b_EDF)) then
+	ifEDF=0
+	do iatm=1,ncenter
+		if (a(iatm)%charge==0) cycle !Bq atom, ignore
+        if (a(iatm)%index/=a(iatm)%charge) then
+			ifEDF=1
+            exit
+        end if
+    end do
+	if (ifEDF==1 .and. .not.allocated(b_EDF)) then
 		if (isupplyEDF==0) then !Do nothing
 			continue
 		else if (isupplyEDF==1) then !Supply EDF from .wfx file
@@ -1331,6 +1339,19 @@ end if
 itmp=index(titleline,'Tv_3:')
 if (itmp/=0) then
     read(titleline(itmp+5:),*) cellv3(:)
+    cellv3=cellv3/b2a
+    ifPBC=3
+end if
+itmp=index(titleline,'attice=') !Extended xyz format use Lattice= to record cell vectors
+if (itmp/=0) then
+	c200tmp=trim(titleline)
+	itmp=index(c200tmp,'"')
+    c200tmp(:itmp)=" "
+	itmp=index(c200tmp,'"')
+    c200tmp(itmp:)=" "
+    read(c200tmp,*) cellv1(:),cellv2(:),cellv3(:)
+    cellv1=cellv1/b2a
+    cellv2=cellv2/b2a
     cellv3=cellv3/b2a
     ifPBC=3
 end if
@@ -3910,7 +3931,7 @@ nEDFelec=0
 do iatm=1,ncenter
 	natmcore=a(iatm)%index-nint(a(iatm)%charge)
 	if (natmcore==0) cycle
-	if (a(iatm)%index==0) cycle !Skip Bq
+	if (a(iatm)%index==0.or.a(iatm)%charge==0) cycle !Skip Bq
 	nEDFelec=nEDFelec+natmcore
 	call EDFLIB(a(iatm)%index,natmcore,nfun,EDFexp,EDFcoeff)
 	if (infomode==0) write(*,"(1x,a,'(',i5,')      Core electrons:',i3,'     EDF primitive GTFs:',i3)") a(iatm)%name,iatm,natmcore,nfun
@@ -5514,7 +5535,11 @@ subroutine outgjf_wrapper
 use util
 use defvar
 character(len=200) outname,c200tmp
+character c2000tmp*2000
 integer :: icoordtype=1 !1=Cartesian   2=Z-matrix with variable names   -2=Z-matrix directly with geometry parameters
+integer,allocatable :: tmparr(:)
+
+icustom=0
 call path2filename(filename,c200tmp)
 do while(.true.)
     write(*,*)
@@ -5531,9 +5556,10 @@ do while(.true.)
             if you want to output geometry parameters with variable names, input ""zmat1"""
         end if
     end if
-    write(*,"(a)") " Hint: If template.gjf is presented in current folder, &
+    write(*,"(a)") " Hint 1: If template.gjf is presented in current folder, &
     then it will be used as template file, the line containing [geometry] or [GEOMETRY] will be replaced with the present coordinate, &
     [name] will be replaced with name of the new input file (without suffix), net charge and spin multiplicity will correspond to present system"
+    write(*,"(a)") " Hint 2: If inputting ""custom"", you can specify charge, spin multiplicity and indices of the atoms for outputting"
     read(*,"(a)") outname
     if (outname=="zmat".or.outname=="zmat1") then
         icoordtype=2
@@ -5541,6 +5567,47 @@ do while(.true.)
         icoordtype=-2
     else if (outname=="cart") then
         icoordtype=1
+    else if (outname=="custom") then !Temporarily replace charge, spin multiplicit and atoms to the selected ones
+		icustom=1
+        loadcharge_tmp=loadcharge !Backup
+        loadmulti_tmp=loadmulti
+        ncenter_tmp=ncenter
+		allocate(a_tmp(ncenter))
+        a_tmp=a
+        write(*,*) "Input net charge and spin multiplicity, e.g. 1 3"
+        read(*,*) loadcharge,loadmulti
+        write(*,*) "Input index of the atoms to output in the .gjf file, e.g. 2,5,7-10"
+        read(*,"(a)") c2000tmp
+		call str2arr(c2000tmp,ncenter)
+        deallocate(a)
+        allocate(a(ncenter),tmparr(ncenter))
+		call str2arr(c2000tmp,ncenter,tmparr)
+        do idx=1,ncenter
+			a(idx)=a_tmp(tmparr(idx))
+        end do
+    else if (outname=="Bq") then !The same as custom, but inputted atoms will be treated as ghost atom. Mainly used in sobEDA shell script
+		if (icoordtype/=1) then
+			write(*,*) "Error: Only Cartesian coordinates can be used in this case"
+            write(*,*) "Press ENTER button to continue"
+            read(*,*)
+            cycle
+        end if
+		icustom=2
+        loadcharge_tmp=loadcharge !Backup
+        loadmulti_tmp=loadmulti
+        write(*,*) "Input net charge and spin multiplicity, e.g. 1 3"
+        read(*,*) loadcharge,loadmulti
+        write(*,*) "Input index of real atoms (all other atoms will be treated as ghost atoms)"
+        write(*,*) "For example, 2,5,7-10,22"
+        read(*,"(a)") c2000tmp
+		call str2arr(c2000tmp,ntmp)
+        allocate(tmparr(ntmp))
+		call str2arr(c2000tmp,ntmp,tmparr)
+        a%charge=-a%charge
+        do idx=1,ntmp !Use negative charge to indicate ghost atoms
+			iatm=tmparr(idx)
+			a(iatm)%charge=abs(a(iatm)%charge)
+        end do
     else if (outname==" ") then
         outname=trim(c200tmp)//".gjf"
         exit
@@ -5548,8 +5615,22 @@ do while(.true.)
         exit
     end if
 end do
+
 call outgjf(outname,10,icoordtype)
+
+if (icustom==1) then
+    loadcharge=loadcharge_tmp
+    loadmulti=loadmulti_tmp
+    ncenter=ncenter_tmp
+    deallocate(a)
+    allocate(a(ncenter))
+    a=a_tmp
+	deallocate(a_tmp)
+else if (icustom==2) then
+	a(:)%charge=abs(a(:)%charge)
+end if
 end subroutine
+
 !!---------- Output current coordinates and cell information to Gaussian input file
 !1=Cartesian   2=Z-matrix with variable names   -2=Z-matrix directly with geometry parameters
 subroutine outgjf(outgjfname,ifileid,icoordtype)
@@ -5570,7 +5651,7 @@ end if
 if (abs(icoordtype)==2) then
     call genZmat(Zmat,ierror)
     if (ierror==1) then
-        write(*,"(a)") " Error: Generation of internal coordinate is failed! May be this system cannot be properly represented by internal coordinate"
+        write(*,"(a)") " Error: Generation of internal coordinate was failed! May be this system cannot be properly represented by internal coordinate"
         write(*,*) "Press ENTER button to return"
         read(*,*)
         return
@@ -5603,8 +5684,13 @@ if (alive) then !Write information in template.gjf to current gjf file except fo
         read(ifileid+1,"(a)",iostat=ierror) c200tmp
         if (c200tmp==" ".and.nspace<2) nspace=nspace+1
         if (nspace==2) then !Write charge and spin multiplicity of present system
-			read(ifileid+1,*) !Skip charge and spin multiplicity line
-            write(ifileid,"(/,2i3)") netcharge,multi
+			if (loadmulti/=-99.or.allocated(b)) then !Charge and spin multiplicity are loaded or specified manually, or wavefunction information is available
+				read(ifileid+1,*) !Skip charge and spin multiplicity line
+				write(ifileid,"(/,2i3)") netcharge,multi
+            else !Use charge and spin multiplicity in template.gjf
+                read(ifileid+1,"(a)") c200tmp
+				write(ifileid,"(/,a)") trim(c200tmp)
+            end if
             nspace=nspace+1
             cycle
         end if
@@ -5632,7 +5718,11 @@ end if
 !Write atomic coordinates
 if (icoordtype==1) then !Cartesian
     do i=1,ncenter
-	    write(ifileid,"(a,1x,3f14.8)") a(i)%name,a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a
+	    if (a(i)%charge>=0) then
+			write(ifileid,"(a,1x,3f14.8)") a(i)%name,a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a
+        else !Ghost atoms have negative charge temporarily
+			write(ifileid,"(a,1x,3f14.8)") trim(a(i)%name)//"-Bq",a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a
+        end if
     end do
 else if (icoordtype==2) then !Z-matrix with variable names
     nbond=0

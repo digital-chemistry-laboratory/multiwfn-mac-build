@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2023-Jun-4"
+write(*,*) "Version 3.8(dev), release date: 2023-Jun-24"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -243,7 +243,7 @@ if (allocated(a)) then
 end if
 
 !Special treatment and test new code
-!call calc_Fermi_level
+
 
 !!!--------------------- Now everything start ---------------------!!!
 do while(.true.) !Main loop
@@ -324,6 +324,10 @@ do while(.true.) !Main loop
 		call calcMPP
     else if (c200tmp=="cav") then
 		call cavity_diameter
+    else if (c200tmp=="pdb") then
+	    call outpdb_wrapper
+    else if (c200tmp=="xyz") then
+	    call outxyz_wrapper
     else
         read(c200tmp,*,iostat=ierror) isel
         if (ierror/=0) then

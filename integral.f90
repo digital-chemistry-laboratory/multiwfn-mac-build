@@ -255,6 +255,27 @@ end subroutine
 
 
 
+!!------- Generate overlap matrix between orbitals, Sbas must has been available
+subroutine genSorb(Sorb)
+use defvar
+use util
+real*8 Sorb(nmo,nmo),tmpmat(nbasis,nbasis)
+tmpmat=matmul_blas(CObasa,Sbas,nbasis,nbasis,1,0)
+Sorb(1:nbasis,1:nbasis)=matmul_blas(tmpmat,CObasa,nbasis,nbasis,0,0)
+if (wfntype==1.or.wfntype==4) then
+    !Between beta
+    tmpmat=matmul_blas(CObasb,Sbas,nbasis,nbasis,1,0)
+    Sorb(nbasis+1:nmo,nbasis+1:nmo)=matmul_blas(tmpmat,CObasb,nbasis,nbasis,0,0)
+    !Between alpha and beta
+    tmpmat=matmul_blas(CObasa,Sbas,nbasis,nbasis,1,0)
+    Sorb(1:nbasis,nbasis+1:nmo)=matmul_blas(tmpmat,CObasb,nbasis,nbasis,0,0)
+    !Between beta and alpha
+    Sorb(nbasis+1:nmo,1:nbasis)=transpose(Sorb(1:nbasis,nbasis+1:nmo))
+end if
+end subroutine
+
+
+
 !!!-------- Evaluate electric dipole moment integral for two unnormalized GTFs, <GTF|-r|GTF>, the negative charge of electron has been considered!
 !~p arguments are the shifts of GTF index as doSintactual
 !xint/yint/zint correspond to dipole moment integral in X/Y/Z

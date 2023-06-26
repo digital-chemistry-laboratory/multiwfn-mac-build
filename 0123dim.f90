@@ -703,7 +703,14 @@ do while(.true.)
 	else if (plesel==-1) then
 		write(*,*) "Input translation of the content in X and Y directions, respectively (in Bohr)"
 		write(*,*) "e.g. 0.5,-1.2"
-		read(*,*) transd1,transd2
+        write(*,*) "If you press ENTER button directly, translation will not be applied"
+        read(*,"(a)") c200tmp
+        if (c200tmp==" ") then
+			transd1=0
+            transd2=0
+        else
+			read(c200tmp,*) transd1,transd2
+        end if
 		write(*,"(a)") " Input rotation angle of the plotting plane (in degree), positive and negative value correspond to clockwise and anticlockwise, respectively. e.g. 30.5"
 		read(*,*) rotplane
 		write(*,*) "Done!"

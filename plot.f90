@@ -183,8 +183,9 @@ if (idrawmol==1) then
 	do ilight=2,8
 		call litmod(ilight,'off')
 	end do
+    !Construct global array a_tmp, for non-PBC system it is the same as a, while for PBC case it contains real atoms and replicated boundary atoms
     if (ishowboundaryatom==1.and.ifPBC>0) then
-		call construct_atmp_withbound(ncenter_tmp) !Construct global array a_tmp, which contains real atoms and replicated boundary atoms
+		call construct_atmp_withbound(ncenter_tmp)
     else
 		if (allocated(a_tmp)) deallocate(a_tmp)
         ncenter_tmp=ncenter
@@ -251,6 +252,7 @@ if (idrawmol==1) then
 		    end do
 	    end do
     end if
+    deallocate(a_tmp)
 end if
 
 !Draw critical points

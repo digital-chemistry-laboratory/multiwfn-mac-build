@@ -225,8 +225,8 @@ do while(.true.)
 			do i=1,nbasis
 				sumt=sumt+Ptot(i,i)
 			end do
-			write(ides,"(' The trace of the density matrix:',f12.6)") sumt
-			write(ides,"(' The trace of the density matrix multiplied by overlap matrix:',f12.6)") sum(Ptot*Sbas)
+			write(ides,"(/,' Trace of density matrix:',f14.6)") sumt
+			write(ides,"(' Trace of density matrix multiplied by overlap matrix:',f14.6)") sum(Ptot*Sbas)
 			if (wfntype==1.or.wfntype==2.or.wfntype==4) then
 				suma=0
 				sumb=0
@@ -241,8 +241,8 @@ do while(.true.)
 				write(ides,*)
 				call showmatgau(Pbeta,"Beta density matrix",1,fileid=ides)
 				write(ides,*)
-				write(ides,"(' The trace of the alpha and beta density matrix:',2f12.6)") suma,sumb
-				write(ides,"(' The trace of the density matrix multiplied by overlap matrix:',/,' Alpha:',f12.6,'   Beta:',f12.6)") sum(Palpha*Sbas),sum(Pbeta*Sbas)
+				write(ides,"(' Trace of alpha and beta density matrix:',2f14.6)") suma,sumb
+				write(ides,"(' Trace of density matrix multiplied by overlap matrix:',/,' Alpha:',f14.6,'     Beta:',f14.6)") sum(Palpha*Sbas),sum(Pbeta*Sbas)
 			end if
 			if (iseltmp==2) then
 				write(*,*) "Done! The matrix has been outputted to Pmat.txt in current folder"
@@ -597,67 +597,7 @@ do while(.true.)
 		end if
 
 	else if (isel==26) then
-		do while(.true.)
-			write(*,*)
-			write(*,*) "Select the orbitals for which the occupation numbers are needed to be changed"
-			write(*,*) "e.g. 2,4,13-16,20 means selecting orbitals 2,4,13,14,15,16,20"
-			write(*,*) "Input 0 can select all orbitals, input q or 00 can return"
-			read(*,"(a)") c1000tmp
-			if (c1000tmp(1:1)=='q'.or.c1000tmp(1:2)=='00') exit
-			if (c1000tmp(1:1)=='0') then
-				numorbsel=nmo
-				do i=1,nmo
-					orbarr(i)=i
-				end do
-			else
-				call str2arr(c1000tmp,numorbsel,orbarr)
-				if ( any(orbarr(1:numorbsel)<1).or.any(orbarr(1:numorbsel)>nmo) ) then
-					write(*,*) "Error: One or more orbital indices exceeded valid range!"
-					cycle
-				end if
-			end if
-            write(*,*)
-			write(*,*) "Set occupation number to which value? e.g. 1.2"
-			write(*,*) "Note:"
-			write(*,"(a)") " You can also input for example ""+1.1"" ""-1.1"" ""*1.1"" ""/1.1"" to add, minus, multiply and divide the occupation numbers by 1.1"
-			write(*,"(a)") " To recover the initial occupation numbers, input ""i"""
-			write(*,"(a)") " To generate occupation state for calculating odd electron density, input ""odd"""
-			read(*,"(a)") c1000tmp
-			if (index(c1000tmp,"odd")/=0) then
-                oddnum=0
-				do iorb=1,numorbsel
-					MOocc(orbarr(iorb))=min(2-MOocc(orbarr(iorb)),MOocc(orbarr(iorb)))
-                    oddnum=oddnum+MOocc(orbarr(iorb))
-				end do
-				write(*,*) "Done!"
-                write(*,"(a,f12.6)") " Sum of occupation numbers of selected orbitals:",oddnum
-			else if (index(c1000tmp,"i")/=0) then
-				MOocc(orbarr(1:numorbsel))=MOocc_org(orbarr(1:numorbsel))
-				write(*,*) "The occupation numbers have been recovered"
-			else if (c1000tmp(1:1)=='+'.or.c1000tmp(1:1)=='-'.or.c1000tmp(1:1)=='*'.or.c1000tmp(1:1)=='/') then
-				read(c1000tmp(2:),*) tmpval
-				if (c1000tmp(1:1)=='+') MOocc(orbarr(1:numorbsel))=MOocc(orbarr(1:numorbsel))+tmpval
-				if (c1000tmp(1:1)=='-') MOocc(orbarr(1:numorbsel))=MOocc(orbarr(1:numorbsel))-tmpval
-				if (c1000tmp(1:1)=='*') MOocc(orbarr(1:numorbsel))=MOocc(orbarr(1:numorbsel))*tmpval
-				if (c1000tmp(1:1)=='/') MOocc(orbarr(1:numorbsel))=MOocc(orbarr(1:numorbsel))/tmpval
-				write(*,*) "Done!"
-			else
-				read(c1000tmp,*) tmpval
-				MOocc(orbarr(1:numorbsel))=tmpval
-				write(*,*) "Done!"
-			end if
-			call updatenelec !Update the number of electrons
-			imodwfn=1
-			if (any(MOocc/=int(MOocc))) then
-				if (wfntype==0) then
-					wfntype=3 !RHF-> Restricted multiconfiguration wavefunction
-					write(*,"(a)") " Note: Now the wavefunction is recognized as a restricted multiconfiguration wavefunction"
-				else if (wfntype==1.or.wfntype==2) then !UHF/ROHF-> Unrestricted multiconfiguration wavefunction
-					wfntype=4
-					write(*,"(a)") " Note: Now the wavefunction is recognized as an unrestricted multiconfiguration wavefunction"
-				end if
-			end if
-		end do
+		call modorbocc
 	
 	else if (isel==27) then
 		do while(.true.)
@@ -1016,6 +956,78 @@ end subroutine
 
 
 
+!!----------- Modify orbital occupancy
+subroutine modorbocc
+use defvar
+use util
+character c1000tmp*1000
+integer orbarr(nmo)
+
+do while(.true.)
+	write(*,*)
+	write(*,*) "Select the orbitals for which the occupation numbers are needed to be changed"
+	write(*,*) "e.g. 2,4,13-16,20 means selecting orbitals 2,4,13,14,15,16,20"
+	write(*,*) "Input 0 can select all orbitals, input q or 00 can return"
+	read(*,"(a)") c1000tmp
+	if (c1000tmp(1:1)=='q'.or.c1000tmp(1:2)=='00') exit
+	if (c1000tmp(1:1)=='0') then
+		numorbsel=nmo
+		do i=1,nmo
+			orbarr(i)=i
+		end do
+	else
+		call str2arr(c1000tmp,numorbsel,orbarr)
+		if ( any(orbarr(1:numorbsel)<1).or.any(orbarr(1:numorbsel)>nmo) ) then
+			write(*,*) "Error: One or more orbital indices exceeded valid range!"
+			cycle
+		end if
+	end if
+    write(*,*)
+	write(*,*) "Set occupation number to which value? e.g. 1.2"
+	write(*,*) "Note:"
+	write(*,"(a)") " You can also input for example ""+1.1"" ""-1.1"" ""*1.1"" ""/1.1"" to add, minus, multiply and divide the occupation numbers by 1.1"
+	write(*,"(a)") " To recover the initial occupation numbers, input ""i"""
+	write(*,"(a)") " To generate occupation state for calculating odd electron density, input ""odd"""
+	read(*,"(a)") c1000tmp
+	if (index(c1000tmp,"odd")/=0) then
+        oddnum=0
+		do iorb=1,numorbsel
+			MOocc(orbarr(iorb))=min(2-MOocc(orbarr(iorb)),MOocc(orbarr(iorb)))
+            oddnum=oddnum+MOocc(orbarr(iorb))
+		end do
+		write(*,*) "Done!"
+        write(*,"(a,f12.6)") " Sum of occupation numbers of selected orbitals:",oddnum
+	else if (index(c1000tmp,"i")/=0) then
+		MOocc(orbarr(1:numorbsel))=MOocc_org(orbarr(1:numorbsel))
+		write(*,*) "The occupation numbers have been recovered"
+	else if (c1000tmp(1:1)=='+'.or.c1000tmp(1:1)=='-'.or.c1000tmp(1:1)=='*'.or.c1000tmp(1:1)=='/') then
+		read(c1000tmp(2:),*) tmpval
+		if (c1000tmp(1:1)=='+') MOocc(orbarr(1:numorbsel))=MOocc(orbarr(1:numorbsel))+tmpval
+		if (c1000tmp(1:1)=='-') MOocc(orbarr(1:numorbsel))=MOocc(orbarr(1:numorbsel))-tmpval
+		if (c1000tmp(1:1)=='*') MOocc(orbarr(1:numorbsel))=MOocc(orbarr(1:numorbsel))*tmpval
+		if (c1000tmp(1:1)=='/') MOocc(orbarr(1:numorbsel))=MOocc(orbarr(1:numorbsel))/tmpval
+		write(*,*) "Done!"
+	else
+		read(c1000tmp,*) tmpval
+		MOocc(orbarr(1:numorbsel))=tmpval
+		write(*,*) "Done!"
+	end if
+	call updatenelec !Update the number of electrons
+	imodwfn=1
+	if (any(MOocc/=int(MOocc))) then
+		if (wfntype==0) then
+			wfntype=3 !RHF-> Restricted multiconfiguration wavefunction
+			write(*,"(a)") " Note: Now the wavefunction is recognized as a restricted multiconfiguration wavefunction"
+		else if (wfntype==1.or.wfntype==2) then !UHF/ROHF-> Unrestricted multiconfiguration wavefunction
+			wfntype=4
+			write(*,"(a)") " Note: Now the wavefunction is recognized as an unrestricted multiconfiguration wavefunction"
+		end if
+	end if
+end do
+end subroutine
+
+
+
 
 !!-------- Make orbital occupations integer and satisfy Aufbau principle
 subroutine make_occ_integer_Aufbau
@@ -1205,6 +1217,7 @@ itype=1
 if (allocated(CObasa)) then
 	write(*,*) "1 Check normalization based on GTF information"
 	write(*,*) "2 Check normalization based on basis function information"
+    write(*,*) "3 Check Tr(P*S) (should be equal to number of electrons)"
 	read(*,*) itype
 end if
 
@@ -1236,8 +1249,10 @@ if (itype==1) then
 	    tmpt=abs(tmp-nint(tmp))
 	    if (tmpt>rmaxdevint) rmaxdevint=tmpt
     end do
+	write(*,"(' Maximum deviation to 1:',f16.10)") rmaxdev
+	write(*,"(' Maximum deviation to integer:',f16.10)") rmaxdevint
 
-else
+else if (itype==2) then
     call ask_Sbas_PBC
     allocate(tmpmat(nbasis,nbasis))
     if (allocated(CObasb)) write(*,*) "Note: The check is only conducted to alpha orbitals"
@@ -1266,9 +1281,18 @@ else
 	    tmpt=abs(tmp-nint(tmp))
 	    if (tmpt>rmaxdevint) rmaxdevint=tmpt
     end do
+	write(*,"(' Maximum deviation to 1:',f16.10)") rmaxdev
+	write(*,"(' Maximum deviation to integer:',f16.10)") rmaxdevint
+else if (itype==3) then
+	write(*,"(' Trace of density matrix multiplied by overlap matrix:',f14.6)") sum(Ptot*Sbas)
+    write(*,"(' Expected number of electrons:',i10)") nint(nelec)
+    if (wfntype==1) then
+		write(*,"(' Trace of alpha density matrix multiplied by overlap matrix:',f14.6)") sum(Palpha*Sbas)
+		write(*,"(' Expected number of alpha electrons:',i10)") nint(naelec)
+		write(*,"(' Trace of beta density matrix multiplied by overlap matrix: ',f14.6)") sum(Pbeta*Sbas)
+		write(*,"(' Expected number of beta electrons: ',i10)") nint(nbelec)
+    end if
 end if
-write(*,"(' Maximum deviation to 1:',f16.10)") rmaxdev
-write(*,"(' Maximum deviation to integer:',f16.10)") rmaxdevint
 write(*,*)
 write(*,*) "Press ENTER button to continue"
 read(*,*)
@@ -5241,4 +5265,171 @@ do ipt=2,npointcurve-1
 	end if
 end do
 write(*,"(' Totally found',i5,' minima,',i5,' maxima')") numlocmin,numlocmax
+end subroutine
+
+
+
+
+!!------- Interface of "occorb_Lowdinorth" for general purpose, CObasa/CObasb and Ptot/Palpha/Pbeta will be updated
+subroutine occorb_Lowdinorth_wrapper
+use defvar
+implicit real*8 (a-h,o-z)
+real*8 occfragB(nbasis),CObasapro(nbasis,nbasis)
+real*8,allocatable :: CObasbpro(:,:)
+real*8 PfrzA(0,0),PfrzB(0,0),CObasbfrz(0,0)
+CObasapro=CObasa
+if (wfntype==0) then
+    allocate(CObasbpro(0,0))
+    call occorb_Lowdinorth(0,0,0,MOocc,occfragB,CObasapro,CObasbpro,CObasa,CObasbfrz,Ptot,PfrzA,PfrzB)
+    call CObas2CO(1)
+else if (wfntype==1) then
+    allocate(CObasbpro(nbasis,nbasis))
+    CObasbpro=CObasb
+    call occorb_Lowdinorth(0,1,nbasis,MOocc(1:nbasis),MOocc(nbasis+1:nmo),CObasapro,CObasbpro,CObasa,CObasb,Ptot,Palpha,Pbeta)
+    call CObas2CO(3)
+else
+    write(*,"(a)") " Error: Lowdin orthogonalization between occupied orbitals can only be performed for single-determinant wavefunction"
+end if
+write(*,*) "Done! Orbital coefficients and density matrix have been updated"
+end subroutine
+
+
+!!------- Perform Lowdin orthogonalization between occupied orbitals. Density matrix is also updated. Mainly used in ETS-NOCV
+!Sbas must has been available. Single-determinant wavefunction is assumed
+!infomode=0: Silent   =1: Show information
+!iopsh=0: closed-shell   =1: unrestricted open-shell
+!occfrag,occfragB: List of occupation number of fragment orbitals, for spatial/alpha and beta spins
+!CObasapro,CObasbpro*: Coefficient matrix of original orbitals
+!CObasafrz,CObasbfrz*: Coefficient matrix of new orbitals
+!Pfrz,PfrzA*,PfrzB*: Total, alpha, beta density matrix constructed based on new orbitals
+!NOTE: For closed-shell case, ndimB should be 0, and in this case all matrics with asterisk above will have size of 0 and thus do not waste memory
+subroutine occorb_Lowdinorth(infomode,iopsh,ndimB,occfrag,occfragB,CObasapro,CObasbpro,CObasafrz,CObasbfrz,Pfrz,PfrzA,PfrzB)
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+integer infomode,iopsh
+real*8 occfrag(nbasis),occfragB(nbasis)
+integer,allocatable :: occidx(:),occidxB(:) !occidx(i)=j : ith occupied orbital corresponds to jth global orbital index. For all/alpha and beta spins
+real*8 CObasapro(nbasis,nbasis),CObasbpro(ndimB,ndimB)
+real*8 CObasafrz(nbasis,nbasis),CObasbfrz(ndimB,ndimB)
+real*8 Pfrz(nbasis,nbasis),PfrzA(ndimB,ndimB),PfrzB(ndimB,ndimB)
+real*8,allocatable :: Umat(:,:),svalvec(:),Xmat(:,:),tmpmat(:,:)
+real*8 FOovlp(nbasis,nbasis) !Overlap matrix between fragment orbitals (spatial or alpha)
+real*8,allocatable :: FOovlpB(:,:) !Same as above, for beta spin. Used only for open-shell case
+real*8,allocatable :: FOovlpocc(:,:) !Overlap matrix between occupied fragment orbitals (spatial or alpha)
+real*8,allocatable :: FOovlpoccB(:,:) !Same as above, for beta spin. Used only for open-shell case
+
+!Generate correspondence of index between occupied orbitals and global orbitals
+nocc=nint(naelec)
+allocate(FOovlpocc(nocc,nocc),occidx(nocc))
+iocc=0
+do imo=1,nbasis
+    if (occfrag(imo)==0) cycle
+    iocc=iocc+1
+    occidx(iocc)=imo
+end do
+if (iopsh==1) then !Beta part
+    noccB=nint(nbelec)
+    allocate(FOovlpoccB(noccB,noccB),occidxB(noccB))
+    iocc=0
+    do imo=1,nbasis
+        if (occfragB(imo)==0) cycle
+        iocc=iocc+1
+        occidxB(iocc)=imo
+    end do
+end if
+
+!Transform overlap integral matrix from AO basis to FO basis
+if (infomode==1) then
+    write(*,*)
+    write(*,*) "Calculating overlap integral matrix between fragment orbitals ..."
+end if
+allocate(tmpmat(nbasis,nbasis))
+tmpmat=matmul_blas(Sbas,CObasapro,nbasis,nbasis)
+FOovlp=matmul_blas(CObasapro,tmpmat,nbasis,nbasis,1,0)
+!Generate overlap integral matrix between occupied combined fragment orbitals
+do imo=1,nocc
+    do jmo=1,nocc
+        FOovlpocc(imo,jmo)=FOovlp(occidx(imo),occidx(jmo))
+    end do
+end do
+if (iopsh==1) then !Beta part
+    tmpmat=matmul_blas(Sbas,CObasbpro,nbasis,nbasis)
+    FOovlpB=matmul_blas(CObasbpro,tmpmat,nbasis,nbasis,1,0)
+    do imo=1,noccB
+        do jmo=1,noccB
+            FOovlpoccB(imo,jmo)=FOovlpB(occidxB(imo),occidxB(jmo))
+        end do
+    end do
+end if
+deallocate(tmpmat)
+
+!Lowdin orthogonalization between all occupied orbitals. See Eq. 7 of ETS-NOCV original paper
+!Unoccupied fragment orbitals keep unchanged since they are not involved in construction of frozen state density matrix, &
+! Do not follow ETS-NOCV paper's statement, it is redundant and unnecessary (they also use Lowdin orthogonalization between fragment unoccupied orbitals, &
+! and then do Schmidt orthogonalization for unoccupied orbitals w.r.t. occupied ones)
+if (infomode==1) then
+    write(*,*)
+    write(*,*) "Lowdin orthogonalization between occupied fragment orbitals ..."
+end if
+allocate(Umat(nocc,nocc),svalvec(nocc),Xmat(nocc,nocc),tmpmat(nocc,nocc))
+call diagsymat(FOovlpocc,Umat,svalvec,ierror)
+if (ierror/=0) write(*,*) "Error: Diagonalization of overlap matrix failed!"
+tmpmat=0
+forall (i=1:nocc) tmpmat(i,i)=dsqrt(1/svalvec(i)) !Use Sbas as temporary matrix here
+Xmat=matmul(matmul(Umat,tmpmat),transpose(Umat)) !Then Xmat is S^(-1/2)
+CObasafrz=CObasapro
+do imo=1,nocc
+    CObasafrz(:,occidx(imo))=0
+    do jmo=1,nocc
+        CObasafrz(:,occidx(imo))=CObasafrz(:,occidx(imo))+CObasapro(:,occidx(jmo))*Xmat(imo,jmo)
+    end do
+end do
+deallocate(Umat,svalvec,Xmat,tmpmat)
+if (iopsh==1) then !Beta part
+    allocate(Umat(noccB,noccB),svalvec(noccB),Xmat(noccB,noccB),tmpmat(noccB,noccB))
+    call diagsymat(FOovlpoccB,Umat,svalvec,ierror)
+    if (ierror/=0) write(*,*) "Error: Diagonalization of overlap matrix failed!"
+    tmpmat=0
+    forall (i=1:noccB) tmpmat(i,i)=dsqrt(1/svalvec(i)) !Use Sbas as temporary matrix here
+    Xmat=matmul(matmul(Umat,tmpmat),transpose(Umat)) !Then Xmat is S^-0.5
+    CObasbfrz=CObasbpro
+    do imo=1,noccB
+        CObasbfrz(:,occidxB(imo))=0
+        do jmo=1,noccB
+            CObasbfrz(:,occidxB(imo))=CObasbfrz(:,occidxB(imo))+CObasbpro(:,occidxB(jmo))*Xmat(imo,jmo)
+        end do
+    end do
+    deallocate(Umat,svalvec,Xmat,tmpmat)
+end if
+
+!Generate frozen state density matrix
+if (infomode==1) then
+    write(*,*)
+    write(*,*) "Generating frozen state density matrix (P_frz) ..."
+end if
+if (iopsh==0) then !Closed-shell case
+    Pfrz=0
+    do iocc=1,nocc
+        imo=occidx(iocc)
+	    Pfrz=Pfrz+occfrag(imo)*matmul(CObasafrz(:,imo:imo),transpose(CObasafrz(:,imo:imo)))
+    end do
+    if (infomode==1) write(*,"(' Tr(P_frz*S):',f12.6)") sum(Pfrz*Sbas)
+    !call showmatgau(Pfrz,label="Pfrz",form="f12.8")
+else if (iopsh==1) then !Open shell case, generate alpha and beta respectively, and also combine to total
+    PfrzA=0
+    do iocc=1,nocc
+        imo=occidx(iocc)
+	    PfrzA=PfrzA+occfrag(imo)*matmul(CObasafrz(:,imo:imo),transpose(CObasafrz(:,imo:imo)))
+    end do
+    PfrzB=0
+    do iocc=1,noccB
+        imo=occidxB(iocc)
+	    PfrzB=PfrzB+occfragB(imo)*matmul(CObasbfrz(:,imo:imo),transpose(CObasbfrz(:,imo:imo)))
+    end do
+    if (infomode==1) then
+        write(*,"(' Tr(P_frz_A*S):',f12.6)") sum(PfrzA*Sbas)
+        write(*,"(' Tr(P_frz_B*S):',f12.6)") sum(PfrzB*Sbas)
+    end if
+end if
 end subroutine

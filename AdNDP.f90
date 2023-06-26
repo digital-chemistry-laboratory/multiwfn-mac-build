@@ -368,8 +368,10 @@ do while(.true.)
 						numcandi=numcandi+1
 						if (isel==2.and.ioutdetail==1) write(*,"('Found the ',i4,'th candidate orbital with occupation:',f8.4)") numcandi,orbeigval(iNAO)
 						if (numcandi>nlencandi) then
-							write(*,"(a)") " Error: Candidate orbital list is overflow! You may need to increase ""nlencandi"" in AdNDP.f90 and recompile the code, &
-                            or properly tighten up occupation threshold"
+							write(*,"(a)") " Error: Candidate orbital list is overflowed! The direct way of solving this problem is &
+                            increasing ""nlencandi"" in AdNDP.f90 in Multiwfn source code package and then recompile the code. However, it is more likely that &
+                            you were searching AdNDP orbitals in an incorrect way, such as occupation threshold is too low, high-occupancy orbitals with lower &
+                            number of centers were not picked out, etc."
 							write(*,*) "Press ENTER button to continue"
 							read(*,*)
 							deallocate(DMNAOblk,orbeigval,orbeigvec)

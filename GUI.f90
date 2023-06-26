@@ -2778,14 +2778,14 @@ subroutine GUIselfrag(id)
 use defvar
 use util
 integer,intent (in) :: id
-character c80tmp*80,c2000tmp*2000
+character c2000tmp*2000
 integer iffrag(ncenter),array(ncenter)
-c80tmp=" "
 CALL SWGWTH(50)
 CALL swgtit("Select fragment")
-call dwgtxt("Input index of any atom in the fragment, e.g. 3",c80tmp)
-if (c80tmp==" ") return
-read(c80tmp,*) iatm
+call myDWGTXT("Input index of any atom in the fragment, e.g. 3"," ")
+if (myDWGTXTstr==" ") return
+
+read(myDWGTXTstr,*) iatm
 if (iatm<1.or.iatm>ncenter) return
 
 call getfragatoms(iatm,iffrag)

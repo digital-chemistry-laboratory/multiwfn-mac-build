@@ -141,6 +141,9 @@ if (iwork==0) then
 	write(*,*) "11 Calculate multi-center delocalization index" !Only can be used for HF/DFT closed-shell wavefunction
     write(*,*) "12 Calculate information-theoretic aromaticity index (ACS Omega, 3, 18370)"
     write(*,*) "13 Calculate atomic effective volume, free volume and polarizability"
+    !!If orbital occupancy has been modified before entering fuzzy analysis module, Hirshfeld-I cannot be chosen. &
+    !This option makes orbital occupancy can be changed after generating H-I information, so that H-I partition can be used to integrate functions contributed by specific orbitals
+    if (ipartition==4) write(*,*) "26 Set occupation of some orbitals"
   	!write(*,*) "101 Integrate a function in Hirshfeld atomic space with molecular grid"
 	if (ispecial==2) then
 		write(*,*) "99 Calculate relative Shannon and Fisher entropy and 2nd-order term"
@@ -166,6 +169,9 @@ if (isel==0) then
 	
 else if (isel==101) then
 	call intHirsh_molgrid
+	
+else if (isel==26) then
+	call modorbocc
 	
 else if (isel==-11) then
 	if (numcp>0) then
@@ -337,6 +343,8 @@ else if (isel==-1) then
 	if (imodwfn==1.and.(ipartition==2.or.ipartition==4)) then !These two modes need reloading firstly loaded file, so they cannot be already modified
 		write(*,"(a)") " Error: Since the wavefunction has been modified by you or by other functions, present function is unable to use. &
 		Please reboot Multiwfn and reload the file"
+        write(*,*) "Press ENTER button to continue"
+        read(*,*)
 		ipartition=ipartitionold
 		cycle
 	end if
@@ -348,7 +356,7 @@ else if (isel==-1) then
 		call Hirshfeld_I(2)
 	end if
 end if
-if (isel==101.or.isel<0) cycle
+if (isel==26.or.isel==101.or.isel<0) cycle
 
 
 !!=======================================
