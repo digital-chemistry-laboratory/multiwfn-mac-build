@@ -1863,7 +1863,7 @@ do while(.true.)
 						if (ifac==1) cubmat(i,j,k)=-tmpx*transdens(i,j,k)
 						if (ifac==2) cubmat(i,j,k)=-tmpy*transdens(i,j,k)
 						if (ifac==3) cubmat(i,j,k)=-tmpz*transdens(i,j,k)
-                        if (ifac==4) cubmat(i,j,k)=dsqrt(tmpx**2+tmpy**2+tmpz**2)*transdens(i,j,k)
+                        if (ifac==4) cubmat(i,j,k)=dsqrt(tmpx**2+tmpy**2+tmpz**2)*abs(transdens(i,j,k))
 					end do
 				end do
 			end do
