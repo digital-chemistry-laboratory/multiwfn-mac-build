@@ -102,7 +102,7 @@ do while(.true.)
 		if (iESPcode==2.or.iESPcode==3) then
 			call doinitlibreta(1)
 			iaccurateESP=1
-			if (isys==1.and.nthreads>10) nthreads=10
+			if (isys==1.and.nthreads>12) nthreads=12
 		end if
         isel=6
     else
@@ -123,7 +123,7 @@ do while(.true.)
 			if (iESPcode==2.or.iESPcode==3) then
 				call doinitlibreta(1)
 				iaccurateESP=1 !Ask libreta to calculate boys function in high precision, otherwise numerical gradient/Hessian will be too poor to converge
-				if (isys==1.and.nthreads>10) nthreads=10
+				if (isys==1.and.nthreads>12) nthreads=12
 			end if
 		end if
 		if (numcp>0.or.numpath>0.or.nple3n1path>0.or.numbassurf>0) write(*,*) "Note: All found CPs, paths, surfaces have been cleaned"

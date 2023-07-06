@@ -4283,7 +4283,7 @@ else
     else if (iESPcode==2.or.iESPcode==3) then !Based on libreta
         nESPthreads=nthreads
         call doinitlibreta(1)
-        if (isys==1.and.nESPthreads>10) nESPthreads=10
+        if (isys==1.and.nESPthreads>12) nESPthreads=12
         write(*,*)
 	    ifinish=0
         !$OMP PARALLEL DO SHARED(planemat,ifinish) PRIVATE(ii,jj,Cx,Cy,Cz) schedule(dynamic) NUM_THREADS(nESPthreads)

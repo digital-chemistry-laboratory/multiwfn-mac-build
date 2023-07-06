@@ -3305,7 +3305,7 @@ else !Use internal code to evaluate ESP
     nESPthreads=nthreads
     if (iESPcode==2.or.iESPcode==3) then
         call doinitlibreta(1)
-        if (isys==1.and.nESPthreads>10) nESPthreads=10
+        if (isys==1.and.nESPthreads>12) nESPthreads=12
     end if
     write(*,*)
     iprog=1
@@ -3323,7 +3323,7 @@ else !Use internal code to evaluate ESP
 			call showprog(ipt,nESPpt)
 			iprog=iprog+1
 		end if
-        	!$OMP END CRITICAL
+        !$OMP END CRITICAL
 	end do    !$OMP END PARALLEL DO
     if (mod(nESPpt,nprogstep)/=0) call showprog(100,100)
 end if

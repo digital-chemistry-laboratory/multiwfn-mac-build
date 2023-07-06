@@ -143,7 +143,7 @@ call walltime(iwalltime1)
 nthreads_old=nthreads
 if (ifdoESP(functype).and.(iESPcode==2.or.iESPcode==3)) then
     call doinitlibreta(1)
-    if (isys==1.and.nthreads>10) nthreads=10
+    if (isys==1.and.nthreads>12) nthreads=12
 end if
 
 !Start calculation of grid data!!!!!!!!!!!!

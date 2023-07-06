@@ -276,7 +276,7 @@ else !Common case
                 !Use fast ESP evaluation function for almost all functions that rely on ESP
                 if (ifdoESP(isel).and.(iESPcode==2.or.iESPcode==3)) then
                     call doinitlibreta(1)
-                    if (isys==1.and.nESPthreads>10) nthreads=10
+                    if (isys==1.and.nthreads>12) nthreads=12
                 end if
                 ifinish=0
 			    !$OMP parallel do shared(curvex,curvey,ifinish) private(ipt,rnowx,rnowy,rnowz) num_threads(nthreads)
@@ -1094,7 +1094,7 @@ else !Start calculation of plane data
         !For some ESP related functions, initialize LIBRETA so that fast code will be used
         if (ifdoESP(ifuncsel).and.(iESPcode==2.or.iESPcode==3)) then
             call doinitlibreta(1)
-            if (isys==1.and.nthreads>10) nthreads=10
+            if (isys==1.and.nthreads>12) nthreads=12
         end if
         iprog=0
 	    !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(iprog,planemat,d1add,d1min,d2add,d2min) schedule(dynamic) NUM_THREADS(nthreads)

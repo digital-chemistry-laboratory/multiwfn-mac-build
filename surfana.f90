@@ -60,7 +60,7 @@ do while(.true.)
 	if (imapfunc==2) write(*,*) "2 Select mapped function, current: Average local ionization energy (ALIE)"
 	if (imapfunc==3) write(*,"(a)") " 2 Select mapped function, current: Electrostatic potential from atomic charges"
 	if (imapfunc==4) write(*,*) "2 Select mapped function, current: Local electron affinity"
-	if (imapfunc==-4) write(*,*) "2 Select mapped function, current: Local electron attachment energy"
+	if (imapfunc==-4) write(*,*) "2 Select mapped function, current: Local electron attachment energy (LEAE)"
 	if (imapfunc==5) write(*,*) "2 Select mapped function, current: Electron delocalization range function EDR(r;d)" 
 	if (imapfunc==6) write(*,*) "2 Select mapped function, current: Orbital overlap distance function D(r)"	
 	if (imapfunc==10) write(*,*) "2 Select mapped function, current: Pair density"
@@ -182,7 +182,7 @@ do while(.true.)
 		write(*,*) "2 Average local ionization energy (ALIE)"
 		write(*,*) "3 Electrostatic potential from atomic charges in a .chg file"
 		write(*,*) "4 Local electron affinity (LEA)"
-		write(*,*) "-4 Local electron attachment energy"
+		write(*,*) "-4 Local electron attachment energy (LEAE)"
 		write(*,*) "5 Electron delocalization range function EDR(r;d)"	
 		write(*,*) "6 Orbital overlap length function D(r) which maximizes EDR(r;d)"	
 ! 		if (allocated(b)) write(*,*) "10 Pair density" !Rarely used by normal users, so comment it
@@ -208,13 +208,32 @@ do while(.true.)
 			if (imapfunc==1.or.imapfunc==11.or.imapfunc==12) grdspc=0.25D0
 			if (imapfunc==2.or.imapfunc==3.or.imapfunc==4.or.imapfunc==-4.or.imapfunc==5.or.imapfunc==6.or.imapfunc==-1.or.imapfunc==10) grdspc=0.2D0
 		end if
-		if (imapfunc==5) then !Input length scale to evaluate EDR(r;d)
+		critmerge=grdspc*spcmergeratio
+        if (imapfunc==-4) then
+			surfisoval=0.004D0 !Commonly LEAE is studied on rho=0.004 a.u. isosurface
+            write(*,*) "Note: Isovalue has been changed to 0.004 a.u."
+		else if (imapfunc==3) then
+			write(*,"(a)") " Please input the path of the .chg file which contains the atomic charges of present system. e.g. C:\sob.chg"
+			do while(.true.)
+				read(*,"(a)") c200tmp
+				inquire(file=c200tmp,exist=alive)
+				if (alive) exit
+				write(*,*) "Error: Cannot find the file, input again"
+			end do
+			nucchgbackup=a%charge
+			open(10,file=c200tmp,status="old")
+			do icen=1,ncenter
+				read(10,*) c80tmp,rnouse,rnouse,rnouse,a(icen)%charge
+				if (trim(c80tmp)/=trim(a(icen)%name)) write(*,"(' Warning: The name of atom',i7,' in .chg file is not consistent with present system',i7)") icen
+			end do
+			close(10)
+			write(*,*) "The atomic charges have been loaded"
+		else if (imapfunc==5) then !Input length scale to evaluate EDR(r;d)
 			write(*,*) "The EDR(r;d) computing code was contributed by Arshad Mehmood"
 			write(*,"(a,/)") " References: J. Chem. Phys., 141, 144104 (2014); J. Chem. Theory Comput., 12, 79 (2016); Angew. Chem. Int. Ed., 56, 6878 (2017)"
 			write(*,*) " Input length scale d (Bohr), e.g. 0.85"
 			read(*,*) dedr
-		end if
-		if (imapfunc==6) then !Input parameters to evaluate D(r)
+		else if (imapfunc==6) then !Input parameters to evaluate D(r)
 			write(*,*) "The D(r) computing code was contributed by Arshad Mehmood"
 			write(*,"(a,/)") " References: J. Chem. Theory Comput., 12, 3185 (2016); Phys. Chem. Chem. Phys., 17, 18305 (2015)"
 			write(*,*) "1 Manually input total number, start and increment in EDR exponents"
@@ -253,26 +272,9 @@ do while(.true.)
 				wrtstart=wrtstart/edrainc
 				write(*,"(E13.5)") wrtexpo(wrtnumedr) 
 			end do
+		else if (imapfunc==20.or.imapfunc==21) then
+			write(*,*) "NOTE: ALL VALUES OF THIS FUNCTION SHOWN IN LATER STAGE WILL BE BOHR!"
 		end if
-		critmerge=grdspc*spcmergeratio
-		if (imapfunc==3) then
-			write(*,"(a)") " Please input the path of the .chg file which contains the atomic charges of present system. e.g. C:\sob.chg"
-			do while(.true.)
-				read(*,"(a)") c200tmp
-				inquire(file=c200tmp,exist=alive)
-				if (alive) exit
-				write(*,*) "Error: Cannot find the file, input again"
-			end do
-			nucchgbackup=a%charge
-			open(10,file=c200tmp,status="old")
-			do icen=1,ncenter
-				read(10,*) c80tmp,rnouse,rnouse,rnouse,a(icen)%charge
-				if (trim(c80tmp)/=trim(a(icen)%name)) write(*,"(' Warning: The name of atom',i7,' in .chg file is not consistent with present system',i7)") icen
-			end do
-			close(10)
-			write(*,*) "The atomic charges have been loaded"
-		end if
-		if (imapfunc==20.or.imapfunc==21) write(*,*) "NOTE: ALL VALUES OF THIS FUNCTION SHOWN IN LATER STAGE WILL BE BOHR!"
 		
 	else if (isel==3) then
 		write(*,*) "Input a value (in Bohr), e.g. 0.2"
@@ -899,31 +901,32 @@ if (ireadextmapval==0) then !Directly calculate
 			nHirBecatm=0
 			allocate(HirBecatm(nHirBecatm))
 		end if
-        !It is best to add CRITICAL to the progress variable, however this may slow down calculation. In current case
-        !The progress bar may be messed up when calculation of mapped function is very fast (e.g. ALIE), this is not a big problem.
         
         noldthreads=nthreads
         if (imapfunc==1) then !ESP
             if (iESPcode==2.or.iESPcode==3) then
                 call doinitlibreta(1)
-                if (isys==1.and.nESPthreads>10) nthreads=10
+                if (isys==1.and.nthreads>12) nthreads=12
             end if
         end if
         write(*,*)
-        call showprog(0,100)
-		!$OMP PARALLEL DO SHARED(survtx,iprog,ii) PRIVATE(icyc) schedule(dynamic) NUM_THREADS(nthreads)
+        
+        ifinish=0
+        ndosurvtx=count(elimvtx(:)==0)
+        call showprog(0,nsurvtx)
+		!$OMP PARALLEL DO SHARED(survtx,ifinish,ishowprog) PRIVATE(icyc) schedule(dynamic) NUM_THREADS(nthreads)
 		do icyc=1,nsurvtx
 			if (elimvtx(icyc)==1) cycle
 			survtx(icyc)%value=calcmapfunc(imapfunc,survtx(icyc)%x,survtx(icyc)%y,survtx(icyc)%z,nHirBecatm,HirBecatm)
-			iprog=iprog+1
-			progress=dfloat(iprog)/ncurrvtx*100
-			if (progress>=ii) then
-				ii=ii+iprogstep
-				if (imapfunc/=20.and.imapfunc/=21.and.imapfunc/=22) call showprog(ii,100)
-			end if
+			!$OMP CRITICAL
+            ifinish=ifinish+1
+			ishowprog=mod(ifinish,floor(ndosurvtx/100D0))
+			if (ishowprog==0) call showprog(floor(100D0*ifinish/ndosurvtx),100)
+            !$OMP END CRITICAL
 		end do
 		!$OMP END PARALLEL DO
-		if (ii<100) call showprog(100,100) !Guarantee that 100% must be printed
+		if (ishowprog/=0) call showprog(100,100)
+        
         !Focal-point approximation for evaluating ESP
         !"High method / large BS" = "High method / small BS" (current survtx%value) + "Low method / large BS" (FPAfile2) - "Low method / small BS" (FPAfile1)
 		if (iFPA==1) then
@@ -934,7 +937,7 @@ if (ireadextmapval==0) then !Directly calculate
 				write(*,*) "Calculating ESP..."
 				call dealloall(0)
                 call readinfile(FPAfile1,1)
-        			!$OMP PARALLEL DO SHARED(survtx) PRIVATE(icyc) schedule(dynamic) NUM_THREADS(nthreads)
+                !$OMP PARALLEL DO SHARED(survtx) PRIVATE(icyc) schedule(dynamic) NUM_THREADS(nthreads)
 				do icyc=1,nsurvtx
 					if (elimvtx(icyc)==1) cycle
 					survtx(icyc)%value=survtx(icyc)%value - calcmapfunc(imapfunc,survtx(icyc)%x,survtx(icyc)%y,survtx(icyc)%z,nHirBecatm,HirBecatm)
@@ -944,7 +947,7 @@ if (ireadextmapval==0) then !Directly calculate
 				write(*,*) "Calculating ESP..."
 				call dealloall(0)
                 call readinfile(FPAfile2,1)
-        			!$OMP PARALLEL DO SHARED(survtx) PRIVATE(icyc) schedule(dynamic) NUM_THREADS(nthreads)
+                !$OMP PARALLEL DO SHARED(survtx) PRIVATE(icyc) schedule(dynamic) NUM_THREADS(nthreads)
 				do icyc=1,nsurvtx
 					if (elimvtx(icyc)==1) cycle
 					survtx(icyc)%value=survtx(icyc)%value + calcmapfunc(imapfunc,survtx(icyc)%x,survtx(icyc)%y,survtx(icyc)%z,nHirBecatm,HirBecatm)
