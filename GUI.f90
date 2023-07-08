@@ -2974,12 +2974,17 @@ use defvar
 use util
 integer,intent (in) :: id
 character c2000tmp*2000
+
 if (allocated(highlightatomlist)) deallocate(highlightatomlist)
-c2000tmp=" "
-CALL SWGWTH(100)
-CALL swgtit("Set highlighting for a batch of atoms")
-call dwgtxt("Input indices of the atoms to be highlighted, e.g. 3,7-11,23",c2000tmp)
-CALL SWGWTH(20) !Recover default
+
+call myDWGTXT("Input indices of the atoms to be highlighted, e.g. 3,7-11,23"," ")
+c2000tmp=trim(myDWGTXTstr)
+
+!c2000tmp=" "
+!CALL SWGWTH(100)
+!CALL swgtit("Set highlighting for a batch of atoms")
+!call dwgtxt("Input indices of the atoms to be highlighted, e.g. 3,7-11,23",c2000tmp)
+!CALL SWGWTH(20) !Recover default
 if (c2000tmp/=" ") then
     call str2arr(c2000tmp,ntmp)
     allocate(highlightatomlist(ntmp))

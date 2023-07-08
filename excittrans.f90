@@ -5504,7 +5504,7 @@ call str2arr(c2000tmp,nexcsel,excarr)
 
 call ask_Sbas_PBC
 if (cfgcrossthres/=0) then
-	write(*,"(/,a,f8.5,a)") " Note: When calculating cross term of density matrix of excited state, configurations with absolute value of coefficient <",&
+	write(*,"(/,a,f9.6,a)") " Note: When calculating cross term of density matrix of excited state, configurations with absolute value of coefficient <",&
     cfgcrossthres," will be ignored to reduce cost. The threshold is determined by ""cfgcrossthres"" in settings.ini"
 end if
 

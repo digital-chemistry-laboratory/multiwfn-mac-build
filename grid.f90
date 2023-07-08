@@ -157,7 +157,7 @@ do k=1,nz
             if (ifPBC==0) then
 			    tmpx=xarr(i)
                 tmpy=yarr(j)
-    				tmpz=zarr(k)
+                tmpz=zarr(k)
             else !In the case of PBC, calculate x,y,z of points according grid vector
                 call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
             end if
