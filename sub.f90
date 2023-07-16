@@ -2227,7 +2227,9 @@ if (allocated(b)) then !If loaded file contains wavefuntion information
 
 else !Only loaded structure, use YWT promolecule density
 	call calchessmat_prodens(inx,iny,inz,elerho,elegrad,elehess)
-	write(ifileid,"(/,a,/)") " Note: The input file does not contain wavefunction information, so the following quantities that related to electron density are evaluated based on promolecular density"
+	write(ifileid,"(/,a,/)") " Note: The input file does not contain wavefunction information, so the following quantities &
+    that related to electron density are evaluated based on promolecular density, which is constructed by the built-in &
+    free-state atomic densities described in Appendix 3 of Multiwfn manual"
 	write(ifileid,"(' Density of electrons:',E18.10)") elerho
 	write(ifileid,"(' Reduced density gradient:',E18.10)") RDGprodens(inx,iny,inz)
 	write(ifileid,"(' Sign(lambda2)*rho:',E18.10)") signlambda2rho_prodens(inx,iny,inz)

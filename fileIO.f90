@@ -1840,7 +1840,9 @@ real*8 vec1(3),vec2(3)
 ifiletype=16
 open(10,file=name,status="old")
 
-call loclabel(10,"&CELL ",ifound) !Must be "&CELL " rather than "&CELL", the latter may locate to e.g. &CELL_OPT
+call loclabel(10,"&SUBSYS",ifound) !Will avoid to locate to &CELL in &PRINT
+call loclabel(10,"&CELL ",ifound,0) !Must be "&CELL " rather than "&CELL", the latter may locate to e.g. &CELL_OPT
+
 do while(.true.)
     read(10,"(a)") c200tmp
     if (index(c200tmp,'&CELL_REF')/=0) then !Skip &CELL_REF part
@@ -9571,5 +9573,22 @@ else if (isys==2) then
     command="rm -rf "//trim(delname)
 end if
 write(*,*) "Deleting "//trim(delname)
+call system(trim(command))
+end subroutine
+
+
+
+!!------- Copy a given file to another one
+subroutine copyfile(file1,file2)
+use defvar
+character(len=*) file1,file2
+character command*300
+
+if (isys==1) then
+	command="copy "//trim(file1)//' '//trim(file2)//" /Y > NUL"
+else if (isys==2) then
+	command="cp -f"//trim(file1)//' '//trim(file2)
+end if
+write(*,*) "Running: "//trim(command)
 call system(trim(command))
 end subroutine

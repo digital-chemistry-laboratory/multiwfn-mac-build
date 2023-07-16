@@ -2174,12 +2174,39 @@ end subroutine
 subroutine setatmlabtyp(id)
 use defvar
 integer,intent (in) :: id
-CALL swgtit(" ")
+character typelist*200
+!This code often causes crash when selecting a term under Win11, so do not use
+!CALL swgtit(" ")
+!if (any(a%index==0)) then
+!	call dwglis("Choose label type","Element symbol|Atom index|Element+Index|Only Bq index|Bq index starts from 1|No Bq label",iatmlabtype3D)
+!else
+!	call dwglis("Choose label type","Element symbol|Atom index|Element+Index",iatmlabtype3D)
+!end if
+!call drawmol
 if (any(a%index==0)) then
-	call dwglis("Choose label type","Element symbol|Atom index|Element+Index|Only Bq index|Bq index starts from 1|No Bq label",iatmlabtype3D)
+	typelist="Element symbol|Atom index|Element+Index|Only Bq index|Bq index starts from 1|No Bq label"
 else
-	call dwglis("Choose label type","Element symbol|Atom index|Element+Index",iatmlabtype3D)
+	typelist="Element symbol|Atom index|Element+Index"
 end if
+call SWGPOP("NOOK")  !Don't show OK&QUIT&HELP in upper menu
+call SWGPOP("NOQUIT")
+call SWGPOP("NOHELP")
+CALL swgtit("Choose label type")
+CALL WGINI('VERT',idiswindow)
+call swgatt(idiswindow,"INACTIVE","CLOSE") !Disable close button
+call swgatt(idiswindow,"OFF","MAXI") !Disable maximization button
+CALL WGLIS(idiswindow,typelist,0,idisseltype)
+call wgpbut(idiswindow,"RETURN",idisreturn)
+call SWGCBK(idisseltype,changeatmlabtype)
+call SWGCBK(idisreturn,GUIreturn)
+CALL WGFIN
+end subroutine
+!Change atomic label type to selected one
+subroutine changeatmlabtype(id)
+use defvar
+integer,intent (in) :: id
+integer itype
+call gwglis(id,iatmlabtype3D)
 call drawmol
 end subroutine
 

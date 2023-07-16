@@ -55,6 +55,7 @@ else
 		write(*,*) "17 Electronegativity Equalization Method (EEM) atomic charge"
 		write(*,*) "18 Restrained ElectroStatic Potential (RESP) atomic charge"
         write(*,*) "19 Gasteiger (PEOE) charge"
+        write(*,*) "20 Minimal Basis Iterative Stockholder (MBIS) charge"
 		!write(*,*) "50 Generate input file of uESE code"
 		read(*,*) ipopsel
 		
@@ -178,6 +179,8 @@ else
 			call RESP
         else if (ipopsel==19) then
             call gasteiger
+        else if (ipopsel==20) then
+            call mbis_wrapper
 		end if
 		if (imodwfnold==1.and.(ipopsel==1.or.ipopsel==2.or.ipopsel==6.or.ipopsel==11)) then !1,2,6,11 are the methods need to reload the initial wavefunction
 			write(*,"(a)") " Note: The wavefunction file has been reloaded, your previous modifications on occupation number will be ignored"
@@ -4643,6 +4646,365 @@ else
     call outatmchg(10,charge(:))
 end if
 
+end subroutine
+
+
+
+
+!!============================ MBIS ============================!!
+!THIS PART OF CODE WAS CONTRIBUTED BY FRANK JENSEN, 2022-JUN
+!
+!frj addition of new MBIS routines
+!
+!Wrapper of MBIS module to automatically set radpot and sphpot to proper values
+subroutine mbis_wrapper
+use defvar
+implicit real*8 (a-h,o-z)
+nradpotold=radpot
+nsphpotold=sphpot
+!frj cloned from HI, currently turn off reducing grid
+!if (iautointgrid==1) then
+!  	radpot=30
+!  	sphpot=170
+! 	if (any(a%index>18)) radpot=40
+! 	if (any(a%index>36)) radpot=50
+! 	if (any(a%index>54)) radpot=60
+!end if
+!frj accurate grid to test against Gamess with a similar sized grid
+!radpot=100
+!sphpot=590
+write(*,*) "NOTE: This module is experimental and has not been optimized for efficiency"
+write(*,*) "Frank Jensen is acknowledged for his contribution to this module!"
+write(*,*)
+call mbis
+if (iautointgrid==1) then
+	radpot=nradpotold
+	sphpot=nsphpotold
+end if
+end subroutine
+!
+!
+!!--------- Calculate MBIS charge and yield final atomic radial density
+!frj : has been tested against grid based integration from Gamess 
+subroutine mbis
+use defvar
+use functions
+use util
+implicit real*8 (a-h,o-z)
+type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
+!real*8 molrho(radpot*sphpot),promol(radpot*sphpot),tmpdens(radpot*sphpot),selfdens(radpot*sphpot),molrhoall(ncenter,radpot*sphpot)
+real*8 charge(ncenter),lastcharge(ncenter) !Atomic charge of current iter. and last iter.
+real*8 beckeweigrid(radpot*sphpot)
+!frj new arrays, since Qini and Zini are only implemented up to Ar, there is a maxium of 5 shells, and this is currently hardwired
+real*8 shellpop(5,ncenter), zeff(5,ncenter)   !shell populations and shell effective nuclear charges, hardwired to 5 shells maximum 
+real*8 shelltmp(5,ncenter), ztmp(5,ncenter)   !new shell populations and shell effective nuclear charges, hardwired to 5 shells maximum 
+real*8 wtatm(5,ncenter,ncenter,radpot*sphpot)  !shell weights for each atomic shell for each atom and atomic grid point
+! wtot could be calculated only once, at the expense of more memory
+!real*8 wtot(ncenter,ncenter,radpot*sphpot)      !total weight for each atom point for each atomic grid point
+real*8 znuc,znorm
+integer mshell(ncenter)
+!frj
+integer :: maxcyc=50,ioutmedchg=0
+real*8 :: crit=0.0001D0
+
+!Ignore jatm contribution to iatm centered grids if distance between iatm and jatm is larger than 1.5 times of sum of their vdwr
+!This can reduce lots of time for large system, the lose of accuracy can be ignored (error is ~0.0001 per atom)
+!frj: turn this off for now
+!integer :: ignorefar=1
+integer :: ignorefar=0
+real*8 :: vdwsumcut=2D0
+real*8 :: eps=1.0d-14
+real*8 :: dencut=1.0d-10
+
+!frj imode is currently unused
+!Mode 1 use very low memory but expensive, because most data is computed every iteration
+!Mode 2 use large memory but fast, because most data is only computed once at initial stage
+!The result of the two modes differ with each other marginally, probably because in mode 1 radial density is related to max(npthigh,nptlow), which is not involved in mode 2
+!In principle, result of mode 2 is slightly better
+integer :: imode=2
+
+ntotpot=radpot*sphpot
+
+do while(.true.)
+    write(*,*) "     =============== Iterative MBIS ==============="
+	if (ignorefar==1) write(*,"(a,f6.3)") " -3 Switch if speeding up calculation using distance cutoff, current: Yes, ratio factor is",vdwsumcut
+	if (ignorefar==0) write(*,*) "-3 Switch if speeding up calculation using distance cutoff, current: No"
+	if (imode==1) write(*,*) "-2 Switch algorithm, current: Slow & low memory requirement"
+	if (imode==2) write(*,*) "-2 Switch algorithm, current: Fast & large memory requirement"
+	write(*,*) "1 Start calculation!"
+	write(*,"(a,i4)") " 2 Set the maximum number of iterations, current:",maxcyc
+	write(*,"(a,f10.6)") " 3 Set convergence criterion of atomic charges, current:",crit
+	read(*,*) isel
+	if (isel==-3) then
+        if (ignorefar==1) then
+            ignorefar=0
+        else
+            ignorefar=1
+            write(*,*) "Input ratio factor of cutoff, e.g. 2.5"
+            write(*,*) "Note: The higher the value, the more accurate the result and the more robust &
+            the calculation will be, however the computational cost will be correspondingly higher. The default value is 2.0"
+            read(*,*) vdwsumcut
+        end if
+	else if (isel==-2) then
+		if (imode==1) then
+			imode=2
+		else
+			imode=1
+			crit=0.001 !mode 1 is more time-consuming, use loose criterion
+		end if
+	else if (isel==-1) then
+		if (ioutmedchg==1) then
+			ioutmedchg=0
+		else
+			ioutmedchg=1
+		end if
+	else if (isel==0) then
+		return
+	else if (isel==1) then
+		exit
+	else if (isel==2) then
+		write(*,*) "Input maximum number of iterations, e.g. 30"
+		read(*,*) maxcyc
+	else if (isel==3) then
+		write(*,*) "Input convergence criterion of atomic charges, e.g. 0.001"
+		read(*,*) crit
+	end if
+end do
+
+!====== Start calculation ======!
+call walltime(iwalltime1)
+
+!Generate single center integration grid
+call gen1cintgrid(gridatmorg,iradcut)
+write(*,"(' Radial grids:',i4,'  Angular grids:',i5,'  Total:',i7,'  After pruning:',i7)") radpot,sphpot,radpot*sphpot,radpot*sphpot-iradcut*sphpot
+
+! estimate initial shell values for Zeff and population, only up to Ar at present....
+mshell=0
+do iatm=1,ncenter
+     znuc = a(iatm)%charge
+     zeff(1,iatm) = 2.0d0*znuc
+     if (znuc.le.2.0d0) then
+       mshell(iatm) = 1
+       shellpop(1,iatm)=znuc
+     endif
+     if (znuc.gt.2.0d0 .and. znuc.le.10.0d0) then
+       mshell(iatm) = 2
+       zeff(2,iatm) = 2.0d0
+       shellpop(1,iatm)=2.0d0
+       shellpop(2,iatm)=znuc-2.0d0
+     endif
+     if (znuc.gt.10.0d0 .and. znuc.le.18.0d0) then
+       mshell(iatm) = 3
+       zeff(2,iatm) = 2.0d0*sqrt(znuc)
+       zeff(3,iatm) = 2.0d0
+       shellpop(1,iatm)=2.0d0
+       shellpop(2,iatm)=8.0d0
+       shellpop(3,iatm)=znuc-10.0d0
+     endif
+     if (znuc.gt.18.0d0) then
+       write(*,*)' Sorry, no MBIS for atoms beyond Ar yet....'
+       exit
+     endif
+enddo
+!write(*,*)'Zeff initial'
+!do iatm=1,ncenter
+!  write(*,"(2i5,5f12.4)")iatm,mshell(iatm),(zeff(j,iatm),j=1,mshell(iatm))
+!enddo
+!write(*,*)'Qshell initial'
+!do iatm=1,ncenter
+!  write(*,"(2i5,5f12.4)")iatm,mshell(iatm),(shellpop(j,iatm),j=1,mshell(iatm))
+!enddo
+!write(*,*)' '
+!frj
+
+write(*,*)
+write(*,*) "Performing MBIS iteration to refine atomic spaces..."
+lastcharge=0.0d0
+!Cycle each atom to calculate their charges
+do icyc=1,maxcyc
+	if (ioutmedchg==1) write(*,*)
+	if (icyc==1) then
+		write(*,"(' Cycle',i5)") icyc
+	else
+		write(*,"(' Cycle',i5,'   Maximum change:',f10.6)") icyc,varmax
+	end if
+	
+!       calculate shell weights for each atomic grid point with the current shellpop and zeff
+        wtatm=0.0d0
+        do iatm=1,ncenter
+               	gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
+               	gridatm%y=gridatmorg%y+a(iatm)%y
+               	gridatm%z=gridatmorg%z+a(iatm)%z
+        	do ipt=1+iradcut*sphpot,ntotpot
+!        	do ipt=1,ntotpot
+                        do jatm=1,ncenter
+                                dx = gridatm(ipt)%x - a(jatm)%x
+                                dy = gridatm(ipt)%y - a(jatm)%y
+                                dz = gridatm(ipt)%z - a(jatm)%z
+                                dis = dx*dx + dy*dy + dz*dz
+                                dis = sqrt(dis)
+                                do kshell=1,mshell(jatm)
+                                        znuc = zeff(kshell,jatm)
+                                        znorm = (znuc**3)/(8.0d0*pi)
+                                        qshell = shellpop(kshell,jatm)
+!                                       note that we do not need to multiply with the grid weight, as wtatm will only be used as relative values
+                                        tmp = qshell*znorm*exp(-znuc*dis)
+                                        if (tmp.lt.dencut) tmp = 0.0d0
+                                        wtatm(kshell,jatm,iatm,ipt) = wtatm(kshell,jatm,iatm,ipt) + tmp
+!                                       we would here calculate and store wtot
+                                end do
+                        end do
+                end do
+        end do
+!       calculate the new shell population
+        shelltmp = 0.0d0
+        do iatm=1,ncenter
+        	gridatm%value=gridatmorg%value   !Weight in this grid point
+               	gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
+               	gridatm%y=gridatmorg%y+a(iatm)%y
+               	gridatm%z=gridatmorg%z+a(iatm)%z
+                call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid,covr_tianlu,3)
+        	do ipt=1+iradcut*sphpot,ntotpot
+!        	do ipt=1,ntotpot
+!                       calculate the total weight at this point from all atoms and shells
+!                       this could be moved to the above loop and saved in an array
+                        wtot = 0.0d0
+                        do jatm=1,ncenter
+                                do kshell=1,mshell(jatm)
+                                        wtot = wtot + wtatm(kshell,jatm,iatm,ipt)
+                                end do
+                        end do
+!                       the molecular density contribution at this point, this could be precalculated
+        		dtmp = fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
+                        tmpden = dtmp*gridatm(ipt)%value*beckeweigrid(ipt)
+                        if (wtot.gt.0.0d0 .and. tmpden.gt.eps) then
+                                do jatm=1,ncenter
+                                        do kshell=1,mshell(jatm)
+                                                shelltmp(kshell,jatm) = shelltmp(kshell,jatm) + wtatm(kshell,jatm,iatm,ipt)*tmpden/wtot
+                                        end do
+                                end do
+                        endif
+                end do
+        end do
+!       condense to atoms and possibly print current values
+!        write(*,*)' '
+!        write(*,*)' Qshell, current, previous, difference'
+        do iatm=1,ncenter
+                electmp = 0.0d0
+                do kshell=1,mshell(iatm)
+                        electmp = electmp + shelltmp(kshell,iatm)
+                        tmp  = shelltmp(kshell,iatm) - shellpop(kshell,iatm)
+!                        write(*,"(2i5,3f15.8)")iatm,kshell,shelltmp(kshell,iatm),shellpop(kshell,iatm),tmp
+                end do
+                charge(iatm) = a(iatm)%charge - electmp
+        end do
+!        write(*,*)' Qatom , current, previous, difference'
+!        do iatm=1,ncenter
+!                tmp = charge(iatm) - lastcharge(iatm)
+!                write(*,"(i5,3f15.8)")iatm,charge(iatm),lastcharge(iatm),tmp
+!        end do
+        do iatm=1,ncenter
+		if (ioutmedchg==1) write(*,"(' Charge of atom',i5,'(',a2,')',': ',f12.6,'  Delta:',f12.6)") &
+		jatm,a(jatm)%name,charge(iatm),charge(iatm)-lastcharge(iatm)
+        end do
+!        write(*,*)' '
+
+!       check for convergence
+	varmax=maxval(abs(charge-lastcharge))
+	if (varmax<crit) then
+		write(*,"(a,f10.6)") " All atomic charges have converged to criterion of",crit
+		write(*,"(' Sum of all charges:',f14.8)") sum(charge)
+		call normalizecharge(charge) !Calculate and print normalized charge
+		exit
+	else
+		if (icyc==maxcyc) then
+			write(*,"(/,' Convergence failed within',i4,' cycles!')") maxcyc
+			exit
+		end if
+	end if
+
+!       same procedure for updating the effective nuclear charges with the new shell populations
+!       calculate shell weights for each atomic grid point with the current shellpop and zeff
+        shellpop = shelltmp
+	lastcharge=charge
+        wtatm=0.0d0
+        do iatm=1,ncenter
+               	gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
+               	gridatm%y=gridatmorg%y+a(iatm)%y
+               	gridatm%z=gridatmorg%z+a(iatm)%z
+        	do ipt=1+iradcut*sphpot,ntotpot
+!        	do ipt=1,ntotpot
+                        do jatm=1,ncenter
+                                dx = gridatm(ipt)%x - a(jatm)%x
+                                dy = gridatm(ipt)%y - a(jatm)%y
+                                dz = gridatm(ipt)%z - a(jatm)%z
+                                dis = dx*dx + dy*dy + dz*dz
+                                dis = sqrt(dis)
+                                do kshell=1,mshell(jatm)
+                                        znuc = zeff(kshell,jatm)
+                                        znorm = (znuc**3)/(8.0d0*pi)
+                                        qshell = shellpop(kshell,jatm)
+                                        tmp = qshell*znorm*exp(-znuc*dis)
+                                        if (tmp.lt.dencut) tmp = 0.0d0
+                                        wtatm(kshell,jatm,iatm,ipt) = wtatm(kshell,jatm,iatm,ipt) + tmp
+                                end do
+                        end do
+                end do
+        end do
+!       calculate the new effective nuclear charge
+        ztmp = 0.0d0
+        do iatm=1,ncenter
+        	gridatm%value=gridatmorg%value   !Weight in this grid point
+               	gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
+               	gridatm%y=gridatmorg%y+a(iatm)%y
+               	gridatm%z=gridatmorg%z+a(iatm)%z
+                call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid,covr_tianlu,3)
+        	do ipt=1+iradcut*sphpot,ntotpot
+!        	do ipt=1,ntotpot
+!                       calculate the total weight at this point from all atoms and shells
+                        wtot = 0.0d0
+                        do jatm=1,ncenter
+                                do kshell=1,mshell(jatm)
+                                        wtot = wtot + wtatm(kshell,jatm,iatm,ipt)
+                                end do
+                        end do
+        		dtmp = fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
+                        tmpden = dtmp*gridatm(ipt)%value*beckeweigrid(ipt)
+                        if (wtot.gt.0.0d0 .and. tmpden.gt.eps) then
+                                do jatm=1,ncenter
+                                        dx = gridatm(ipt)%x - a(jatm)%x
+                                        dy = gridatm(ipt)%y - a(jatm)%y
+                                        dz = gridatm(ipt)%z - a(jatm)%z
+                                        dis = dx*dx + dy*dy + dz*dz
+                                        dis = sqrt(dis)
+                                        do kshell=1,mshell(jatm)
+                                                ztmp(kshell,jatm) = ztmp(kshell,jatm) + wtatm(kshell,jatm,iatm,ipt)*dis*tmpden/wtot
+                                        end do
+                                end do
+                        endif
+                end do
+        end do
+
+!       convert to actual Zeff and possibly print current values
+!        write(*,*)' Zshell, current, previous, difference'
+        do iatm=1,ncenter
+                do kshell=1,mshell(iatm)
+                        ztmp(kshell,iatm) = (3.0d0*shellpop(kshell,iatm))/ztmp(kshell,iatm)
+!                        tmp  = ztmp(kshell,iatm) - zeff(kshell,iatm)
+!                        write(*,"(2i5,3f15.8)")iatm,kshell,ztmp(kshell,iatm),zeff(kshell,iatm),tmp
+                end do
+        end do
+!        write(*,*)' '
+!       update zeff and return for another cycle
+        zeff = ztmp
+end do
+
+call walltime(iwalltime2)
+write(*,*)
+write(*,"(' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
+
+write(*,*)
+call outatmchg(10,charge(:))
 end subroutine
 
 
