@@ -4704,7 +4704,7 @@ real*8 wtatm(5,ncenter,ncenter,radpot*sphpot)  !shell weights for each atomic sh
 real*8 znuc,znorm
 integer mshell(ncenter)
 !frj
-integer :: maxcyc=50,ioutmedchg=0
+integer :: maxcyc=100,ioutmedchg=0
 real*8 :: crit=0.0001D0
 
 !Ignore jatm contribution to iatm centered grids if distance between iatm and jatm is larger than 1.5 times of sum of their vdwr

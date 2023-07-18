@@ -1577,6 +1577,7 @@ a%z=a%z*10/b2a
 a%charge=a%index
 iresinfo=1 !Residue information is available in this file
 if (infomode==0) write(*,"(' Totally',i8,' atoms')") ncenter
+call guessnelec
 end subroutine
 
 
