@@ -484,10 +484,10 @@ do while(.true.)
                 write(*,*)
             end if
             cubmat=0
-            ifinish=0
             write(*,*) "Calculating grid data..."
             allocate(wfnval(nmo))
-            !$OMP PARALLEL DO SHARED(cubmat,ifinish) PRIVATE(i,j,k,tmpx,tmpy,tmpz,ilow,ihigh,wfnval,idx,iorb,jorb) schedule(dynamic) NUM_THREADS(nthreads)
+            ifinish=0
+            !$OMP PARALLEL DO SHARED(cubmat,ifinish) PRIVATE(i,j,k,tmpx,tmpy,tmpz,ilow,ihigh,wfnval,idx,iorb,jorb) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
             do k=1,nz
 	            do j=1,ny
 		            do i=1,nx
@@ -505,12 +505,15 @@ do while(.true.)
                             end if
                         end do
 		            end do
+		            !$OMP CRITICAL
+                    ifinish=ifinish+1
+                    ishowprog=mod(ifinish,floor(ny*nz/100D0))
+		            if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+                    !$OMP END CRITICAL
 	            end do
-                ifinish=ifinish+1
-                call showprog(ifinish,nz)
             end do
             !$OMP END PARALLEL DO
-            if (ifinish<nz) call showprog(nz,nz)
+            if (ishowprog/=0) call showprog(100,100)
             deallocate(wfnval)
             if (isel==2) then
                 sur_value=sur_value_iso
