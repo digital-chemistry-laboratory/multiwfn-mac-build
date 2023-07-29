@@ -8,10 +8,9 @@ do while(.true.)
 	write(*,*) "0 Return"
 	write(*,*) "1 Energy decomposition analysis based on molecular forcefield (EDA-FF)"
 	write(*,*) "2 Shubin Liu's energy decomposition analysis (Gaussian is needed)"
+	write(*,*) "3 sobEDA and sobEDAw energy decomposition analysis"
 ! 		write(*,*) "2 Mayer energy decomposition analysis"
 ! 		write(*,*) "3 Fuzzy space based energy decomposition analysis"
-! 		write(*,*) "4 ETS-NOCV analysis based on ORCA output"
-	write(*,*) "5 Simple energy decomposition analysis (Gaussian is needed)"
 	read(*,*) infuncsel2
 	if (infuncsel2==0) then
 		return
@@ -19,10 +18,10 @@ do while(.true.)
 		call EDA_forcefield
 	else if (infuncsel2==2) then	
 		call EDA_SBL
-	else if (infuncsel2==5) then
-		write(*,"(a)") " Please check the example in Section 4.100.8 of the manual. &
-		Currently to realize this function you need to manually use subfunction 8 of main function 100"
-		write(*,*) "Press ENTER button to continue"
+	else if (infuncsel2==3) then
+		write(*,"(a)") " This kind of analysis needs using shell script. Please check detailed sobEDA/sobEDAw tutorial: http://sobereva.com/soft/sobEDA_tutorial.zip"
+        write(*,*) "Also see original paper: https://doi.org/10.26434/chemrxiv-2023-n79rz"
+        write(*,*) "Press ENTER to return"
 		read(*,*)
 	end if
 end do

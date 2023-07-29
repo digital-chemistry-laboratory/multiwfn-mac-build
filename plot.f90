@@ -1596,7 +1596,7 @@ if (idrawtype==1.or.idrawtype==2.or.idrawtype==6.or.idrawtype==7) then
 	    call color("WHITE") !Restore to default
     end if
 
-!Relief map & shaded surface map with/without projection
+!Relief map & shaded relief map with/without projection
 else if (idrawtype==3.or.idrawtype==4.or.idrawtype==5) then
     call setcolortable(iclrtrans) !This routine must be invoked prior to GRAF
 	CALL AXSPOS(100,2800) !Make position of coordinate proper

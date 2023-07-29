@@ -517,7 +517,7 @@ do while(.true.)
             deallocate(wfnval)
             if (isel==2) then
                 sur_value=sur_value_iso
-        		    call drawisosurgui(1)
+                call drawisosurgui(1)
                 sur_value_iso=sur_value
             else if (isel==7) then
                 write(*,*)
@@ -589,6 +589,7 @@ do while(.true.)
                 write(*,*)
                 write(*,*) "Calculating grid data of promolecular density ..."
                 call savecubmat(1,0,0) !Calculate rho
+                if (allocated(rho_pro)) deallocate(rho_pro)
                 allocate(rho_pro(nx,ny,nz))
                 rho_pro=cubmat
             end if
@@ -609,6 +610,7 @@ do while(.true.)
                 write(*,*)
                 write(*,*) "Calculating grid data of frozen state density ..."
                 call savecubmat(1,0,0) !Calculate rho
+                if (allocated(rho_frz)) deallocate(rho_frz)
                 allocate(rho_frz(nx,ny,nz))
                 rho_frz=cubmat
             end if
@@ -630,6 +632,7 @@ do while(.true.)
                 write(*,*)
                 write(*,*) "Calculating grid data of complex density ..."
                 call savecubmat(1,0,0) !Calculate rho
+                if (allocated(rho_complex)) deallocate(rho_complex)
                 allocate(rho_complex(nx,ny,nz))
                 rho_complex=cubmat
             end if
@@ -761,6 +764,7 @@ use defvar
 implicit real*8 (a-h,o-z)
 integer ides,npair,iopsh,pairidx1(npair),pairidx2(npair)
 real*8 printthres
+
 if (ides==6) write(ides,*)
 write(ides,"(a,a)") "        --------------- Pair and NOCV orbital information --------------"
 write(ides,"(' There are totally',i5,' NOCV pairs and',i6,' NOCV orbitals')") npair,size(MOocc)

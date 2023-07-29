@@ -443,7 +443,8 @@ end if
 call walltime(iwalltime1)
 write(*,*) "Calculating sign(lambda2)rho..."
 ifinish=0
-!$OMP PARALLEL DO SHARED(ifinish,sl2r,rhogrid,gradgrid) PRIVATE(i,j,k,tmpx,tmpy,tmpz) schedule(dynamic) NUM_THREADS(nthreads)
+ntmp=floor(ny*nz/100D0)
+!$OMP PARALLEL DO SHARED(ifinish,ishowprog,sl2r,rhogrid,gradgrid) PRIVATE(i,j,k,tmpx,tmpy,tmpz) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
 do k=1,nz
 	do j=1,ny
 		do i=1,nx
@@ -460,16 +461,21 @@ do k=1,nz
 				sl2r(i,j,k)=signlambda2rho_prodens(tmpx,tmpy,tmpz)
 			end if
 		end do
+		!$OMP CRITICAL
+		ifinish=ifinish+1
+		ishowprog=mod(ifinish,ntmp)
+		if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+        !$OMP END CRITICAL
 	end do
-    ifinish=ifinish+1
-    call showprog(ifinish,nz)
 end do
 !$OMP END PARALLEL DO
+if (ishowprog/=0) call showprog(100,100)
 
 write(*,*) "Calculating delta-g, delta-g_inter and delta-g_intra..."
 ifinish=0
 dg_inter=0
-!$OMP PARALLEL DO SHARED(ifinish,dg,dg_inter) PRIVATE(i,j,k,tmpx,tmpy,tmpz,grad,gradnorm,IGM_gradnorm,IGM_gradnorm_inter,gradtmp) schedule(dynamic) NUM_THREADS(nthreads)
+ntmp=floor(ny*nz/100D0)
+!$OMP PARALLEL DO SHARED(ifinish,ishowprog,dg,dg_inter) PRIVATE(i,j,k,tmpx,tmpy,tmpz,grad,gradnorm,IGM_gradnorm,IGM_gradnorm_inter,gradtmp) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
 do k=1,nz
 	do j=1,ny
 		do i=1,nx
@@ -497,11 +503,15 @@ do k=1,nz
 			end do
 			dg_inter(i,j,k)=IGM_gradnorm_inter-dsqrt(sum(grad**2))
 		end do
+		!$OMP CRITICAL
+		ifinish=ifinish+1
+		ishowprog=mod(ifinish,ntmp)
+		if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+        !$OMP END CRITICAL
 	end do
-    ifinish=ifinish+1
-    call showprog(ifinish,nz)
 end do
 !$OMP END PARALLEL DO
+if (ishowprog/=0) call showprog(100,100)
 
 dg_intra=dg-dg_inter
 

@@ -1278,8 +1278,8 @@ ADCdipy=sum(a%y*chargecorr)
 ADCdipz=sum(a%z*chargecorr)
 ADCdip=sqrt(ADCdipx**2+ADCdipy**2+ADCdipz**2)
 write(*,*)
-write(*,"(' Total dipole from ADC charges (a.u.)',f11.7,'  Error:',f11.7)") ADCdip,abs(ADCdip-realdip)
-write(*,"(' X/Y/Z of dipole moment from the charge (a.u.)',3f11.7)") ADCdipx,ADCdipy,ADCdipz
+write(*,"(' Total dipole from ADC charges (a.u.)',f12.7,'  Error:',f12.7)") ADCdip,abs(ADCdip-realdip)
+write(*,"(' X/Y/Z of dipole moment from the charge (a.u.)',3f12.6)") ADCdipx,ADCdipy,ADCdipz
 charge=chargecorr !Overlay charge array, then return to Hirshfeld module and output result to .chg file
 end subroutine
 
@@ -3311,10 +3311,10 @@ else !Use internal code to evaluate ESP
         if (isys==1.and.nESPthreads>12) nESPthreads=12
     end if
     write(*,*)
-    iprog=1
-    nprogstep=floor(nESPpt/100D0)
+    ifinish=0
     call showprog(0,nESPpt)
-	!$OMP PARALLEL DO SHARED(iprog,ESPptval) PRIVATE(ipt) schedule(dynamic) NUM_THREADS(nESPthreads)
+    ntmp=floor(nESPpt/100D0)
+	!$OMP PARALLEL DO SHARED(ifinish,ESPptval,ishowprog) PRIVATE(ipt) schedule(dynamic) NUM_THREADS(nESPthreads)
 	do ipt=1,nESPpt
 		if (iESPtype==1) then !Take nuclear charge into account
 			ESPptval(ipt)=totesp(ESPpt(1,ipt),ESPpt(2,ipt),ESPpt(3,ipt))
@@ -3322,13 +3322,12 @@ else !Use internal code to evaluate ESP
 			ESPptval(ipt)=eleesp(ESPpt(1,ipt),ESPpt(2,ipt),ESPpt(3,ipt))
 		end if
 		!$OMP CRITICAL
-		if (ipt>=iprog*nprogstep) then
-			call showprog(ipt,nESPpt)
-			iprog=iprog+1
-		end if
+		ifinish=ifinish+1
+        ishowprog=mod(ifinish,ntmp)
+        if (ishowprog==0) call showprog(floor(100D0*ifinish/nESPpt),100)
         !$OMP END CRITICAL
 	end do    !$OMP END PARALLEL DO
-    if (mod(nESPpt,nprogstep)/=0) call showprog(100,100)
+    if (ishowprog/=0) call showprog(100,100)
 end if
 call walltime(iwalltime2)
 if (ishowprompt==1) write(*,"(' Calculation of ESP took up wall clock time',i10,' s')") iwalltime2-iwalltime1

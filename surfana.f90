@@ -2018,21 +2018,26 @@ do while(.true.)
 		
 	else if (isel==13) then !Calculate and export cube file of a mapped function
 		write(*,*) "Calculating grid data of mapped function..."
-		iprog=0
 		if (allocated(cubmattmp)) deallocate(cubmattmp)
         allocate(cubmattmp(nx,ny,nz))
-		!$OMP PARALLEL DO SHARED(cubmattmp,iprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz) schedule(dynamic) NUM_THREADS(nthreads)
+        ifinish=0
+        ntmp=floor(ny*nz/100D0)
+		!$OMP PARALLEL DO SHARED(cubmattmp,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
 		do k=1,nz
 			do j=1,ny
 				do i=1,nx
                     call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
 					cubmattmp(i,j,k)=calcmapfunc(imapfunc,tmpx,tmpy,tmpz,nHirBecatm,HirBecatm)
 				end do
+				!$OMP CRITICAL
+				ifinish=ifinish+1
+				ishowprog=mod(ifinish,ntmp)
+				if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+        		!$OMP END CRITICAL
 			end do
-			iprog=iprog+1
-			call showprog(iprog,nz)
 		end do
 		!$OMP END PARALLEL DO
+        if (ishowprog/=0) call showprog(100,100)
 		open(10,file="mapfunc.cub",status="replace")
 		call outcube(cubmattmp,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
 		close(10)

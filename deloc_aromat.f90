@@ -829,13 +829,13 @@ do while(.true.)
             else
 			    write(*,"(a,1PE20.10)") " The multicenter bond order from alpha density matrix:",bndordalpha
 			    write(*,"(a,1PE20.10)") " The multicenter bond order from beta density matrix: ",bndordbeta
-			    write(*,"(a,1PE20.10)") " The sum of multicenter bond order from alpha and beta parts:    ",totbndorder
+			    write(*,"(a,1PE17.10)") " The sum of multicenter bond order from alpha and beta parts:    ",totbndorder
             end if
 			write(*,"(a,f13.7)") " Above result in normalized form:",totbndorder/abs(totbndorder) * (abs(totbndorder)**(1D0/nbndcen))
             if (bndordmix>1D-5) then
 			    write(*,"(a,f13.7)") " The multicenter bond order from mixed alpha&beta density matrix:",bndordmix
             else
-			    write(*,"(a,1PE13.6)") " The multicenter bond order from mixed alpha&beta density matrix:",bndordmix
+			    write(*,"(a,1PE16.7)") " The multicenter bond order from mixed alpha&beta density matrix:",bndordmix
             end if
 			write(*,"(a,f13.7)") " Above result in normalized form:",bndordmix/abs(bndordmix) * (abs(bndordmix)**(1D0/nbndcen))
 		end if

@@ -4815,13 +4815,15 @@ do iz=izlow,izup
 			basinvol_priv(irealatt)=basinvol_priv(irealatt)+1
 		end do
 	end do
+	!$OMP CRITICAL
     ifinish=ifinish+1
     call showprog(ifinish,izup-izlow+1)
+	!$OMP end CRITICAL
 end do
 !$OMP end do
 !$OMP CRITICAL
-    basinpop=basinpop+basinpop_priv
-    basinvol=basinvol+basinvol_priv
+basinpop=basinpop+basinpop_priv
+basinvol=basinvol+basinvol_priv
 !$OMP end CRITICAL
 !$OMP END PARALLEL
 call calc_dvol(dvol)

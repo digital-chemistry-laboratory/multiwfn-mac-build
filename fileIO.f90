@@ -126,7 +126,7 @@ else if (thisfilename(inamelen-2:inamelen)=="gbw") then
 			stop
 		end if
 	end if
-else if (index(filenameonly,"POSCAR")/=0) then
+else if (index(thisfilename,"POSCAR")/=0) then
     call readPOSCAR(thisfilename,infomode)
 else if (index(filenameonly,"CHGCAR")/=0.or.index(filenameonly,"CHG")/=0.or.index(filenameonly,"ELFCAR")/=0.or.index(filenameonly,"LOCPOT")/=0) then
     call readVASPgrd(thisfilename,infomode)
@@ -9492,8 +9492,32 @@ if (c200tmp2/=" ".and.c200tmp2/="none") then
 			read(21,*) inouse,atm3Dclr(iele,:)
 		end do
 		close(21)
+        write(*,"(a,/)") " Done!"
     else
-        write(*,"(a)") " Unable to find atomic color file: "//trim(c200tmp)
+        write(*,"(a,/)") " Unable to find atomic color file: "//trim(c200tmp)
+	end if
+end if
+
+!Load vdW radii from external file if the file is specified
+call get_option_str(20,'vdwrfile=',c200tmp2)
+if (c200tmp2/=" ".and.c200tmp2/="none") then
+    read(c200tmp2,*) c200tmp !Such a loading can remove " symbol
+	inquire(file=c200tmp,exist=alive)
+	if (alive) then
+		write(*,"(' Note: Loading van der Waals radii from ',a)") trim(c200tmp)
+		open(21,file=c200tmp,status="old")
+        do while(.true.)
+			read(21,"(a)",iostat=ierror) c200tmp
+            if (ierror/=0.or.c200tmp==" ") exit
+            if (index(c200tmp,'#')==0) then
+				read(c200tmp,*) idx,tmpval
+                vdwr(idx)=tmpval
+            end if
+        end do
+		close(21)
+        write(*,"(a,/)") " Done!"
+    else
+        write(*,"(a,/)") " Unable to find van der Waals radii file: "//trim(c200tmp)
 	end if
 end if
 

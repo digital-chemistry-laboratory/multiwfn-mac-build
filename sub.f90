@@ -3780,7 +3780,7 @@ lovername(60)="Kawaii_Dake_ja_Nai_Shikimori-san\Shikimori"
 lovername(61)="Sono_Bisque_Doll_wa_Koi_wo_Suru\Marin_Kitagawa"
 lovername(62)="Fuufu_Ijou,_Koibito_Miman\Akari_Watanabe"
 lovername(63)="Tomo-chan_wa_Onnanoko!\Misuzu_Gundou"
-lovername(64)="The_Café_Terrace_and_Its_Goddesses\Akane_Hououji"
+lovername(64)="The_Cafe_Terrace_and_Its_Goddesses\Akane_Hououji"
 !Dear Kanan,
 !
 !You are the only one I deeply love forever in the real world,

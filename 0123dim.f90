@@ -580,8 +580,8 @@ if (iorbsel2==0) then
 	write(*,*) "1 Color-filled map (with/without contour lines)"
 	write(*,*) "2 Contour line map"
 	write(*,*) "3 Relief map"
-	write(*,*) "4 Shaded surface map"
-	write(*,*) "5 Shaded surface map with projection"
+	write(*,*) "4 Shaded relief map"
+	write(*,*) "5 Shaded relief map with projection"
 	write(*,*) "6 Gradient lines map with/without contour lines"
 	write(*,*) "7 Vector field map with/without contour lines"
 	read(*,*) idrawtype

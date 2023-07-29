@@ -3408,7 +3408,6 @@ do while(.true.)
         iter=iter+1
         Ef=(vallow+valhigh)/2D0
         call nelec_Ef_T(Ef,T,numelec)
-        write(*,*) numelec-nelec
         write(*,"(' Iter:',i5,'  Nelec:',f16.8,'  Dev.:',D13.5,'  Ef:',f14.8,' a.u.')") iter,numelec,numelec-nelec,Ef
         if (iter>=1000) then
             write(*,*) "Error: Number of electrons failed to converge to 1E-6 within 1000 iterations!"

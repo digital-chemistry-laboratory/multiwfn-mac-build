@@ -364,8 +364,8 @@ if (isavepic==1) then
 	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
 else if (isavepic==0) then
 	if (idrawtype==3) CALL swgtit('Relief map')
-	if (idrawtype==4) CALL swgtit('Shaded surface map')
-	if (idrawtype==5) CALL swgtit('Shaded surface map with projected color-filled map')
+	if (idrawtype==4) CALL swgtit('Shaded relief map')
+	if (idrawtype==5) CALL swgtit('Shaded relief map with projected color-filled map')
 	if (imodlayout==2) then
 		call swgwth(73)
 	else
@@ -602,8 +602,8 @@ call SWGCBK(idisatmsize,setatmsize)
 if (isys==1) call drawmol
 CALL WGFIN
 idrawisosur=0
-isosur1style=1
-isosur2style=1
+!isosur1style=1
+!isosur2style=1
 isosursec=0
 end subroutine
 

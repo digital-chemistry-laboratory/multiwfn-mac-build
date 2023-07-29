@@ -4278,7 +4278,7 @@ if (alive.and.ifiletype==1) then !Use cubegen to calculate ESP
 
 else
 	!Calculate ESP of electron contribution
-    if (iESPcode==1) then !Old slow code, but opitimized specifically for plane grid
+    if (iESPcode==1) then !Old slow code, but optimized specifically for plane grid
         call planeeleesp
     else if (iESPcode==2.or.iESPcode==3) then !Based on libreta
         nESPthreads=nthreads
@@ -4286,19 +4286,23 @@ else
         if (isys==1.and.nESPthreads>12) nESPthreads=12
         write(*,*)
 	    ifinish=0
-        !$OMP PARALLEL DO SHARED(planemat,ifinish) PRIVATE(ii,jj,Cx,Cy,Cz) schedule(dynamic) NUM_THREADS(nESPthreads)
+        ntmp=floor(ngridnum1*ngridnum1/100D0)
+        !$OMP PARALLEL DO SHARED(planemat,ifinish,ishowprog) PRIVATE(ii,jj,Cx,Cy,Cz) schedule(dynamic) NUM_THREADS(nESPthreads) collapse(2)
 	    do ii=0,ngridnum1-1
 		    do jj=0,ngridnum2-1
 			    Cx=orgx2D+ii*v1x+jj*v2x
 			    Cy=orgy2D+ii*v1y+jj*v2y
 			    Cz=orgz2D+ii*v1z+jj*v2z
 			    planemat(ii+1,jj+1)=eleesp(Cx,Cy,Cz)
+				!$OMP CRITICAL
+				ifinish=ifinish+1
+				ishowprog=mod(ifinish,ntmp)
+				if (ishowprog==0) call showprog(floor(100D0*ifinish/(ngridnum1*ngridnum1)),100)
+        		!$OMP END CRITICAL
 		    end do
-            ifinish=ifinish+1
-            call showprog(ifinish,ngridnum1)
 	    end do
         !$OMP END PARALLEL DO
-        if (ifinish<ngridnum1) call showprog(ngridnum1,ngridnum1)
+        if (ishowprog/=0) call showprog(100,100)
     end if
     
 	!Combine ESP of nuclear contribution into plane map
