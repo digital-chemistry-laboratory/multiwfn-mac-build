@@ -881,7 +881,6 @@ do while(.true.)
 		v2x=v2x*d2/rnorm2   !Make the norm of v2 equal to expected step lengh (d2)
 		v2y=v2y*d2/rnorm2
 		v2z=v2z*d2/rnorm2
-	! 		write(*,*) "test ortho",v1x*v2x+v1y*v2y+v1z*v2z
 		orgx2D=a2x-aug2D/d1*v1x-aug2D2/d2*v2x  !aug2D/d1*v1x=aug2D*(v1x/d1), v1x/d1 correspond the x component of unit vector in v1x direction
 		orgy2D=a2y-aug2D/d1*v1y-aug2D2/d2*v2y
 		orgz2D=a2z-aug2D/d1*v1z-aug2D2/d2*v2z

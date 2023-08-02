@@ -203,6 +203,8 @@ case (45) !Steric force based on damped potential
     userfunc=stericforce_damp(x,y,z)
 case (46) !Steric force directly damped to zero
     userfunc=stericforce_directdamp(x,y,z)
+case (47) !Steric charge directly damped to zero
+    userfunc=stericcharge_directdamp(x,y,z)
 case (49) !Relative Shannon entropy, also called information gain
     userfunc=relShannon(x,y,z)
 case (50) !Shannon entropy density, see JCP,126,191107 for example
@@ -5266,7 +5268,7 @@ derv(2)=(stericpot_damp(x,y+diffstep,z)-stericpot_damp(x,y-diffstep,z))/(2*diffs
 derv(3)=(stericpot_damp(x,y,z+diffstep)-stericpot_damp(x,y,z-diffstep))/(2*diffstep)
 stericforce_damp=dsqrt(sum(derv**2))
 end function
-!!---- Steric force directly damped to zero rather than based on damped steric potential
+!!---- Steric force directly damped to zero, rather than based on damped steric potential
 real*8 function stericforce_directdamp(x,y,z)
 real*8 x,y,z
 weiwidth=2
@@ -5286,7 +5288,6 @@ steric_addminimal=0
 stericforce_directdamp=stericforce(x,y,z)*consorg
 steric_addminimal=steric_addminimalold
 end function
-
 
 
 
@@ -5311,6 +5312,26 @@ derv2z=(derv1add(3)-derv1min(3))/(2*diffstep) !d2v/dz2
 stericcharge=-(derv2x+derv2y+derv2z)/4D0/pi
 end function
 
+!!------- Steric charge directly damped to zero
+real*8 function stericcharge_directdamp(x,y,z)
+real*8 x,y,z
+weiwidth=2
+tmps=-(dlog(fdens(x,y,z))-steric_potcutrho)/weiwidth
+if (tmps<-1) then
+	consorg=1
+else if (tmps>1) then
+	consorg=0
+else
+	do iter=1,2
+		tmps=1.5D0*(tmps)-0.5D0*(tmps)**3
+	end do
+	consorg=0.5D0*(1-tmps)
+end if
+steric_addminimalold=steric_addminimal
+steric_addminimal=0
+stericcharge_directdamp=stericcharge(x,y,z)*consorg
+steric_addminimal=steric_addminimalold
+end function
 
 
 

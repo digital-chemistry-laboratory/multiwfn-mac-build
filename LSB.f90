@@ -1129,7 +1129,7 @@ end subroutine
 
 
 !!------- Calculate some quantities involved in Shubin's project in a plane
-!itype=1: Calculate the sum of atomic relative Shannon entropy (namely total relative Shannon entropy)
+!itype=1: Calculate the sum of atomic relative Shannon entropy (namely total relative Shannon entropy). sum{rho(A)*ln[rho(A)/rho0(A)]}
 !itype=2: Calculate the sum of x=[rhoA-rho0A]/rhoA
 !itype=3: Calculate the difference between total relative Shannon entropy and deformation density
 subroutine genentroplane(itype)

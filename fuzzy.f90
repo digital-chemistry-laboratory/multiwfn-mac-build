@@ -5,10 +5,12 @@
 !The integration grid is directly controlled by sphpot and radpot in settings.ini, since integrand may be not proportional to electron density,
 !the grid will not be adjusted automatically as proposed by Becke for more efficient integration of XC functional
 !
-!For integrating value (function 1), molecular grid is always used, becaues it makes integrating e.g. Laplacian significantly more accurate &
-!when Hirshfeld(/-I) is used because of its over-smooth behavior, while the increase of computational cost is basically negligible.
+!For integrating function value (subfunction 1), molecular grid (iintgrid=2) is always used (looping all atoms in turn, use atomic integration grids to calculate integral contribution to every atom), &
+!because it makes integrating e.g. Laplacian significantly more accurate when Hirshfeld(/-I) is used because of its over-extension behavior, while the increase of computational cost is basically negligible
+!For subfunction 1, "-5 Define the atoms to be considered" doesn't affect calculation process, but only the integral of selected atoms will be printed finally
+!
 !However, for calculating AOM, using molecular grid makes calculation much more expensive, while improvement on result is only notable &
-!when diffuse functions are heavily used, so atomic grid is employed by default and can be changed by users
+!when diffuse functions are heavily used, so atomic grid is employed by default and can be changed by users. This is determined by iAOMgrid
 subroutine intatomspace(iwork)
 use functions
 use util
@@ -111,8 +113,11 @@ if (iwork==0) then
     else if (iAOMgrid==2) then
 		write(*,*) "-6 Choose type of integration grid for AOM, current: Molecular grid"
     end if
-	if (natmcalclist==ncenter) write(*,*) "-5 Define the atoms to be considered in options 1, 2, 13, current: all atoms"
-	if (natmcalclist/=ncenter) write(*,"(a,i5,a)") " -5 Define the atoms to be considered in options 1, 2, 13, current:",natmcalclist," atoms"
+	if (natmcalclist==ncenter) then
+		write(*,*) "-5 Define the atoms to be considered in options 1, 2, 13, current: all atoms"
+	else
+		write(*,"(a,i5,a)") " -5 Define the atoms to be considered in options 1, 2 and 13, current:",natmcalclist," atoms"
+    end if
 	write(*,*) "-4 Adjust reference parameter for FLU"
 	if (ipartition==1) then !For Becke
 		write(*,"(' -3 Set the number of iterations for Becke partition, current:',i3)") nbeckeiter
@@ -221,7 +226,7 @@ else if (isel==-5) then
 			exit
 		end if
 	end do
-	write(*,*) "Done! The atoms you chose:"
+	write(*,*) "Done! The atoms you chosen:"
 	write(*,"(10i6)") atmcalclist(1:natmcalclist)
 	write(*,*)
 	
@@ -548,8 +553,9 @@ end if
 
 !! Cycle each atom !!!! Cycle each atom !!!! Cycle each atom !!!! Cycle each atom !!
 !! Cycle each atom !!!! Cycle each atom !!!! Cycle each atom !!!! Cycle each atom !!
+
 do iatm=1,ncenter
-	if ( (isel==1.or.isel==2.or.isel==13).and.all(atmcalclist(1:natmcalclist)/=iatm) ) cycle
+	if ( (isel==2.or.isel==13).and.all(atmcalclist(1:natmcalclist)/=iatm) ) cycle
 	if (isel==12) then
         if (all(aromatatm(1:naromatatm)/=iatm)) cycle
     end if
@@ -971,7 +977,7 @@ do iatm=1,ncenter
 		end do
         !Calculate free volume
         freeV=0
-        	gridatm%x=gridatm%x-a(iatm)%x !Recover the integration points to (0,0,0) as center
+        gridatm%x=gridatm%x-a(iatm)%x !Recover the integration points to (0,0,0) as center
 		gridatm%y=gridatm%y-a(iatm)%y
 		gridatm%z=gridatm%z-a(iatm)%z
 		call dealloall(0)
@@ -1046,7 +1052,7 @@ do iatm=1,ncenter
 		if ((wfntype==1.or.wfntype==4).and.nmatsizeb>0) then
 			MOinit=iendalpha+1
 			MOend=iendalpha+nmatsizeb
-        		if (iAOMgrid==1) then !Atomic grid
+            if (iAOMgrid==1) then !Atomic grid
 				!$OMP parallel shared(AOMb) private(i,imo,jmo,AOMtmp,orbval,tmpval) num_threads(nthreads)
 				AOMtmp=0D0
 				!$OMP do schedule(dynamic)
@@ -1092,22 +1098,6 @@ do iatm=1,ncenter
 					AOMb(jmo,imo,:)=AOMb(imo,jmo,:)
 				end do
 			end do
-        
-			!do i=1+iradcut*sphpot,radpot*sphpot
-			!	call orbderv(1,MOinit,MOend,gridatm(i)%x,gridatm(i)%y,gridatm(i)%z,orbval)
-			!	do imo=MOinit,MOend
-			!		imotmp=imo-iendalpha !So that the index starts from 1 to nbelec
-   !                 tmpval=atmspcweight(i)*orbval(imo)*gridatm(i)%value
-			!		do jmo=imo,MOend
-			!			jmotmp=jmo-iendalpha
-			!			AOMb(imotmp,jmotmp,iatm)=AOMb(imotmp,jmotmp,iatm)+tmpval*orbval(jmo)
-			!		end do
-			!	end do
-			!end do					
-			!AOMb(:,:,iatm)=AOMb(:,:,iatm)+transpose(AOMb(:,:,iatm))
-			!do imo=1,nmatsizeb
-			!	AOMb(imo,imo,iatm)=AOMb(imo,imo,iatm)/2D0
-			!end do
         end if
 	end if
     
@@ -1116,9 +1106,11 @@ do iatm=1,ncenter
 	if (isel==12) then
         ifinish=ifinish+1
         call showprog(ifinish,naromatatm)
-    else if ((isel==2.and.iout==20).or.(isel/=2.and.isel/=13)) then
+    else if ((isel==2.and.iout==20).or.isel==13) then
         ifinish=ifinish+1
         call showprog(ifinish,natmcalclist)
+    else if (isel/=2) then
+        call showprog(iatm,ncenter)
     end if
 	
 end do !End cycling atoms
@@ -1308,18 +1300,23 @@ end if
 !!====================================================
 write(*,*)
 if (isel==1) then
-	sumval=sum(rintval(:,1))
-	sumabsval=sum(abs(rintval(:,1)))
+	do iatm=1,ncenter
+		if ( all(atmcalclist(1:natmcalclist)/=iatm) ) rintval(iatm,1)=0
+    end do
+	sumval=sum(rintval(atmcalclist(1:natmcalclist),1))
+	sumabsval=sum(abs(rintval(atmcalclist(1:natmcalclist),1)))
 	write(*,*) "  Atomic space        Value                % of sum            % of sum abs"
-	if (any(abs(rintval(:,1))>1D9).or.all(abs(rintval(:,1))<1D-7)) then
-		do iatm=1,ncenter
+	if (any(abs(rintval(atmcalclist(1:natmcalclist),1))>1D9).or.all(abs(rintval(atmcalclist(1:natmcalclist),1))<1D-7)) then
+		do idx=1,natmcalclist
+			iatm=atmcalclist(idx)
 			write(*,"(i6,'(',a2,')  ',E20.10,1x,f20.6,1x,f20.6)") iatm,a(iatm)%name,rintval(iatm,1),rintval(iatm,1)/sumval*100,rintval(iatm,1)/sumabsval*100
 		end do
 		write(*,"(' Summing up above values:',E20.10)") sumval
 		write(*,"(' Summing up absolute value of above values:',E20.10)") sumabsval
     else
-		do iatm=1,ncenter
-			write(*,"(i6,'(',a2,')  ',f20.8,1x,f20.6,1x,f20.6)") iatm,a(iatm)%name,rintval(iatm,1),rintval(iatm,1)/sumval*100,rintval(iatm,1)/sumabsval*100
+		do idx=1,natmcalclist
+			iatm=atmcalclist(idx)
+            write(*,"(i6,'(',a2,')  ',f20.8,1x,f20.6,1x,f20.6)") iatm,a(iatm)%name,rintval(iatm,1),rintval(iatm,1)/sumval*100,rintval(iatm,1)/sumabsval*100
 		end do
 		write(*,"(' Summing up above values:',f20.8)") sumval
 		write(*,"(' Summing up absolute value of above values:',f20.8)") sumabsval
