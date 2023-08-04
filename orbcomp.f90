@@ -1479,7 +1479,7 @@ use util
 implicit real*8 (a-h,o-z)
 real*8 oxdstat(ncenter),atmcomp(ncenter,nmo)
 integer,allocatable :: fragLOBA(:)
-character c2000tmp*2000
+character c2000tmp*2000,c80tmp*80
 
 call gen_orbatmcomp_space(1,atmcomp,1,nmo,0,0)
 write(*,*)
@@ -1491,16 +1491,17 @@ write(*,*)
 nfragLOBA=0
 do while(.true.)
 	write(*,*) "Input percentage threshold to determine oxidation state (50 is commonly used)"
+    write(*,"(a)") " Input ""m"" will determine oxidation state by assigning electron(s) in each orbital to the atom of maximal contribution"
 	if (allocated(fragLOBA)) then
         write(*,"(a,i6,a)") " Input -1 can redefine the fragment, current:",nfragLOBA," atoms"
     else
         write(*,*) "Input -1 can define fragment, current: Undefined"
     end if
 	write(*,*) "Input 0 can exit"
-	read(*,*) thres
-	if (thres==0) then
+	read(*,"(a)") c80tmp
+	if (c80tmp=="0") then
 		return
-	else if (thres==-1) then
+	else if (c80tmp=="-1") then
 		write(*,*) "Input indices of the atoms constituting the fragment"
 		write(*,*) "e.g. 1,3-5,9"
 		read(*,"(a)") c2000tmp
@@ -1512,33 +1513,52 @@ do while(.true.)
 		write(*,*)
 		cycle
 	else
-	    oxdstat(:)=a(:)%charge
-		thres=thres/100
-		do iatm=1,ncenter
-			do imo=1,nmo
-                if (MOocc(imo)==0) cycle
-				if (atmcomp(iatm,imo)>thres) then
-                    oxdstat(iatm)=oxdstat(iatm)-MOocc(imo)
- 				    if (outmedinfo==1) write(*,"(f8.4' electrons in LMO',i6,' are attributed to atom',i6)") MOocc(imo),imo,iatm
-                end if
+        oxdstat(:)=a(:)%charge
+		if (index(c80tmp,'m')==0) then
+			read(c80tmp,*) thres
+			thres=thres/100
+			do iatm=1,ncenter
+				do imo=1,nmo
+					if (MOocc(imo)==0) cycle
+					if (atmcomp(iatm,imo)>thres) then
+						oxdstat(iatm)=oxdstat(iatm)-MOocc(imo)
+ 						if (outmedinfo==1) write(*,"(f8.4' electrons in LMO',i6,' are attributed to atom',i6)") MOocc(imo),imo,iatm
+					end if
+				end do
+				write(*,"(' Oxidation state of atom',i4,'(',a,') :',i3)") iatm,a(iatm)%name,nint(oxdstat(iatm))
 			end do
-			write(*,"(' Oxidation state of atom',i4,'(',a,') :',i3)") iatm,a(iatm)%name,nint(oxdstat(iatm))
-		end do
+        else
+			do imo=1,nmo
+				if (MOocc(imo)==0) cycle
+				iatm=maxloc(atmcomp(:,imo),1)
+				oxdstat(iatm)=oxdstat(iatm)-MOocc(imo)
+				if (outmedinfo==1) write(*,"(f8.4' electrons in LMO',i6,' are attributed to atom',i6)") MOocc(imo),imo,iatm
+			end do
+			do iatm=1,ncenter
+				write(*,"(' Oxidation state of atom',i4,'(',a,') :',i3)") iatm,a(iatm)%name,nint(oxdstat(iatm))
+			end do
+        end if
+        
 		write(*,"(' The sum of oxidation states:',i6)") sum(nint(oxdstat))
+        
 		if (allocated(fragLOBA)) then
-			oxdfrag=0
-			do iatmidx=1,nfragLOBA
-				iatm=fragLOBA(iatmidx)
-				oxdfrag=oxdfrag+a(iatm)%charge
-			end do
-			do imo=1,nmo
-				compval=sum(atmcomp(fragLOBA(:),imo))
-				if (compval>thres) then
-                    oxdfrag=oxdfrag-MOocc(imo)
-                    if (outmedinfo==1) write(*,"(f8.4' electrons in LMO',i6,' are attributed to the defined fragment')") MOocc(imo),imo
-                end if
-			end do
-			write(*,"(' Oxidation state of the fragment:',i4)") nint(oxdfrag)
+			if (index(c80tmp,'m')==0) then
+				oxdfrag=0
+				do iatmidx=1,nfragLOBA
+					iatm=fragLOBA(iatmidx)
+					oxdfrag=oxdfrag+a(iatm)%charge
+				end do
+				do imo=1,nmo
+					compval=sum(atmcomp(fragLOBA(:),imo))
+					if (compval>thres) then
+						oxdfrag=oxdfrag-MOocc(imo)
+						if (outmedinfo==1) write(*,"(f8.4' electrons in LMO',i6,' are attributed to the defined fragment')") MOocc(imo),imo
+					end if
+				end do
+				write(*,"(' Oxidation state of the fragment:',i4)") nint(oxdfrag)
+            else
+				write(*,"(' Oxidation state of the fragment:',i4)") sum(nint(oxdstat(fragLOBA(:))))
+            end if
 		end if
 		write(*,*)
 	end if
