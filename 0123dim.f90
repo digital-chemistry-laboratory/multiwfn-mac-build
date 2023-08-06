@@ -555,7 +555,7 @@ do while(.true.)
 		write(*,*) "Input index of the atom you are interested in, e.g. 4"
 		read(*,*) tmparrint
 		exit
-	else if (ifuncsel==501.or.ifuncsel==502.or.ifuncsel==503) then !sum[rhoA*ln(rhoA/rho0A), sum[(rhoA-rho0A)/rhoA], difference between relative entropy and deformation density
+	else if (ifuncsel==501.or.ifuncsel==502.or.ifuncsel==503.or.ifuncsel==504.or.ifuncsel==505) then !Information entropy related functions, need isolated atomic density
 		call setpromol
 		exit
 	else
@@ -1084,6 +1084,12 @@ else !Start calculation of plane data
 		ncustommap=0
 	else if (ifuncsel==503) then !Calculate difference between total relative Shannon entropy and deformation density 
 		call genentroplane(3)
+		ncustommap=0
+	else if (ifuncsel==504) then !Calculate 2nd relative Onicescu information sum{[rho(A)]^2/rho0(A)}
+		call genentroplane(4)
+		ncustommap=0
+	else if (ifuncsel==505) then !Calculate 3rd relative Onicescu information sum{[rho(A)]^3/[rho0(A)]^2}/2
+		call genentroplane(5)
 		ncustommap=0
     else if (ifuncsel==100.and.(iuserfunc==57.or.iuserfunc==58.or.iuserfunc==59)) then !Calculate g1,g2,g3 terms defined by Shubin, they rely on rho_0
         call g1g2g3plane
@@ -2187,6 +2193,12 @@ else !Calculate grid data
 		ncustommap=0
     else if (ifuncsel==100.and.(iuserfunc==57.or.iuserfunc==58.or.iuserfunc==59)) then !Calculate g1,g2,g3 terms defined by Shubin, they rely on rho_0
         call g1g2g3grid
+		ncustommap=0
+    else if (ifuncsel==504) then !2nd relative Onicescu information
+		call genentrocub(4)
+		ncustommap=0
+    else if (ifuncsel==505) then !3rd relative Onicescu information
+		call genentrocub(5)
 		ncustommap=0
 	else !Common case
 		cubmat=0D0

@@ -3753,7 +3753,7 @@ end subroutine
 !!------ Calculate atomic density based on STO fitted or radial density
 !PBC is supported
 !indSTO==0: All atom densities will be evaluated based on interpolation of built-in radial density, quite accurate
-!indSTO==18: Use STO fitted atomic density for element <18, quality is mediocre but fast (Weitao Yang, RDG original paper)
+!indSTO==18: Use STO fitted atomic density for element <18, quality is poor but fast (Weitao Yang, RDG original paper)
 real*8 function calcatmdens(iatm,x,y,z,indSTO)
 use util
 real*8 rho,x,y,z,posarr(200),rhoarr(200),tvec(3)

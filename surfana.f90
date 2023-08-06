@@ -432,7 +432,7 @@ if (isurftype==1.or.isurftype==2.or.isurftype==5.or.isurftype==6) then !Calculat
 					do j=1,ny
 						do i=1,nx
 							call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
-							denstmp=calcatmdens(iatm,tmpx,tmpy,tmpz,18)
+							denstmp=calcatmdens(iatm,tmpx,tmpy,tmpz,0)
 							cubmattmp(i,j,k)=cubmattmp(i,j,k)+denstmp
 							if (any(HirBecatm==iatm)) cubmat(i,j,k)=cubmat(i,j,k)+denstmp !Density of specified fragment
 						end do

@@ -684,7 +684,7 @@ do iatm=1,ncenter
             else if (ipartition==3) then !Hirshfeld based on interpolation of built-in atomic radius density
 				!$OMP parallel do shared(atomdens) private(ipt) num_threads(nthreads)
 				do ipt=1+iradcut*sphpot,radpot*sphpot
-					atomdens(ipt)=calcatmdens(jatm,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,18)
+					atomdens(ipt)=calcatmdens(jatm,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,0)
 				end do
 				!$OMP end parallel do
 			else !Hirshfeld-I based on refined atomic radial density

@@ -1132,16 +1132,20 @@ end subroutine
 !itype=1: Calculate the sum of atomic relative Shannon entropy (namely total relative Shannon entropy). sum{rho(A)*ln[rho(A)/rho0(A)]}
 !itype=2: Calculate the sum of x=[rhoA-rho0A]/rhoA
 !itype=3: Calculate the difference between total relative Shannon entropy and deformation density
+!itype=4: Calculate 2nd relative Onicescu information sum{[rho(A)]^2/rho0(A)}
+!itype=5: Calculate 3rd relative Onicescu information sum{[rho(A)]^3/[rho0(A)]^2}/2
 subroutine genentroplane(itype)
 use defvar
 use functions
 implicit real*8 (a-h,o-z)
 integer itype
 real*8 planeprodens(ngridnum1,ngridnum2),planedens(ngridnum1,ngridnum2)
+
 if (allocated(planemat)) deallocate(planemat)
 allocate(planemat(ngridnum1,ngridnum2))
 planeprodens=0D0
 planemat=0D0
+
 !Calculate molecular density in the plane and store it to planedens
 !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(planedens) schedule(dynamic) NUM_THREADS(nthreads)
 do i=1,ngridnum1
@@ -1153,7 +1157,9 @@ do i=1,ngridnum1
 	end do
 end do
 !$OMP END PARALLEL DO
-do jatm=1,ncenter_org !Calculate promolecular density in the plane and store it to planeprodens
+
+!Calculate promolecular density in the plane and store it to planeprodens
+do jatm=1,ncenter_org
 	call dealloall(0)
 	call readwfn(custommapname(jatm),1)
 	!$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(planeprodens) schedule(dynamic) NUM_THREADS(nthreads)
@@ -1167,6 +1173,7 @@ do jatm=1,ncenter_org !Calculate promolecular density in the plane and store it 
 	end do
 	!$OMP END PARALLEL DO
 end do
+
 !Calculate Hirshfeld weight, relative Shannon entropy and x=[rhoA-rho0A]/rhoA for each atom in the plane and accumulate them to planemat
 do jatm=1,ncenter_org !Cycle each atom, calculate its contribution in the plane
 	call dealloall(0)
@@ -1179,8 +1186,15 @@ do jatm=1,ncenter_org !Cycle each atom, calculate its contribution in the plane
 			rnowz=orgz2D+(i-1)*v1z+(j-1)*v2z
 			rho0A=fdens(rnowx,rnowy,rnowz)
 			rhoA=planedens(i,j)*rho0A/planeprodens(i,j)
-			if (itype==1.or.itype==3) tmpval=rhoA*log(rhoA/rho0A) !Relative Shannon entropy
-			if (itype==2) tmpval=(rhoA-rho0A)/rhoA !x=[rhoA-rho0A]/rhoA
+			if (itype==1.or.itype==3) then
+				tmpval=rhoA*log(rhoA/rho0A) !Relative Shannon entropy
+			else if (itype==2) then
+				tmpval=(rhoA-rho0A)/rhoA !x=[rhoA-rho0A]/rhoA
+			else if (itype==4) then
+				tmpval=rhoA**2/rho0A
+			else if (itype==5) then
+				tmpval=(rhoA**3/rho0A**2)/2D0
+            end if
 			planemat(i,j)=planemat(i,j)+tmpval
 		end do
 	end do
@@ -1190,6 +1204,88 @@ call dealloall(0)
 call readinfile(firstfilename,1) !Retrieve the first loaded file(whole molecule)
 if (itype==3) planemat=planemat-(planedens-planeprodens) !Diff between total relative Shannon entropy and deformation density
 end subroutine
+
+
+
+
+!!------- Calculate some quantities involved in Shubin's project as grid data
+!Definition is the same as subroutine genentroplane
+subroutine genentrocub(itype)
+use defvar
+use functions
+implicit real*8 (a-h,o-z)
+integer itype
+real*8 cubprodens(nx,ny,nz),cubdens(nx,ny,nz)
+
+call setpromol
+
+if (allocated(cubmat)) deallocate(cubmat)
+allocate(cubmat(nx,ny,nz))
+cubprodens=0D0
+cubmat=0D0
+
+!Calculate molecular density grid data and store it to cubdens
+write(*,*) "Calculating real electron density grid data..."
+!$OMP PARALLEL DO SHARED(cubdens) PRIVATE(i,j,k,tmpx,tmpy,tmpz) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
+do k=1,nz
+	do j=1,ny
+		do i=1,nx
+			call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
+			cubdens(i,j,k)=fdens(tmpx,tmpy,tmpz)
+		end do
+	end do
+end do
+!$OMP END PARALLEL DO
+
+write(*,*) "Calculating promolecular density grid data..."
+do jatm=1,ncenter_org
+	call dealloall(0)
+	call readwfn(custommapname(jatm),1)
+	!$OMP PARALLEL DO SHARED(cubprodens) PRIVATE(i,j,k,tmpx,tmpy,tmpz) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
+	do k=1,nz
+		do j=1,ny
+			do i=1,nx
+				call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
+                cubprodens(i,j,k)=cubprodens(i,j,k)+fdens(tmpx,tmpy,tmpz)
+			end do
+		end do
+	end do
+	!$OMP END PARALLEL DO
+    call showprog(jatm,ncenter_org)
+end do
+
+write(*,*) "Calculating promolecular grid data of information-theoretic quantities..."
+do jatm=1,ncenter_org !Cycle each atom, calculate its contribution
+	call dealloall(0)
+	call readwfn(custommapname(jatm),1)
+	!$OMP PARALLEL DO SHARED(cubmat) PRIVATE(i,j,k,tmpx,tmpy,tmpz,rho0A,rhoA,tmpval) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
+	do k=1,nz
+		do j=1,ny
+			do i=1,nx
+				call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
+                rho0A=fdens(tmpx,tmpy,tmpz)
+				rhoA=cubdens(i,j,k)*rho0A/cubprodens(i,j,k)
+				if (itype==1.or.itype==3) then
+					tmpval=rhoA*log(rhoA/rho0A) !Relative Shannon entropy
+				else if (itype==2) then
+					tmpval=(rhoA-rho0A)/rhoA !x=[rhoA-rho0A]/rhoA
+				else if (itype==4) then
+					tmpval=rhoA**2/rho0A
+				else if (itype==5) then
+					tmpval=(rhoA**3/rho0A**2)/2D0
+				end if
+				cubmat(i,j,k)=cubmat(i,j,k)+tmpval
+			end do
+		end do
+	end do
+	!$OMP END PARALLEL DO
+    call showprog(jatm,ncenter_org)
+end do
+call dealloall(0)
+call readinfile(firstfilename,1) !Retrieve the first loaded file(whole molecule)
+if (itype==3) cubmat=cubmat-(cubdens-cubprodens) !Diff between total relative Shannon entropy and deformation density
+end subroutine
+
 
 
 

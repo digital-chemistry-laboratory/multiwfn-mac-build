@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2023-Aug-4"
+write(*,*) "Version 3.8(dev), release date: 2023-Aug-6"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -242,7 +242,11 @@ if (allocated(a)) then
     end if
 end if
 
+
+
 !Special treatment and test new code
+!call NICS_1D
+
 
 
 !!!--------------------- Now everything start ---------------------!!!

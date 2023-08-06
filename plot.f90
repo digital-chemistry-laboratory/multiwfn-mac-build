@@ -762,13 +762,14 @@ end subroutine
 !!!------------------------- Draw property in a line
 !if atomr1==atomr2, then don't plot two points to highlight nuclear positions
 !Input coordinate must be in Bohr
-subroutine drawcurve(curvex,curvey,N,curvexmin,curvexmax,steplabx,curveymin,curveymax,steplaby,status,atomr1,atomr2)
+subroutine drawcurve(curvex,curvey,N,curvexmin,curvexmax,steplabx,curveymin,curveymax,steplaby,status,atomr1,atomr2,axisnamey)
 implicit real*8 (a-h,o-z)
 real*8 curvex(N),curvey(N),atompointx(2),atompointy(2),curvexmin,curvexmax,curveymin,curveymax,steplabx,steplaby
 real*8,optional :: atomr1,atomr2
 real*8 vertlinex(2),vertliney(2)
 integer N
 character status*4
+character(len=*),optional :: axisnamey
 !Set conversion factor, determined by global variable ilenunit1D
 scll=1D0 !Default, namely Bohr as unit of X-axis
 if (ilenunit1D==2) scll=b2a !Conver X-axis unit to Angstrom
@@ -808,7 +809,11 @@ else if (ilog10y==1) then
 end if
 if (ilenunit1D==1) CALL NAME('Position (Bohr)','X')
 if (ilenunit1D==2) CALL NAME('Position (Angstrom)','X')
-CALL NAME('Value (a.u.)','Y')
+if (present(axisnamey)) then
+	CALL NAME(trim(axisnamey),'Y')
+else
+	CALL NAME('Value (a.u.)','Y')
+end if
 CALL LABDIG(numdiglinex,"X")
 CALL TICPOS("REVERS","XYZ")
 call ERRMOD("ALL","OFF")
@@ -841,14 +846,16 @@ CALL CURVE(curvex*scll,curvey,N)
 CALL LINWID(1)
 
 if (present(atomr1)) then !Draw position of the two atom selected
-	atompointx(1)=atomr1*scll !the position of atom shown in curve graph
-	atompointx(2)=atomr2*scll
-	atompointy=curveymin
-	CALL SETRGB(0.9D0,0D0,0D0)
-	CALL INCMRK(-1)
-	CALL MARKER(21)
-	CALL HSYMBL(20)
-	CALL CURVE(atompointx,atompointy,2)
+	if (atomr1/=atomr2) then
+		atompointx(1)=atomr1*scll !the position of atom shown in curve graph
+		atompointx(2)=atomr2*scll
+		atompointy=curveymin
+		CALL SETRGB(0.9D0,0D0,0D0)
+		CALL INCMRK(-1)
+		CALL MARKER(21)
+		CALL HSYMBL(20)
+		CALL CURVE(atompointx,atompointy,2)
+    end if
 end if
 CALL DISFIN
 end subroutine

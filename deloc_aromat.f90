@@ -20,6 +20,7 @@ do while(.true.)
     write(*,*) "10 Para linear response index (PLR)"
     write(*,*) "11 Information-theoretic (ITA) aromaticity index"
     write(*,*) "12 Properties of ring critical point"
+    write(*,*) "13 NICS-1D scan and integral"
     read(*,*) isel
     if (isel==0) then
 		return
@@ -71,6 +72,8 @@ do while(.true.)
         for introduction and Section 4.2.1 for practical example."
         write(*,*) "Press ENTER button to continue"
         read(*,*)
+	else if (isel==13) then
+		call NICS_1D
     end if
 end do
 end subroutine
@@ -130,7 +133,7 @@ if (selectyn=='n'.or.selectyn=='N') then
 			if (numblank==3) iendcoord=i-1
 		end if
 		if (index(gauinpcontent(i),'#')/=0) then
-			gauinpcontent(i)=trim(gauinpcontent(i))//" NMR"
+			if (index(gauinpcontent(i),'nmr')==0.and.index(gauinpcontent(i),'NMR')==0) gauinpcontent(i)=trim(gauinpcontent(i))//" NMR"
 			if (index(gauinpcontent(i),'conn')==0) gauinpcontent(i)=trim(gauinpcontent(i))//" geom=connectivity"
 		end if
 	end do
@@ -1490,4 +1493,326 @@ shieldperpen=xnor*xnor*hesstmp(1,1)+xnor*ynor*hesstmp(1,2)+xnor*znor*hesstmp(1,3
 			 znor*xnor*hesstmp(3,1)+znor*ynor*hesstmp(3,2)+znor*znor*hesstmp(3,3)
 write(*,"(' The shielding value normal to the plane is',f20.10)") shieldperpen
 write(*,"(' The NICS_ZZ value is thus',f20.10,/)") -shieldperpen
+end subroutine
+
+
+
+
+!!----------- NICS-1D scan and integral
+subroutine NICS_1D
+use defvar
+use util
+use plot
+implicit real*8 (a-h,o-z)
+real*8 endpt1(3),endpt2(3),normalvec(3),uvec(3),cenpos(3),tmpvec(3)
+character c80tmp*80,c2000tmp*2000,graphformat_old*4
+integer,allocatable :: tmparr(:)
+integer npt !Number of ghost atoms
+real*8,allocatable :: ptxyz(:,:) !XYZ of scanning points, ptpos(3,npt)
+real*8,allocatable :: ptpos(:) !Relative position of scanning points. In the case of inputting two points, relative to the first one. Case of relative to plane, relative to plane center
+real*8,allocatable :: pttens(:,:,:) !pttens(1:3,1:3,ipt) is 3*3 shielding tensor of ipt
+real*8,allocatable :: ptNICS(:) !Specific component value of NICS of scanning points
+real*8,allocatable :: ptNICSiso(:),ptNICSaniso(:) !Isotropic and anisotropic NICS of scanning points
+
+write(*,*)
+call menutitle("NICS-1D scan and integral",10,1)
+write(*,*) "0 Return"
+write(*,*) "Choose the way of defining the two end points of the line for scanning"
+write(*,*) "1 Directly input Cartesian coordinates of two end points"
+write(*,"(a)") " 2 The two end points are above and below the center of a plane composed of specific atoms, and the line perpendicularly passes through the ring center"
+read(*,*) iway
+
+if (iway==0) then
+    return
+else if (iway==1) then
+    write(*,*) "Input X,Y,Z of the first end point in Angstrom, e.g. 3.2,0.1,-9.5"
+    read(*,*) endpt1(:)
+    endpt1(:)=endpt1(:)/b2a
+    write(*,*) "Input X,Y,Z of the second end point in Angstrom, e.g. 3.2,0.1,-9.5"
+    read(*,*) endpt2(:)
+    endpt2(:)=endpt2(:)/b2a
+    tmpvec=endpt2-endpt1
+    uvec=tmpvec/dsqrt(sum(tmpvec**2))
+else
+    write(*,*) "Input the atoms constituting the plane, e.g. 1-3,9,10"
+    read(*,"(a)") c2000tmp
+    call str2arr(c2000tmp,ntmp)
+    allocate(tmparr(ntmp))
+    call str2arr(c2000tmp,ntmp,tmparr)
+    normalvec=0
+    call ptsfitplane(tmparr,ntmp,normalvec(1),normalvec(2),normalvec(3),rnouse,rmsfit)
+    uvec=normalvec/dsqrt(sum(normalvec**2))
+    write(*,"(' Unit normal vector of fitted plane:',3f10.5)") uvec(:)
+    write(*,*)
+    write(*,*) "Input X,Y,Z of ring center in Angstrom, e.g. 3.2,1.3,-2.1"
+    write(*,*) "If press ENTER button directly, geometric center will be used"
+    read(*,"(a)") c2000tmp
+    if (c2000tmp==" ") then
+        cenpos(1)=sum(a(tmparr(:))%x)/ntmp
+        cenpos(2)=sum(a(tmparr(:))%y)/ntmp
+        cenpos(3)=sum(a(tmparr(:))%z)/ntmp
+        write(*,"(' Center:',3f10.5,' Angstrom')") cenpos*b2a
+    else
+        read(c2000tmp,*) cenpos(:)
+    end if
+    write(*,"(/,a)") " Input distance between the point below the plane and the plane center in Angstrom"
+    write(*,*) "For example, 9.8"
+    write(*,*) "If press ENTER button directly, 10 Angstrom will be used, which is usually sufficient"
+    read(*,"(a)") c80tmp
+    if (c80tmp==" ") then
+		distbelow=10
+    else
+	    read(c80tmp,*) distbelow
+    end if
+    distbelow=distbelow/b2a
+    endpt1(:)=cenpos(:)-distbelow*uvec(:)
+    write(*,"(a)") " Input distance between the point above the plane and the plane center in Angstrom"
+    write(*,*) "For example, 9.8"
+    write(*,*) "If press ENTER button directly, 10 Angstrom will be used, which is usually sufficient"
+    read(*,"(a)") c80tmp
+    if (c80tmp==" ") then
+		distabove=10
+    else
+	    read(c80tmp,*) distabove
+    end if
+    distabove=distabove/b2a
+    endpt2(:)=cenpos(:)+distabove*uvec(:)
+    write(*,"(' Starting point:',3f10.5,' Angstrom')") endpt1(:)*b2a
+    write(*,"(' Ending point:  ',3f10.5,' Angstrom')") endpt2(:)*b2a
+end if
+
+write(*,*)
+write(*,*) "How many points evenly distributing in the scanning line? e.g. 50"
+npttmp=nint(dsqrt(sum((endpt2-endpt1)**2))*b2a/0.1)
+write(*,"(a,i6,a)") " If press ENTER button directly,",npttmp," points will be used, which is fine enough"
+read(*,"(a)") c80tmp
+if (c80tmp==" ") then
+	npt=npttmp
+else
+	read(c80tmp,*) npt
+end if
+
+allocate(ptxyz(3,npt),ptpos(npt))
+tmpvec(:)=endpt2(:)-endpt1(:)
+dist=dsqrt(sum(tmpvec(:)**2))
+spacing=dist/(npt-1)
+tmpvec=tmpvec/dsqrt(sum(tmpvec**2))
+do ipt=1,npt
+    ptxyz(:,ipt)=endpt1(:)+(ipt-1)*spacing*tmpvec(:)
+    if (iway==1) then
+        ptpos(ipt)=(ipt-1)*spacing
+    else if (iway==2) then
+        ptpos(ipt)=(ipt-1)*spacing-distbelow
+    end if
+    !write(*,"(i5,3f12.6)") ipt,ptxyz(:,ipt)*b2a
+end do
+
+do while(.true.)
+    write(*,*)
+    write(*,*) "0 Exit"
+    write(*,*) "1 Generate Gaussian input file for NICS-1D scanning"
+    write(*,*) "2 Load Gaussian output file of NICS-1D scanning"
+    read(*,*) isel
+
+    if (isel==0) then
+        return
+    else if (isel==1) then
+        write(*,*) "Input the path of Gaussian template file of performing NMR task"
+        write(*,*) "e.g. D:\Aqours\Mari\shiny.gjf"
+        write(*,"(a)") " Note: In this file, the coordinate part should be recorded as [geometry], which will be automatically replaced with current geometry"
+        do while(.true.)
+	        read(*,"(a)") c2000tmp
+	        inquire(file=c2000tmp,exist=alive)
+	        if (alive) exit
+	        write(*,*) "Cannot find the file, input again!"
+        end do
+
+        open(10,file=c2000tmp,status="old")
+        open(11,file="NICS_1D.gjf",status="replace")
+        do while (.true.)
+            read(10,"(a)",iostat=ierror) c2000tmp
+            if (ierror/=0) exit
+            if (index(c2000tmp,"#")/=0) then
+                if (index(c2000tmp,"geom=conn")==0) then
+                    write(11,"(a)") trim(c2000tmp)//" geom=connectivity"
+                else
+                    write(11,"(a)") trim(c2000tmp)
+                end if
+            else if (index(c2000tmp,"[geometry]")/=0) then
+                do iatm=1,ncenter
+                    write(11,"(a,3f12.6)") ind2name(a(iatm)%index),a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%z*b2a
+                end do
+                do ipt=1,npt
+                    write(11,"('Bq',3f12.6)") ptxyz(:,ipt)*b2a
+                end do
+                write(11,*)
+                do itmp=1,ncenter+npt
+                    write(11,"(i6)") itmp
+                end do
+            else
+                write(11,"(a)") trim(c2000tmp)
+            end if
+        end do
+        write(11,*)
+        write(11,*)
+        close(10)
+        close(11)
+        write(*,"(a)") " NICS_1D.gjf has been generated in current folder! Please check it, and then run it by Gaussian manually"
+    else if (isel==2) then
+        write(*,*) "Input path of Gaussian output file of NICS-1D scanning task"
+        write(*,*) "e.g. D:\Aqours\Mari\shiny.out"
+        do while(.true.)
+	        read(*,"(a)") c2000tmp
+	        inquire(file=c2000tmp,exist=alive)
+	        if (alive) exit
+	        write(*,*) "Cannot find the file, input again!"
+        end do
+        exit
+    end if
+end do
+
+!Load shielding tensor of ghost atoms
+open(10,file=c2000tmp,status="old")
+call loclabel(10,"Isotropic =",ifound)
+if (ifound==0) then
+    write(*,"(a)") " Error: Unable to find magnetici shielding tensor in this file! Please check keywords. Press ENTER button to return"
+    read(*,*)
+    return
+end if
+allocate(pttens(3,3,npt),ptNICSiso(npt),ptNICSaniso(npt))
+call loclabel(10,"Bq",ifound,0)
+do ipt=1,npt
+    read(10,"(a)") c80tmp
+    read(c80tmp(26:),*) ptNICSiso(ipt)
+    read(c80tmp(52:),*) ptNICSaniso(ipt)
+    read(10,*) c80tmp,pttens(1,1,ipt),c80tmp,pttens(1,2,ipt),c80tmp,pttens(1,3,ipt)
+    read(10,*) c80tmp,pttens(2,1,ipt),c80tmp,pttens(2,2,ipt),c80tmp,pttens(2,3,ipt)
+    read(10,*) c80tmp,pttens(3,1,ipt),c80tmp,pttens(3,2,ipt),c80tmp,pttens(3,3,ipt)
+    read(10,*)
+    !write(*,*) ipt
+    !call showmatgau(pttens(:,:,ipt))
+end do
+close(10)
+pttens=-pttens
+ptNICSiso=-ptNICSiso
+write(*,*) "Loading finished!"
+
+allocate(ptNICS(npt))
+ptNICS=0
+do ipt=1,npt !By default, take the component along the scanning line
+    ptNICS(ipt)=prjmat(pttens(:,:,ipt),uvec(:))
+end do
+icomp=4
+
+do while(.true.)
+    write(*,*)
+    call menutitle("Post-processing menu",10,1)
+    write(*,*) "-2 Multiply NICS data by a factor"
+    if (icomp==-1) write(*,*) "-1 Select component of NICS, current: Anisotropy"
+    if (icomp==0) write(*,*) "-1 Select component of NICS, current: Isotropy"
+    if (icomp==1) write(*,*) "-1 Select component of NICS, current: XX component"
+    if (icomp==2) write(*,*) "-1 Select component of NICS, current: YY component"
+    if (icomp==3) write(*,*) "-1 Select component of NICS, current: ZZ component"
+    if (icomp==4) write(*,*) "-1 Select component of NICS, current: Along the scanning line"
+    if (icomp==5) write(*,*) "-1 Select component of NICS, current: Along an inputted vector"
+    write(*,*) "0 Exit to main menu"
+    write(*,*) "1 Plot NICS curve along the line"
+    write(*,*) "2 Save image file of NICS curve along the line"
+    write(*,*) "3 Export NICS curve data along the line"
+    write(*,*) "4 Calculate integral of NICS along the line"
+    write(*,*) "5 Find minima and maxima along NICS curve"
+    read(*,*) isel
+    
+    if (isel==0) then
+        return
+    else if (isel==-2) then
+        write(*,*) "Input the value to be multiplied to NICS data, e.g. 2.5"
+        write(*,*) "Obviously, if you input -1, then the sign of NICS will be inverted"
+        read(*,*) tmpval
+        ptNICS=ptNICS*tmpval
+        pttens=pttens*tmpval
+        write(*,*) "Done!"
+    else if (isel==-1) then
+        write(*,*) "Please choose the NICS component:"
+        write(*,*) "-1 Anisotropy"
+        write(*,*) " 0 Isotropy"
+        write(*,*) " 1 XX component"
+        write(*,*) " 2 YY component"
+        write(*,*) " 3 ZZ component"
+        write(*,*) " 4 Along the scanning line"
+        write(*,*) " 5 Along an inputted vector"
+        read(*,*) icomp
+        if (icomp==-1) then
+            ptNICS(:)=ptNICSaniso(:)
+        else if (icomp==0) then
+            ptNICS(:)=ptNICSiso(:)
+        else if (icomp==1) then
+            ptNICS(:)=pttens(1,1,:)
+        else if (icomp==2) then
+            ptNICS(:)=pttens(2,2,:)
+        else if (icomp==3) then
+            ptNICS(:)=pttens(3,3,:)
+        else if (icomp==4) then
+            ptNICS=0
+            do ipt=1,npt
+                ptNICS(ipt)=prjmat(pttens(:,:,ipt),uvec(:))
+            end do
+        else if (icomp==5) then
+            write(*,*) "Input the vector, e.g. 3.5,0,-1.2"
+            read(*,*) tmpvec(:)
+            do ipt=1,npt
+                ptNICS(ipt)=prjmat(pttens(:,:,ipt),tmpvec(:))
+            end do
+        end if
+        write(*,*) "Done!"
+    else if (isel==1.or.isel==2.or.isel==4) then
+        rintval=sum(ptNICS(:))*spacing*b2a
+        write(*,"(' Integral of NICS component:',f10.2,' ppm*Angstrom')") rintval
+        if (isel==1.or.isel==2) then
+            curvexmin=minval(ptpos(:))
+            curvexmax=maxval(ptpos(:))
+            tmpval=(maxval(ptNICS(:))-minval(ptNICS(:)))/10D0
+            curveymin=floor(minval(ptNICS(:))-tmpval)
+            curveymax=ceiling(maxval(ptNICS(:))+tmpval)
+            stepx=nint((curvexmax-curvexmin)*b2a/10D0)
+            stepy=nint((curveymax-curveymin)/10D0)
+            ilenunit1D=2
+            numdiglinex_old=numdiglinex
+            numdigliney_old=numdigliney
+            numdiglinex=1
+            numdigliney=1
+            if (isel==1) then
+                call drawcurve(ptpos(:),ptNICS(:),npt,curvexmin,curvexmax,stepx,curveymin,curveymax,stepy,"show",0D0,0D0,"Shielding (ppm)")
+            else
+                graphformat_old=graphformat
+                graphformat="pdf "
+                call setfil("NICS_1D.pdf") !The file name of saved image file may have been modified, recover to default one
+                call drawcurve(ptpos(:),ptNICS(:),npt,curvexmin,curvexmax,stepx,curveymin,curveymax,stepy,"save",0D0,0D0,"Shielding (ppm)")
+                write(*,*) "Graphical file has been saved to NICS_1D.pdf in current folder"
+                call setfil("dislin."//trim(graphformat)) !Recover to default one
+            end if
+            numdiglinex=numdiglinex_old
+            numdigliney=numdigliney_old
+            graphformat=graphformat_old
+        end if
+    else if (isel==3) then
+        write(*,*) "Input path of the file to export, e.g. D:\Genjitsu\no\Yohane.txt"
+        write(*,*) "If press ENTER button directly, data will be exported to NICS_1D.txt in current folder"
+        read(*,"(a)") c2000tmp
+        if (c2000tmp==" ") c2000tmp="NICS_1D.txt"
+        open(10,file=c2000tmp,status="replace")
+        do ipt=1,npt
+            write(10,"(i6,4f12.6,f10.4)") ipt,ptxyz(:,ipt)*b2a,ptpos(ipt)*b2a,ptNICS(ipt)
+        end do
+        close(10)
+        write(*,*) "Exporting finished!"
+        write(*,*) "Column 1: Point index"
+        write(*,*) "Column 2/3/4: X/Y/Z position of the point in Angstrom"
+        write(*,*) "Column 5: Distance of the point relative to starting point in Angstrom"
+        write(*,*) "Column 6: NICS data at the point"
+    else if (isel==5) then
+		call showcurveminmax(npt,ptpos(:),ptNICS(:),2)
+    end if
+end do
+
 end subroutine

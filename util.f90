@@ -527,6 +527,7 @@ implicit real*8 (a-h,o-z)
 integer natm,atmarr(natm)
 real*8 planeA,planeB,planeC,planeD,rmsfit
 real*8 tmpmat(3,natm),singval(3),matU(3,3),matV(natm,natm)
+
 cenx=sum(a(atmarr(:))%x)/natm
 ceny=sum(a(atmarr(:))%y)/natm
 cenz=sum(a(atmarr(:))%z)/natm
@@ -565,6 +566,20 @@ real*8 function ang2rad(ang)
 use defvar
 real*8 ang
 ang2rad=ang/180D0*pi
+end function
+
+
+!!--------- Get projection of a 3*3 matrix along a given vector. For example, component of magnetic shielding tensor
+!The vector will be automatically normalized here
+real*8 function prjmat(mat,vec)
+real*8 mat(3,3),vec(3),uvec(3)
+uvec=vec/dsqrt(sum(vec**2))
+prjmat=0
+do idir=1,3
+    do jdir=1,3
+        prjmat=prjmat+uvec(idir)*uvec(jdir)*mat(idir,jdir)
+    end do
+end do
 end function
 
 
