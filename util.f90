@@ -158,11 +158,21 @@ potpledis=dsqrt((x0-prjx)**2+(y0-prjy)**2+(z0-prjz)**2)
 end function
 
 
-!!---------- Project a point (x0,y0,z0) to a plane defined by x/y/z-1/2/3, prjx/y/z are XYZ of the resulting point
+!!---------- Project a point (x0,y0,z0) to a plane defined by three points x/y/z-1/2/3, prjx/y/z are XYZ of the resulting point
 subroutine pointprjple(x1,y1,z1,x2,y2,z2,x3,y3,z3,x0,y0,z0,prjx,prjy,prjz)
 real*8 x1,y1,z1,x2,y2,z2,x3,y3,z3,x0,y0,z0,prjx,prjy,prjz,A,B,C,D,t
 call pointABCD(x1,y1,z1,x2,y2,z2,x3,y3,z3,A,B,C,D)
-! (x0-x)/A=(y0-y)/B=(z0-z)/C ---> x=x0-t*A y=y0-t*B z=z0-t*C , substitute into Ax+By+Cz+D=0 solve t
+! (x0-x)/A=(y0-y)/B=(z0-z)/C=t, t is unknown ---> x=x0-t*A y=y0-t*B z=z0-t*C , substitute into Ax+By+Cz+D=0 solve t
+t=(D+A*x0+B*y0+C*z0)/(A**2+B**2+C**2)
+prjx=x0-t*A
+prjy=y0-t*B
+prjz=z0-t*C
+end subroutine
+
+
+!!---------- Project a point (x0,y0,z0) to a plane defined by A,B,C,D, prjx/y/z are XYZ of the resulting point
+subroutine pointprjpleABCD(A,B,C,D,x0,y0,z0,prjx,prjy,prjz)
+real*8 x0,y0,z0,prjx,prjy,prjz,A,B,C,D,t
 t=(D+A*x0+B*y0+C*z0)/(A**2+B**2+C**2)
 prjx=x0-t*A
 prjy=y0-t*B

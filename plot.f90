@@ -1466,7 +1466,7 @@ if (idrawtype==1.or.idrawtype==2.or.idrawtype==6.or.idrawtype==7) then
 		    posmarky=a(ipt)%y*scll
 		    posmarkz=a(ipt)%z*scll
 		    if (inplane(ipt)==0) cycle
-		    if (plesel<=3) then !XY plane
+		    if (plesel<=3) then !Cartesian plane
 			    do iatm=ipt+1,ncenter
 				    if (inplane(iatm)==0) cycle
 				    if (atomdist(ipt,iatm,0) < ( covr(a(ipt)%index)+covr(a(iatm)%index) )*bondcrit) then
@@ -1475,7 +1475,7 @@ if (idrawtype==1.or.idrawtype==2.or.idrawtype==6.or.idrawtype==7) then
 					    if (plesel==3) call rline(posmarky,posmarkz,a(iatm)%y*scll,a(iatm)%z*scll)
 				    end if
 			    end do
-		    else if (plesel<=7) then !Atom defined by three atoms/points
+		    else if (plesel<=7) then !Plane defined by three atoms/points
 			    call pointprjple(a1x,a1y,a1z,a2x,a2y,a2z,a3x,a3y,a3z,posmarkx,posmarky,posmarkz,prjx,prjy,prjz)
 			    !Get position of ipt in the plotting coordinate. Comment can be found in similar part below
 			    if (abs(v1x*v2y-v2x*v1y)>1D-8) then
@@ -1809,7 +1809,7 @@ write(*,*) "10 Blue-Green-Red        11 Red-Green-Blue"
 write(*,*) "12 White-Dark red        13 Black-Orange-Yellow"
 write(*,*) "14 White-Dark green      15 Black-Green"
 write(*,*) "16 White-Dark blue       17 Black-Blue-Cyan"
-write(*,*) "18 Viridis"
+write(*,*) "18 Viridis               19 Yellow-Orange-Black"
 read(*,*) iclrtrans
 end subroutine
 
@@ -1819,7 +1819,7 @@ use dislin
 implicit real*8 (a-h,o-z)
 integer isel
 integer,parameter :: nlevel=255
-real*8 Rarr(0:nlevel),Garr(0:nlevel),Barr(0:nlevel)
+real*8 Rarr(0:nlevel),Garr(0:nlevel),Barr(0:nlevel),tmparr(0:nlevel)
 Rarr=0
 Garr=0
 Barr=0
@@ -2005,17 +2005,35 @@ else if (isel==12) then !White-Dark red
         Garr(i)=dfloat(nlevel-i)/nlevel
         Barr(i)=dfloat(nlevel-i)/nlevel
     end do
-else if (isel==13) then !Black-Orange-Yellow (mimic black-hole map)
+else if (isel==13.or.isel==19) then !Black-Orange-Yellow (mimic black-hole map) and its invert
     do i=0,170
         Rarr(i)=dfloat(i)/170
     end do
     Rarr(171:255)=1
+    if (isel==19) then
+		tmparr=Rarr
+        do i=0,255
+			Rarr(i)=tmparr(255-i)
+        end do
+    end if
     do i=70,nlevel
         Garr(i)=dfloat(i-70)/185
     end do
+    if (isel==19) then
+		tmparr=Garr
+        do i=0,255
+			Garr(i)=tmparr(255-i)
+        end do
+    end if
     do i=155,nlevel
         Barr(i)=dfloat(i-155)/100*0.6D0
     end do
+    if (isel==19) then
+		tmparr=Barr
+        do i=0,255
+			Barr(i)=tmparr(255-i)
+        end do
+    end if
 else if (isel==14) then !White-Dark green
     do i=0,nlevel
         Rarr(i)=dfloat(nlevel-i)/nlevel
@@ -2043,7 +2061,7 @@ else if (isel==17) then !Black-Blue-Cyan
 else if (isel==18) then !Viridis, come from https://raw.githubusercontent.com/Gnuplotting/gnuplot-palettes/master/viridis.pal
 	call defineViridis(Rarr,Garr,Barr)
 end if
-if ((isel>=6.and.isel<=18).or.isel==3) CALL MYVLT(Rarr,Garr,Barr,nlevel)
+if ((isel>=6.and.isel<=19).or.isel==3) CALL MYVLT(Rarr,Garr,Barr,nlevel)
 end subroutine
 
 

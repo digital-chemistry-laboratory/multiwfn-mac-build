@@ -20,7 +20,8 @@ do while(.true.)
     write(*,*) "10 Para linear response index (PLR)"
     write(*,*) "11 Information-theoretic (ITA) aromaticity index"
     write(*,*) "12 Properties of ring critical point"
-    write(*,*) "13 NICS-1D scan and integral"
+    write(*,*) "13 NICS-1D scan curve map and integral"
+    write(*,*) "14 NICS-2D scan plane map"
     read(*,*) isel
     if (isel==0) then
 		return
@@ -74,6 +75,8 @@ do while(.true.)
         read(*,*)
 	else if (isel==13) then
 		call NICS_1D
+	else if (isel==14) then
+		call study2dim(1)
     end if
 end do
 end subroutine
@@ -1498,7 +1501,9 @@ end subroutine
 
 
 
-!!----------- NICS-1D scan and integral
+!-------------------------------------------------------
+!--------- NICS-1D scan curve map and integral ---------
+!-------------------------------------------------------
 subroutine NICS_1D
 use defvar
 use util
@@ -1675,7 +1680,8 @@ end do
 open(10,file=c2000tmp,status="old")
 call loclabel(10,"Isotropic =",ifound)
 if (ifound==0) then
-    write(*,"(a)") " Error: Unable to find magnetici shielding tensor in this file! Please check keywords. Press ENTER button to return"
+	close(10)
+    write(*,"(a)") " Error: Unable to find magnetic shielding tensor in this file! Please check keywords. Press ENTER button to return"
     read(*,*)
     return
 end if
@@ -1689,8 +1695,6 @@ do ipt=1,npt
     read(10,*) c80tmp,pttens(2,1,ipt),c80tmp,pttens(2,2,ipt),c80tmp,pttens(2,3,ipt)
     read(10,*) c80tmp,pttens(3,1,ipt),c80tmp,pttens(3,2,ipt),c80tmp,pttens(3,3,ipt)
     read(10,*)
-    !write(*,*) ipt
-    !call showmatgau(pttens(:,:,ipt))
 end do
 close(10)
 pttens=-pttens

@@ -492,7 +492,9 @@ end subroutine
 !---------- Study various real space functions on a plane (i.e. 2 dimension) ----------
 !======================================================================================
 !======================================================================================
-subroutine study2dim
+!itask=0: Invoked by main function 4
+!itask=1: Invoked by NICS-2D scan
+subroutine study2dim(itask)
 use defvar
 use util
 use topo
@@ -500,8 +502,9 @@ use functions
 use GUI
 implicit real*8 (a-h,o-z)
 integer,allocatable :: tmparrint(:)
+integer itask
 character c80tmp*80,c200tmp*200,c2000tmp*2000,selectyn
-real*8 vec1old(3),vec2old(3),vec1(3),vec2(3)
+real*8 vec1old(3),vec2old(3),vec1(3),vec2(3),tmpmat(3,3),tmpvec(3)
 real*8,allocatable :: d1add(:,:),d1min(:,:),d2add(:,:),d2min(:,:),d1addtmp(:,:),d1mintmp(:,:),d2addtmp(:,:),d2mintmp(:,:) !Store temporary data for drawing gradient map
 real*8,allocatable :: planemat_cust(:,:) !For storing temporary data of doing custom map
 real*8,allocatable :: planemat_bk(:,:) !Used to backup plane data
@@ -512,67 +515,69 @@ if (allocated(customop)) deallocate(customop)
 if (allocated(tmparrint)) deallocate(tmparrint)
 ipromol=0
 
-do while(.true.)
-	write(*,*) "-10 Return to main menu"
-	if (ncustommap==0) then
-		write(*,*) "-2 Obtain deformation property"
-		write(*,*) "-1 Obtain promolecule property"
-		write(*,*) "0 Set custom operation"
-	end if
-	call selfunc_interface(2,ifuncsel) !Interface of selecting real space function
-	if (ifuncsel==-10) then
-		return
-	else if (ifuncsel==-2) then
-		call setPromol
-		customop='-'
-	else if (ifuncsel==-1) then
-		ipromol=1 !Special case, obtain promolecular property
-		call setPromol
-		customop='+'
-	else if (ifuncsel==0) then
-		call customplotsetup
-	else if (ifuncsel==111) then !Calculate Becke weighting function
-		write(*,*) "Input indices of two atoms to calculate Becke overlap weight, e.g. 1,4"
-		write(*,*) "or input index of an atom and zero to calculate Becke atomic weight, e.g. 5,0"
-		read(*,*) iatmbecke1,iatmbecke2
-		exit
-	else if (ifuncsel==112) then !Calculate Hirshfeld weighting function
-		write(*,*) "Input index of the atoms that you want to calculate Hirshfeld weight"
-		write(*,*) "e.g. 2,3,7-10"
-		read(*,"(a)") c2000tmp
-		call str2arr(c2000tmp,ntmp)
-		allocate(tmparrint(ntmp))
-		call str2arr(c2000tmp,ntmp,tmparrint)
-		write(*,"(a)") " How to generate the atomic densities that used in the calculation of Hirshfeld weight?"
-		write(*,*) "1 Based on atomic .wfn files"
-		write(*,*) "2 Based on built-in atomic densities (see Appendix 3 of the manual for detail)"
-		read(*,*) iHirshdenstype
-		if (iHirshdenstype==1) call setpromol
-		exit
-	else if (ifuncsel==500.or.ifuncsel==510.or.ifuncsel==511.or.ifuncsel==512) then !Calculate rho(A)*ln[rho(A)/rho0(A)], or rho(A), or rho0(A)
-		call setpromol
-		allocate(tmparrint(1))
-		write(*,*) "Input index of the atom you are interested in, e.g. 4"
-		read(*,*) tmparrint
-		exit
-	else if (ifuncsel==501.or.ifuncsel==502.or.ifuncsel==503.or.ifuncsel==504.or.ifuncsel==505) then !Information entropy related functions, need isolated atomic density
-		call setpromol
-		exit
-	else
-		if (ifuncsel==8) then
-			inucespplot=1 !For deal with plotting nucesp property, special treatment is needed
-		else
-			inucespplot=0
+if (itask==0) then
+	do while(.true.)
+		write(*,*) "-10 Return to main menu"
+		if (ncustommap==0) then
+			write(*,*) "-2 Obtain deformation property"
+			write(*,*) "-1 Obtain promolecule property"
+			write(*,*) "0 Set custom operation"
 		end if
-		!Only for correlation hole/factor, source function, linear response kernel... reference point will be marked on contour map
-		if (ifuncsel==17.or.ifuncsel==19.or.(ifuncsel==100.and.iuserfunc==24)) then
-			imarkrefpos=1
+		call selfunc_interface(2,ifuncsel) !Interface of selecting real space function
+		if (ifuncsel==-10) then
+			return
+		else if (ifuncsel==-2) then
+			call setPromol
+			customop='-'
+		else if (ifuncsel==-1) then
+			ipromol=1 !Special case, obtain promolecular property
+			call setPromol
+			customop='+'
+		else if (ifuncsel==0) then
+			call customplotsetup
+		else if (ifuncsel==111) then !Calculate Becke weighting function
+			write(*,*) "Input indices of two atoms to calculate Becke overlap weight, e.g. 1,4"
+			write(*,*) "or input index of an atom and zero to calculate Becke atomic weight, e.g. 5,0"
+			read(*,*) iatmbecke1,iatmbecke2
+			exit
+		else if (ifuncsel==112) then !Calculate Hirshfeld weighting function
+			write(*,*) "Input index of the atoms that you want to calculate Hirshfeld weight"
+			write(*,*) "e.g. 2,3,7-10"
+			read(*,"(a)") c2000tmp
+			call str2arr(c2000tmp,ntmp)
+			allocate(tmparrint(ntmp))
+			call str2arr(c2000tmp,ntmp,tmparrint)
+			write(*,"(a)") " How to generate the atomic densities that used in the calculation of Hirshfeld weight?"
+			write(*,*) "1 Based on atomic .wfn files"
+			write(*,*) "2 Based on built-in atomic densities (see Appendix 3 of the manual for detail)"
+			read(*,*) iHirshdenstype
+			if (iHirshdenstype==1) call setpromol
+			exit
+		else if (ifuncsel==500.or.ifuncsel==510.or.ifuncsel==511.or.ifuncsel==512) then !Calculate rho(A)*ln[rho(A)/rho0(A)], or rho(A), or rho0(A)
+			call setpromol
+			allocate(tmparrint(1))
+			write(*,*) "Input index of the atom you are interested in, e.g. 4"
+			read(*,*) tmparrint
+			exit
+		else if (ifuncsel==501.or.ifuncsel==502.or.ifuncsel==503.or.ifuncsel==504.or.ifuncsel==505) then !Information entropy related functions, need isolated atomic density
+			call setpromol
+			exit
 		else
-			imarkrefpos=0
+			if (ifuncsel==8) then
+				inucespplot=1 !For deal with plotting nucesp property, special treatment is needed
+			else
+				inucespplot=0
+			end if
+			!Only for correlation hole/factor, source function, linear response kernel... reference point will be marked on contour map
+			if (ifuncsel==17.or.ifuncsel==19.or.(ifuncsel==100.and.iuserfunc==24)) then
+				imarkrefpos=1
+			else
+				imarkrefpos=0
+			end if
+			exit
 		end if
-		exit
-	end if
-end do
+	end do
+end if
 
 if (iorbsel2==0) then
     write(*,*) "-10 Return to main menu"
@@ -582,8 +587,10 @@ if (iorbsel2==0) then
 	write(*,*) "3 Relief map"
 	write(*,*) "4 Shaded relief map"
 	write(*,*) "5 Shaded relief map with projection"
-	write(*,*) "6 Gradient lines map with/without contour lines"
-	write(*,*) "7 Vector field map with/without contour lines"
+    if (itask==0) then
+		write(*,*) "6 Gradient lines map with/without contour lines"
+		write(*,*) "7 Vector field map with/without contour lines"
+    end if
 	read(*,*) idrawtype
 else !Plotting two orbitals, only contour line map is available
 	idrawtype=2
@@ -605,40 +612,51 @@ end if
 
 write(*,*) " -10 Return to main menu"
 write(*,*) "How many grids in the two dimensions, respectively?"
-if (idrawtype==1.or.idrawtype==2.or.idrawtype==6) then
-	if (ifdoESP(ifuncsel)) then
-		write(*,*) "(100,100 is recommended)" !Because calculating ESP is very time consuming, so use lower grid
-	else
-		write(*,*) "(200,200 is recommended)"
-	end if
-else if (idrawtype==3.or.idrawtype==4.or.idrawtype==5) then
-	write(*,*) "(100,100 is recommended)"
-else if (idrawtype==7) then
-	write(*,*) "(80,80 is recommended)"
-end if
-write(*,*) "Hint: You can press ENTER button directly to use recommended value"
-read(*,"(a)") c200tmp
-
-if (c200tmp==' ') then !Pressing ENTER button directly
+if (itask==0) then
 	if (idrawtype==1.or.idrawtype==2.or.idrawtype==6) then
 		if (ifdoESP(ifuncsel)) then
-			ngridnum1=100
-			ngridnum2=100
+			write(*,*) "(100,100 is recommended)" !Because calculating ESP is very time consuming, so use lower grid
 		else
-			ngridnum1=200
-			ngridnum2=200
+			write(*,*) "(200,200 is recommended)"
 		end if
 	else if (idrawtype==3.or.idrawtype==4.or.idrawtype==5) then
-		ngridnum1=100
-		ngridnum2=100
+		write(*,*) "(100,100 is recommended)"
 	else if (idrawtype==7) then
-		ngridnum1=80
-		ngridnum2=80
+		write(*,*) "(80,80 is recommended)"
 	end if
-else if (c200tmp=='-10') then
-    return
+	write(*,*) "Hint: You can press ENTER button directly to use recommended value"
+	read(*,"(a)") c200tmp
+
+	if (c200tmp==' ') then !Pressing ENTER button directly
+		if (idrawtype==1.or.idrawtype==2.or.idrawtype==6) then
+			if (ifdoESP(ifuncsel)) then
+				ngridnum1=100
+				ngridnum2=100
+			else
+				ngridnum1=200
+				ngridnum2=200
+			end if
+		else if (idrawtype==3.or.idrawtype==4.or.idrawtype==5) then
+			ngridnum1=100
+			ngridnum2=100
+		else if (idrawtype==7) then
+			ngridnum1=80
+			ngridnum2=80
+		end if
+	else if (c200tmp=='-10') then
+		return
+	else
+		read(c200tmp,*) ngridnum1,ngridnum2
+	end if
 else
-	read(c200tmp,*) ngridnum1,ngridnum2
+	write(*,*) "If press ENTER button directly, the recommended 100,100 will be used"
+    read(*,"(a)") c200tmp
+    if (c200tmp==" ") then
+        ngridnum1=100
+        ngridnum2=100
+	else
+		read(c200tmp,*) ngridnum1,ngridnum2
+	end if
 end if
 
 if (allocated(planemat)) deallocate(planemat)
@@ -691,8 +709,9 @@ do while(.true.)
 	write(*,*) "4: Define by three atoms    5: Define by three given points"
 	write(*,*) "6: Input origin and translation vector (For expert users)"
 	write(*,*) "7: Parallel to a bond and meantime normal to a plane defined by three atoms"
+	write(*,*) "8: Above or below the plane consisting of specific atoms"
 	write(*,"(a,f8.4,a)") " 0: Set extension distance for plane type 1~5, current:",aug2D," Bohr"
-	write(*,*) "-1: Set translation and rotation of the map for plane types 4 and 5"
+	write(*,*) "-1: Set translation and rotation of the map for plane types 4, 5 and 8"
 	read(*,*) plesel !Global variable
 	aug2D2=aug2D !If don't draw gradient line map, needn't make the augment in the two dimension different
 	if (plesel==-10) then
@@ -794,7 +813,7 @@ do while(.true.)
 			v1y=(maxval(a%y)+aug2D-orgy2D)/ngridnum1
 			v2z=(maxval(a%z)+aug2D2-orgz2D)/ngridnum2
 		end if
-	else if (plesel==4.or.plesel==5) then
+	else if (plesel==4.or.plesel==5.or.plesel==8) then
 		if (plesel==4) then
 			write(*,*) "Input index of three atoms, e.g. 3,6,7"
 			read(*,*) i1,i2,i3
@@ -840,6 +859,11 @@ do while(.true.)
 				a3y=a3y/b2a
 				a3z=a3z/b2a
             end if
+		else if (plesel==8) then !This way is complicated, so use a separate subroutine, make it equivalent to defining three points
+			call define_parallel_plane
+            plesel=5
+            aug2D=0
+            aug2D2=0
 		end if
 		v1x=a1x-a2x
 		v1y=a1y-a2y
@@ -986,16 +1010,128 @@ rnorm2=dsqrt(v2x**2+v2y**2+v2z**2) !The final length of vector 2
 write(*,"(' X/Y/Z of end of the plane:    ',3f10.5,' Bohr')") endx2D,endy2D,endz2D
 write(*,"(' X/Y/Z of translation vector 1:',3f9.5,' Bohr, Norm:',f9.5)") v1x,v1y,v1z,rnorm1
 write(*,"(' X/Y/Z of translation vector 2:',3f9.5,' Bohr, Norm:',f9.5)") v2x,v2y,v2z,rnorm2
-write(*,*)
+
+!The infinitesimal in each direction for gradient plot
 diff=1D-5
-diffv1x=diff*v1x/rnorm1 !The infinitesimal in each direction for gradient plot
+diffv1x=diff*v1x/rnorm1
 diffv1y=diff*v1y/rnorm1
 diffv1z=diff*v1z/rnorm1
 diffv2x=diff*v2x/rnorm2
 diffv2y=diff*v2y/rnorm2
 diffv2z=diff*v2z/rnorm2
 
-if (iplaneextdata==1) then !Export plane data to external file, and then load data from it
+if (itask==1) then !NICS-2D scan
+	do while(.true.)
+		write(*,*)
+		write(*,*) "1 Generate Gaussian input file for NICS-2D scanning"
+		write(*,*) "2 Load Gaussian output file of NICS-2D scanning"
+		read(*,*) isel
+		if (isel==1) then
+			write(*,*) "Input the path of Gaussian template file of performing NMR task"
+			write(*,*) "e.g. D:\Aqours\Mari\shiny.gjf"
+			write(*,"(a)") " Note: In this file, the coordinate part should be recorded as [geometry], which will be automatically replaced with current geometry"
+			do while(.true.)
+				read(*,"(a)") c2000tmp
+				inquire(file=c2000tmp,exist=alive)
+				if (alive) exit
+				write(*,*) "Cannot find the file, input again!"
+			end do
+
+			open(10,file=c2000tmp,status="old")
+			open(11,file="NICS_2D.gjf",status="replace")
+			do while (.true.)
+				read(10,"(a)",iostat=ierror) c2000tmp
+				if (ierror/=0) exit
+				if (index(c2000tmp,"#")/=0) then
+					if (index(c2000tmp,"geom=conn")==0) then
+						write(11,"(a)") trim(c2000tmp)//" geom=connectivity"
+					else
+						write(11,"(a)") trim(c2000tmp)
+					end if
+				else if (index(c2000tmp,"[geometry]")/=0) then
+					do iatm=1,ncenter
+						write(11,"(a,3f12.6)") ind2name(a(iatm)%index),a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%z*b2a
+					end do
+					do ipt=1,ngridnum1
+						do jpt=1,ngridnum2
+							rnowx=orgx2D+(ipt-1)*v1x+(jpt-1)*v2x
+							rnowy=orgy2D+(ipt-1)*v1y+(jpt-1)*v2y
+							rnowz=orgz2D+(ipt-1)*v1z+(jpt-1)*v2z
+							write(11,"('Bq',3f12.6)") rnowx*b2a,rnowy*b2a,rnowz*b2a
+						end do
+					end do
+					write(11,*)
+					do itmp=1,ncenter+ngridnum1*ngridnum2
+						write(11,"(i6)") itmp
+					end do
+				else
+					write(11,"(a)") trim(c2000tmp)
+				end if
+			end do
+			write(11,*)
+			write(11,*)
+			close(10)
+			close(11)
+			write(*,"(a)") " NICS_2D.gjf has been generated in current folder! Please check it, and then run it by Gaussian manually"
+		else if (isel==2) then
+			write(*,*) "Input path of Gaussian output file of NICS-2D scanning task"
+			write(*,*) "e.g. D:\Aqours\Mari\shiny.out"
+			do while(.true.)
+				read(*,"(a)") c2000tmp
+				inquire(file=c2000tmp,exist=alive)
+				if (alive) exit
+				write(*,*) "Cannot find the file, input again!"
+			end do
+			exit
+		end if
+    end do
+	!Load shielding tensor of ghost atoms
+	write(*,*) "Obtain which kind of NICS?"
+    write(*,*) "0: Projection along specific direction"
+	write(*,*) "1: Isotropic  2: Anisotropy  3: XX component  4: YY component  5: ZZ component"
+    read(*,*) iload
+    if (iload==0) then
+		write(*,*) "Input direction vector, e.g. 3.2,1.1,-1.9"
+        read(*,*) tmpvec
+        tmpvec=tmpvec/dsqrt(sum(tmpvec**2))
+    end if
+	open(10,file=c2000tmp,status="old")
+	call loclabel(10,"Isotropic =",ifound)
+	if (ifound==0) then
+		close(10)
+		write(*,"(a)") " Error: Unable to find magnetic shielding tensor in this file! Please check keywords. Press ENTER button to return"
+		read(*,*)
+		return
+	end if
+	call loclabel(10,"Bq",ifound,0)
+	do ipt=1,ngridnum1
+		do jpt=1,ngridnum2
+			read(10,"(a)") c80tmp
+			read(c80tmp(26:),*) tiso
+			read(c80tmp(52:),*) taniso
+			read(10,*) c80tmp,tmpmat(1,1),c80tmp,tmpmat(1,2),c80tmp,tmpmat(1,3)
+			read(10,*) c80tmp,tmpmat(2,1),c80tmp,tmpmat(2,2),c80tmp,tmpmat(2,3)
+			read(10,*) c80tmp,tmpmat(3,1),c80tmp,tmpmat(3,2),c80tmp,tmpmat(3,3)
+			read(10,*)
+            if (iload==0) then
+				planemat(ipt,jpt)=-prjmat(tmpmat(:,:),tmpvec(:))
+            else if (iload==1) then
+				planemat(ipt,jpt)=-tiso
+			else if (iload==2) then
+				planemat(ipt,jpt)=-taniso
+			else if (iload==3) then
+				planemat(ipt,jpt)=-tmpmat(1,1)
+			else if (iload==4) then
+				planemat(ipt,jpt)=-tmpmat(2,2)
+			else if (iload==5) then
+				planemat(ipt,jpt)=-tmpmat(3,3)
+            end if
+        end do
+	end do
+	close(10)
+	write(*,*) "Loading finished!"
+	
+else if (iplaneextdata==1) then !Export plane data to external file, and then load data from it
 	open(10,file="planept.txt",status="replace")
 	open(11,file="cubegenpt.txt",status="replace")
 	write(10,*) ngridnum1*ngridnum2
@@ -1010,7 +1146,7 @@ if (iplaneextdata==1) then !Export plane data to external file, and then load da
 	end do
 	close(10)
 	close(11)
-	write(*,"(a)") " The coordinate of all points needed to be calculated have been outputted to plane.txt in current folder, the unit is in Bohr"
+	write(*,"(/,a)") " The coordinate of all points needed to be calculated have been outputted to plane.txt in current folder, the unit is in Bohr"
 	write(*,"(a)") " cubegenpt.txt is also outputted, which is similar to plane.txt, but the unit is in Angstrom, &
 	and there is no first line (the number of points). It can be directly utilized by cubegen"
 	write(*,"(a)") " For example ""cubegen 0 potential CNT.fch result.cub -5 h < cubegenpt.txt"""
@@ -1038,7 +1174,8 @@ if (iplaneextdata==1) then !Export plane data to external file, and then load da
 	end do
 	close(10)
 	
-else !Start calculation of plane data
+else !Common case, start calculation of plane data
+	write(*,*)
 	if (ifuncsel/=4) call delvirorb(1) !Delete high-lying virtual orbitals for faster calculation, but don't do this when analyzing MO
 	call gen_GTFuniq(1) !Generate unique GTFs, for faster evaluation in orbderv
 	write(*,*) "Calculating plane data, please wait..."	
@@ -1225,7 +1362,10 @@ surcolorzmin=-3
 surcolorzmax=3
 drawlowlim=valmin
 drawuplim=valmax
-if (ifuncsel==1) then
+if (itask==1) then !NICS-2D
+	drawlowlim=-30
+    drawuplim=30
+else if (ifuncsel==1) then
 	drawlowlim=0D0
 	drawuplim=0.65D0
 else if (ifuncsel==2) then
@@ -1907,7 +2047,89 @@ end subroutine
 
 
 
-!----- Interface of change other settings
+!!---------- Define a plane above/below the plane consisting of specific atoms    
+subroutine define_parallel_plane
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+character c80tmp*80,c2000tmp*2000
+integer,allocatable :: tmparr(:)
+real*8 pt1(3),pt2(3),pt3(3),vec1(3),vec2(3),vectmp(3),cenpos(3)
+
+write(*,*) "Input indices of the atoms to define the fitting plane and geometric center"
+write(*,*) "e.g. 3,8,10-15,19"
+read(*,"(a)") c2000tmp
+call str2arr(c2000tmp,ntmp)
+allocate(tmparr(ntmp))
+call str2arr(c2000tmp,ntmp,tmparr)
+call ptsfitplane(tmparr,ntmp,planeA,planeB,planeC,rnouse,rmsfit)
+rnorm=dsqrt(planeA**2+planeB**2+planeC**2)
+write(*,"(' The unit normal vector is',3f14.8)") planeA/rnorm,planeB/rnorm,planeC/rnorm
+write(*,*)
+write(*,*) "Input distance between plotting plane and geometric center in Angstrom, e.g. 1"
+write(*,*) "Positive and negative values corresponding to above and below the plane"
+read(*,*) pledist
+pledist=pledist/b2a
+
+write(*,*) "Input length of the plotting plane in Angstrom, e.g. 5.5"
+write(*,"(a)") " Hint: Usually 6 Angstrom is adequate for studying a six-membered ring. For a larger region, use a larger value"
+read(*,*) plelen
+plelen=plelen/b2a
+
+!Project arbitrary three points onto the Ax+By+Cz=0 plane
+call pointprjpleABCD(planeA,planeB,planeC,0D0,3.5D0,1.2D0,-5.2D0,pt1(1),pt1(2),pt1(3))
+call pointprjpleABCD(planeA,planeB,planeC,0D0,2.5D0,0.7D0,-3.3D0,pt2(1),pt2(2),pt2(3))
+call pointprjpleABCD(planeA,planeB,planeC,0D0,6.5D0,-1.2D0,2.7D0,pt3(1),pt3(2),pt3(3))
+
+!Make vec2 (3-1) ortho to vec1 (2-1) using Schmit method, namely
+!3
+!|
+!1---2
+vec1(:)=pt2(:)-pt1(:)
+vec2(:)=pt3(:)-pt1(:)
+schmit=dot_product(vec1,vec2)/sum(vec1**2)
+vec2(:)=vec2(:)-schmit*vec1(:)
+
+!Normalization to expected length
+vec1(:)=vec1(:)/dsqrt(sum(vec1**2))*plelen
+vec2(:)=vec2(:)/dsqrt(sum(vec2**2))*plelen
+
+!Determine the position above ring center
+cenpos(1)=sum(a(tmparr(:))%x)/ntmp
+cenpos(2)=sum(a(tmparr(:))%y)/ntmp
+cenpos(3)=sum(a(tmparr(:))%z)/ntmp
+vectmp(1)=planeA
+vectmp(2)=planeB
+vectmp(3)=planeC
+cenpos(:)=cenpos(:)+pledist*vectmp/dsqrt(sum(vectmp**2))
+
+!Determine position of three points
+vectmp(:)=(-vec1(:)-vec2(:))/2D0
+a1x=cenpos(1)+vectmp(1)
+a1y=cenpos(2)+vectmp(2)
+a1z=cenpos(3)+vectmp(3)
+a2x=a1x+vec1(1)
+a2y=a1y+vec1(2)
+a2z=a1z+vec1(3)
+a3x=a1x+vec2(1)
+a3y=a1y+vec2(2)
+a3z=a1z+vec2(3)
+!write(*,"(' Point 1:'3f12.6,' Angstrom')") a1x*b2a,a1y*b2a,a1z*b2a
+!write(*,"(' Point 2:'3f12.6,' Angstrom')") a2x*b2a,a2y*b2a,a2z*b2a
+!write(*,"(' Point 3:'3f12.6,' Angstrom')") a3x*b2a,a3y*b2a,a3z*b2a
+a4x=cenpos(1)-vectmp(1)
+a4y=cenpos(2)-vectmp(2)
+a4z=cenpos(3)-vectmp(3)
+write(*,*) "Command of drawing the plotting plane in VMD:"
+write(*,"('draw triangle {',3f8.3,'} {',3f8.3,'} {',3f8.3,'}')") a1x*b2a,a1y*b2a,a1z*b2a,a2x*b2a,a2y*b2a,a2z*b2a,a3x*b2a,a3y*b2a,a3z*b2a
+write(*,"('draw triangle {',3f8.3,'} {',3f8.3,'} {',3f8.3,'}')") a2x*b2a,a2y*b2a,a2z*b2a,a3x*b2a,a3y*b2a,a3z*b2a,a4x*b2a,a4y*b2a,a4z*b2a
+write(*,"('draw material Transparent')")
+end subroutine
+
+
+
+
+!!-------- Interface of changing other settings
 !If this plane plotting involve Z-axis, iZaxis should be 1, otherwise 0
 subroutine plane_othersetting(iZaxis)
 use defvar
@@ -2493,7 +2715,7 @@ subroutine setcontour
 use defvar
 use util
 implicit real*8 (a-h,o-z)
-character outfilename*200,selectyn,c2000tmp*2000
+character outfilename*200,selectyn,c2000tmp*2000,c80tmp*80
 integer,allocatable :: tmparr(:)
 do while(.true.)
 	write(*,*)
@@ -2680,9 +2902,11 @@ do while(.true.)
 		write(*,*) "     10,15 means DASH with larger interstice"
 		write(*,*) "Note: 1,0 and 10,15 are default for positive and negative lines, respectively"
         write(*,"(' Current values are:',2i5)") ctrposstyle(1),ctrposstyle(2)
-		read(*,*) ctrposstyle(1),ctrposstyle(2)
+        write(*,*) "If press ENTER button directly, current setting will be kept unchanged"
+        read(*,"(a)") c80tmp
+		if (c80tmp/=" ") read(c80tmp,*) ctrposstyle(1),ctrposstyle(2)
 		write(*,*) "Input line width, e.g. 2"
-        write(*,"(' Note: Current value is',i5)") iwidthposctr
+        write(*,"(' Current value is',i5)") iwidthposctr
 		read(*,*) iwidthposctr
 	else if (isel==13) then
 		write(*,*) "Use which color?"
@@ -2693,9 +2917,11 @@ do while(.true.)
 		write(*,*) "     10,15 means DASH with larger interstice"
 		write(*,*) "Note: 1,0 and 10,15 are default for positive and negative lines, respectively"
         write(*,"(' Current values are:',2i5)") ctrnegstyle(1),ctrnegstyle(2)
-		read(*,*) ctrnegstyle(1),ctrnegstyle(2)
+        write(*,*) "If press ENTER button directly, current setting will be kept unchanged"
+        read(*,"(a)") c80tmp
+        if (c80tmp/=" ") read(c80tmp,*) ctrnegstyle(1),ctrnegstyle(2)
 		write(*,*) "Input line width, e.g. 2"
-        write(*,"(' Note: Current value is',i5)") iwidthnegctr
+        write(*,"(' Current value is',i5)") iwidthnegctr
 		read(*,*) iwidthnegctr
 	else if (isel==15) then
 		iclrindctrpos=11
