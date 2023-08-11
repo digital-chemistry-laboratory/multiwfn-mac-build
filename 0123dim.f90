@@ -494,7 +494,10 @@ end subroutine
 !======================================================================================
 !itask=0: Invoked by main function 4
 !itask=1: Invoked by NICS-2D scan
-subroutine study2dim(itask)
+!itask=2: Invoked by (hyper)polarizability density (hyper_polar_dens)
+!itype: Currently only used by itask=2, choose type of (hyper)polarizability density (>0) or spatial contribution to (hyper)polarizability (<0)
+!itype2: Currently only used by itask=2, choose direction of spatial contribution to (hyper)polarizability
+subroutine study2dim(itask,itype,itype2)
 use defvar
 use util
 use topo
@@ -502,16 +505,18 @@ use functions
 use GUI
 implicit real*8 (a-h,o-z)
 integer,allocatable :: tmparrint(:)
-integer itask
+integer itask,itype,itype2
 character c80tmp*80,c200tmp*200,c2000tmp*2000,selectyn
 real*8 vec1old(3),vec2old(3),vec1(3),vec2(3),tmpmat(3,3),tmpvec(3)
 real*8,allocatable :: d1add(:,:),d1min(:,:),d2add(:,:),d2min(:,:),d1addtmp(:,:),d1mintmp(:,:),d2addtmp(:,:),d2mintmp(:,:) !Store temporary data for drawing gradient map
 real*8,allocatable :: planemat_cust(:,:) !For storing temporary data of doing custom map
 real*8,allocatable :: planemat_bk(:,:) !Used to backup plane data
 
-ncustommap=0 !Clean custom operation setting that possibly defined by other modules
-if (allocated(custommapname)) deallocate(custommapname)
-if (allocated(customop)) deallocate(customop)
+if (itask/=2) then
+	ncustommap=0 !Clean custom operation setting that possibly defined by other modules
+	if (allocated(custommapname)) deallocate(custommapname)
+	if (allocated(customop)) deallocate(customop)
+end if
 if (allocated(tmparrint)) deallocate(tmparrint)
 ipromol=0
 
@@ -612,7 +617,7 @@ end if
 
 write(*,*) " -10 Return to main menu"
 write(*,*) "How many grids in the two dimensions, respectively?"
-if (itask==0) then
+if (itask==0.or.itask==2) then
 	if (idrawtype==1.or.idrawtype==2.or.idrawtype==6) then
 		if (ifdoESP(ifuncsel)) then
 			write(*,*) "(100,100 is recommended)" !Because calculating ESP is very time consuming, so use lower grid
@@ -1054,9 +1059,7 @@ if (itask==1) then !NICS-2D scan
 					end do
 					do ipt=1,ngridnum1
 						do jpt=1,ngridnum2
-							rnowx=orgx2D+(ipt-1)*v1x+(jpt-1)*v2x
-							rnowy=orgy2D+(ipt-1)*v1y+(jpt-1)*v2y
-							rnowz=orgz2D+(ipt-1)*v1z+(jpt-1)*v2z
+							call get2Dgridxyz(ipt,jpt,rnowx,rnowy,rnowz)
 							write(11,"('Bq',3f12.6)") rnowx*b2a,rnowy*b2a,rnowz*b2a
 						end do
 					end do
@@ -1130,6 +1133,73 @@ if (itask==1) then !NICS-2D scan
 	end do
 	close(10)
 	write(*,*) "Loading finished!"
+
+else if (itask==2) then !Hyper(polarizability) density
+	if (abs(itype)==1) ntime=2
+	if (abs(itype)==2) ntime=3
+	if (abs(itype)==3) ntime=4
+	do itime=1,ntime
+        call dealloall(0)
+        write(*,*) "Calculating "//trim(custommapname(itime))
+        call readinfile(custommapname(itime),1)
+		do ipt=1,ngridnum1
+			do jpt=1,ngridnum2
+				call get2Dgridxyz(ipt,jpt,tmpx,tmpy,tmpz)
+                planemattmp(ipt,jpt)=fdens(tmpx,tmpy,tmpz)
+			end do
+		end do
+        if (abs(itype)==1) then !Polarizability density
+            if (itime==1) then
+                planemat=-planemattmp
+            else if (itime==2) then
+                planemat=planemat+planemattmp
+            end if
+        else if (abs(itype)==2) then !First hyperpolarizability density
+            if (itime==1) then
+                planemat=planemattmp
+            else if (itime==2) then
+                planemat=planemat-2*planemattmp
+            else if (itime==3) then
+                planemat=planemat+planemattmp
+            end if
+        else if (abs(itype)==3) then !Second hyperpolarizability density
+            if (itime==1) then
+                planemat=-planemattmp
+            else if (itime==2) then
+                planemat=planemat+2*planemattmp
+            else if (itime==3) then
+                planemat=planemat-2*planemattmp
+            else if (itime==4) then
+                planemat=planemat+planemattmp
+            end if
+        end if
+    end do
+    fieldstr=0.003D0
+    if (abs(itype)==1) then
+        planemat=planemat/(2*fieldstr)
+    else if (abs(itype)==2) then
+        planemat=planemat/fieldstr**2
+    else if (abs(itype)==3) then
+        planemat=planemat/(2*fieldstr**3)
+    end if
+    !Transform (hyper)polarizability to spatial contribution
+    if (itype<0) then
+		do ipt=1,ngridnum1
+			do jpt=1,ngridnum2
+				call get2Dgridxyz(ipt,jpt,tmpx,tmpy,tmpz)
+                if (itype2==1) then
+                    planemat(ipt,jpt)=-tmpx*planemat(ipt,jpt)
+                else if (itype2==2) then
+                    planemat(ipt,jpt)=-tmpy*planemat(ipt,jpt)
+                else if (itype2==3) then
+                    planemat(ipt,jpt)=-tmpz*planemat(ipt,jpt)
+                end if
+			end do
+		end do
+    end if
+    call dealloall(0)
+    write(*,*) "Reloading "//trim(firstfilename)
+    call readinfile(firstfilename,1)
 	
 else if (iplaneextdata==1) then !Export plane data to external file, and then load data from it
 	open(10,file="planept.txt",status="replace")
@@ -1137,9 +1207,7 @@ else if (iplaneextdata==1) then !Export plane data to external file, and then lo
 	write(10,*) ngridnum1*ngridnum2
 	do ipt=1,ngridnum1
 		do jpt=1,ngridnum2
-			rnowx=orgx2D+(ipt-1)*v1x+(jpt-1)*v2x
-			rnowy=orgy2D+(ipt-1)*v1y+(jpt-1)*v2y
-			rnowz=orgz2D+(ipt-1)*v1z+(jpt-1)*v2z
+			call get2Dgridxyz(ipt,jpt,rnowx,rnowy,rnowz)
 			write(10,"(3f16.8)") rnowx,rnowy,rnowz
 			write(11,"(3f16.8)") rnowx*b2a,rnowy*b2a,rnowz*b2a
 		end do
@@ -1203,9 +1271,7 @@ else !Common case, start calculation of plane data
 		ncustommap=0
 		do i=1,ngridnum1 !Now planemat is Hirshfeld weight of iatmentropy, and planemattmp is its density in free-state
 			do j=1,ngridnum2
-				rnowx=orgx2D+(i-1)*v1x+(j-1)*v2x
-				rnowy=orgy2D+(i-1)*v1y+(j-1)*v2y
-				rnowz=orgz2D+(i-1)*v1z+(j-1)*v2z
+				call get2Dgridxyz(i,j,rnowx,rnowy,rnowz)
 				rhoA=planemat(i,j)*fdens(rnowx,rnowy,rnowz)
 				if (ifuncsel==500) planemat(i,j)=rhoA*log(rhoA/planemattmp(i,j))
 				if (ifuncsel==510) planemat(i,j)=rhoA
@@ -1242,9 +1308,7 @@ else !Common case, start calculation of plane data
 	    !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(iprog,planemat,d1add,d1min,d2add,d2min) schedule(dynamic) NUM_THREADS(nthreads)
 		do i=1,ngridnum1
 			do j=1,ngridnum2
-				rnowx=orgx2D+(i-1)*v1x+(j-1)*v2x
-				rnowy=orgy2D+(i-1)*v1y+(j-1)*v2y
-				rnowz=orgz2D+(i-1)*v1z+(j-1)*v2z
+				call get2Dgridxyz(i,j,rnowx,rnowy,rnowz)
 				if (ifuncsel==111) then
 					planemat(i,j)=beckewei(rnowx,rnowy,rnowz,iatmbecke1,iatmbecke2)
 				else
@@ -1365,6 +1429,9 @@ drawuplim=valmax
 if (itask==1) then !NICS-2D
 	drawlowlim=-30
     drawuplim=30
+else if (itask==2) then !NICS-2D
+	drawlowlim=-10
+    drawuplim=10
 else if (ifuncsel==1) then
 	drawlowlim=0D0
 	drawuplim=0.65D0
@@ -1600,15 +1667,15 @@ do while(.true.)
 		write(*,*) "How many columns? (4 or 6. The data in the last column will be loaded)"
 		read(*,*) ncol
 		open(10,file=c200tmp,status="old")
-			do i=0,ngridnum1-1
-				do j=0,ngridnum2-1
-					if (ncol==4) then
-						read(10,*) tmpv,tmpv,tmpv,planemattmp(i+1,j+1)
-					else
-						read(10,*) tmpv,tmpv,tmpv,tmpv,tmpv,planemattmp(i+1,j+1)
-					end if
-				end do
+		do i=1,ngridnum1
+			do j=1,ngridnum2
+				if (ncol==4) then
+					read(10,*) tmpv,tmpv,tmpv,planemattmp(i,j)
+				else
+					read(10,*) tmpv,tmpv,tmpv,tmpv,tmpv,planemattmp(i,j)
+				end if
 			end do
+		end do
 		close(10)
 		write(*,*) "Which operation? Available operators: +,-,x,/"
 		read(*,*) c200tmp(1:1)
@@ -1635,9 +1702,7 @@ do while(.true.)
 			write(*,*) "Updating plane data, please wait..."
 			do i=1,ngridnum1 !First calculate promolecular density and store it to planemat
 				do j=1,ngridnum2
-					rnowx=orgx2D+(i-1)*v1x+(j-1)*v2x
-					rnowy=orgy2D+(i-1)*v1y+(j-1)*v2y
-					rnowz=orgz2D+(i-1)*v1z+(j-1)*v2z
+                    call get2Dgridxyz(i,j,rnowx,rnowy,rnowz)
 					densall=0
 					densfrag=0
 					do iatm=1,ncenter
@@ -1673,15 +1738,13 @@ do while(.true.)
         c200tmp="plane.txt"
         if (iaddprefix==1) call addprefix(c200tmp)
 		open(10,file=c200tmp,status="replace")
-		do i=0,ngridnum1-1
-			do j=0,ngridnum2-1
-				rnowx=orgx2D+i*v1x+j*v2x
-				rnowy=orgy2D+i*v1y+j*v2y
-				rnowz=orgz2D+i*v1z+j*v2z
+		do i=1,ngridnum1
+			do j=1,ngridnum2
+                call get2Dgridxyz(i,j,rnowx,rnowy,rnowz)
 				if (plesel==4.or.plesel==5.or.plesel==6.or.plesel==7) then
-					write(10,"(5f10.5,1PE20.10E3)") rnowx*b2a,rnowy*b2a,rnowz*b2a,i*d1*b2a,j*d2*b2a,planemat(i+1,j+1)
+					write(10,"(5f10.5,1PE20.10E3)") rnowx*b2a,rnowy*b2a,rnowz*b2a,i*d1*b2a,j*d2*b2a,planemat(i,j)
 				else !Plane is vertical, the coordinate in a direction is zero
-					write(10,"(3f10.5,1PE20.10E3)") rnowx*b2a,rnowy*b2a,rnowz*b2a,planemat(i+1,j+1)
+					write(10,"(3f10.5,1PE20.10E3)") rnowx*b2a,rnowy*b2a,rnowz*b2a,planemat(i,j)
 				end if
 			end do
 		end do
@@ -1752,12 +1815,10 @@ do while(.true.)
 				idrawplanevdwctr=1
 				write(*,*) "Please wait..."
 				!$OMP PARALLEL DO private(ipt,jpt,rnowx,rnowy,rnowz) shared(planemattmp) schedule(dynamic) NUM_THREADS(nthreads)
-				do ipt=0,ngridnum1-1
-					do jpt=0,ngridnum2-1
-						rnowx=orgx2D+ipt*v1x+jpt*v2x
-						rnowy=orgy2D+ipt*v1y+jpt*v2y
-						rnowz=orgz2D+ipt*v1z+jpt*v2z
-						planemattmp(ipt+1,jpt+1)=fdens(rnowx,rnowy,rnowz)
+				do ipt=1,ngridnum1
+					do jpt=1,ngridnum2
+                        call get2Dgridxyz(ipt,jpt,rnowx,rnowy,rnowz)
+						planemattmp(ipt,jpt)=fdens(rnowx,rnowy,rnowz)
 					end do
 				end do
 				!$OMP END PARALLEL DO

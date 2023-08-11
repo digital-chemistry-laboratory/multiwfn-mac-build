@@ -8,11 +8,11 @@ do while(.true.)
 	write(*,*) "1 Calculate core-valence bifurcation (CVB) index and related quantities"
 	write(*,*) "2 Calculate atomic and bond dipole moments in Hilbert space"
 	write(*,*) "3 Generate cube file for multiple orbital wavefunctions"
-	write(*,*) "4 Generate iso-chemical shielding surfaces (ICSS) and related quantities"
+	!write(*,*) "4 Generate iso-chemical shielding surfaces (ICSS) and related quantities"
 	write(*,*) "5 Plot radial distribution function for a real space function"
 	write(*,*) "6 Analyze correspondence between orbitals in two wavefunctions"
-	write(*,*) "7 Parse output of (hyper)polarizability task of Gaussian"
-	write(*,*) "8 Study (hyper)polarizability by sum-over-states (SOS) method"
+	!write(*,*) "7 Parse output of (hyper)polarizability task of Gaussian"
+	!write(*,*) "8 Study (hyper)polarizability by sum-over-states (SOS) method"
 	write(*,*) "9 Calculate average bond length and average coordinate number"
 	write(*,*) "10 Output various kinds of integral between orbitals"
 	write(*,*) "11 Calculate center, first/second moments and radius of gyration of a function"
@@ -35,15 +35,15 @@ do while(.true.)
 		call atmbonddip
 	else if (isel==3) then
 		call genmultiorbcube
-	else if (isel==4) then
+	else if (isel==4) then !hidden
 		call ICSS
 	else if (isel==5) then
 		call plotraddis
 	else if (isel==6) then
 		call orbcorres
-	else if (isel==7) then
+	else if (isel==7) then !Hidden
 		call parseGauPolar
-	else if (isel==8) then
+	else if (isel==8) then !Hidden
 		call SOS
 	else if (isel==9) then
 		call atmavgdist

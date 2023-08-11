@@ -19,7 +19,7 @@ do while(.true.)
 ! 	write(*,*) "10 Generate spherically averaged atomic radial density" !Rarely used, so, hidden
 	write(*,*) "11 Calculate overlap and centroid distance between two orbitals"
 	write(*,*) "12 Biorthogonalization between alpha and beta orbitals"
-	write(*,*) "13 Calculate HOMA and Bird aromaticity index"
+	!write(*,*) "13 Calculate HOMA and Bird aromaticity index"
 	write(*,*) "14 Calculate LOLIPOP (LOL Integrated Pi Over Plane)"
 	write(*,*) "15 Calculate intermolecular orbital overlap"
     write(*,*) "17 Generate Fock/KS matrix based on orbital energies and coefficients"
@@ -29,7 +29,7 @@ do while(.true.)
 	write(*,*) "21 Calculate properties based on geometry information for specific atoms"
 	write(*,*) "22 Detect pi orbitals, set occupation numbers and calculate pi composition"
 	write(*,*) "23 Fit function distribution to atomic value"
-	write(*,*) "24 Obtain NICS_ZZ value for non-planar or tilted system"
+	!write(*,*) "24 Obtain NICS_ZZ value for non-planar or tilted system"
 	read(*,*) c80tmp
 
     if (c80tmp=="4a".or.c80tmp=="4b") then !For Chunying Rong's Fukui Shannon project
@@ -74,7 +74,7 @@ do while(.true.)
 		call ovlpdistorb
 	else if (isel==12) then
 		call biortho
-	else if (isel==13) then
+	else if (isel==13) then !Hidden
 		call HOMA_Bird
 	else if (isel==14) then
 		call LOLIPOP
@@ -99,7 +99,7 @@ do while(.true.)
 		call detectpiorb
 	else if (isel==23) then
 		call fitfunc
-	else if (isel==24) then
+	else if (isel==24) then !Hidden
 		call NICS_ZZ
 	end if
 end do

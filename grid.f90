@@ -692,7 +692,7 @@ end subroutine
 
 
 
-!!----- Get XYZ coordinate of grid based on grid indiex
+!!----- Get XYZ coordinate of 3D grid based on grid index
 subroutine getgridxyz(i,j,k,tmpx,tmpy,tmpz)
 use defvar
 integer i,j,k
@@ -700,6 +700,18 @@ real*8 tmpx,tmpy,tmpz
 tmpx=orgx+gridv1(1)*(i-1)+gridv2(1)*(j-1)+gridv3(1)*(k-1)
 tmpy=orgy+gridv1(2)*(i-1)+gridv2(2)*(j-1)+gridv3(2)*(k-1)
 tmpz=orgz+gridv1(3)*(i-1)+gridv2(3)*(j-1)+gridv3(3)*(k-1)
+end subroutine
+
+
+
+!!----- Get XYZ coordinate of 2D grid based on grid index
+subroutine get2Dgridxyz(i,j,tmpx,tmpy,tmpz)
+use defvar
+integer i,j
+real*8 tmpx,tmpy,tmpz
+tmpx=orgx2D+(i-1)*v1x+(j-1)*v2x
+tmpy=orgy2D+(i-1)*v1y+(j-1)*v2y
+tmpz=orgz2D+(i-1)*v1z+(j-1)*v2z
 end subroutine
 
 

@@ -1150,9 +1150,7 @@ planemat=0D0
 !$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(planedens) schedule(dynamic) NUM_THREADS(nthreads)
 do i=1,ngridnum1
 	do j=1,ngridnum2
-		rnowx=orgx2D+(i-1)*v1x+(j-1)*v2x
-		rnowy=orgy2D+(i-1)*v1y+(j-1)*v2y
-		rnowz=orgz2D+(i-1)*v1z+(j-1)*v2z
+        call get2Dgridxyz(i,j,rnowx,rnowy,rnowz)
 		planedens(i,j)=fdens(rnowx,rnowy,rnowz)
 	end do
 end do
@@ -1165,9 +1163,7 @@ do jatm=1,ncenter_org
 	!$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz) shared(planeprodens) schedule(dynamic) NUM_THREADS(nthreads)
 	do i=1,ngridnum1
 		do j=1,ngridnum2
-			rnowx=orgx2D+(i-1)*v1x+(j-1)*v2x
-			rnowy=orgy2D+(i-1)*v1y+(j-1)*v2y
-			rnowz=orgz2D+(i-1)*v1z+(j-1)*v2z
+            call get2Dgridxyz(i,j,rnowx,rnowy,rnowz)
 			planeprodens(i,j)=planeprodens(i,j)+fdens(rnowx,rnowy,rnowz)
 		end do
 	end do
@@ -1181,9 +1177,7 @@ do jatm=1,ncenter_org !Cycle each atom, calculate its contribution in the plane
 	!$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz,rho0A,rhoA,tmpval) shared(planemat) schedule(dynamic) NUM_THREADS(nthreads)
 	do i=1,ngridnum1
 		do j=1,ngridnum2
-			rnowx=orgx2D+(i-1)*v1x+(j-1)*v2x
-			rnowy=orgy2D+(i-1)*v1y+(j-1)*v2y
-			rnowz=orgz2D+(i-1)*v1z+(j-1)*v2z
+            call get2Dgridxyz(i,j,rnowx,rnowy,rnowz)
 			rho0A=fdens(rnowx,rnowy,rnowz)
 			rhoA=planedens(i,j)*rho0A/planeprodens(i,j)
 			if (itype==1.or.itype==3) then
@@ -1368,9 +1362,7 @@ real*8 tmparr(3),tmpmat(3,3)
 !$OMP parallel do shared(rho,derrho,hessrho) private(i,j,rnowx,rnowy,rnowz) num_threads(nthreads)
 do i=1,ngridnum1
 	do j=1,ngridnum2
-		rnowx=orgx2D+(i-1)*v1x+(j-1)*v2x
-		rnowy=orgy2D+(i-1)*v1y+(j-1)*v2y
-		rnowz=orgz2D+(i-1)*v1z+(j-1)*v2z
+        call get2Dgridxyz(i,j,rnowx,rnowy,rnowz)
         call calchessmat_dens(2,rnowx,rnowy,rnowz,rho(i,j),derrho(:,i,j),hessrho(:,:,i,j))
     end do
 end do
@@ -1389,9 +1381,7 @@ do ipro=1,ncustommap
     !$OMP parallel do shared(rho,derrho,hessrho) private(i,j,rnowx,rnowy,rnowz,tmprho,tmparr,tmpmat) num_threads(nthreads)
     do i=1,ngridnum1
 	    do j=1,ngridnum2
-		    rnowx=orgx2D+(i-1)*v1x+(j-1)*v2x
-		    rnowy=orgy2D+(i-1)*v1y+(j-1)*v2y
-		    rnowz=orgz2D+(i-1)*v1z+(j-1)*v2z
+            call get2Dgridxyz(i,j,rnowx,rnowy,rnowz)
             call calchessmat_dens(2,rnowx,rnowy,rnowz,tmprho,tmparr,tmpmat)
             rho0(i,j)=rho0(i,j)+tmprho
             derrho0(:,i,j)=derrho0(:,i,j)+tmparr(:)

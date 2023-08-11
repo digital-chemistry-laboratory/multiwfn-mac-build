@@ -76,7 +76,7 @@ do while(.true.)
 	else if (isel==13) then
 		call NICS_1D
 	else if (isel==14) then
-		call study2dim(1)
+		call study2dim(1,0,0)
     end if
 end do
 end subroutine
@@ -1524,7 +1524,7 @@ call menutitle("NICS-1D scan and integral",10,1)
 write(*,*) "0 Return"
 write(*,*) "Choose the way of defining the two end points of the line for scanning"
 write(*,*) "1 Directly input Cartesian coordinates of two end points"
-write(*,"(a)") " 2 The two end points are above and below the center of a plane composed of specific atoms, and the line perpendicularly passes through the ring center"
+write(*,"(a)") " 2 The two end points are above and below the center of a plane fitted for specific atoms, and the line perpendicularly passes through their center"
 read(*,*) iway
 
 if (iway==0) then
@@ -1711,6 +1711,7 @@ icomp=4
 do while(.true.)
     write(*,*)
     call menutitle("Post-processing menu",10,1)
+    write(*,*) "-3 Invert direction of X-axis"
     write(*,*) "-2 Multiply NICS data by a factor"
     if (icomp==-1) write(*,*) "-1 Select component of NICS, current: Anisotropy"
     if (icomp==0) write(*,*) "-1 Select component of NICS, current: Isotropy"
@@ -1729,6 +1730,16 @@ do while(.true.)
     
     if (isel==0) then
         return
+    else if (isel==-3) then
+		do ipt=1,floor(npt/2D0)
+			tmpval=ptpos(ipt)
+            ptpos(ipt)=ptpos(npt+1-ipt)
+            ptpos(npt+1-ipt)=tmpval
+			tmpvec(:)=ptxyz(:,ipt)
+            ptxyz(:,ipt)=ptxyz(:,npt+1-ipt)
+            ptxyz(:,npt+1-ipt)=tmpvec(:)
+        end do
+        write(*,*) "Done!"
     else if (isel==-2) then
         write(*,*) "Input the value to be multiplied to NICS data, e.g. 2.5"
         write(*,*) "Obviously, if you input -1, then the sign of NICS will be inverted"

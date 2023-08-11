@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2023-Aug-7"
+write(*,*) "Version 3.8(dev), release date: 2023-Aug-11"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -245,7 +245,7 @@ end if
 
 
 !Special treatment and test new code
-!call NICS_1D
+!call hyper_polar_dens
 
 
 
@@ -415,7 +415,7 @@ do while(.true.) !Main loop
 	    !!!-------------------------------------
 	    !4!-------------------- Draw plane graph
 	    else if (isel==4) then
-		    call study2dim(0)
+		    call study2dim(0,0,0)
 
             
 	    !!!--------------------------------------------------------

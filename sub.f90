@@ -2761,9 +2761,7 @@ do iatm=1,ncenter_org !Calc free atomic density of each atom, get promolecular d
 	!$OMP PARALLEL DO private(i,j,rnowx,rnowy,rnowz,tmpval) shared(planemat) schedule(dynamic) NUM_THREADS(nthreads)
 	do i=1,ngridnum1 !First calculate promolecular density and store it to planemat
 		do j=1,ngridnum2
-			rnowx=orgx2D+(i-1)*v1x+(j-1)*v2x
-			rnowy=orgy2D+(i-1)*v1y+(j-1)*v2y
-			rnowz=orgz2D+(i-1)*v1z+(j-1)*v2z
+            call get2Dgridxyz(i,j,rnowx,rnowy,rnowz)
 			if (itype==1) then
 				tmpval=fdens(rnowx,rnowy,rnowz)
 			else

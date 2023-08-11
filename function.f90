@@ -4243,9 +4243,7 @@ if (alive.and.ifiletype==1) then !Use cubegen to calculate ESP
 	open(10,file="cubegenpt.txt",status="replace")
 	do ipt=1,ngridnum1
 		do jpt=1,ngridnum2
-			rnowx=orgx2D+(ipt-1)*v1x+(jpt-1)*v2x
-			rnowy=orgy2D+(ipt-1)*v1y+(jpt-1)*v2y
-			rnowz=orgz2D+(ipt-1)*v1z+(jpt-1)*v2z
+            call get2Dgridxyz(ipt,jpt,rnowx,rnowy,rnowz)
 			write(10,"(3f16.8)") rnowx*b2a,rnowy*b2a,rnowz*b2a
 		end do
 	end do

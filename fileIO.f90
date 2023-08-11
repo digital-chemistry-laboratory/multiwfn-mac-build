@@ -164,7 +164,7 @@ else !Plain text file
     end if
 end if
 
-if (iresinfo==0) then !Residue information was not loaded, initialize empty content
+if (iresinfo==0.and.allocated(a)) then !Residue information was not loaded, initialize empty content
     a%resid=1
     a%resname=" "
 end if

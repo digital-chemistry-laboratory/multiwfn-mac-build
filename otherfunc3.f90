@@ -7,7 +7,7 @@ do while(.true.)
 	write(*,*) "0 Return"
 	write(*,*) "1 Viewing free regions and calculating free volume in a cell"
 	write(*,*) "2 Fitting atomic radial density as linear combination of multiple STOs or GTFs"
-    write(*,*) "3 Visualize (hyper)polarizability via unit sphere and vector representations"
+    !write(*,*) "3 Visualize (hyper)polarizability via unit sphere and vector representations"
     write(*,*) "4 Simulating scanning tunneling microscope (STM) image"
     write(*,*) "5 Calculate electric dipole/multipole moments and electronic spatial extent"
     write(*,*) "6 Calculate energies of present orbitals by inputting Fock matrix"
@@ -22,7 +22,7 @@ do while(.true.)
         call freeregion
 	else if (isel==2) then
         call fitatmdens
-	else if (isel==3) then
+	else if (isel==3) then !Hidden
         call vis_hypol
 	else if (isel==4) then
         call STM
