@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2023-Aug-12"
+write(*,*) "Version 3.8(dev), release date: 2023-Sep-7"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -283,6 +283,7 @@ do while(.true.) !Main loop
 	write(*,*) "21 Energy decomposition analysis        22 Conceptual DFT (CDFT) analysis"
     write(*,*) "23 ETS-NOCV analysis                    24 (Hyper)polarizability analysis"
     write(*,*) "25 Electron delocalization and aromaticity analyses"
+    write(*,*) "26 Structure and geometry related analyses"
 	write(*,*) "100 Other functions (Part 1)            200 Other functions (Part 2)"
 	write(*,*) "300 Other functions (Part 3)"
 	! write(*,*) "1000 Special functions"
@@ -543,6 +544,82 @@ do while(.true.) !Main loop
 	    !25!!------------------- Delocalization and aromaticity analyses
 	    else if (isel==25) then
 		    call deloc_aromat
+
+            
+	    !!!-------------------------------------------------------------
+	    !26!!------------------- Structure and geometry related analyses
+	    else if (isel==26) then
+			do while(.true.)
+				write(*,*)
+				call menutitle("Geometry related analysis",10,1)
+				write(*,*) "0 Return"
+				write(*,*) "1 Calculate properties based on geometry information for specific atoms"
+				write(*,*) "2 Various geometry operation on present system"
+				write(*,"(a)") " 3 Molecular planarity parameter (MPP) and span of deviation from plane (SDP)"
+				write(*,*) "4 Evaluate interatomic connectivity and atomic coordination number"
+				write(*,*) "5 Calculate average bond length and average coordinate number"
+				write(*,*) "6 Calculate bond length/order alternation (BLA/BOA)"
+				write(*,*) "7 Calculate kinetic diameter"
+				write(*,*) "8 Calculate molecular diameter and length/width/height"
+				write(*,*) "9 Visualize molecular cavity and calculate its volume"
+				write(*,*) "10 Plot surface distance projection map"
+				write(*,*) "11 View free regions and calculating free volume in a cell"
+				write(*,*) "12 Calculate area of vdW surface of whole system or individual fragments"
+				write(*,*) "13 Calculate vdW volume via Monte Carlo method"
+				write(*,*) "14 Calculate vdW volume via Marching Tetrahedron algorithm based on electron density isosurface"
+				write(*,*) "15 Calculate cavity diameter of molecule and crystal, as well as graphically representing it as sphere"
+				write(*,*) "16 Calculate area and perimeter of a specific ring"
+				write(*,"(a)") " 17 Calculate minimum/maximum and geometry/mass center distances between two fragments"
+				read(*,*) isel
+				if (isel==0) then
+					exit
+				else if (isel==1) then
+					call calcgeomprop
+				else if (isel==2) then
+					call geom_operation
+				else if (isel==3) then
+					write(*,"(a,/)") " Hint: You can also directly enter this function by inputting ""MPP"" in main menu of Multiwfn"
+					call calcMPP
+				else if (isel==4) then
+					call conn_coordnum
+				else if (isel==5) then
+					call atmavgdist
+				else if (isel==6) then
+					call BLABOA
+				else if (isel==7) then
+					write(*,"(a)") " Please check Section 4.12.12 of Multiwfn manual on how to use main function 12 to calculate kinetic diameter"
+					write(*,*) "Press ENTER button to return"
+					read(*,*)
+				else if (isel==8) then
+					call calcmolsize
+				else if (isel==9) then
+					write(*,"(a)") " Please check Section 4.200.14.2 of Multiwfn manual on how to use domain analysis to visualize molecular cavity and calculate its volume"
+					write(*,*) "Press ENTER button to return"
+					read(*,*)
+				else if (isel==10) then
+					call molsurf_distmap
+				else if (isel==11) then
+					call freeregion
+				else if (isel==12) then
+					write(*,"(a)") " Please check Section 4.12.9 of Multiwfn manual on how to use main function 12 to calculate area of van der Waals surface of whole system or individual fragments"
+					write(*,*) "Press ENTER button to return"
+					read(*,*)
+				else if (isel==13) then
+					call molvol_MC
+				else if (isel==14) then
+					write(*,"(a)") " Please check Section 4.12.1 of Multiwfn manual on how to use main function 12 to &
+					calculate van der Waals volume based on electron density isosurface"
+					write(*,*) "Briefly speaking, you should simply enter main function 12 and choose option 6 to obtain the volume"
+					write(*,*) "Press ENTER button to return"
+					read(*,*)
+				else if (isel==15) then
+					call cavity_diameter
+				else if (isel==16) then
+					call calcringsize
+				else if (isel==17) then
+					call calcfragdist
+				end if
+			end do
 		
 
 	    !!!------------------------------------------------------------------

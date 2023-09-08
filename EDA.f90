@@ -8,7 +8,7 @@ do while(.true.)
 	write(*,*) "0 Return"
 	write(*,*) "1 Energy decomposition analysis based on molecular forcefield (EDA-FF)"
 	write(*,*) "2 Shubin Liu's energy decomposition analysis (Gaussian is needed)"
-	write(*,*) "3 sobEDA and sobEDAw energy decomposition analysis"
+	write(*,*) "3 sobEDA and sobEDAw energy decomposition analyses (J. Phys. Chem. A, 127, 7023 (2023))"
 ! 		write(*,*) "2 Mayer energy decomposition analysis"
 ! 		write(*,*) "3 Fuzzy space based energy decomposition analysis"
 	read(*,*) infuncsel2
@@ -20,7 +20,7 @@ do while(.true.)
 		call EDA_SBL
 	else if (infuncsel2==3) then
 		write(*,"(a)") " This kind of analysis needs using shell script. Please check detailed sobEDA/sobEDAw tutorial: http://sobereva.com/soft/sobEDA_tutorial.zip"
-        write(*,*) "Also see original paper: https://doi.org/10.26434/chemrxiv-2023-n79rz"
+        write(*,*) "Also see original paper: J. Phys. Chem. A, 127, 7023 (2023) DOI: 10.1021/acs.jpca.3c04374"
         write(*,*) "Press ENTER to return"
 		read(*,*)
 	end if

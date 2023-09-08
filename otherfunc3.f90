@@ -1,6 +1,7 @@
 !-------- Main interface of various other functions part 2
 subroutine otherfunc3_main
 implicit real*8 (a-h,o-z)
+
 do while(.true.)
 	write(*,*)
 	write(*,*) "              ============ Other functions (Part 3) ============ "
@@ -14,7 +15,6 @@ do while(.true.)
     write(*,*) "7 Geometry operation on the present system"
     write(*,*) "8 Plot surface distance projection map"
     write(*,*) "9 Determine Fermi level"
-    
 	read(*,*) isel
 	if (isel==0) then
 		return

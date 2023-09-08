@@ -3383,7 +3383,7 @@ end subroutine
 !!============================ Hirshfeld-I ============================!!
 !!============================ Hirshfeld-I ============================!!
 !Wrapper of Hirshfeld-I module to automatically set radpot and sphpot to proper values
-!itype=1: Normal population analysis =2: Only used to generate proper atomic space (i.e. Don't do unnecessary things)
+!itype=1: Normal population analysis =2: Only used to generate proper atomic space (i.e. Don't do unnecessary things), namely fill "atmradrho"
 subroutine Hirshfeld_I_wrapper(itype)
 use defvar
 implicit real*8 (a-h,o-z)
@@ -3403,7 +3403,7 @@ if (iautointgrid==1) then
 end if
 end subroutine
 
-!!--------- Calculate Hirshfeld-I charge and yield final atomic radial density
+!!--------- Calculate Hirshfeld-I charge and yield final atomic radial density (atmradrho)
 !I've compared this module with hipart, this module is faster than hipart, and the accuracy under default setting is at least never lower than hipart
 subroutine Hirshfeld_I(itype)
 use defvar

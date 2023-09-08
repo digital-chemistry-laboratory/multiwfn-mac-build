@@ -30,7 +30,8 @@ real*8,allocatable :: alldens(:,:) !Density of all free-atoms on grids of curren
 integer nmatsize,nmatsizeb !Number of lowest MOs considered for total/alpha and beta
 integer :: iAOMgrid=1 !Type of grids for AOM integration. =1: Atomic grid   =2: Molecular grid
 real*8,allocatable :: orbvalarr(:,:)
-real*8 AOMtmp(nmo,nmo),orbval(nmo)
+real*8 orbval(nmo)
+real*8,allocatable :: AOMtmp(:,:)
 !---
 real*8 rintvalp(ncenter,10) !Private for each OpenMP thread
 real*8 promol(radpot*sphpot),atomdens(radpot*sphpot),selfdens(radpot*sphpot),selfdensgrad(3,radpot*sphpot),selfdenslapl(radpot*sphpot) !For Hirshfeld partition
@@ -478,6 +479,8 @@ else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel=
 			if (allocated(AOMb)) deallocate(AOMb,AOMsumb)
 			allocate(AOM(nmatsizea,nmatsizea,ncenter),AOMb(nmatsizeb,nmatsizeb,ncenter))
 			allocate(AOMsum(nmatsizea,nmatsizea),AOMsumb(nmatsizeb,nmatsizeb))
+            if (allocated(AOMtmp)) deallocate(AOMtmp) 
+            allocate(AOMtmp(nmatsizea,nmatsizea)) !Because nmatsizea >= nmatsizeb
 			AOM=0
 			AOMb=0
 			AOMsum=0
@@ -1061,13 +1064,13 @@ do iatm=1,ncenter
 					do jmo=MOinit,MOend
 						tmpval=atmspcweight(i)*orbval(jmo)*gridatm(i)%value
 						do imo=jmo,MOend
-							AOMtmp(imo,jmo)=AOMtmp(imo,jmo)+tmpval*orbval(imo)
+							AOMtmp(imo-iendalpha,jmo-iendalpha)=AOMtmp(imo-iendalpha,jmo-iendalpha)+tmpval*orbval(imo)
 						end do
 					end do
 				end do
 				!$OMP end do
 				!$OMP CRITICAL
-					AOMb(1:nmatsizeb,1:nmatsizeb,iatm)=AOMb(1:nmatsizeb,1:nmatsizeb,iatm)+AOMtmp(MOinit:MOend,MOinit:MOend)
+					AOMb(1:nmatsizeb,1:nmatsizeb,iatm)=AOMb(1:nmatsizeb,1:nmatsizeb,iatm)+AOMtmp(MOinit-iendalpha:MOend-iendalpha,MOinit-iendalpha:MOend-iendalpha)
 				!$OMP end CRITICAL
 				!$OMP end parallel
 			else if (iAOMgrid==2) then !Molecular grid
@@ -1478,6 +1481,8 @@ else if (isel==2) then !Multipole moment
     end if
     
 else if (isel==3) then !Output AOM
+    write(*,*)
+    write(*,*) "Exporting AOM.txt in current folder..."
 	open(10,file="AOM.txt",status="replace")
 	if (wfntype==0.or.wfntype==2.or.wfntype==3) then
 		do iatm=1,ncenter

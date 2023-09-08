@@ -219,8 +219,6 @@ if (index(filename,"multiple.txt")/=0) then !Multiple file list with weights is 
 			write(mollegend(i),"(i3,' (',f5.1,'%)')") i,weight(i)*100
 		else !The second field is legend rather than weight value
 			ispc=index(c200tmp2," ")
-            write(*,"(a)") trim(c200tmp2(:ispc-1))
-            write(*,"(a)") trim(c200tmp2(ispc+1:))
 			read(c200tmp2(:ispc-1),*) c200tmp
 			read(c200tmp2(ispc+1:),"(a)") mollegend(i)
 			weight(i)=1
@@ -2041,7 +2039,7 @@ do while(.true.)
 		cycle
 	end if
 	if (isel==25) then !For predicting color, making range and point spacing in line with CIE1931 tristimulus functions
-    		xlow=360
+        xlow=360
 		xhigh=830
 		stepx=50
 		iusersetX=1
@@ -5508,8 +5506,14 @@ do ipoint=1,num1Dpoints !In the present case, the X of spectrum curve starts fro
 	CIE_Y=CIE_Y+curvey(ipoint)*CIE_Yfunc(inm)
 	CIE_Z=CIE_Z+curvey(ipoint)*CIE_Zfunc(inm)
 end do
-write(*,"(/,' CIE1931 XYZ:       ',3f18.3)") CIE_X,CIE_Y,CIE_Z
+write(*,"(/,' CIE1931 XYZ:       ',3f18.6)") CIE_X,CIE_Y,CIE_Z
 tmp=max(max(CIE_X,CIE_Y),CIE_Z)
+if (tmp<1D-8) then
+	write(*,"(a,1PE16.8,a)") " Error: Maximum component is merely",tmp,", it is colorless and thus predicting color is meaningless!"
+    write(*,*) "Press ENTER button to return"
+    read(*,*)
+    return
+end if
 sCIE_X=CIE_X/tmp
 sCIE_Y=CIE_Y/tmp
 sCIE_Z=CIE_Z/tmp
