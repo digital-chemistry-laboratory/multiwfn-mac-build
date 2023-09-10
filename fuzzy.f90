@@ -447,6 +447,8 @@ else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel=
 			end if
 			if (allocated(AOM)) deallocate(AOM,AOMsum) !For PLR, the previous AOM and AOMsum allocated by PDI/FLU is too small, so here should be released
 			allocate(AOM(nmatsize,nmatsize,ncenter),AOMsum(nmatsize,nmatsize))
+            if (allocated(AOMtmp)) deallocate(AOMtmp) 
+            allocate(AOMtmp(nmatsize,nmatsize))
 			AOM=0
 			AOMsum=0
 		else if (wfntype==1.or.wfntype==4) then !UHF, U-post-HF
@@ -1481,7 +1483,6 @@ else if (isel==2) then !Multipole moment
     end if
     
 else if (isel==3) then !Output AOM
-    write(*,*)
     write(*,*) "Exporting AOM.txt in current folder..."
 	open(10,file="AOM.txt",status="replace")
 	if (wfntype==0.or.wfntype==2.or.wfntype==3) then
