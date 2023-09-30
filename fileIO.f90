@@ -9481,9 +9481,9 @@ if (c80tmp/=" ") then
 end if
 
 !Set atom 3D color either according to external file or default setting
-call get_option_str(20,'atmcolorfile=',c200tmp2)
-if (c200tmp2/=" ".and.c200tmp2/="none") then
-    read(c200tmp2,*) c200tmp !Such a loading can remove " symbol
+call get_option_str(20,'atmcolorfile=',c200tmp)
+if (c200tmp/=" ".and.c200tmp/="none") then
+    call remove_quotemark(c200tmp)
 	inquire(file=c200tmp,exist=alive)
 	if (alive) then
 		write(*,"(' Note: Loading atom color settings from ',a)") trim(c200tmp)
@@ -9499,9 +9499,9 @@ if (c200tmp2/=" ".and.c200tmp2/="none") then
 end if
 
 !Load vdW radii from external file if the file is specified
-call get_option_str(20,'vdwrfile=',c200tmp2)
-if (c200tmp2/=" ".and.c200tmp2/="none") then
-    read(c200tmp2,*) c200tmp !Such a loading can remove " symbol
+call get_option_str(20,'vdwrfile=',c200tmp)
+if (c200tmp/=" ".and.c200tmp/="none") then
+    call remove_quotemark(c200tmp)
 	inquire(file=c200tmp,exist=alive)
 	if (alive) then
 		write(*,"(' Note: Loading van der Waals radii from ',a)") trim(c200tmp)

@@ -67,7 +67,7 @@ character selectyn,c80tmp*80,c80tmp2*80,c200tmp*200,c2000tmp*2000
 character :: method*22="PBE",PBCdir*4="XYZ ",cellfix*4="NONE"
 character(len=30) :: basname(-10:30)=" "
 integer :: itask=1,idispcorr=0,imolden=0,ioutvibmol=1,ithermostat=0,ibarostat=0,inoSCFinfo=0,iSCCS=0,idipcorr=0,iwfc=0,iHFX=0,imoment=0,ihyperfine=0,ioptmethod=1,iprintlevel=1
-integer :: iTDDFT=0,nstates_TD=3,iTDtriplet=0,isTDA=0,iNTO=0,nADDED_MOS=0,icentering=0,itightopt=0,iraman=0
+integer :: iTDDFT=0,nstates_TD=3,iTDtriplet=0,isTDA=0,iNTO=0,nADDED_MOS=0,icentering=0,itightopt=0,iraman=0,iSOCTDDFT=0
 integer :: iMDformat=1,nMDsavefreq=1,ioutcube=0,idiagOT=1,imixing=2,ismear=0,iatomcharge=0,ifineXCgrid=0,iouterSCF=1,iDFTplusU=0,NHOMO=0,NLUMO=0
 integer :: natmcons=0,nthermoatm=0,ikpoint1=1,ikpoint2=1,ikpoint3=1,nrep1=1,nrep2=1,nrep3=1
 integer,allocatable :: atmcons(:),thermoatm(:)
@@ -341,6 +341,8 @@ do while(.true.)
             if (itask==2.or.itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==8) then !Need force
                 write(*,"(a,i5)") " 20 Choose the state to evaluate force, current:",istate_force
             end if
+            if (iSOCTDDFT==0) write(*,*) "21 Toggle considering spin-orbit coupling effect in TDDFT, current: No"
+            if (iSOCTDDFT==1) write(*,*) "21 Toggle considering spin-orbit coupling effect in TDDFT, current: Yes"
         end if
     end if
     read(*,*) isel
@@ -1230,6 +1232,12 @@ do while(.true.)
         if (itask==2.or.itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==8) then !Need force
             write(*,*) "Input the index of the excited state for which force will be evaluated, e.g. 2"
             read(*,*) istate_force
+        end if
+    else if (isel==21) then
+        if (iSOCTDDFT==0) then
+            iSOCTDDFT=1
+        else
+            iSOCTDDFT=0
         end if
     
     else if (isel==0) then
@@ -2670,7 +2678,7 @@ if ((itask==5.and.iraman==1).or.itask==9.or.itask==10.or.iTDDFT==1) then !Raman,
             end if
             write(ifileid,"(a)") "      &END STDA"
         end if
-        if (iTDtriplet==1) then
+        if (iTDtriplet==1.or.iSOCTDDFT==1) then
             write(ifileid,"(a)") "      RKS_TRIPLETS T #If calculating triplet rather than singlet excited states"
         else
             write(ifileid,"(a,i5)") "      RKS_TRIPLETS F #If calculating triplet rather than singlet excited states"
@@ -2691,9 +2699,33 @@ if ((itask==5.and.iraman==1).or.itask==9.or.itask==10.or.iTDDFT==1) then !Raman,
         if (index(method,"_ADMM")/=0.and.(itask==2.or.itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==8)) then !Need force
             write(ifileid,"(a)") "      ADMM_KERNEL_CORRECTION_SYMMETRIC T"
         end if
+        if (PBCdir=="NONE") then
+            write(ifileid,"(a)") "      &DIPOLE_MOMENTS"
+            write(ifileid,"(a)") "        DIPOLE_FORM LENGTH"
+            write(ifileid,"(a)") "      &END DIPOLE_MOMENTS"
+        end if
+        if (iSOCTDDFT==1) then
+            write(ifileid,"(a)") "      &SOC #Consider SOC effect in TDDFT calculation"
+            write(ifileid,"(a)") "      &END SOC"
+        end if
         write(ifileid,"(a)") "      &PRINT"
         write(ifileid,"(a)") "        #&DETAILED_ENERGY #Print excitation energies at every Davidson iteration"
         write(ifileid,"(a)") "        #&END DETAILED_ENERGY"
+        if (iSOCTDDFT==1) then
+            write(ifileid,"(a)") "        &SOC_PRINT"
+            write(ifileid,"(a)") "          SPLITTING #Print SOC-splitting"
+            write(ifileid,"(a)") "          SOME #Print SOC-matrix elements"
+            write(ifileid,"(a)") "        &END SOC_PRINT"
+        end if
+        if (iNTO==1) then
+            write(ifileid,"(a)") "        &NTO_ANALYSIS #Do NTO analysis for all excited states"
+            !write(ifileid,"(a)") "          FILENAME NTO" !Seems not to affect name of actually exported .molden file
+            write(ifileid,"(a)") "        &END NTO_ANALYSIS"
+            write(ifileid,"(a)") "        &MOS_MOLDEN #Output .molden file containing NTO of the ""NSTATES""th state"
+            write(ifileid,"(a)") "          NDIGITS 9"
+            write(ifileid,"(a)") "          FILENAME NTO #Filename of NTO .molden file"
+            write(ifileid,"(a)") "        &END MOS_MOLDEN"
+        end if
         write(ifileid,"(a)") "      &END PRINT"
         !Current version, at least 2022.1, does not force to specify &TDDFPT / &XC
         !if (index(method,"_ADMM")==0) then !When ADMM is used for TDDFT, &XC should not appear, otherwise error shows: "ADMM is not implemented for a TDDFT kernel XC-functional which is different from the one used for the ground-state calculation"
@@ -2787,17 +2819,6 @@ if ((itask==5.and.iraman==1).or.itask==9.or.itask==10.or.iTDDFT==1) then !Raman,
         !    end if
         !    write(ifileid,"(a)") "      &END XC"
         !end if
-        if (iNTO==1) then
-            write(ifileid,"(a)") "      &PRINT"
-            write(ifileid,"(a)") "        &NTO_ANALYSIS #Do NTO analysis for all excited states"
-            !write(ifileid,"(a)") "          FILENAME NTO" !Seems not to affect name of actually exported .molden file
-            write(ifileid,"(a)") "        &END NTO_ANALYSIS"
-            write(ifileid,"(a)") "        &MOS_MOLDEN #Output .molden file containing NTO of the ""NSTATES""th state"
-            write(ifileid,"(a)") "          NDIGITS 9"
-            write(ifileid,"(a)") "          FILENAME NTO #Filename of NTO .molden file"
-            write(ifileid,"(a)") "        &END MOS_MOLDEN"
-            write(ifileid,"(a)") "      &END PRINT"
-        end if
         write(ifileid,"(a)") "    &END TDDFPT"
     end if
     write(ifileid,"(a)") "  &END PROPERTIES"

@@ -3,6 +3,7 @@ subroutine showcellinfo
 use defvar
 implicit real*8 (a-h,o-z)
 character c200tmp*200
+real*8 rcellv1(3),rcellv2(3),rcellv3(3)
 
 if (ifPBC>0) then
 	write(*,*)
@@ -22,6 +23,13 @@ if (ifPBC>0) then
         if (ifPBC>2) then
             write(*,"(' Cell vector 3,  X=',f11.5,'  Y=',f11.5,'  Z=',f11.5,'  Norm:',f11.5)") cellv3*b2a,dsqrt(sum(cellv3**2))*b2a
         end if
+    end if
+    if (ifPBC==3) then
+        call getrcellvec(rcellv1,rcellv2,rcellv3)
+        write(*,*) "Reciprocal vectors in Angstrom^-1:"
+        write(*,"(' Vector 1,  X=',f11.5,'  Y=',f11.5,'  Z=',f11.5,'  Norm:',f11.5)") rcellv1/b2a,dsqrt(sum(rcellv1**2))/b2a
+        write(*,"(' Vector 2,  X=',f11.5,'  Y=',f11.5,'  Z=',f11.5,'  Norm:',f11.5)") rcellv2/b2a,dsqrt(sum(rcellv2**2))/b2a
+        write(*,"(' Vector 3,  X=',f11.5,'  Y=',f11.5,'  Z=',f11.5,'  Norm:',f11.5)") rcellv3/b2a,dsqrt(sum(rcellv3**2))/b2a
     end if
     if (ifPBC==3) then
         call getcellabc(asize,bsize,csize,alpha,beta,gamma)
@@ -423,6 +431,23 @@ csize=dsqrt(sum(cellv3**2))*b2a
 alpha=vecang(cellv2(1),cellv2(2),cellv2(3),cellv3(1),cellv3(2),cellv3(3))
 beta =vecang(cellv1(1),cellv1(2),cellv1(3),cellv3(1),cellv3(2),cellv3(3))
 gamma=vecang(cellv1(1),cellv1(2),cellv1(3),cellv2(1),cellv2(2),cellv2(3))
+end subroutine
+
+
+
+!!!------- Get reciprocal vectors
+subroutine getrcellvec(rcellv1,rcellv2,rcellv3)
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+real*8 rcellv1(3),rcellv2(3),rcellv3(3)
+call calc_cellvol(cellvol)
+call vecprod(cellv2(1),cellv2(2),cellv2(3),cellv3(1),cellv3(2),cellv3(3),rcellv1(1),rcellv1(2),rcellv1(3))
+call vecprod(cellv1(1),cellv1(2),cellv1(3),cellv3(1),cellv3(2),cellv3(3),rcellv2(1),rcellv2(2),rcellv2(3))
+call vecprod(cellv1(1),cellv1(2),cellv1(3),cellv2(1),cellv2(2),cellv2(3),rcellv3(1),rcellv3(2),rcellv3(3))
+rcellv1=rcellv1*2*pi/cellvol
+rcellv2=rcellv2*2*pi/cellvol
+rcellv3=rcellv3*2*pi/cellvol
 end subroutine
 
 

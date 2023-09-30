@@ -101,6 +101,7 @@ Yrightsclfac=0.5D0 !Scale factor relative to left Y-axis of OPDOS (right Y-axis)
 yxratio=1D0
 graphformat_old=graphformat !User may change graphformat, backup it
 graphformat="pdf"
+call setfil("dislin."//trim(graphformat))
 
 ireadgautype=1
 if (ifiletype==0) then
@@ -650,6 +651,7 @@ else if (isel==-1) then
 	write(*,*) "           ----------------- Define fragments -----------------"
 	write(*,"(a)") " Note: Up to 10 fragments can be defined for plotting PDOS, but OPDOS will only be plotted for fragments 1 and 2"
 	do while(.true.)
+		write(*,*)
 		do ifrag=1,nfragmax
 			if (nfragDOS(ifrag)==0) then
 				write(*,"(' Fragment',i5,', has not been defined')") ifrag
@@ -717,13 +719,32 @@ else if (isel==-1) then
 			    	end if
                 else if (icompmethod==3.or.icompmethod==4) then !Set atoms in specific fragment
                     write(*,*) "Input index of the atoms comprising the fragment, e.g. 2,3,7-10"
+                    write(*,*) "You can also input an element to choose all corresponding atoms, e.g. Fe"
                     read(*,"(a)") c2000tmp
-                    call str2arr(c2000tmp,ntmp)
-                    nfragDOS(ifragsel)=ntmp
-                    call str2arr(c2000tmp,ntmp,fragDOS(1:ntmp,ifragsel))
-                    if (any(fragDOS(1:ntmp,ifragsel)<0).or.any(fragDOS(1:ntmp,ifragsel)>ncenter)) then
-                        write(*,*) "Error: The atom index exceeded valid range! You must redefine it"
-                        nfragDOS(ifragsel)=0
+                    if (iachar(c2000tmp(1:1))<48.or.iachar(c2000tmp(1:1))>57) then !Input an element
+						call lc2uc(c2000tmp(1:1))
+						call uc2lc(c2000tmp(2:2))
+                        nfragDOS(ifragsel)=count(a%name==c2000tmp(1:2))
+						if (nfragDOS(ifragsel)==0) then
+							write(*,*) "Error: No atom is selected"
+                        else
+							itmp=0
+							do iatm=1,ncenter
+								if (a(iatm)%name==c2000tmp(1:2)) then
+									itmp=itmp+1
+                                    fragDOS(itmp,ifragsel)=iatm
+                                end if
+                            end do
+                            write(*,"(i8,' atoms were selected')") itmp
+                        end if
+                    else
+						call str2arr(c2000tmp,ntmp)
+						nfragDOS(ifragsel)=ntmp
+						call str2arr(c2000tmp,ntmp,fragDOS(1:ntmp,ifragsel))
+						if (any(fragDOS(1:ntmp,ifragsel)<0).or.any(fragDOS(1:ntmp,ifragsel)>ncenter)) then
+							write(*,*) "Error: The atom index exceeded valid range! You must redefine it"
+							nfragDOS(ifragsel)=0
+						end if
                     end if
                 end if
 			end if

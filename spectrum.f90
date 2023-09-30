@@ -3662,19 +3662,33 @@ if (iCP2K==1) then
     rewind(10)
     
     if (ispectrum==3) then !UV-Vis
-		call loclabelfinal(10,"number   energy (eV)",ifound)
-        if (ifound==0) then
-			write(*,*) "Error: Unable to find electronic excitation information!"
-            write(*,*) "Press ENTER button to return"
-            read(*,*)
-            return
+		iSOC=0
+        ctest='n'
+        call loclabelfinal(10,"SOC-corrected exc.",iSOC)
+        if (iSOC==1) then
+			write(*,"(a)") " Spin-orbit coupling corrected spectra information was found, &
+			would you like to plot this kind of spectrum instead of the one without correction? (y/n)"
+			read(*,*) ctest
+			if (ctest=='n') then
+				write(*,*) "Information of singlet excited states will be loaded"
+				call loclabelfinal(10,"states of multiplicity 1",ifound)
+				call loclabel(10,"number   energy (eV)",ifound,0)
+			end if
+        else
+            call loclabelfinal(10,"number   energy (eV)",ifound)
+			if (ifound==0) then
+				write(*,*) "Error: Unable to find electronic excitation information!"
+				write(*,*) "Press ENTER button to return"
+				read(*,*)
+				return
+			end if
         end if
         read(10,*)
         read(10,*)
 		numdata=0
 		do while(.true.)
 			read(10,"(a)") c80tmp
-            if (c80tmp==" ") exit
+            if (c80tmp==" ".or.index(c80tmp,"SOC")/=0) exit
 			numdata=numdata+1
 		end do
         if (imode==1) then !Have obtained number of data, return
@@ -3687,22 +3701,26 @@ if (iCP2K==1) then
 			backspace(10)
         end do
 		do i=1,numdata !Read excitation energy (eV) and oscillator strength
-			read(10,*) c80tmp,c80tmp,datax(i),xdip,ydip,zdip,str(i)
-            if (iUVdir/=0) then
-                if (iUVdir==1) then
-					tmp=xdip**2
-                else if (iUVdir==2) then
-					tmp=ydip**2
-                else if (iUVdir==3) then
-					tmp=zdip**2
-                else if (iUVdir==4) then
-					tmp=xdip**2+ydip**2
-                else if (iUVdir==5) then
-					tmp=xdip**2+zdip**2
-                else if (iUVdir==6) then
-					tmp=ydip**2+zdip**2
-                end if
-                str(i)=2D0/3D0*tmp*datax(i)/au2eV
+            if (iSOC==0.or.(iSOC==1.and.ctest=='n')) then
+				read(10,*) c80tmp,c80tmp,datax(i),xdip,ydip,zdip,str(i)
+				if (iUVdir/=0) then
+					if (iUVdir==1) then
+						tmp=xdip**2
+					else if (iUVdir==2) then
+						tmp=ydip**2
+					else if (iUVdir==3) then
+						tmp=zdip**2
+					else if (iUVdir==4) then
+						tmp=xdip**2+ydip**2
+					else if (iUVdir==5) then
+						tmp=xdip**2+zdip**2
+					else if (iUVdir==6) then
+						tmp=ydip**2+zdip**2
+					end if
+					str(i)=2D0/3D0*tmp*datax(i)/au2eV
+				end if
+            else
+				read(10,*) c80tmp,datax(i),str(i)
             end if
 		end do
     
