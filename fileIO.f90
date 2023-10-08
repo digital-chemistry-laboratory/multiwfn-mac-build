@@ -1842,7 +1842,11 @@ ifiletype=16
 open(10,file=name,status="old")
 
 call loclabel(10,"&SUBSYS",ifound) !Will avoid to locate to &CELL in &PRINT
-call loclabel(10,"&CELL ",ifound,0) !Must be "&CELL " rather than "&CELL", the latter may locate to e.g. &CELL_OPT
+if (ifound==0) then !This is the simplest .inp file, only &COORD and &CELL fields
+	call loclabel(10,"&CELL",ifound)
+else
+	call loclabel(10,"&CELL ",ifound,0) !Must be "&CELL " rather than "&CELL", the latter may locate to e.g. &CELL_OPT
+end if
 
 do while(.true.)
     read(10,"(a)") c200tmp
