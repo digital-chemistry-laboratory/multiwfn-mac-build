@@ -1284,6 +1284,21 @@ end subroutine
 
 
 
+!!------- Show content of "nline" lines of fileid on screen, and the position of reading is unchanged
+subroutine showlines(ifileid,nline)
+character c200tmp*200
+do iline=1,nline
+	read(ifileid,"(a)") c200tmp
+    write(*,"(a)") c200tmp
+end do
+do iline=1,nline
+	backspace(ifileid)
+end do
+end subroutine
+
+
+
+
 
 !===============================================================!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
