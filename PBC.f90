@@ -47,6 +47,11 @@ if (ifPBC>0) then
         write(*,*)
         write(c200tmp,"(a,3f10.5,3f8.3,a)") "pbc set {",asize,bsize,csize,alpha,beta,gamma," } -all"
         write(*,"(a,/,1x,a)") " Command of showing box in VMD program: (then run ""pbc box"")",trim(c200tmp)
+        write(*,*)
+        do idx=1,8
+            call cellvertex(idx,vertx,verty,vertz)
+            write(*,"(' Vertex',i2,' of the cell:',3f10.4,' Bohr')") idx,vertx,verty,vertz
+        end do
     end if
 end if
 end subroutine

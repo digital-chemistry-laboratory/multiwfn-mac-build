@@ -327,6 +327,8 @@ case (113) !Total charge of the energy components defined by SBL (steric + elect
     userfunc = stericcharge(x,y,z) + elestatcharge(x,y,z) + quantumcharge(x,y,z)
 case (114) !Pauli kinetic energy density
     userfunc = KED(x,y,z,iKEDsel) - weizsacker(x,y,z)
+case (200) !Random number of [0,1£©
+	call RANDOM_NUMBER(userfunc)
 case (802:807)
     userfunc=funcvalLSB(iuserfunc-800,x,y,z)
 case (812:817)
@@ -821,7 +823,8 @@ end subroutine
 !! Calculate wavefunction value of a range of orbitals and their derivatives at a given point, up to third-order
 !! istart and iend is the range of the orbitals will be calculated, to calculate all orbitals, use 1,nmo
 !! runtype=1: value  =2: value+dx/y/z  =3: value+dxx/yy/zz(diagonal of hess)  =4: value+dx/y/z+Hessian  
-!!        =5: value+dx/y/z+hess+3-order derivative tensor 
+!!        =5: value+dx/y/z+hess+3-order derivative tensor
+!! k-point is taken into account if kp1crd,kp2crd,kp3crd has been properly defined, but only real part is taken into account, imaginary part is ignored
 subroutine orbderv_PBC(runtype,istart,iend,x,y,z,wfnval,grad,hess,tens3)
 real*8 x,y,z,wfnval(nmo),tvec(3)
 real*8,optional :: grad(3,nmo),hess(3,3,nmo),tens3(3,3,3,nmo)
@@ -849,6 +852,7 @@ do iloopGTF=1,nloopGTF
     jcell=neighGTFcell(2,iloopGTF,ix_red,iy_red,iz_red)
     kcell=neighGTFcell(3,iloopGTF,ix_red,iy_red,iz_red)
     call tvec_PBC(icell,jcell,kcell,tvec)
+    facreal=cos(2*pi*(icell*kp1crd+jcell*kp2crd+kcell*kp3crd)) !Real part of exponent term of wavefunction
 	jcen=b(j)%center
 	sftx=x-(a(jcen)%x+tvec(1))
 	sfty=y-(a(jcen)%y+tvec(2))
@@ -860,7 +864,7 @@ do iloopGTF=1,nloopGTF
 	ep=b(j)%exp
 	tmpval=-ep*rr
 	if (tmpval>expcutoff_PBC.or.expcutoff_PBC>0) then
-		expterm=exp(tmpval)
+		expterm=exp(tmpval)*facreal !!!! Real part of exponent term of wavefunction is merged into exponent term to make it take effect properly without modifying any other codes
     else
 		cycle
     end if
@@ -1045,6 +1049,7 @@ call getpointcell(x,y,z,ic,jc,kc)
 do icell=ic-PBCnx,ic+PBCnx
     do jcell=jc-PBCny,jc+PBCny
         do kcell=kc-PBCnz,kc+PBCnz
+			facreal=cos(2*pi*(icell*kp1crd+jcell*kp2crd+kcell*kp3crd)) !Real part of exponent term of wavefunction
 			lastcen=-1 !Arbitrary value
             call tvec_PBC(icell,jcell,kcell,tvec)
             xmove=tvec(1)
@@ -1058,16 +1063,16 @@ do icell=ic-PBCnx,ic+PBCnx
 						sftx=x-(a(jcen)%x+xmove)
 						sfty=y-(a(jcen)%y+ymove)
 						sftz=z-(a(jcen)%z+zmove)
-	            			sftx2=sftx*sftx
-	            			sfty2=sfty*sfty
-	            			sftz2=sftz*sftz
-	            			rr=sftx2+sfty2+sftz2
+	            		sftx2=sftx*sftx
+	            		sfty2=sfty*sfty
+	            		sftz2=sftz*sftz
+	            		rr=sftx2+sfty2+sftz2
 					end if
 					ep=b(j)%exp
 					tmpval=-ep*rr
 					lastcen=jcen
 					if (tmpval>expcutoff_PBC.or.expcutoff_PBC>0) then
-	            			expterm=exp(tmpval)
+                        expterm=exp(tmpval)*facreal !!!! Real part of exponent term of wavefunction is merged into exponent term to make it take effect properly without modifying any other codes
 					else
 						cycle
 					end if
@@ -1253,16 +1258,16 @@ do icell=ic-PBCnx,ic+PBCnx
 						sftx=x-(a(jcen)%x+xmove)
 						sfty=y-(a(jcen)%y+ymove)
 						sftz=z-(a(jcen)%z+zmove)
-	            			sftx2=sftx*sftx
-	            			sfty2=sfty*sfty
-	            			sftz2=sftz*sftz
-	            			rr=sftx2+sfty2+sftz2
+	            		sftx2=sftx*sftx
+	            		sfty2=sfty*sfty
+	            		sftz2=sftz*sftz
+	            		rr=sftx2+sfty2+sftz2
 					end if
 					ep=b_uniq(j)%exp
 					tmpval=-ep*rr
 					lastcen=jcen
 					if (tmpval>expcutoff_PBC.or.expcutoff_PBC>0) then
-	            			expterm=exp(tmpval)
+                        expterm=exp(tmpval)
 					else
 						cycle
 					end if
@@ -5657,6 +5662,8 @@ end function
 
 !!------- Use trilinear interpolation to obtain value at a given point by using cubmat
 !itype==1: interpolate from cubmat, =2: from cubmattmp
+!Ref.: https://en.wikipedia.org/wiki/Trilinear_interpolation
+!Trilinear interpolation is equivalent to linear interpolation between two bilinear interpolations
 real*8 function linintp3d(x,y,z,itype)
 real*8 x,y,z
 integer itype
@@ -5664,7 +5671,7 @@ character c80tmp*80
 do ix=1,nx
 	x1=orgx+(ix-1)*dx
 	x2=orgx+ix*dx
-	if (x>=x1.and.x<x2) exit  !1D-10 is used to avoid numerical uncertainty
+	if (x>=x1.and.x<x2) exit
 end do
 do iy=1,ny
 	y1=orgy+(iy-1)*dy
@@ -5678,7 +5685,7 @@ do iz=1,nz
 end do
 if (ix>=nx.or.iy>=ny.or.iz>=nz) then !Out of grid data range
 	linintp3d=0D0
-else
+else !Perform two bilinear interpolations first, then further linear interpolation
 	if (itype==1) then
 		valxy1=( cubmat(ix,iy,iz  )*(x2-x)*(y2-y) + cubmat(ix+1,iy,iz  )*(x-x1)*(y2-y) + &
 			cubmat(ix,iy+1,iz  )*(x2-x)*(y-y1) + cubmat(ix+1,iy+1,iz  )*(x-x1)*(y-y1) ) /dx/dy
@@ -5693,6 +5700,44 @@ else
 	linintp3d=valxy1+(z-z1)*(valxy2-valxy1)/dz
 end if
 end function
+
+
+
+
+!!------- Use trilinear interpolation to obtain value at a given point by using cubmat
+!itype==1: interpolate from cubmat, =2: from cubmattmp
+!Ref.: https://en.wikipedia.org/wiki/Trilinear_interpolation
+!Trilinear interpolation is equivalent to linear interpolation between two bilinear interpolations
+!real*8 function linintp3d(x,y,z,itype)
+!real*8 x,y,z
+!integer itype
+!character c80tmp*80
+!real*8 Cart(3),fract(3),Cartend(3),fractend(3)
+!
+!Cart(1)=x
+!Cart(2)=y
+!Cart(3)=z
+!call Cart2fract_grid(Cart,fract)
+!Cartend(:)=gridv1(:)*(nx-1)+gridv2(:)*(ny-1)+gridv3(:)*(nz-1)
+!call Cart2fract_grid(Cartend,fractend)
+!!Perform two bilinear interpolations first, then further linear interpolation
+!if (fract(1)>0.and.fract(1)<fractend(1).and.fract(2)>0.and.fract(2)<fractend(2).and.fract(3)>0.and.fract(3)<fractend(3)) then
+!	if (itype==1) then
+!		valxy1=( cubmat(ix,iy,iz  )*(x2-x)*(y2-y) + cubmat(ix+1,iy,iz  )*(x-x1)*(y2-y) + &
+!			cubmat(ix,iy+1,iz  )*(x2-x)*(y-y1) + cubmat(ix+1,iy+1,iz  )*(x-x1)*(y-y1) ) /dx/dy
+!		valxy2=( cubmat(ix,iy,iz+1)*(x2-x)*(y2-y) + cubmat(ix+1,iy,iz+1)*(x-x1)*(y2-y) + &
+!			cubmat(ix,iy+1,iz+1)*(x2-x)*(y-y1) + cubmat(ix+1,iy+1,iz+1)*(x-x1)*(y-y1) ) /dx/dy
+!	else
+!		valxy1=( cubmattmp(ix,iy,iz  )*(x2-x)*(y2-y) + cubmattmp(ix+1,iy,iz  )*(x-x1)*(y2-y) + &
+!			cubmattmp(ix,iy+1,iz  )*(x2-x)*(y-y1) + cubmattmp(ix+1,iy+1,iz  )*(x-x1)*(y-y1) ) /dx/dy
+!		valxy2=( cubmattmp(ix,iy,iz+1)*(x2-x)*(y2-y) + cubmattmp(ix+1,iy,iz+1)*(x-x1)*(y2-y) + &
+!			cubmattmp(ix,iy+1,iz+1)*(x2-x)*(y-y1) + cubmattmp(ix+1,iy+1,iz+1)*(x-x1)*(y-y1) ) /dx/dy
+!	end if
+!	linintp3d=valxy1+(z-z1)*(valxy2-valxy1)/dz
+!else !Out of grid data range
+!	linintp3d=0D0
+!end if
+!end function
 
 
 

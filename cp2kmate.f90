@@ -13,7 +13,7 @@ write(*,"(a)") " 4 Obtain LUCO and HOCO energies and show band gap based on the 
 write(*,*) "5 Obtain exact DOS based on energy levels at all k-points"
 write(*,*) "6 Calculate and export overlap matrix to CP2K_overlap.txt in current folder"
 write(*,*) "7 Load orbital energies from CP2K output file"
-!write(*,*) "8 Extract k-point wavefunction"
+write(*,*) "8 Load orbitals of specific k-point from CP2K output file"
 read(*,*) isel
 
 if (isel==1) then
@@ -27,7 +27,7 @@ else if (isel==4) then
 else if (isel==5) then
     call CP2K_bandgap_DOS(2)
 else if (isel==6) then
-    	call ask_Sbas_PBC
+    call ask_Sbas_PBC
     write(*,*) "Exporting..."
     open(10,file="CP2K_overlap.txt",status="replace")
 	call showmatgau(Sbas,"Overlap matrix",1,fileid=10)
@@ -36,7 +36,7 @@ else if (isel==6) then
 else if (isel==7) then
     call CP2K_MOene_load
 else if (isel==8) then
-    !call CP2K_kptwfn
+    call CP2K_loadkpwfn
 end if
 end subroutine
 
@@ -2392,8 +2392,10 @@ if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imom
     end if
     if (ioutorbene==1) then
         write(ifileid,"(a)") "      &MO"
-        write(ifileid,"(a)") "        ENERGIES T"
-        write(ifileid,"(a)") "        OCCUPATION_NUMBERS T"
+        write(ifileid,"(a)") "        ENERGIES T #Print orbital energies"
+        write(ifileid,"(a)") "        OCCUPATION_NUMBERS T #Print orbital occupation numbers"
+        write(ifileid,"(a)") "        COEFFICIENTS F #Print orbital coefficients"
+        write(ifileid,"(a,2i6)") "        #MO_INDEX_RANGE",1,nint(max(naelec,nbelec))
         write(ifileid,"(a)") "        &EACH"
         write(ifileid,"(a)") "          QS_SCF 0"
         write(ifileid,"(a)") "        &END EACH"
@@ -4567,7 +4569,7 @@ write(*,*) "1 Load orbital energies from output file with &PRINT/&MO/ENERGIES T"
 write(*,*) "2 Load orbital energies from output file with &PRINT/&MO_CUBES"
 read(*,*) itype
 
-write(*,"(a)") " Input the path of CP2K output file containing orbital energies, e.g. D:\sobereva.out"
+write(*,"(a)") " Input the path of CP2K output file containing orbital energies, e.g. D:\waifu.out"
 do while(.true.)
 	read(*,"(a)") c2000tmp
 	inquire(file=c2000tmp,exist=alive)
@@ -4667,4 +4669,153 @@ end if
     
 close(10)
 write(*,*) "Loading finished!"
+end subroutine
+
+
+
+
+
+!!---------- Load orbital coefficients of specific k-point from CP2K output file with &DFT/&PRINT/&MO/COEFFICIENTS T    
+subroutine CP2K_loadkpwfn
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+character c2000tmp*2000,c80tmp*80,c200tmp*200
+real*8,allocatable :: CObasa_tmp(:,:),CObasb_tmp(:,:)
+
+!c2000tmp="C:\Users\sober\Desktop\kp.out"
+write(*,"(/,a)") " Input the path of CP2K output file containing orbital coefficients, e.g. D:\sobereva.out"
+do while(.true.)
+	read(*,"(a)") c2000tmp
+	inquire(file=c2000tmp,exist=alive)
+	if (alive) exit
+	write(*,*) "Cannot find the file, input again!"
+end do
+
+ikp=10
+write(*,*)
+write(*,*) "Load which k-point? e.g. 3"
+read(*,*) ikp
+
+open(10,file=trim(c2000tmp),status="old")
+write(c80tmp,"(i6)") ikp
+call loclabelfinal(10,"FOR K POINT "//trim(adjustl(c80tmp)),ifound)
+if (ifound==0) then
+    write(*,*) "Error: Unable to find orbital information for this k-point!"
+    write(*,*) "Press ENTER button to return"
+    read(*,*)
+    close(10)
+    return
+else
+    read(10,*);read(10,*)
+end if
+
+write(*,*) "Input fractional coordinate of this k-point in reciprocal space"
+write(*,*) "e.g. 0,0.5,0"
+write(*,*) "If press ENTER button directly, the coordinate will be 0,0,0"
+read(*,"(a)") c80tmp
+if (c80tmp==" ") then
+    kp1crd=0
+    kp2crd=0
+    kp3crd=0
+else
+    read(c80tmp,*) kp1crd,kp2crd,kp3crd
+end if
+
+!nprintorb=18
+write(*,*)
+write(*,*) "How many orbitals were printed in the CP2K output file? e.g. 18"
+read(*,*) nprintorb
+
+!Load CP2K coefficient matrix to CObasa_tmp
+allocate(CObasa_tmp(nbasis,nbasis))
+CObasa_tmp=0
+nframe=ceiling(nprintorb/4D0)
+do iframe=1,nframe
+    call skiplines(10,5)
+    ibeg=(iframe-1)*4+1
+    if (iframe==nframe) then
+        iend=(iframe-1)*4+mod(nprintorb,4)
+    else
+        iend=(iframe-1)*4+4
+    end if
+    do iatm=1,ncenter
+        do ibas=basstart(iatm),basend(iatm)
+            read(10,"(a)") c200tmp
+            !write(*,*) trim(c200tmp)
+            read(c200tmp(27:),*) CObasa_tmp(ibas,ibeg:iend)
+        end do
+        read(10,*)
+    end do
+end do
+close(10)
+
+!Reorder coefficients, map CObasa_tmp to CObasa
+ibas=1
+CObasa=0
+do while(ibas<=nbasis)
+    if (bastype(ibas)==1) then !S
+        CObasa(ibas,:)=CObasa_tmp(ibas,:)
+        ibas=ibas+1
+    else if (bastype(ibas)==2) then !PX
+        !CP2K: Y,Z,X
+        CObasa(ibas,:)=CObasa_tmp(ibas+2,:)   !X
+        CObasa(ibas+1,:)=CObasa_tmp(ibas,:)   !Y
+        CObasa(ibas+2,:)=CObasa_tmp(ibas+1,:) !Z
+        ibas=ibas+3
+    else if (bastype(ibas)==-5) then !D0
+        !CP2K: D-2,D-1,D0,D+1,D+2
+        CObasa(ibas,:)=CObasa_tmp(ibas+2,:)
+        CObasa(ibas+1,:)=CObasa_tmp(ibas+3,:)
+        CObasa(ibas+2,:)=CObasa_tmp(ibas+1,:)
+        CObasa(ibas+3,:)=CObasa_tmp(ibas+4,:)
+        CObasa(ibas+4,:)=CObasa_tmp(ibas,:)
+        ibas=ibas+5
+    else if (bastype(ibas)==-12) then !F0
+        !CP2K: F-3,F-2,F-1,F0,F+1,F+2,F+3
+        CObasa(ibas,:)=CObasa_tmp(ibas+3,:)
+        CObasa(ibas+1,:)=CObasa_tmp(ibas+4,:)
+        CObasa(ibas+2,:)=CObasa_tmp(ibas+2,:)
+        CObasa(ibas+3,:)=CObasa_tmp(ibas+5,:)
+        CObasa(ibas+4,:)=CObasa_tmp(ibas+1,:)
+        CObasa(ibas+5,:)=CObasa_tmp(ibas+6,:)
+        CObasa(ibas+6,:)=CObasa_tmp(ibas,:)
+        ibas=ibas+7
+    else if (bastype(ibas)==-21) then !G0
+        !CP2K: G-4,G-3,G-2,G-1,G0,G+1,G+2,G+3,G+4
+        CObasa(ibas,:)=CObasa_tmp(ibas+4,:)   !G0
+        CObasa(ibas+1,:)=CObasa_tmp(ibas+5,:) !G+1
+        CObasa(ibas+2,:)=CObasa_tmp(ibas+3,:) !G-1
+        CObasa(ibas+3,:)=CObasa_tmp(ibas+6,:) !G+2
+        CObasa(ibas+4,:)=CObasa_tmp(ibas+2,:) !G-2
+        CObasa(ibas+5,:)=CObasa_tmp(ibas+7,:) !G+3
+        CObasa(ibas+6,:)=CObasa_tmp(ibas+1,:) !G-3
+        CObasa(ibas+7,:)=CObasa_tmp(ibas+8,:) !G+4
+        CObasa(ibas+8,:)=CObasa_tmp(ibas,:)   !G-4
+        ibas=ibas+9
+    else if (bastype(ibas)==-32) then !H0
+        !CP2K: H-5,H-4,H-3,H-2,H-1,H0,H+1,H+2,H+3,H+4,H+5
+        CObasa(ibas,:)=CObasa_tmp(ibas+5,:)    !H0
+        CObasa(ibas+1,:)=CObasa_tmp(ibas+6,:)  !H+1
+        CObasa(ibas+2,:)=CObasa_tmp(ibas+4,:)  !H-1
+        CObasa(ibas+3,:)=CObasa_tmp(ibas+7,:)  !H+2
+        CObasa(ibas+4,:)=CObasa_tmp(ibas+3,:)  !H-2
+        CObasa(ibas+5,:)=CObasa_tmp(ibas+8,:)  !H+3
+        CObasa(ibas+6,:)=CObasa_tmp(ibas+2,:)  !H-3
+        CObasa(ibas+7,:)=CObasa_tmp(ibas+9,:)  !H+4
+        CObasa(ibas+8,:)=CObasa_tmp(ibas+1,:)  !H-4
+        CObasa(ibas+9,:)=CObasa_tmp(ibas+10,:) !H+5
+        CObasa(ibas+10,:)=CObasa_tmp(ibas,:)   !H-5
+        ibas=ibas+11
+    end if
+end do
+
+write(*,*) "Loading finished!"
+
+if (wfntype==0.or.wfntype==3) then
+    call CObas2CO(1)
+else
+    call CObas2CO(3)
+end if
+call genP
 end subroutine

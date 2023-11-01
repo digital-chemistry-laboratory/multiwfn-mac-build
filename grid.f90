@@ -967,3 +967,23 @@ PBCnx=1
 PBCny=1
 PBCnz=1
 end subroutine
+
+
+
+!!!------ Convert Cartesian coordinates to fractional coordinates, just for grid data
+!In this case, the cell defining fractional coordinate corresponds to the box containing all grids. Origin of fractional coordinate is (orgx,orgy,orgz)
+!"Cart" is common Cartesian coordinate
+subroutine Cart2fract_grid(Cart,fract)
+use defvar
+use util
+real*8 Cart(3),fract(3),Amat(3,3),Bmat(3,3),Fcoord(3,1),rcoord(3,1)
+rcoord(1,1)=Cart(1)-orgx
+rcoord(2,1)=Cart(2)-orgy
+rcoord(3,1)=Cart(3)-orgz
+Amat(:,1)=gridv1(:)*nx
+Amat(:,2)=gridv2(:)*ny
+Amat(:,3)=gridv3(:)*nz
+Bmat=invmat(Amat,3)
+Fcoord=matmul(Bmat,rcoord)
+fract(:)=Fcoord(:,1)
+end subroutine

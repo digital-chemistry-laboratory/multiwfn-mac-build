@@ -247,7 +247,7 @@ character :: shtype2name(-5:5)=(/ "H","G","F","D","L","S","P","D","F","G","H" /)
 !Convert shell type to the number of basis functions in the shell: 0=s,1=p,-1=sp,2=6d,-2=5d,3=10f,-3=7f,4=15g,-4=9g,5=21h,-5=11h
 integer :: shtype2nbas(-5:5)=(/ 11,9,7,5,4,1,3,6,10,15,21 /) 
 
-!-------- Variables for wfn information(_org means using for backuping the first loaded molecule)
+!-------- Variables for wavefunction information (_org means using for backuping the first loaded molecule)
 integer :: ibasmode=0 !0/1 = GTO/STO is used in current wavefunction
 integer :: nmo=0,nprims=0,ncenter=0,ncenter_org=0,nmo_org=0,nprims_org=0 !Number of orbitals, primitive functions, nuclei
 integer :: idxHOMO=0,idxHOMOb=0 !shtype of total/alpha and beta-HOMO. Can be determined by subroutine getHOMOidx
@@ -255,6 +255,7 @@ integer :: ifiletype=0 !Plain text=0, fch/fchk=1, wfn=2, wfx=3, chg/pqr=4, pdb/x
 integer :: wfntype=0 !0/1/2= R/U/RO single determinant wavefunction, 3/4=R/U multiconfiguration wavefunction
 real*8 :: totenergy=0,virialratio=2,nelec=0,naelec=0,nbelec=0
 integer :: loadmulti=-99,loadcharge=-99 !Spin multiplicity and net charge, loaded directly from input file (e.g. from .gjf, Gaussian .out, ORCA .inp, title line of .xyz), only utilized in rare cases. -99 means unloaded
+real*8 :: kp1crd=0,kp2crd=0,kp3crd=0 !k-point fractional coordinate in three directions in reciprocal space for present wavefunction
 !-------- Variables for nuclei & GTF & Orbitals. Note: Row and column of CO(:,:) correspond to orbital and GTF, respectively, in contrary to convention
 type(atomtype),allocatable :: a(:),a_org(:),a_tmp(:) !a_tmp is only used in local temporary operation, should be destoried immediatedly after using
 type(primtype),allocatable,target :: b(:)
@@ -466,10 +467,10 @@ real*8 :: globaltmp=0 !A variable can be used anywhere and can be set by option 
 !! About line/plane/grid calculation, inner parameter
 !For 3D grid data. If the grid is not rectangle, only gridvec can fully define translation vectors
 real*8 :: orgx,orgy,orgz,endx,endy,endz !Origin, end point and translation length in X/Y/Z. dx=0 means the box was not defined before
-real*8 :: dx=0,dy,dz !Translation length in X/Y/Z. dx=0 means the box was not defined before. Using dx,dy,dz should be avoided in the future, always use gridv1/2/3 instead!
 integer :: nx=80,ny=80,nz=80 !The number of grids in three directions (never necessarily in X,Y,Z!)
 real*8 :: boxlenX,boxlenY,boxlenZ,boxcenX,boxcenY,boxcenZ !For temporary exchange data for setting box in GUI
-real*8 :: gridv1(3),gridv2(3),gridv3(3) !1/2/3th translation vector of grid. dx,dy,dz corresponds to 1(1), 2(2), 3(3) terms
+real*8 :: gridv1(3),gridv2(3),gridv3(3) !1/2/3th translation vector of grid. dx,dy,dz corresponds to gridv1(1), gridv2(2), gridv3(3)
+real*8 :: dx=0,dy,dz !Translation length in X/Y/Z. dx=0 means the box was not defined before. Using dx,dy,dz should be avoided in the future, always use gridv1/2/3 instead!
 !For 2D plane map
 real*8 :: v1x,v1y,v2x,v2y,v1z,v2z,a1x,a1y,a1z,a2x,a2y,a2z,a3x,a3y,a3z,d1,d2 !Translation vector 1 and 2, three point in self-defined plane for projecting label, d1,d2=Length of v1,v2
 real*8 :: orgx2D,orgy2D,orgz2D !X, Y, Z coordinate of origin of the plane map in molecular Cartesian space

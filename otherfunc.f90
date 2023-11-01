@@ -2722,7 +2722,7 @@ if (iorbform==0) then !Delocalized case
         
 	end if
 
-    !SCPA method is used for calculating total contribution of P type of GTF that perpendicular to the plane
+    !SCPA method is used for calculating total contribution of P type of GTF that perpendicular to the plane (perpcontri)
 	write(*,*) "Expected pi orbitals, occupation numbers and orbital energies (eV):"
 	do imo=1,nmo
         perpcontri=0
@@ -2730,18 +2730,20 @@ if (iorbform==0) then !Delocalized case
 			GTFtype=b(iprim)%type
 			if (iplane==1) then !XY
 				if ( (GTFtype==1.or.GTFtype==2.or.GTFtype==3).and.abs(CO(imo,iprim))>tolerpara ) exit !Orbital has S,X,Y component, so this is not pi-Z
-                if (GTFtype==4) perpcontri=perpcontri+CO(imo,iprim)**2
+                if (GTFtype==4.or.GTFtype==7.or.GTFtype==9.or.GTFtype==10) perpcontri=perpcontri+CO(imo,iprim)**2 !Z,ZZ,XZ,YZ
 			else if (iplane==2) then !YZ
 				if ( (GTFtype==1.or.GTFtype==3.or.GTFtype==4).and.abs(CO(imo,iprim))>tolerpara ) exit !Orbital has S,Y,Z component, so this is not pi-X
-                if (GTFtype==2) perpcontri=perpcontri+CO(imo,iprim)**2
+                if (GTFtype==2.or.GTFtype==5.or.GTFtype==8.or.GTFtype==9) perpcontri=perpcontri+CO(imo,iprim)**2 !X,XX,XY,XZ
+                !if (imo==136) write(*,"(i5,2f12.6)") iprim,perpcontri,CO(imo,iprim)**2
 			else if (iplane==3) then !XZ
 				if ( (GTFtype==1.or.GTFtype==2.or.GTFtype==4).and.abs(CO(imo,iprim))>tolerpara ) exit !Orbital has S,X,Z component, so this is not pi-Y
-                if (GTFtype==3) perpcontri=perpcontri+CO(imo,iprim)**2
+                if (GTFtype==3.or.GTFtype==6.or.GTFtype==8.or.GTFtype==10) perpcontri=perpcontri+CO(imo,iprim)**2 !Y,YY,XY,YZ
 			end if
 			if (iprim==nprims) then
                 testmag=sum(abs(CO(imo,:)))
                 if (testmag<0.2D0) exit !The orbital may be core orbital of an atom, but GTF of this atom have been discarded using main function 6, therefore vanished
-                perpcontri=perpcontri/sum(CO(imo,:)**2)*100
+                !if (imo==136) write(*,*) perpcontri,sum(CO(imo,:)**2)
+                perpcontri=perpcontri/sum(CO(imo,:)**2)*100 !Composition of 
                 if (perpcontri<tolerperp) exit
 				piorblist(imo)=1
 				pinelec=pinelec+MOocc(imo)

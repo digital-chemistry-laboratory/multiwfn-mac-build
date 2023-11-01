@@ -147,12 +147,14 @@ end subroutine
 !!!------------- Generate overlap matrix between all Cartesian basis functions
 !Sbas should be allocated first
 !If current basis functions contain spherical ones, it must be then converted to spherical-harmonic one before any practical use
+!k-point is taken into account for periodic case, but imaginary part is ignored
 subroutine genSbas
 use defvar
 use util
 implicit real*8 (a-h,o-z)
 real*8 dispvec(3)
 real*8,external :: doSintactual_disp
+real*8 Sbas_tmp(nbasisCar,nbasisCar)
 
 Sbas=0D0
 if (ifPBC==0) then
@@ -173,20 +175,23 @@ else !PBC case
 	!Summing up all neighbouring cells. This is valid for analysis for periodic system
 	!See (9.4) in p328 of Quantum Chemistry of Solids - The LCAO First Principles Treatment of Crystals
 	ifinish=0
-	!$OMP PARALLEL DO SHARED(Sbas,ifinish) PRIVATE(i,ii,j,jj,icell,jcell,kcell,tmp,dispvec) schedule(dynamic) NUM_THREADS(nthreads)
+	!$OMP PARALLEL DO SHARED(Sbas,ifinish) PRIVATE(i,ii,j,jj,icell,jcell,kcell,tmp,Sbasadd,dispvec,facreal) schedule(dynamic) NUM_THREADS(nthreads)
 	do i=1,nbasisCar
 		do icell=-PBCnx,PBCnx
 			do jcell=-PBCny,PBCny
 				do kcell=-PBCnz,PBCnz
 					call tvec_PBC(icell,jcell,kcell,dispvec)
+                    facreal=cos(2*pi*(icell*kp1crd+jcell*kp2crd+kcell*kp3crd)) !Real part of exponent term of overlap matrix
 					do j=i,nbasisCar
+						Sbasadd=0
 						do ii=primstart(i),primend(i)
 							tmp=0
 							do jj=primstart(j),primend(j)
 								tmp=tmp+primconnorm(jj)*doSintactual_disp(ii,jj,0,0,0,0,0,0,dispvec)
 							end do
-                            Sbas(i,j)=Sbas(i,j)+primconnorm(ii)*tmp
+                            Sbasadd=Sbasadd+primconnorm(ii)*tmp
 						end do
+						Sbas(i,j)=Sbas(i,j)+Sbasadd*facreal
 					end do
 				end do
 			end do
@@ -197,6 +202,7 @@ else !PBC case
 		!$OMP END CRITICAL
 	end do
 	!$OMP END PARALLEL DO
+    
 	do i=1,nbasisCar
 		do j=i,nbasisCar
 			Sbas(j,i)=Sbas(i,j)

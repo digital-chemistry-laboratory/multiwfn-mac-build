@@ -8608,8 +8608,11 @@ call loclabel(10,'Index=         1',irewind=0)
 iaorb=0;iborb=0
 do iorb=1,norbload
     if (iorb>1) read(10,*,iostat=ierror) !Skip space line between each orbital
-    read(10,*,iostat=ierror) !Skip index line
-    if (ierror==0) then
+    read(10,*,iostat=ierror) c80tmp !Skip index line
+    if (index(c80tmp,"Index=")==0.or.ierror/=0) then !norbload is larger than actual number of recorded orbitals, often because linearly dependent basis functions are eliminated
+        write(*,"(i6,' orbitals were actually loaded')") iorb-1
+        exit
+    else
         read(10,*) c80tmp,itype
         if (ires==1) then !Restricted
             MOtype(iorb)=itype
@@ -8637,9 +8640,6 @@ do iorb=1,norbload
                 read(10,*) bmocoeff(:,iborb)
             end if
         end if
-    else !norbload is larger than actual number of recorded orbitals, often because linearly dependent basis functions are eliminated
-        write(*,"(i6,' orbitals were actually loaded')") iorb-1
-        exit
     end if
 end do
 if (wfntype==1.or.wfntype==4) then !Unrestricted case, assign correct spin type for artificially filled orbitals

@@ -22,7 +22,7 @@ do while(.true.)
 	write(*,*) "-1 Return"
 	write(*,*) "0 Save the modified wavefunction to a new .wfn file"
 	if (allocated(CObasa)) then
-		write(*,*) "1 List all GTFs      2 List all basis function"
+		write(*,*) "1 List all GTFs                    2 List all basis function"
 	else
 		write(*,*) "1 List all GTFs"
 	end if
@@ -1287,6 +1287,7 @@ else if (itype==2) then
 	write(*,"(' Maximum deviation to 1:',f16.10)") rmaxdev
 	write(*,"(' Maximum deviation to integer:',f16.10)") rmaxdevint
 else if (itype==3) then
+    call ask_Sbas_PBC
 	write(*,"(' Trace of density matrix multiplied by overlap matrix:',f14.6)") sum(Ptot*Sbas)
     write(*,"(' Expected number of electrons:',i10)") nint(nelec)
     if (wfntype==1) then
@@ -2695,6 +2696,7 @@ ncenter=0
 iresinfo=0
 nbasis=0
 nindbasis=0
+kp1crd=0;kp2crd=0;kp3crd=0
 
 ifPBC=0
 cellv1=0;cellv2=0;cellv3=0
