@@ -2137,7 +2137,7 @@ if (iwfc==1) then
             if (PBCdir=="XYZ") write(ifileid,"(a)") "            PERIODIC_CORRECTION F  #If periodic correction scheme will be used"
             if (ikpoint1>1.or.ikpoint2>1.or.ikpoint3>1) write(ifileid,"(a,3i3,a)") "            KPOINTS_SELF_ENERGY",ikpoint1,ikpoint2,ikpoint3,"  #Number of k-points for self-energy"
             write(ifileid,"(a)") "          &END GW"
-            write(ifileid,"(a)") "          SIZE_FREQ_INTEG_GROUP  1  #Number of processes for computing each integration point, must be multiple of GROUP_SIZE in &WF_CORRELATION"
+            !write(ifileid,"(a)") "          SIZE_FREQ_INTEG_GROUP  1  #Number of processes for computing each integration point, must be multiple of GROUP_SIZE in &WF_CORRELATION"
         end if
         write(ifileid,"(a)") "        &END RI_RPA"
     else !Other case, all involve MP2

@@ -258,7 +258,7 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
             read(10,"(50x,i7)") nstates
 		end if
         !This label is the most safest way of determining how many times of electronic excitation calculations have done
-        !If singlet and triplet are both calculated, will be count once
+        !If singlet and triplet are both calculated, will be counted once
         call loclabelfinal(10,"TD-DFT XC SETUP",numexctime)
         if (numexctime>1) then
 			write(*,"(a,i4,a)") " Note: Electron excitation information can be found",numexctime," times in the file, &
@@ -384,7 +384,7 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
 		    end if
             rewind(10)
             do igeom=1,numexctime
-                call loclabel(10,"Number of roots to be determined",ifound,0)
+				call loclabel(10,"TD-DFT XC SETUP",ifound,0)
                 read(10,*)
             end do
 		    call loclabel(10,"the weight of the individual excitations are printed",ifound,0)

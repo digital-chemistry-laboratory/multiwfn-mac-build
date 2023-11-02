@@ -1688,12 +1688,13 @@ end if
 allocate(pttens(3,3,npt),ptNICSiso(npt),ptNICSaniso(npt))
 call loclabel(10,"Bq",ifound,0)
 do ipt=1,npt
-    read(10,"(a)") c80tmp
+    write(*,"(' Loading Bq',i8)") ipt
+	read(10,"(a)") c80tmp
     read(c80tmp(26:),*) ptNICSiso(ipt)
     read(c80tmp(52:),*) ptNICSaniso(ipt)
-    read(10,*) c80tmp,pttens(1,1,ipt),c80tmp,pttens(1,2,ipt),c80tmp,pttens(1,3,ipt)
-    read(10,*) c80tmp,pttens(2,1,ipt),c80tmp,pttens(2,2,ipt),c80tmp,pttens(2,3,ipt)
-    read(10,*) c80tmp,pttens(3,1,ipt),c80tmp,pttens(3,2,ipt),c80tmp,pttens(3,3,ipt)
+    read(10,"(6x,f11.4,6x,f11.4,6x,f11.4)") pttens(1,1,ipt),pttens(1,2,ipt),pttens(1,3,ipt)
+    read(10,"(6x,f11.4,6x,f11.4,6x,f11.4)") pttens(2,1,ipt),pttens(2,2,ipt),pttens(2,3,ipt)
+    read(10,"(6x,f11.4,6x,f11.4,6x,f11.4)") pttens(3,1,ipt),pttens(3,2,ipt),pttens(3,3,ipt)
     read(10,*)
 end do
 close(10)
