@@ -350,7 +350,7 @@ end subroutine
 !!------- Module used by fitatmdens and related routines
 module fitatmdens_mod
 real*8,allocatable :: radr(:),radrho(:) !Radial distance and sphericallized density
-integer :: ifittype=3 !=1: Minimize absolute error, =2: Minimize relative error, =3: Minimize RDF error
+integer :: ifittype=2 !=1: Minimize absolute error, =2: Minimize relative error, =3: Minimize RDF error
 integer :: ifunctype=1 !=1: STO, =2: GTF
 integer,parameter :: maxfitfunc=1000 !Maximum number of fitting functions
 real*8 exp_fit(maxfitfunc) !If exponents are requested to be fixed, use this array to pass exponents to the calculation routine
@@ -367,7 +367,7 @@ use util
 use plot
 implicit real*8 (a-h,o-z)
 character(len=3) :: funclab(2)=(/ "STO","GTF" /)
-character clegend*80,c200tmp*200
+character clegend*80,c200tmp*200,c80tmp*80
 real*8 parm(maxfitfunc*2) !Up to maxfitfunc fitting functions. The first half is coefficient, the latter half is exponents
 real*8,allocatable :: fiterr(:),fitrho(:) !Fitting error and fitted density at each fitting point
 integer :: npoint_CB=0
@@ -388,6 +388,7 @@ if (ncenter/=1.or.a(1)%x/=0.or.a(1)%y/=0.or.a(1)%z/=0) then
     read(*,*)
 end if
 
+maxcall=10000
 expcutoff=1 !Disable exponent truncation
 radstep=0.001D0/b2a
 npoint=4000
@@ -418,6 +419,7 @@ do while(.true.)
     if (idelredun==0) write(*,*) "11 Toggle removing redundant fitting functions, current: No"
     if (idelredun==1) write(*,*) "11 Toggle removing redundant fitting functions, current: Yes"
     write(*,"(a,i4)") " 12 Set number of second kind Gauss-Chebyshev fitting points, current:",npoint_CB
+    write(*,"(a,i10)") " 13 Set maximum number of function calls, current:",maxcall
     read(*,*) isel
     
     if (isel==0) then
@@ -445,14 +447,18 @@ do while(.true.)
             write(*,*)
             write(*,*) "0 Return"
             write(*,*) "1 Load initial guess from text file"
-            write(*,*) "2 Set initial guess as ""crude fitting by a few STOs with variable exponents"""
-            write(*,*) "3 Set initial guess as ""fine fitting by 30 GTFs with fixed exponents"""
-            write(*,*) "4 Set initial guess as ""fine fitting by 10 GTFs with variable exponents"""
-            write(*,*) "5 Set initial guess as ""fine fitting by 15 GTFs with variable exponents"""
+            write(*,*) "  Prebuilt settings:"
+            write(*,*) "2 Crude fitting by a few STOs with variable exponents"
+            write(*,*) "3 Ideal fitting by 30 GTFs with fixed exponents"
+            write(*,*) "4 Fine fitting by 15 GTFs with variable exponents"
+            write(*,*) "5 Fine fitting by 10 GTFs with variable exponents"
             !write(*,*) "6 Set initial guess as ""fine fitting by 20 GTFs with variable exponents"""
             !GTF with variable exponents higher than 15 is not a good idea, it is extremely expensive &
-            !and often the lmdif1 routine return unoptimized result or convergence tolerance cannot be reached, &
+            !and often the lmdif1 routine returns unoptimized result or convergence tolerance cannot be reached, &
             !and the result is never detectably better than 15 GTFs
+            write(*,*) "7 Relatively fine fitting by no more than 10 GTFs with variable exponents"
+            write(*,*) "Hint: Accuracy & number of functions: 3>4>5>7>2"
+            if (nfitfunc>0) write(*,*) "10 Combine two fitting functions together"
             read(*,*) isel2
             
             if (isel2==0) then
@@ -466,7 +472,7 @@ do while(.true.)
 	                write(*,*) "Cannot find the file, input again!"
                 end do
                 open(10,file=c200tmp,status="old")
-                nfitfunc=totlinenum(10,2)
+                nfitfunc=totlinenum(10,1)
                 if (nfitfunc>maxfitfunc) then
                     write(*,"(' Error: Number of fitting functions should not exceed',i6)") maxfitfunc
                     write(*,*) "Press ENTER button to cancel loading"
@@ -477,14 +483,15 @@ do while(.true.)
                     end do
                 end if
                 close(10)
-            else if (isel2==2) then !Initial guess of STO
+            else if (isel2==2) then !Initial guess of few STOs
                 ifixexp=0
-                idelredun=0
+                ifunctype=1
+                idelredun=1
                 if (a(1)%index<=2) then
                     nfitfunc=1
                     parm(1)=1D0
                     parm(2)=2D0
-                else if (a(1)%index<=10) then
+                else if (a(1)%index<=10) then !For second row, using more STOs does not improve result
                     nfitfunc=2
                     parm(1:nfitfunc)=(/ 100,1 /)
                     parm(nfitfunc+1:2*nfitfunc)=(/ 10,2 /)
@@ -510,7 +517,7 @@ do while(.true.)
                 nfitfunc=30
                 idelredun=1
                 do ifunc=1,nfitfunc
-                    !parm(nfitfunc+ifunc)=0.1D0*2D0**(ifunc-1) !Using this is safer, but tail cannot be represent as well as below setting
+                    !parm(nfitfunc+ifunc)=0.1D0*2D0**(ifunc-1) !Using this is safer, but tail cannot be represented as well as below setting
                     parm(nfitfunc+ifunc)=0.05D0*2D0**(ifunc-1)
                 end do
                 parm(1:nfitfunc)=1
@@ -519,26 +526,52 @@ do while(.true.)
                 ifunctype=2
                 idelredun=1
                 if (isel2==4) then
-                    nfitfunc=10
-                    do ifunc=1,nfitfunc
-                        parm(nfitfunc+ifunc)=0.1D0*2.5D0**(ifunc-1)
-                    end do
-                else if (isel2==5) then
                     nfitfunc=15
                     do ifunc=1,nfitfunc
                         parm(nfitfunc+ifunc)=0.1D0*2D0**(ifunc-1)
                     end do
-                else if (isel2==6) then
-                    nfitfunc=20
+                else if (isel2==5) then
+                    nfitfunc=10
                     do ifunc=1,nfitfunc
-                        parm(nfitfunc+ifunc)=0.05D0*1.6D0**(ifunc-1)
+                        parm(nfitfunc+ifunc)=0.1D0*2.5D0**(ifunc-1)
                     end do
+                !else if (isel2==6) then
+                !    nfitfunc=20
+                !    do ifunc=1,nfitfunc
+                !        parm(nfitfunc+ifunc)=0.05D0*1.6D0**(ifunc-1)
+                !    end do
                 end if
                 parm(1:nfitfunc)=1
                 tol=1E-4 !Use more loose tolerance than default make convergence easier while the quality is not detectably lowered
+            else if (isel2==7) then !Initial guess of few GTFs
+                ifixexp=0
+                ifunctype=2
+                idelredun=1
+                if (a(1)%index<=18) then
+                    nfitfunc=6
+                    do ifunc=1,nfitfunc
+                        parm(nfitfunc+ifunc)=0.15D0*2.5D0**(ifunc-1)
+                    end do
+                else
+                    nfitfunc=10
+                    do ifunc=1,nfitfunc
+                        parm(nfitfunc+ifunc)=0.1D0*2.5D0**(ifunc-1)
+                    end do
+                end if
+                parm(1:nfitfunc)=1
+            else if (isel2==10) then
+                write(*,"(a)") " Input indices of the functions to combine (e.g. 1,3), whose average exponent will be taken as the new exponent, &
+                and their coefficients will be summed up"
+                read(*,*) ifunc1,ifunc2
+                parm(ifunc1)=parm(ifunc1)+parm(ifunc2)
+                parm(nfitfunc+ifunc1)=(parm(nfitfunc+ifunc1)+parm(nfitfunc+ifunc2))/2
+                parm(ifunc2:ifunc2+2*nfitfunc)=parm(ifunc2+1:ifunc2+2*nfitfunc+1)
+                nfitfunc=nfitfunc-1
+                parm(nfitfunc+ifunc2:nfitfunc+ifunc2+nfitfunc)=parm(nfitfunc+ifunc2+1:nfitfunc+ifunc2+1+nfitfunc)
+                write(*,*) "Done!"
             end if
         end do
-        
+        maxcall=10000*2*nfitfunc
     else if (isel==4) then
         write(*,*) "Input fitting tolerance, e.g. 1E-7"
         write(*,*) "The smaller the value, the better the fitting accuracy while higher the cost"
@@ -583,7 +616,10 @@ do while(.true.)
         write(*,*) "Set the number of second kind Gauss-Chebyshev points used in fitting, e.g. 80"
         write(*,*) "If input 0, then this kind of points will not be included in fitting"
         read(*,*) npoint_CB
-    
+    else if (isel==13) then
+        write(*,*) "Input maximum number of function calls, e.g. 300000"
+        write(*,"(a)") " Note: If the error minimization does not converge when reaches this condition, the minimization will stop and unconverged result will be reported"
+        read(*,*) maxcall
     else if (isel==1) then !Do fitting
     
         if (nfitfunc==0) then
@@ -669,7 +705,6 @@ do while(.true.)
         
         !!!!!! Start fitting !!!!!!
         nparm=nfitfunc*2
-        maxcall=1000*nparm
         write(*,"(/,' Maximum number of function calls:',i8)") maxcall
         write(*,"(' Convergence tolerance:',f16.8)") tol
         if (ifixexp==1) write(*,*) "Exponents are kept fixed as requested"
@@ -835,6 +870,7 @@ do while(.true.)
             write(*,"(a)") " 5 Export fitted density from 0 to 10 Angstrom with double dense grid to fitdens.txt in current folder"
             write(*,*) "6 Check integral of fitted density"
             write(*,*) "7 Check fitted density at a given radial distance"
+            write(*,*) "8 Output coefficients and exponents as Fortran code to a .txt file" !For my personal use
             read(*,*) isel2
             if (isel2==0) then
                 exit
@@ -948,6 +984,20 @@ do while(.true.)
                 write(*,*) "Input radial distance in Angstrom, e.g. 3.8"
                 read(*,*) rtmp
                 write(*,"(' Fitted density is',1PE16.8,' a.u.')") calcfitdens(rtmp/b2a,nparm,parm)
+            else if (isel2==8) then
+                write(c80tmp,"(i3.3,'_',a,'.txt')") a(1)%index,trim(ind2name(a(1)%index))
+                open(10,file=trim(c80tmp),status="replace")
+                write(10,"(a,i3,a)") "case(",a(1)%index,")"
+                if (ifunctype==1) write(10,"(a,i2)") "    nSTO=",nfitfunc
+                if (ifunctype==2) write(10,"(a,i2)") "    nGTF=",nfitfunc
+                do ifunc=1,nfitfunc
+                    write(10,"('    atomcoeff(',i2,')=',1PD16.8)") ifunc,parm(ifunc)
+                end do
+                do ifunc=1,nfitfunc
+                    write(10,"('    atomexp(',i2,')=',1PD16.8)") ifunc,parm(nfitfunc+ifunc)
+                end do
+                close(10)
+                write(*,*) "Data has been outputted to "//trim(c80tmp)
             end if
         end do
         

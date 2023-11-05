@@ -287,7 +287,7 @@ do while(.true.)
 		do while(.true.)
 			write(*,*)
 			write(*,*) "0 Return to upper level menu"
-			write(*,"(a,f7.4)") " 1 The ratio of vdW radius used to extend spatial region of cubic grids:",vdwmulti
+			write(*,"(a,f7.4)") " 1 Set ratio of vdW radii used to extend spatial region for grids:",vdwmulti
 			if (ifelim==0) write(*,*) "2 Toggle if eliminating redundant vertices: No"
 			if (ifelim==1) write(*,"(a,f6.3,a)") " 2 Toggle if eliminating redundant vertices: Yes, criterion is",critmerge," Bohr"
 			write(*,"(' 3 Number of bisections before linear interpolation, current:',i5)") nbisec
@@ -298,8 +298,8 @@ do while(.true.)
 			if (isel2==0) then
 				exit
 			else if (isel2==1) then
-				write(*,*) "Input a value"
-				write(*,"(a)") "Note: 1.7 is enough for the case of isovalue=0.001, for lower isovalue, a larger value is needed"
+				write(*,*) "Input ratio of vdW radii, e.g. 1.5"
+				write(*,"(a)") " Note: 1.7 is enough for the case of isovalue=0.001, for lower isovalue, a larger value is needed"
 				read(*,*) vdwmulti
 			else if (isel2==2) then
 				if (ifelim==1) then
@@ -425,14 +425,14 @@ if (isurftype==1.or.isurftype==2.or.isurftype==5.or.isurftype==6) then !Calculat
 		allocate(cubmat(nx,ny,nz),cubmattmp(nx,ny,nz))
 		cubmat=0D0
 		cubmattmp=0D0
-		if (ihirshmode==1) then !Doesn't work well currently, because interpolation of density at long range is problematic by Lagrange method
+		if (ihirshmode==1) then
 			do iatm=1,ncenter
 				!$OMP PARALLEL DO SHARED(cubmat,cubmattmp) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp) schedule(dynamic) NUM_THREADS(nthreads)
 				do k=1,nz
 					do j=1,ny
 						do i=1,nx
 							call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
-							denstmp=calcatmdens(iatm,tmpx,tmpy,tmpz,0)
+							denstmp=calcatmdens(iatm,tmpx,tmpy,tmpz,-1) !Use STO fitted atomic density, can elongate to rather long distance to avoid zero denominator of Hirshfeld weight
 							cubmattmp(i,j,k)=cubmattmp(i,j,k)+denstmp
 							if (any(HirBecatm==iatm)) cubmat(i,j,k)=cubmat(i,j,k)+denstmp !Density of specified fragment
 						end do
@@ -464,7 +464,17 @@ if (isurftype==1.or.isurftype==2.or.isurftype==5.or.isurftype==6) then !Calculat
 			write(*,"(' Reloading ',a)") trim(firstfilename)
 			call readinfile(firstfilename,1) !Retrieve to first loaded file(whole molecule)
 		end if
-		cubmat=cubmat/cubmattmp
+		do k=1,nz
+			do j=1,ny
+				do i=1,nx
+					if (cubmattmp(i,j,k)==0) then !At very distant region, promolecular density can be zero
+						cubmat(i,j,k)=0
+                    else
+						cubmat(i,j,k)=cubmat(i,j,k)/cubmattmp(i,j,k)
+                    end if
+                end do
+            end do
+        end do
 
 	else if (isurftype==6) then !Becke analysis, calculate weighting distribution of a specific set of atom
 		if (allocated(cubmat)) deallocate(cubmat)

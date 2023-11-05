@@ -18,7 +18,7 @@ if (ifunc==1) then
 	if (allocated(b)) then
 		calcfuncall=fdens(x,y,z)
 	else
-		calcfuncall=calcprodens(x,y,z,0) !Use interpolation promolecular density
+		calcfuncall=calcprodens(x,y,z,0) !Use promolecular density
 	end if
 else if (ifunc==2) then
 	calcfuncall=fgrad(x,y,z,'t')
@@ -98,11 +98,11 @@ case (3) !Integrand of electronic spatial extent <r^2>
     userfunc=(x*x+y*y+z*z)*fdens(x,y,z)
 case (4) !Weizsacker potential
     userfunc=weizpot(x,y,z)
-case (5) !Integrand of weizsacker functional
+case (5) !Integrand of Weizsacker functional
     userfunc=KED(x,y,z,4) !Equivalent to weizsacker(x,y,z)
 case (6) !Radial distribution function (assume that density is sphericalized)
     userfunc=4*pi*fdens(x,y,z)*(x*x+y*y+z*z)
-case (7) !Local Temperature(Kelvin), PNAS,81,8028
+case (7) !Local Temperature (Kelvin), PNAS,81,8028
 	tmp=fdens(x,y,z)
 	if (tmp>uservar) then
 	    userfunc=2D0/3D0*lagkin(x,y,z,0)/tmp
@@ -3624,7 +3624,7 @@ end subroutine
 
 
 !!----- Calculate electron density, its gradient and Hessian matrix at x,y,z with promolecular approximation
-!Currently only employed by RDG analysis
+!Currently only employed by RDG analysis!!!!!!!!!!! The YWT fitted atomic density used in this subroutine is poor!
 !Electron density and its gradient are always calculated, Hessian will be calculated when "elehess" is present
 !Notice that global array "fragment" must be properly defined! Only the atoms in fragment will be taken into account
 subroutine calchessmat_prodens(xin,yin,zin,elerho,elegrad,elehess)
@@ -3652,7 +3652,7 @@ do icell=ic-PBCnx,ic+PBCnx
             call tvec_PBC(icell,jcell,kcell,tvec)
             do i=1,nfragatm
 	            iatm=fragatm(i)
-	            ind=a(iatm)%index
+	            iele=a(iatm)%index
 	            !rx=a(iatm)%x+tvec(1)-xin !Wrong code, older than 2022-Sep-18
 	            !ry=a(iatm)%y+tvec(2)-yin
 	            !rz=a(iatm)%z+tvec(3)-zin
@@ -3664,31 +3664,31 @@ do icell=ic-PBCnx,ic+PBCnx
 	            rz2=rz*rz
 	            r2=rx2+ry2+rz2
 	            r=dsqrt(r2)
-	            if (ind<=18) then !H~Ar, use Weitao Yang's fitted parameters as original RDG paper
+	            if (iele<=18) then !H~Ar, use Weitao Yang's fitted parameters as original RDG paper
 	                if (atomdenscut==1) then !Tight cutoff, for CHNO corresponding to cutoff at rho=0.00001
-		                if (ind==1.and.r2>25D0) then !H, 6.63^2=43.9569. But this seems to be unnecessarily large, so I use 5^2=25
+		                if (iele==1.and.r2>25D0) then !H, 6.63^2=43.9569. But this seems to be unnecessarily large, so I use 5^2=25
 			                cycle
-		                else if (ind==6.and.r2>58.6756D0) then !C, 7.66^2=58.6756
+		                else if (iele==6.and.r2>58.6756D0) then !C, 7.66^2=58.6756
 			                cycle
-		                else if (ind==7.and.r2>43.917129D0) then !N, 6.627^2=43.917129
+		                else if (iele==7.and.r2>43.917129D0) then !N, 6.627^2=43.917129
 			                cycle
-		                else if (ind==8.and.r2>34.9281D0) then !O, 5.91^2=34.9281
+		                else if (iele==8.and.r2>34.9281D0) then !O, 5.91^2=34.9281
 			                cycle
-		                else if (r2>(2.5D0*vdwr(ind))**2) then !Other cases, larger than 2.5 times of its vdw radius will be skipped
+		                else if (r2>(2.5D0*vdwr(iele))**2) then !Other cases, larger than 2.5 times of its vdw radius will be skipped
 			                cycle
 		                end if
 	                else if (atomdenscut==2) then !Medium cutoff, the result may be not as accurate as atomdenscut==1, but much more cheaper
-		                if (r2>(2.2D0*vdwr(ind))**2) cycle
+		                if (r2>(2.2D0*vdwr(iele))**2) cycle
 	                else if (atomdenscut==3) then !Loose cutoff, the most inaccurate
-		                if (r2>(1.8D0*vdwr(ind))**2) cycle
+		                if (r2>(1.8D0*vdwr(iele))**2) cycle
 	                else if (atomdenscut==4) then !Foolish cutoff, you need to know what you are doing
-		                if (r2>(1.5D0*vdwr(ind))**2) cycle
+		                if (r2>(1.5D0*vdwr(iele))**2) cycle
 	                end if
 		            r2_1d5=r2**1.5D0
-		            do j=1,3
-			            if (YWTatomcoeff(ind,j)==0D0) cycle
-			            expterm=YWTatomexp(ind,j)
-			            term=YWTatomcoeff(ind,j)*dexp(-r/expterm)
+		            do iSTO=1,3
+			            if (YWTatomcoeff(iele,iSTO)==0D0) cycle
+			            expterm=YWTatomexp(iele,iSTO)
+			            term=YWTatomcoeff(iele,iSTO)*dexp(-r/expterm)
 			            elerho=elerho+term
 			            if (r==0D0) cycle !Derivative of STO at nuclei is pointless
 			            tmp=term/expterm/r
@@ -3708,8 +3708,8 @@ do icell=ic-PBCnx,ic+PBCnx
 			            end if
 		            end do
 	            else !Heavier than Ar
-                    if (r>atmrhocut(ind)) cycle
-		            call genatmraddens(ind,posarr,rhoarr,npt) !Extract spherically averaged radial density of corresponding element
+                    if (r>atmrhocut(iele)) cycle
+		            call genatmraddens(iele,posarr,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids
 		            if (idohess==0) then
 						call lagintpol(posarr(1:npt),rhoarr(1:npt),npt,r,term,der1r,der2r,2)
 		            else if (idohess==1) then
@@ -3755,29 +3755,53 @@ end subroutine
 
 
 
-!!------ Calculate atomic density based on STO fitted or radial density
-!PBC is supported
-!indSTO==0: All atom densities will be evaluated based on interpolation of built-in radial density, quite accurate
-!indSTO==18: Use STO fitted atomic density for element <18, quality is poor but fast (Weitao Yang, RDG original paper)
-real*8 function calcatmdens(iatm,x,y,z,indSTO)
-use util
-real*8 rho,x,y,z,posarr(200),rhoarr(200),tvec(3)
-integer iatm,indSTO
+!!------ Return radial electron density of an element at r
+!itype defines how the atomic densities will be evaluated
+!itype=-2: Fitted by no more than 10 GTFs
+!itype=-1: Fitted by a few STOs
+!itype=0: Interpolation of built-in radial density
+!itype=18: Use STO fitted atomic density for element <=18, quality is quite poor, not normalized to expected electron number, and thus highly deprecated! (From SI of RDG original paper)
+!  Accuracy: 0>-2>-1>>18   Cost: -2>=0>-1=18
+!  0 is best default choice because most accurate and not expensive. However its definition is truncated at finite distance, so if density at more distant region is needed, use -1(accurate) or -2 (cheaper)
+real*8 function eleraddens(iele,r,itype)
+integer iele,itype
+real*8 r,posarr(200),rhoarr(200),atomcoeff(10),atomexp(10)
+
+eleraddens=0
+if (iele==0) return !Bq atom
+if (itype==0) then !Interpolation by Lagrangian interpolation based on built-in grid data
+    if (r>atmrhocut(iele)) return !r is longer than the maximum distance that rho is prebuilt, unable to calculate
+	call genatmraddens(iele,posarr,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids
+	call lagintpol(posarr(1:npt),rhoarr(1:npt),npt,r,eleraddens,der1r,der2r,1)
+else if (itype==-1) then !STOs fitted by Tian Lu
+	call genatmraddens_STOfitparm(iele,nSTO,atomcoeff,atomexp)
+    do iSTO=1,nSTO
+		eleraddens=eleraddens+atomcoeff(iSTO)*exp(-r*atomexp(iSTO))
+	end do
+else if (itype==-2) then !GTFs fitted by Tian Lu
+	call genatmraddens_GTFfitparm(iele,nGTF,atomcoeff,atomexp)
+    do iGTF=1,nGTF
+		eleraddens=eleraddens+atomcoeff(iGTF)*exp(-r**2*atomexp(iGTF))
+	end do
+else if (itype==18) then !H~Ar, STO fitted by YWT group
+	if (iele>18) return !Cannot evaluate
+	do iSTO=1,3
+		if (YWTatomcoeff(iele,iSTO)==0D0) cycle
+		eleraddens=eleraddens+YWTatomcoeff(iele,iSTO)*exp(-r/YWTatomexp(iele,iSTO))
+	end do
+end if
+end function
+
+
+!!------ Calculate isolated atomic density. PBC is supported. Meaning of itype is identical to "eleraddens"
+real*8 function calcatmdens(iatm,x,y,z,itype)
+real*8 x,y,z,tvec(3)
+integer iatm,itype
+iele=a(iatm)%index
 calcatmdens=0
-ind=a(iatm)%index
-if (ind==0) return
 if (ifPBC==0) then
     r=dsqrt( (a(iatm)%x-x)**2 + (a(iatm)%y-y)**2 + (a(iatm)%z-z)**2 )
-    if (ind<=indSTO) then !H~Ar, use STO fitted density. This is faster than using Lagrange interpolation technique, but not normalized to expected electron number
-	    do j=1,3
-		    if (YWTatomcoeff(ind,j)==0D0) cycle
-		    calcatmdens=calcatmdens+YWTatomcoeff(ind,j)*exp(-r/YWTatomexp(ind,j))
-	    end do
-    else
-        if (r>atmrhocut(ind)) return !r is longer than the maximum distance that rho is prebuilt, unable to calculate
-	    call genatmraddens(ind,posarr,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids
-	    call lagintpol(posarr(1:npt),rhoarr(1:npt),npt,r,calcatmdens,der1r,der2r,1) !Evaluate rho(r) by interpolation
-    end if
+    calcatmdens=calcatmdens+eleraddens(iele,r,itype)
 else !Periodic case
     call getpointcell(x,y,z,ic,jc,kc)
     do icell=ic-PBCnx,ic+PBCnx
@@ -3788,31 +3812,45 @@ else !Periodic case
                 atmy=a(iatm)%y+tvec(2)
                 atmz=a(iatm)%z+tvec(3)
                 r=dsqrt( (atmx-x)**2 + (atmy-y)**2 + (atmz-z)**2 )
-                if (ind<=indSTO) then !H~Ar, use STO fitted density. This is faster than using Lagrange interpolation technique, but not normalized to expected electron number
-	                do j=1,3
-		                if (YWTatomcoeff(ind,j)==0D0) cycle
-		                calcatmdens=calcatmdens+YWTatomcoeff(ind,j)*exp(-r/YWTatomexp(ind,j))
-	                end do
-                else
-                    if (r>atmrhocut(ind)) cycle
-	                call genatmraddens(ind,posarr,rhoarr,npt) !Extract spherically averaged radial density of corresponding element
-	                call lagintpol(posarr(1:npt),rhoarr(1:npt),npt,r,atmdenstmp,der1r,der2r,1)
-                    calcatmdens=calcatmdens+atmdenstmp
-                end if
+				calcatmdens=calcatmdens+eleraddens(iele,r,itype)
             end do
         end do
     end do
 end if
 end function
-!!---- Calculate promolecular density. Meaning of indSTO is identical to calcatmdens
-real*8 function calcprodens(x,y,z,indSTO)
-real*8 x,y,z
-integer indSTO
+
+
+!!------ Calculate promolecular density. PBC is supported. Meaning of itype is identical to "eleraddens"
+real*8 function calcprodens(x,y,z,itype)
+real*8 x,y,z,r,tvec(3)
+integer itype
 calcprodens=0
-do i=1,nfragatm
-	iatm=fragatm(i) !Global variable
-	calcprodens=calcprodens+calcatmdens(iatm,x,y,z,indSTO)
-end do
+if (ifPBC==0) then
+	do i=1,nfragatm
+		iatm=fragatm(i) !Global variable
+		iele=a(iatm)%index
+		r=dsqrt( (a(iatm)%x-x)**2 + (a(iatm)%y-y)**2 + (a(iatm)%z-z)**2 )
+		calcprodens=calcprodens+eleraddens(iele,r,itype)
+	end do
+else
+    call getpointcell(x,y,z,ic,jc,kc)
+    do icell=ic-PBCnx,ic+PBCnx
+        do jcell=jc-PBCny,jc+PBCny
+            do kcell=kc-PBCnz,kc+PBCnz
+                call tvec_PBC(icell,jcell,kcell,tvec)
+				do i=1,nfragatm
+					iatm=fragatm(i) !Global variable
+					iele=a(iatm)%index
+					atmx=a(iatm)%x+tvec(1)
+					atmy=a(iatm)%y+tvec(2)
+					atmz=a(iatm)%z+tvec(3)
+					r=dsqrt( (atmx-x)**2 + (atmy-y)**2 + (atmz-z)**2 )
+					calcprodens=calcprodens+eleraddens(iele,r,itype)
+                end do
+            end do
+        end do
+    end do
+end if
 end function
 
 
@@ -3844,7 +3882,7 @@ end subroutine
 !Only atomic density obtained via Lagrangian interpolation density is used
 subroutine proatmgrad(iatm,x,y,z,rho,grad)
 real*8 posarr(200),rhoarr(200),rho,grad(3),tvec(3)
-ind=a(iatm)%index
+iele=a(iatm)%index
 rho=0
 grad=0
 call getpointcell(x,y,z,ic,jc,kc)
@@ -3863,8 +3901,8 @@ do icell=ic-PBCnx,ic+PBCnx
             rz2=rz*rz
             r2=rx2+ry2+rz2
             r=dsqrt(r2)
-            if (r>atmrhocut(ind)) cycle
-            call genatmraddens(ind,posarr,rhoarr,npt) !Extract spherically averaged radial density of corresponding element
+            if (r>atmrhocut(iele)) cycle
+            call genatmraddens(iele,posarr,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids
             call lagintpol(posarr(1:npt),rhoarr(1:npt),npt,r,rhotmp,der1r,der2r,2)
             rho=rho+rhotmp
             if (r/=0) then
@@ -3897,7 +3935,6 @@ call IGMgrad_Hirsh(x,y,z,frag2,grad2,IGM_gradnorm2)
 grad=grad1+grad2
 IGM_gradnorm=dsqrt(sum(grad1**2))+dsqrt(sum(grad2**2))
 delta_g_inter_Hirsh=IGM_gradnorm-dsqrt(sum(grad**2))
-!write(15,"(3f12.6,2f16.10)") x,y,z,IGM_gradnorm,dsqrt(sum(grad**2))
 end function
 
 
@@ -6299,6 +6336,8 @@ real*8 x,y,z
 integer nlen,atmlist(nlen)
 dist2minin=1D100 !The nearest distance to atoms inside
 dist2minext=1D100 !The nearest distance to atoms outside
+iminin=0
+iminext=0
 do iatm=1,ncenter
 	dist2=(a(iatm)%x-x)**2+(a(iatm)%y-y)**2+(a(iatm)%z-z)**2
 	if (any(atmlist==iatm)) then !Atoms inside
@@ -6313,6 +6352,10 @@ do iatm=1,ncenter
 		end if
 	end if
 end do
+if (iminin==0.or.iminext==0) then !In this case there must be a bug in constructing the surface
+    surfana_norm=0
+    return
+end if
 di=dsqrt(dist2minin)
 de=dsqrt(dist2minext)
 rvdwin=vdwr(a(iminin)%index)
