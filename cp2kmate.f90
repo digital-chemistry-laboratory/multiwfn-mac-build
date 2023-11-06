@@ -1643,13 +1643,13 @@ if (any(efieldvec/=0)) then
     efieldmag=dsqrt(sum(efieldvec**2))
     if (ifPBC==0.or.PBCdir=="NONE") then
         write(ifileid,"(a)") "    &EFIELD"
-        write(ifileid,"(a,f8.5)") "      INTENSITY",efieldmag
-        write(ifileid,"(a,3f8.5)") "      POLARISATION",efieldvec/efieldmag
+        write(ifileid,"(a,f12.6)") "      INTENSITY",efieldmag
+        write(ifileid,"(a,3f12.6)") "      POLARISATION",efieldvec/efieldmag
         write(ifileid,"(a)") "    &END EFIELD"
     else
         write(ifileid,"(a)") "    &PERIODIC_EFIELD"
-        write(ifileid,"(a,f8.5)") "      INTENSITY",efieldmag
-        write(ifileid,"(a,3f8.5)") "      POLARISATION",efieldvec/efieldmag
+        write(ifileid,"(a,f12.6)") "      INTENSITY",efieldmag
+        write(ifileid,"(a,3f12.6)") "      POLARISATION",efieldvec/efieldmag
         write(ifileid,"(a)") "    &END PERIODIC_EFIELD"
     end if
 end if

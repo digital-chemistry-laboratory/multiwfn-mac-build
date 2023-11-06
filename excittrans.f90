@@ -3764,7 +3764,7 @@ end do
 !$OMP END PARALLEL DO
 call walltime(iwalltime2)
 write(*,"(' (Stage 3 took up wall clock time',i10,' s)',/)") iwalltime2-iwalltime1
-if (isel==1.or.isel==2) write(iout,"(a,/)") " Note: The transition dipole moments reported below only correspond to spatial part, the spin part is not taken into account"
+if (isel==1.or.isel==2) write(iout,"(a,/)") " Note: The transition dipole moments reported below only correspond to spatial part, the spin part is not taken into account!"
 
 if (all(allexcmulti==allexcmulti(1))) then !All states have same spin, in this case all options are available
 	if (idiptype==1) then !Electric
@@ -3779,7 +3779,7 @@ if (all(allexcmulti==allexcmulti(1))) then !All states have same spin, in this c
 			end do
             if (iGSESonly==0) then
 				write(iout,*)
-				write(iout,"(' Note: In below output the case of i=j corresponds to contribution of electron to dipole moment of excited state i')")
+				write(iout,"(' Note: In below output the case of i=j corresponds to contribution of electron to dipole moment of excited state i (contribution of nuclear charges is not taken into account!)')")
 				write(iout,"(' Transition electric dipole moment between excited states (a.u.):')")
 				write(iout,*) "    i     j         X             Y             Z        Diff.(eV)   Oscil.str"
             end if
@@ -3836,7 +3836,7 @@ else !Not all states have the same spin, 50-50 with singlet ground state is assu
 			write(allexclab(iexc),"(' T',i3)") iT
 		end if
 	end do
-	write(iout,"(' Note: In below output the case of i=j corresponds to contribution of electron to dipole moment of excited state i')")
+	write(iout,"(' Note: In below output the case of i=j corresponds to contribution of electron to dipole moment of excited state i (contribution of nuclear charges is not taken into account!)')")
     if (idiptype==1) then
 		write(iout,"(' Transition electric dipole moment between singlet states (a.u.):')")
     else if (idiptype==2) then
