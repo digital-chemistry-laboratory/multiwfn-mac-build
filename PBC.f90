@@ -424,7 +424,7 @@ end subroutine
 
 
 
-!!!------ Return a,b,c (in Angstrom) and alpha,beta,gamma based on current cell information
+!!!------ Return a,b,c (in Angstrom!) and alpha,beta,gamma based on current cell information
 subroutine getcellabc(asize,bsize,csize,alpha,beta,gamma)
 use defvar
 use util
@@ -726,4 +726,37 @@ if (alive) then
         close(ifileid)
     end if
 end if
+end subroutine
+
+
+
+
+!!!-------- Calculate spacing between cell planes
+!h,k,l: Miller index
+!d: Returned spacing in Angstrom
+!Ref: Triclinic form in https://en.wikipedia.org/wiki/Crystal_structure
+subroutine cellplane_spacing(h,k,l,d)
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+integer h,k,l
+real*8 d
+
+call getcellabc(asize,bsize,csize,alpha,beta,gamma)
+arad=ang2rad(alpha)
+brad=ang2rad(beta)
+grad=ang2rad(gamma)
+sina=sin(arad)
+sinb=sin(brad)
+sing=sin(grad)
+cosa=cos(arad)
+cosb=cos(brad)
+cosg=cos(grad)
+
+tmp1=h**2/asize**2*sina**2 + k**2/bsize**2*sinb**2 + l**2/csize**2*sing**2
+tmp2=2*k*l/bsize/csize*(cosb*cosg-cosa) + 2*h*l/asize/csize*(cosg*cosa-cosb) + 2*h*k/asize/bsize*(cosa*cosb-cosg)
+tmp3=1-cosa**2-cosb**2-cosg**2+2*cosa*cosb*cosg
+
+d=(tmp1+tmp2)/tmp3
+d=1D0/dsqrt(d)
 end subroutine

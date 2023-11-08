@@ -2035,8 +2035,10 @@ cellv1=cellv1_pseudo*nrep1
 cellv2=cellv2_pseudo*nrep2
 cellv3=cellv3_pseudo*nrep3
 ifdoPBCx=1;ifdoPBCy=1;ifdoPBCz=1
-call cellxyzsize(xsize,ysize,zsize)
-trunc_rad=min(min(xsize,ysize),zsize)*b2a/2.01D0
+call cellplane_spacing(0,0,1,d1)
+call cellplane_spacing(0,1,0,d2)
+call cellplane_spacing(1,0,0,d3)
+trunc_rad=min(min(d1,d2),d3)/2.01D0 !In Angstrom
 ifdoPBCx=i1; ifdoPBCy=i2; ifdoPBCz=i3
 cellv1=cellv1_tmp;cellv2=cellv2_tmp;cellv3=cellv3_tmp
 
