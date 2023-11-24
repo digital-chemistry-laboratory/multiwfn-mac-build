@@ -177,7 +177,7 @@ do k=1,nz
 		if (infomode==0) then
 		    !$OMP CRITICAL
 			ifinish=ifinish+1
-			ishowprog=mod(ifinish,floor(nz*ny/100D0))
+			ishowprog=mod(ifinish,ceiling(nz*ny/100D0))
 			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
 		    !$OMP END CRITICAL
 		end if
@@ -854,7 +854,7 @@ do k=1,nz
 		end do
 		!$OMP CRITICAL
         ifinish=ifinish+1
-        ishowprog=mod(ifinish,floor(nz*ny/100D0))
+        ishowprog=mod(ifinish,ceiling(nz*ny/100D0))
         if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
 		!$OMP END CRITICAL
 	end do

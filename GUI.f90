@@ -338,7 +338,7 @@ call SWGCBK(idisisosurscl,setisosurscl)
 CALL SWGSPC(4D0,0.5D0) !Reset the default widget spacing
 call swgtyp("HORI","SCALE") !Reset the default mode for list widget
 idrawisosur=0 !Don't draw the cubmat in memory at first time go into the GUI
-if (isys==1) call drawmol !Directly show image in Windows GUI.
+if (isys==1) call drawmol !Directly show image in Windows GUI
 !However, in linux, "draw" widget is available only after WGFIN subroutine so we need a mouse event to active it, before this, the draw widget cannot be used, this is why "if (isys==1)"
 CALL WGFIN
 idrawisosur=0 !After ending this GUI, recover to initial setting
@@ -367,9 +367,9 @@ else if (isavepic==0) then
 	if (idrawtype==4) CALL swgtit('Shaded relief map')
 	if (idrawtype==5) CALL swgtit('Shaded relief map with projected color-filled map')
 	if (imodlayout==2) then
-		call swgwth(73)
+		call swgwth(plotwinsize3D-15)
 	else
-		CALL swgwth(96)
+		CALL swgwth(plotwinsize3D)
 		CALL SWGOPT("CENTER","POSITION") !Main window appear in the center of screen
 	end if
 	call SWGPOP("NOOK")  !Don't show OK&QUIT in upper menu
@@ -434,9 +434,9 @@ GUI_mode=3 !Use GUI_mode setting in dislin response routine
 isavepic=0
 CALL swgtit('Isosurface graph')
 if (imodlayout==2) then
-	call swgwth(73)
+	call swgwth(plotwinsize3D-15)
 else
-	CALL swgwth(96)
+	CALL swgwth(plotwinsize3D)
 	CALL SWGOPT("CENTER","POSITION") !Main window appear in the center of screen
 end if
 call SWGPOP("NOOK")  !Don't show OK&QUIT in upper menu
@@ -614,7 +614,7 @@ GUI_mode=4
 isavepic=0
 CALL swgtit('Molecular structure, critical points and topology paths')
 if (imodlayout==2) then
-	call swgwth(73)
+	call swgwth(plotwinsize3D-15)
 else
 	call swgwth(plotwinsize3D)
 	CALL SWGOPT("CENTER","POSITION") !Main window appear in the center of screen
@@ -744,7 +744,7 @@ GUI_mode=5
 isavepic=0
 CALL swgtit('Molecular structure, surface minima and maxima')
 if (imodlayout==2) then
-	call swgwth(73)
+	call swgwth(plotwinsize3D-15)
 else
 	call swgwth(plotwinsize3D)
 	CALL SWGOPT("CENTER","POSITION") !Main window appear in the center of screen
@@ -839,7 +839,7 @@ basinlist((numrealatt+2)*5+1:(numrealatt+2)*5+5)="|"//"Boun" !numrealatt+2 means
 
 CALL swgtit('Molecular structure, attractors and basins')
 if (imodlayout==2) then
-	call swgwth(73)
+	call swgwth(plotwinsize3D-15)
 else
 	call swgwth(plotwinsize3D)
 	CALL SWGOPT("CENTER","POSITION") !Main window appear in the center of screen
@@ -971,7 +971,7 @@ do idomain=1,ndomain
 end do
 CALL swgtit('Molecular structure and domains')
 if (imodlayout==2) then
-	call swgwth(73)
+	call swgwth(plotwinsize3D-15)
 else
 	call swgwth(plotwinsize3D)
 	CALL SWGOPT("CENTER","POSITION") !Main window appear in the center of screen
@@ -1073,9 +1073,9 @@ ishowdatarange=1 !Draw box range
 ishowatmlab=0 !Don't show atomic labels
 CALL swgtit('Setting up box')
 if (imodlayout==2) then
-	call swgwth(73)
+	call swgwth(plotwinsize3D-15)
 else
-	call swgwth(plotwinsize3D+6)
+	call swgwth(plotwinsize3D)
 	CALL SWGOPT("CENTER","POSITION") !Main window appear in the center of screen
 	call SWGPOP("NOOK")  !Don't show OK&QUIT in upper menu
 end if
@@ -1197,9 +1197,9 @@ GUI_mode=7 !Use GUI_mode setting in dislin response routine
 isavepic=0
 CALL swgtit(' ')
 if (imodlayout==2) then
-	call swgwth(73)
+	call swgwth(plotwinsize3D-15)
 else
-	call swgwth(plotwinsize3D+6)
+	call swgwth(plotwinsize3D)
 	CALL SWGOPT("CENTER","POSITION") !Main window appear in the center of screen
 end if
 call SWGPOP("NOOK")  !Don't show OK&QUIT in upper menu

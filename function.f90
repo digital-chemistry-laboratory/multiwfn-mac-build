@@ -5697,121 +5697,106 @@ end function
 
 
 
-!!------- Use trilinear interpolation to obtain value at a given point by using cubmat
+!!------- Use trilinear interpolation to obtain value at a given point by using cubmat. Both orthogonal and nonorthogonal grids are supported
 !itype==1: interpolate from cubmat, =2: from cubmattmp
 !Ref.: https://en.wikipedia.org/wiki/Trilinear_interpolation
 !Trilinear interpolation is equivalent to linear interpolation between two bilinear interpolations
+!In this case, the cell defining fractional coordinate corresponds to the box containing all grids. Origin of fractional coordinate is (orgx,orgy,orgz)
 real*8 function linintp3d(x,y,z,itype)
 real*8 x,y,z
 integer itype
-character c80tmp*80
-do ix=1,nx
-	x1=orgx+(ix-1)*dx
-	x2=orgx+ix*dx
-	if (x>=x1.and.x<x2) exit
+real*8 Cart(3),fract(3),tmpvec(3)
+real*8 i1_val,i2_val,i3_val,i1_low,i2_low,i3_low,i1_high,i2_high,i3_high,d1,d2,d3
+
+!Get fractional coordinate of present position
+Cart(1)=x;Cart(2)=y;Cart(3)=z
+call Cart2fract_grid(Cart,fract)
+i1_val=fract(1);i2_val=fract(2);i3_val=fract(3)
+d1=1D0/nx !Grid spacing of fractional coordinate in each direction
+d2=1D0/ny
+d3=1D0/nz
+do i1=1,nx
+	i1_low=(i1-1)*d1
+	i1_high=i1_low+d1
+	if (i1_val>=i1_low.and.i1_val<i1_high) exit
 end do
-do iy=1,ny
-	y1=orgy+(iy-1)*dy
-	y2=orgy+iy*dy
-	if (y>=y1.and.y<y2) exit
+do i2=1,ny
+	i2_low=(i2-1)*d2
+	i2_high=i2_low+d2
+	if (i2_val>=i2_low.and.i2_val<i2_high) exit
 end do
-do iz=1,nz
-	z1=orgz+(iz-1)*dz
-	z2=orgz+iz*dz
-	if (z>=z1.and.z<z2) exit
+do i3=1,nz
+	i3_low=(i3-1)*d3
+	i3_high=i3_low+d3
+	if (i3_val>=i3_low.and.i3_val<i3_high) exit
 end do
-if (ix>=nx.or.iy>=ny.or.iz>=nz) then !Out of grid data range
-	linintp3d=0D0
-else !Perform two bilinear interpolations first, then further linear interpolation
+
+if (i1<nx.and.i2<ny.and.i3<nz) then
+	!Perform two bilinear interpolations first, then further linear interpolation
 	if (itype==1) then
-		valxy1=( cubmat(ix,iy,iz  )*(x2-x)*(y2-y) + cubmat(ix+1,iy,iz  )*(x-x1)*(y2-y) + &
-			cubmat(ix,iy+1,iz  )*(x2-x)*(y-y1) + cubmat(ix+1,iy+1,iz  )*(x-x1)*(y-y1) ) /dx/dy
-		valxy2=( cubmat(ix,iy,iz+1)*(x2-x)*(y2-y) + cubmat(ix+1,iy,iz+1)*(x-x1)*(y2-y) + &
-			cubmat(ix,iy+1,iz+1)*(x2-x)*(y-y1) + cubmat(ix+1,iy+1,iz+1)*(x-x1)*(y-y1) ) /dx/dy
+		val12_low= ( cubmat(i1,i2,i3    )*(i1_high-i1_val)*(i2_high-i2_val) + cubmat(i1+1,i2,i3    )*(i1_val-i1_low)*(i2_high-i2_val) + &
+			         cubmat(i1,i2+1,i3  )*(i1_high-i1_val)*(i2_val-i2_low ) + cubmat(i1+1,i2+1,i3  )*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
+		val12_high=( cubmat(i1,i2,i3+1  )*(i1_high-i1_val)*(i2_high-i2_val) + cubmat(i1+1,i2,i3+1  )*(i1_val-i1_low)*(i2_high-i2_val) + &
+			         cubmat(i1,i2+1,i3+1)*(i1_high-i1_val)*(i2_val-i2_low ) + cubmat(i1+1,i2+1,i3+1)*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
 	else
-		valxy1=( cubmattmp(ix,iy,iz  )*(x2-x)*(y2-y) + cubmattmp(ix+1,iy,iz  )*(x-x1)*(y2-y) + &
-			cubmattmp(ix,iy+1,iz  )*(x2-x)*(y-y1) + cubmattmp(ix+1,iy+1,iz  )*(x-x1)*(y-y1) ) /dx/dy
-		valxy2=( cubmattmp(ix,iy,iz+1)*(x2-x)*(y2-y) + cubmattmp(ix+1,iy,iz+1)*(x-x1)*(y2-y) + &
-			cubmattmp(ix,iy+1,iz+1)*(x2-x)*(y-y1) + cubmattmp(ix+1,iy+1,iz+1)*(x-x1)*(y-y1) ) /dx/dy
+		val12_low= ( cubmattmp(i1,i2,i3    )*(i1_high-i1_val)*(i2_high-i2_val) + cubmattmp(i1+1,i2,i3    )*(i1_val-i1_low)*(i2_high-i2_val) + &
+			         cubmattmp(i1,i2+1,i3  )*(i1_high-i1_val)*(i2_val-i2_low ) + cubmattmp(i1+1,i2+1,i3  )*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
+		val12_high=( cubmattmp(i1,i2,i3+1  )*(i1_high-i1_val)*(i2_high-i2_val) + cubmattmp(i1+1,i2,i3+1  )*(i1_val-i1_low)*(i2_high-i2_val) + &
+			         cubmattmp(i1,i2+1,i3+1)*(i1_high-i1_val)*(i2_val-i2_low ) + cubmattmp(i1+1,i2+1,i3+1)*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
 	end if
-	linintp3d=valxy1+(z-z1)*(valxy2-valxy1)/dz
+	linintp3d=val12_low+(i3_val-i3_low)*(val12_high-val12_low)/d3
+else !Out of grid data range
+	linintp3d=0D0
 end if
 end function
 
 
 
 
-!!------- Use trilinear interpolation to obtain value at a given point by using cubmat
-!itype==1: interpolate from cubmat, =2: from cubmattmp
-!Ref.: https://en.wikipedia.org/wiki/Trilinear_interpolation
-!Trilinear interpolation is equivalent to linear interpolation between two bilinear interpolations
-!real*8 function linintp3d(x,y,z,itype)
-!real*8 x,y,z
-!integer itype
-!character c80tmp*80
-!real*8 Cart(3),fract(3),Cartend(3),fractend(3)
-!
-!Cart(1)=x
-!Cart(2)=y
-!Cart(3)=z
-!call Cart2fract_grid(Cart,fract)
-!Cartend(:)=gridv1(:)*(nx-1)+gridv2(:)*(ny-1)+gridv3(:)*(nz-1)
-!call Cart2fract_grid(Cartend,fractend)
-!!Perform two bilinear interpolations first, then further linear interpolation
-!if (fract(1)>0.and.fract(1)<fractend(1).and.fract(2)>0.and.fract(2)<fractend(2).and.fract(3)>0.and.fract(3)<fractend(3)) then
-!	if (itype==1) then
-!		valxy1=( cubmat(ix,iy,iz  )*(x2-x)*(y2-y) + cubmat(ix+1,iy,iz  )*(x-x1)*(y2-y) + &
-!			cubmat(ix,iy+1,iz  )*(x2-x)*(y-y1) + cubmat(ix+1,iy+1,iz  )*(x-x1)*(y-y1) ) /dx/dy
-!		valxy2=( cubmat(ix,iy,iz+1)*(x2-x)*(y2-y) + cubmat(ix+1,iy,iz+1)*(x-x1)*(y2-y) + &
-!			cubmat(ix,iy+1,iz+1)*(x2-x)*(y-y1) + cubmat(ix+1,iy+1,iz+1)*(x-x1)*(y-y1) ) /dx/dy
-!	else
-!		valxy1=( cubmattmp(ix,iy,iz  )*(x2-x)*(y2-y) + cubmattmp(ix+1,iy,iz  )*(x-x1)*(y2-y) + &
-!			cubmattmp(ix,iy+1,iz  )*(x2-x)*(y-y1) + cubmattmp(ix+1,iy+1,iz  )*(x-x1)*(y-y1) ) /dx/dy
-!		valxy2=( cubmattmp(ix,iy,iz+1)*(x2-x)*(y2-y) + cubmattmp(ix+1,iy,iz+1)*(x-x1)*(y2-y) + &
-!			cubmattmp(ix,iy+1,iz+1)*(x2-x)*(y-y1) + cubmattmp(ix+1,iy+1,iz+1)*(x-x1)*(y-y1) ) /dx/dy
-!	end if
-!	linintp3d=valxy1+(z-z1)*(valxy2-valxy1)/dz
-!else !Out of grid data range
-!	linintp3d=0D0
-!end if
-!end function
-
-
-
-
-!!-------- Trilinear interpolation of 3D-vector field by using cubmatvec
+!!------- Trilinear interpolation of 3D-vector field by using cubmatvec. Both orthogonal and nonorthogonal grids are supported
+!See comment in subroutine linintp3d for more information
 subroutine linintp3dvec(x,y,z,vecintp)
-real*8 x,y,z,vecintp(3),valxy1(3),valxy2(3)
-do ix=1,nx
-	x1=orgx+(ix-1)*dx
-	x2=orgx+ix*dx
-	if (x>=x1.and.x<x2) exit
+real*8 x,y,z,vecintp(3),val12_low(3),val12_high(3)
+real*8 Cart(3),fract(3),tmpvec(3)
+real*8 i1_val,i2_val,i3_val,i1_low,i2_low,i3_low,i1_high,i2_high,i3_high,d1,d2,d3
+
+Cart(1)=x;Cart(2)=y;Cart(3)=z
+call Cart2fract_grid(Cart,fract)
+i1_val=fract(1);i2_val=fract(2);i3_val=fract(3)
+d1=1D0/nx !Grid spacing of fractional coordinate in each direction
+d2=1D0/ny
+d3=1D0/nz
+do i1=1,nx
+	i1_low=(i1-1)*d1
+	i1_high=i1_low+d1
+	if (i1_val>=i1_low.and.i1_val<i1_high) exit
 end do
-do iy=1,ny
-	y1=orgy+(iy-1)*dy
-	y2=orgy+iy*dy
-	if (y>=y1.and.y<y2) exit
+do i2=1,ny
+	i2_low=(i2-1)*d2
+	i2_high=i2_low+d2
+	if (i2_val>=i2_low.and.i2_val<i2_high) exit
 end do
-do iz=1,nz
-	z1=orgz+(iz-1)*dz
-	z1=orgz+iz*dz
-	if (z>=z1.and.z<z2) exit
+do i3=1,nz
+	i3_low=(i3-1)*d3
+	i3_high=i3_low+d3
+	if (i3_val>=i3_low.and.i3_val<i3_high) exit
 end do
-if (ix>nx.or.iy>ny.or.iz>nz) then !Out of grid data range
+
+if (i1<nx.and.i2<ny.and.i3<nz) then
+	val12_low(:)= ( cubmatvec(:,i1,i2,i3    )*(i1_high-i1_val)*(i2_high-i2_val) + cubmatvec(:,i1+1,i2,i3    )*(i1_val-i1_low)*(i2_high-i2_val) + &
+			        cubmatvec(:,i1,i2+1,i3  )*(i1_high-i1_val)*(i2_val-i2_low ) + cubmatvec(:,i1+1,i2+1,i3  )*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
+	val12_high(:)=( cubmatvec(:,i1,i2,i3+1  )*(i1_high-i1_val)*(i2_high-i2_val) + cubmatvec(:,i1+1,i2,i3+1  )*(i1_val-i1_low)*(i2_high-i2_val) + &
+			        cubmatvec(:,i1,i2+1,i3+1)*(i1_high-i1_val)*(i2_val-i2_low ) + cubmatvec(:,i1+1,i2+1,i3+1)*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
+	vecintp(:)=val12_low(:)+(i3_val-i3_low)*(val12_high(:)-val12_low(:))/d3
+else !Out of grid data range
 	vecintp=0D0
-else
-	valxy1(:)=( cubmatvec(:,ix,iy,iz  )*(x2-x)*(y2-y) + cubmatvec(:,ix+1,iy,iz  )*(x-x1)*(y2-y) + &
-		cubmatvec(:,ix,iy+1,iz  )*(x2-x)*(y-y1) + cubmatvec(:,ix+1,iy+1,iz  )*(x-x1)*(y-y1) ) /dx/dy
-	valxy2(:)=( cubmatvec(:,ix,iy,iz+1)*(x2-x)*(y2-y) + cubmatvec(:,ix+1,iy,iz+1)*(x-x1)*(y2-y) + &
-		cubmatvec(:,ix,iy+1,iz+1)*(x2-x)*(y-y1) + cubmatvec(:,ix+1,iy+1,iz+1)*(x-x1)*(y-y1) ) /dx/dy
-	vecintp=valxy1+(z-z1)*(valxy2-valxy1)/dz
 end if
 end subroutine
 
 
 
 
-!!-------- Use cubic spline interpolation to obtain value at a given point by using cubmat
+!!-------- Use cubic spline interpolation to obtain value at a given point by using cubmat. Both orthogonal and nonorthogonal grids are supported
 !itype==1: interpolate from cubmat, =2: from cubmattmp
 !If all grid points in cubmat are used in the interpolation, the cost will be extremely high if very large number of points are to be calculated, &
 !therefore I decide only takes a few grids around the present position for the interpolation, and this idea works well and the cost is significantly lowered
@@ -5820,68 +5805,77 @@ end subroutine
 real*8 function splineintp3D(x,y,z,itype)
 use bspline_sub_module
 real*8 x,y,z
+real*8 Cart(3),fract(3),tmpvec(3)
+real*8 i1_val,i2_val,i3_val,i1_low,i2_low,i3_low,i1_high,i2_high,i3_high,d1,d2,d3
 integer itype
 integer,parameter :: norder=4 !4 corresponds to cubic spline interpolation. order = polynomial degree + 1, order from 3 to 6 are supported
 !According to my experience, norder=4~6 has negligible difference. Even norder=3 is quite similar to norder=4. The norder seems doesn't affect cost
-integer,parameter :: kx=norder,ky=norder,kz=norder
+integer,parameter :: k1=norder,k2=norder,k3=norder
 integer :: inbvx=1,inbvy=1,inbvz=1,iloy=1,iloz=1 !Must be set to 1 before call as mentioned in the test file, though I don't know why
 integer :: iknot=0  !Automatically determine the knots
 integer,parameter :: next=4 !The number of extended grids on both sides. Test showed that 4 leads to converge result, increasing it will not detectably affect result
 integer,parameter :: nlocgrd=2+2*next
-real*8 :: xarr(nlocgrd),yarr(nlocgrd),zarr(nlocgrd)
-real*8 tx(nlocgrd+kx),ty(nlocgrd+ky),tz(nlocgrd+kz) !Not used because I let knot automatically determined, but these arrays must be defined
+real*8 :: arr1(nlocgrd),arr2(nlocgrd),arr3(nlocgrd)
+real*8 t1(nlocgrd+k1),t2(nlocgrd+k2),t3(nlocgrd+k3) !Not used because I let knot automatically determined, but these arrays must be defined
 real*8 cubloc(nlocgrd,nlocgrd,nlocgrd),spline3Dcoeff(nlocgrd,nlocgrd,nlocgrd)
 
-do ix=1,nx
-	x1=orgx+(ix-1)*dx
-	x2=orgx+ix*dx
-	if (x>=x1.and.x<x2) exit
+Cart(1)=x;Cart(2)=y;Cart(3)=z
+call Cart2fract_grid(Cart,fract)
+i1_val=fract(1);i2_val=fract(2);i3_val=fract(3)
+d1=1D0/nx !Grid spacing of fractional coordinate in each direction
+d2=1D0/ny
+d3=1D0/nz
+do i1=1,nx
+	i1_low=(i1-1)*d1
+	i1_high=i1_low+d1
+	if (i1_val>=i1_low.and.i1_val<i1_high) exit
 end do
-do iy=1,ny
-	y1=orgy+(iy-1)*dy
-	y2=orgy+iy*dy
-	if (y>=y1.and.y<y2) exit
+do i2=1,ny
+	i2_low=(i2-1)*d2
+	i2_high=i2_low+d2
+	if (i2_val>=i2_low.and.i2_val<i2_high) exit
 end do
-do iz=1,nz
-	z1=orgz+(iz-1)*dz
-	z2=orgz+iz*dz
-	if (z>=z1.and.z<z2) exit
+do i3=1,nz
+	i3_low=(i3-1)*d3
+	i3_high=i3_low+d3
+	if (i3_val>=i3_low.and.i3_val<i3_high) exit
 end do
-if (ix+1>nx-next.or.iy+1>ny-next.or.iz+1>nz-next .or. ix<next+1.or.iy<next+1.or.iz<next+1) then !Out of grid data range
+if (i1+1>nx-next.or.i2+1>ny-next.or.i3+1>nz-next .or. i1<next+1.or.i2<next+1.or.i3<next+1) then !Out of grid data range
 	splineintp3D=0D0
     return
 end if
-ilowx=ix-next
-ihighx=ix+1+next
-ilowy=iy-next
-ihighy=iy+1+next
-ilowz=iz-next
-ihighz=iz+1+next
-do ix=ilowx,ihighx
-    xarr(ix-ilowx+1)=orgx+(ix-1)*dx
+!Determine the index range of the grids around present point, these grids will be actually used in interpolation
+ilow1=i1-next
+ihigh1=i1+1+next
+ilow2=i2-next
+ihigh2=i2+1+next
+ilow3=i3-next
+ihigh3=i3+1+next
+do i1=ilow1,ihigh1
+    arr1(i1-ilow1+1)=(i1-1)*d1
 end do
-do iy=ilowy,ihighy
-    yarr(iy-ilowy+1)=orgy+(iy-1)*dy
+do i2=ilow2,ihigh2
+    arr2(i2-ilow2+1)=(i2-1)*d2
 end do
-do iz=ilowz,ihighz
-    zarr(iz-ilowz+1)=orgz+(iz-1)*dz
+do i3=ilow3,ihigh3
+    arr3(i3-ilow3+1)=(i3-1)*d3
 end do
-do ix=ilowx,ihighx
-    do iy=ilowy,ihighy
-        do iz=ilowz,ihighz
-            if (itype==1) cubloc(ix-ilowx+1,iy-ilowy+1,iz-ilowz+1)=cubmat(ix,iy,iz)
-            if (itype==2) cubloc(ix-ilowx+1,iy-ilowy+1,iz-ilowz+1)=cubmattmp(ix,iy,iz)
+do i1=ilow1,ihigh1
+    do i2=ilow2,ihigh2
+        do i3=ilow3,ihigh3
+            if (itype==1) cubloc(i1-ilow1+1,i2-ilow2+1,i3-ilow3+1)=cubmat(i1,i2,i3)
+            if (itype==2) cubloc(i1-ilow1+1,i2-ilow2+1,i3-ilow3+1)=cubmattmp(i1,i2,i3)
         end do
     end do
 end do
 
 !Initialize
-call db3ink(xarr,nlocgrd,yarr,nlocgrd,zarr,nlocgrd,cubloc,kx,ky,kz,iknot,tx,ty,tz,spline3Dcoeff,iflag)
+call db3ink(arr1,nlocgrd,arr2,nlocgrd,arr3,nlocgrd,cubloc,k1,k2,k3,iknot,t1,t2,t3,spline3Dcoeff,iflag)
 if (iflag/=0) write(*,*) "Error when initializing B-spline!"
 
 !Evaluate value
-idx=0;idy=0;idz=0 !Do not evaluate derivative
-call db3val(x,y,z,idx,idy,idz,tx,ty,tz,nlocgrd,nlocgrd,nlocgrd,kx,ky,kz,spline3Dcoeff,splineintp3D,iflag,inbvx,inbvy,inbvz,iloy,iloz)
+id1=0;id2=0;id3=0 !Do not evaluate derivative
+call db3val(i1_val,i2_val,i3_val,id1,id2,id3,t1,t2,t3,nlocgrd,nlocgrd,nlocgrd,k1,k2,k3,spline3Dcoeff,splineintp3D,iflag,inbvx,inbvy,inbvz,iloy,iloz)
 end function
 
 

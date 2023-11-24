@@ -11,7 +11,7 @@ integer :: iprintfunc=1 !The default function whose gradient and Hessian will be
 do while(.true.)
 	write(*,*)
 	write(*,*) "          ------------ Calculate properties at a point ------------ "
-	write(*,"(a)") " Now input X,Y,Z of the point to be studied, e.g. 3.3,2.0,-0.3"
+	write(*,"(a)") " Now input X,Y,Z of the point to be studied in Bohr or Angstrom, e.g. 3.3,2.0,-0.3"
 	write(*,"(a)") " or input e.g. ""a5"" to use nuclear position of atom 5"
 	write(*,"(a)") "    input e.g. ""o8"" to select orbital 8, whose wavefunction value will be shown"
 	write(*,"(a)") "    input e.g. ""f3"" to select function 3, whose gradient and Hessian will be shown, input ""allf"" can print all available functions"	
@@ -723,6 +723,7 @@ do while(.true.)
 		return
 	else if (plesel==0) then
 		write(*,*) "Input extension distance in Bohr, e.g. 4.5"
+        write(*,*) "Note: Negative value is also acceptable"
 		read(*,*) aug2D
 	else if (plesel==-1) then
 		write(*,*) "Input translation of the content in X and Y directions, respectively (in Bohr)"
