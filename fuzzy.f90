@@ -1111,10 +1111,10 @@ do iatm=1,ncenter
 	if (isel==12) then
         ifinish=ifinish+1
         call showprog(ifinish,naromatatm)
-    else if ((isel==2.and.iout==20).or.isel==13) then
+    else if (isel==2.and.iout==20) then
         ifinish=ifinish+1
         call showprog(ifinish,natmcalclist)
-    else if (isel/=2) then
+    else if (isel/=2.and.isel/=13) then
         call showprog(iatm,ncenter)
     end if
 	

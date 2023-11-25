@@ -316,6 +316,7 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
             end if
         end do
 	end if
+    
 	if (nstates>1) then
         if (maxloadexc==0) then
             write(*,"(' There are',i5,' excited states, loading basic information...')") nstates
@@ -494,9 +495,26 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
 	else if (ifiletypeexc==6) then !CP2K output file
         call loclabelfinal(10,"TDDFPT states of multiplicity",ifound)
         read(10,"(a)") c80tmp
-        allexcmulti=1
-        if (index(c80tmp,'3')/=0) allexcmulti=3
-        if (index(c80tmp,"U-TDDFPT")/=0) allexcmulti=0 !Excited states are not spin pure states
+        if (index(c80tmp,"U-TDDFPT")/=0) then
+			allexcmulti=0 !Excited states are not spin pure states
+        else
+			allexcmulti=1
+			if (index(c80tmp,'3')/=0) then
+				imultisel=3
+				call loclabel(10,"TDDFPT states of multiplicity 1",ifound) !SOC-TDDFT calculate both singlet and triplet excited states
+				if (ifound==1) then
+					write(*,*) "Load which kind of excited states?"
+					write(*,*) "1: Singlet   3: Triplet"
+					read(*,*) imultisel
+				end if
+                allexcmulti=imultisel
+				if (imultisel==1) then
+					call loclabelfinal(10,"TDDFPT states of multiplicity 1",ifound)
+                else
+					call loclabelfinal(10,"TDDFPT states of multiplicity 3",ifound)
+                end if
+			end if
+        end if
         call loclabel(10,"TDDFPT|",ifound,0) !Load oscillator strength
 		do iexc=1,nstates
 			read(10,*) c80tmp,itmp,allexcene(iexc),r1,r2,r3,allexcf(iexc)
@@ -868,7 +886,15 @@ else
         
 	else if (ifiletypeexc==6) then !CP2K output file
 		allexcdir(:,:)=1 !CP2K is fully based on TDA
-		call loclabelfinal(10,"number             orbital",ifound)
+        if (allexcmulti(1)==1) then
+			call loclabelfinal(10,"TDDFPT states of multiplicity 1",ifound)
+			call loclabel(10,"number             orbital",ifound,0)
+        else if (allexcmulti(1)==3) then
+			call loclabelfinal(10,"TDDFPT states of multiplicity 3",ifound)
+			call loclabel(10,"number             orbital",ifound,0)
+		else
+			call loclabelfinal(10,"number             orbital",ifound)
+        end if
 		read(10,*);read(10,*)
 		do iexc=1,nstates
 			read(10,*)
@@ -1236,7 +1262,15 @@ else if (ifiletypeexc==5) then !GAMESS-US output file
     
 else if (ifiletypeexc==6) then !ORCA output file
 	excdir(:)=1 !CP2K is fully based on TDA
-	call loclabelfinal(10,"number             orbital",ifound)
+    if (allexcmulti(1)==1) then
+		call loclabelfinal(10,"TDDFPT states of multiplicity 1",ifound)
+		call loclabel(10,"number             orbital",ifound,0)
+    else if (allexcmulti(1)==3) then
+		call loclabelfinal(10,"TDDFPT states of multiplicity 3",ifound)
+		call loclabel(10,"number             orbital",ifound,0)
+	else
+		call loclabelfinal(10,"number             orbital",ifound)
+    end if
 	do iexc=1,istate
         call loclabel(10,"eV",ifound,0)
 		read(10,*)
@@ -1437,7 +1471,7 @@ write(*,*) "Tian Lu, et al., Carbon, 165, 461-467 (2020) DOI: 10.1016/j.carbon.2
 	else if (isel==1) then
 		exit
 	else if (isel==2) then
-		call hole_ele_MOcontri	
+		call hole_ele_MOcontri
 	else if (isel==3) then
 		call hole_ele_atmcontri_heatmap
 	else if (isel==4) then
@@ -1662,6 +1696,7 @@ hole_deloc=dsqrt(hole_deloc*dvol)*100
 rtransmagx=rtransmagx*dvol
 rtransmagy=rtransmagy*dvol
 rtransmagz=rtransmagz*dvol
+if (excmulti==3) write(*,"(a,/)") " Note: The transition moments shown below correspond to spatial part, while orthogonality of spin part of wavefunction is ignored"
 write(*,"(' Integral of hole:    ',f12.6)") rnormhole
 write(*,"(' Integral of electron:',f12.6)") rnormele
 write(*,"(' Integral of transition density:',f12.6)") rinttransdens
