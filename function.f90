@@ -5708,6 +5708,10 @@ integer itype
 real*8 Cart(3),fract(3),tmpvec(3)
 real*8 i1_val,i2_val,i3_val,i1_low,i2_low,i3_low,i1_high,i2_high,i3_high,d1,d2,d3
 
+linintp3d=0
+if (itype==1.and.(.not.allocated(cubmat))) return
+if (itype==2.and.(.not.allocated(cubmattmp))) return
+
 !Get fractional coordinate of present position
 Cart(1)=x;Cart(2)=y;Cart(3)=z
 call Cart2fract_grid(Cart,fract)
@@ -5818,6 +5822,10 @@ integer,parameter :: nlocgrd=2+2*next
 real*8 :: arr1(nlocgrd),arr2(nlocgrd),arr3(nlocgrd)
 real*8 t1(nlocgrd+k1),t2(nlocgrd+k2),t3(nlocgrd+k3) !Not used because I let knot automatically determined, but these arrays must be defined
 real*8 cubloc(nlocgrd,nlocgrd,nlocgrd),spline3Dcoeff(nlocgrd,nlocgrd,nlocgrd)
+
+splineintp3D=0
+if (itype==1.and.(.not.allocated(cubmat))) return
+if (itype==2.and.(.not.allocated(cubmattmp))) return
 
 Cart(1)=x;Cart(2)=y;Cart(3)=z
 call Cart2fract_grid(Cart,fract)

@@ -990,13 +990,25 @@ do while(.true.)
 	write(*,"(a)") " To generate occupation state for calculating odd electron density, input ""odd"""
 	read(*,"(a)") c1000tmp
 	if (index(c1000tmp,"odd")/=0) then
-        oddnum=0
-		do iorb=1,numorbsel
-			MOocc(orbarr(iorb))=min(2-MOocc(orbarr(iorb)),MOocc(orbarr(iorb)))
-            oddnum=oddnum+MOocc(orbarr(iorb))
-		end do
-		write(*,*) "Done!"
-        write(*,"(a,f12.6)") " Sum of occupation numbers of selected orbitals:",oddnum
+		if (wfntype==3) then
+			oddnum=0
+			do iorb=1,numorbsel
+				MOocc(orbarr(iorb))=min(2-MOocc(orbarr(iorb)),MOocc(orbarr(iorb)))
+				oddnum=oddnum+MOocc(orbarr(iorb))
+			end do
+			write(*,*) "Done!"
+			write(*,"(a,f12.6)") " Sum of occupation numbers of selected orbitals:",oddnum
+			if (allocated(b_EDF)) then
+				deallocate(b_EDF,CO_EDF)
+				nEDFprims=0
+				nEDFelec=0
+				write(*,"(/,a)") " NOTE: EDF information has been removed to avoid their unexpected influence on subsequent calculation of electron density (corresponding to odd electron density in the present context)"
+			end if
+        else
+			write(*,"(a)") " Error: This function is usable only when the wavefunction is represented in terms of spatial (spinless) natural orbitals"
+            write(*,*) "Press ENTER button to return"
+            read(*,*)
+        end if
 	else if (index(c1000tmp,"i")/=0) then
 		MOocc(orbarr(1:numorbsel))=MOocc_org(orbarr(1:numorbsel))
 		write(*,*) "The occupation numbers have been recovered"
