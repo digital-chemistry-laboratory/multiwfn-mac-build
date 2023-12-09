@@ -7,7 +7,7 @@
 !When 50-50 is used in Gaussian, both singlet and triplet states are taken into account together. However, &
 !when generation of triplet is specified in ORCA, only one set of excited state can be taken into account
 module excitinfo
-character :: excitfilename*200=" " !"D:\CM\my_program\Multiwfn\x\excittrans\4-Nitroaniline\4-Nitroaniline.out". If nstates=0, then Multiwfn asks user to input
+character :: excitfilename*200=" " !If nstates=0, then Multiwfn asks user to input
 integer :: ifiletypeexc !1=Gaussian output; 2=ORCA output; 3=Plain text file; 4=Firefly output file
 integer :: iORCAsTD=0 !1=ORCA with sTDA/sTDDFT, 0: Common ORCA TDA/TDDFT
 integer :: iwarnORCA_TD=1 !If need to show warn when loading TDDFT coefficiens of ORCA, =1: Warn. Once warn once
@@ -1697,6 +1697,12 @@ rtransmagx=rtransmagx*dvol
 rtransmagy=rtransmagy*dvol
 rtransmagz=rtransmagz*dvol
 if (excmulti==3) write(*,"(a,/)") " Note: The transition moments shown below correspond to spatial part, while orthogonality of spin part of wavefunction is ignored"
+
+if (rnormele==0) then
+	write(*,"(a,/)") " Warning: Integral of electron distribution is exactly zero, it is highly likely that &
+    wavefunctions of virtual orbitals were not recorded in your inputted wavefunction file! In this case hole-electron analysis is meaningless"
+end if
+
 write(*,"(' Integral of hole:    ',f12.6)") rnormhole
 write(*,"(' Integral of electron:',f12.6)") rnormele
 write(*,"(' Integral of transition density:',f12.6)") rinttransdens

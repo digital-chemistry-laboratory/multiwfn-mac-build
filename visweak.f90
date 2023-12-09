@@ -2,6 +2,7 @@
 subroutine visweak_main
 use defvar
 implicit real*8 (a-h,o-z)
+
 do while(.true.)
 	write(*,*)
 	write(*,*) "           ============ Visual study of weak interaction ============ "
@@ -17,6 +18,15 @@ do while(.true.)
 	write(*,"(a)") " 11 IGM analysis based on Hirshfeld partition of molecular density (IGMH) (JCC, 43, 539)"
 	write(*,*) "12 Averaged IGM analysis (aIGM)"
 	read(*,*) isel
+    
+	if ((isel==1.or.isel==4.or.isel==5.or.isel==11).and.(.not.allocated(b))) then
+		write(*,*) "Error: Wavefunction information is not available!"
+        write(*,"(a)") " You must use a file containing wavefunction information (e.g. .wfn/fch/mwfn/wfx...) as input file to perform the analysis. &
+        See Section 2.5 of Multiwfn manual to understand which files contain wavefunction information"
+        write(*,*) "Press ENTER button to return"
+        read(*,*)
+        return
+    end if
 	if (isel==0) then
 		return
 	else if (isel==1) then
