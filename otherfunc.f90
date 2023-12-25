@@ -169,7 +169,7 @@ subroutine outfile
 use defvar
 use util
 implicit real*8 (a-h,o-z)
-character c200tmp*200,c200tmp2*200
+character c200tmp*200,c200tmp2*200,c200tmp3*200
 write(*,*) "0 Return"
 write(*,*) "                Export system to various formats of files:"
 if (ifiletype==4) then !Used to convert .chg file to .pqr file
@@ -327,8 +327,12 @@ else if (isel==19) then
 	c200tmp=" "
 	write(*,"(a)") " Input path of .dal file, e.g. C:\DFT.dal (Directly pressing ENTER button if you do not need it)"
 	read(*,"(a)") c200tmp
+    call path2filename(filename,c200tmp3)
+    c200tmp3=trim(c200tmp3)//".mol"
 	write(*,*) "Input path of .mol file, e.g. C:\ltwd.mol"
+    write(*,"(a)") " If pressing ENTER button directly, "//trim(c200tmp3)//" will be generated in current folder"
 	read(*,"(a)") c200tmp2
+    if (c200tmp2==" ") c200tmp2=c200tmp3
 	call outDaltoninp(c200tmp,c200tmp2,10)
 else if (isel==20) then
 	write(*,*) "Input path for generating file, e.g. C:\ltwd.inp"

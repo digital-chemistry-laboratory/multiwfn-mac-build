@@ -5479,7 +5479,13 @@ open(10,file=filename,status="old")
 nraw=totlinenum(10,1)
 allocate(rawx(nraw),rawy(nraw))
 do idata=1,nraw
-    read(10,*) rawx(idata),rawy(idata)
+    read(10,*,iostat=ierror) rawx(idata),rawy(idata)
+    if (ierror/=0) then
+		write(*,"(a)") " Error: Unable to load data! The input file should contain two columns recording wavelengths and absorption strengths, respectively"
+        write(*,*) "Press ENTER button to exit program"
+        read(*,*)
+        stop
+    end if
     if (idata>1) then
 	    if (rawx(idata)<=rawx(idata-1)) then
 			write(*,"(a)") " Error: The X data in the input file must be ordered from small to large! Please manually fix your input file"

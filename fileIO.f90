@@ -7127,6 +7127,7 @@ if (dalname/=" ") then
 	write(ifileid,"(a)") " B3LYPg"
 	write(ifileid,"(a)") "**END OF INPUT"
 	close(ifileid)
+	write(*,"(a)") " Exporting .dal file finished! It corresponds to single point task using B3LYPg functional"
 end if
 
 open(ifileid,file=molname,status="replace")
@@ -7161,8 +7162,8 @@ do iele=1,nelesupp
 	end if
 end do
 close(ifileid)
-write(*,"(a)") " Exporting Dalton input file finished! It corresponds to single point task at B3LYPg/6-31G* level"
-if (naelec/=nbelec) write(*,*) "Electronic configuration in .dal file should be manually set properly"
+write(*,*) "Exporting .mol file finished! You need to properly set basis set in this file"
+if (naelec/=nbelec) write(*,*) "NOTE: Electronic configuration in the .mol file should be manually set properly"
 end subroutine
 
 

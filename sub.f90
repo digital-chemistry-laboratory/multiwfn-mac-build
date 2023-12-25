@@ -1239,6 +1239,12 @@ end if
 rmaxdev=0
 rmaxdevint=0
 if (itype==1) then
+	if (ifPBC/=0) then
+		write(*,*) "Error: This function is only available for non-periodic case"
+        write(*,*) "Press ENTER button to return"
+        read(*,*)
+        return
+    end if
     call genGTFSmat(GTFSmat,nprims*(nprims+1)/2)
     do imo=1,nmo
 	    tmp=0

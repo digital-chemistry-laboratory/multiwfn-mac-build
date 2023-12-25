@@ -1282,6 +1282,29 @@ else
 	write(*,"(' Positive variance: ',f20.10)") varipos
 	write(*,"(' Negative variance: ',f20.10)") varineg
 end if
+
+!Calculate Skewness, as requested in http://sobereva.com/wfnbbs/viewtopic.php?id=925
+skewall=0
+skewpos=0
+skewneg=0
+do i=1,nsurtri
+	if (elimtri(i)==1) cycle
+	valtmp=surtriang(i)%value
+    areatmp=surtriang(i)%area
+    skewall=skewall+areatmp*(valtmp-avgall)**3
+	if (valtmp>=0D0) then
+		skewpos=skewpos+areatmp*(valtmp-avgpos)**3
+	else
+		skewneg=skewneg+areatmp*(valtmp-avgneg)**3
+	end if
+end do
+skewall=skewall/surfareaall/variall**(3D0/2D0)
+skewpos=skewpos/surfareapos/varipos**(3D0/2D0)
+skewneg=skewneg/surfareaneg/varineg**(3D0/2D0)
+write(*,"(' Overall skewness: ',f20.10)") skewall
+if (surfareapos>0) write(*,"(' Positive skewness:',f20.10)") skewpos
+if (surfareaneg>0) write(*,"(' Negative skewness:',f20.10)") skewneg
+
 write(*,*)
 write(*,*) "Surface analysis finished!"
 
