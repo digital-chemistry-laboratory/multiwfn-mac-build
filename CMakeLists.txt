@@ -12,13 +12,18 @@ find_dependency(LAPACK)
 find_package(BLAS)
 find_package(LAPACK)
 
-# Find arb and flint
-find_library(flint NAMES flint REQUIRED)
-find_library(arb NAMES arb REQUIRED)
-message("-- Found flint: ${flint}")
-message("-- Found arb: ${arb}")
-find_path(ARB_INCLUDE_DIRS NAMES acb_hypgeom.h REQUIRED)
-message("-- Found arb include dir: ${ARB_INCLUDE_DIRS}")
+# Find flint
+find_package(PkgConfig)
+pkg_check_modules(GMP REQUIRED gmp)
+pkg_check_modules(FLINT REQUIRED flint)
+# find arb for flint < 3
+if(FLINT_VERSION VERSION_LESS "3")
+  pkg_check_modules(ARB REQUIRED arb)
+endif()
+# flint has a bug with PkgConfig
+if(FLINT_VERSION VERSION_LESS "3.0.2")
+  find_library(FLINT_BUG_LIB NAMES flint REQUIRED)
+endif()
 
 # Find OpenMP
 if(WITH_OpenMP)
@@ -59,12 +64,14 @@ target_link_libraries(
   multiwfn
   PRIVATE ${BLAS_LIBRARIES}
           ${LAPACK_LIBRARIES}
-          ${arb}
-          ${flint}
+          ${FLINT_BUG_LIB}
+          ${FLINT_LINK_LIBRARIES}
+          ${ARB_LINK_LIBRARIES}
+          ${GMP_LINK_LIBRARIES}
           $<$<BOOL:${OpenMP_Fortran_FOUND}>:OpenMP::OpenMP_Fortran>
           $<$<BOOL:${WITH_GUI}>:${dislin}>
           $<$<BOOL:${WITH_GUI}>:${Xm}>)
-target_include_directories(multiwfn PRIVATE ${ARB_INCLUDE_DIRS})
+target_include_directories(multiwfn PRIVATE ${GMP_INCLUDE_DIRS} ${FLINT_INCLUDE_DIRS} ${ARB_INCLUDE_DIRS})
 
 # Add compiler flags to GFortran
 target_compile_options(
