@@ -1920,6 +1920,9 @@ do i=1,ncenter
 	read(c200tmp,*,iostat=ierror) a(i)%name,a(i)%x,a(i)%y,a(i)%z
     itmp=index(a(i)%name,'_') !User may use e.g. Fe_1 to indicate special atom kind
     if (itmp/=0) a(i)%name(itmp:)=" "
+    do ichar=1,len_trim(a(i)%name) !Remove possible number, e.g. Fe3 to Fe
+		if (iachar(a(i)%name(ichar:ichar))>=48.and.iachar(a(i)%name(ichar:ichar))<=57) a(i)%name(ichar:ichar)=" "
+    end do
     call elename2idx(a(i)%name,a(i)%index)
 end do
 do while(.true.) !User may put SCALED after coordinates

@@ -1063,7 +1063,7 @@ character transmodestr*80,c80tmp*80,c200tmp*80
 character :: dirlab(3)=(/ "X","Y","Z" /)
 real*8,allocatable :: trandip(:,:,:) !Transition dipole moment between i and j in X,Y,Z. 0 corresponds to ground state
 real*8,allocatable :: excene(:) !Excitation energy
-real*8 alpha(3,3),beta(3,3,3),gamma(3,3,3,3),gamma1(3,3,3,3),gamma2(3,3,3,3),delta(3,3,3,3,3)
+real*8 alpha(3,3),alphatmp(3,3),beta(3,3,3),gamma(3,3,3,3),gamma1(3,3,3,3),gamma2(3,3,3,3),delta(3,3,3,3,3)
 real*8 eigval(3),eigvecmat(3,3),tmpw(5)
 real*8,allocatable :: freqlist(:,:) !Store the frequency to be calculated for beta and gamma
 integer tmpdir(5),arrb(6,3),arrg(24,4),arrd(120,5),dir1,dir2,dir3,dir4,dir5
@@ -1245,7 +1245,8 @@ else if (isel==1.or.isel==5.or.isel==15) then !Analysis of polarizability (alpha
 			term1=(alpha(1,1)-alpha(2,2))**2 + (alpha(1,1)-alpha(3,3))**2 + (alpha(2,2)-alpha(3,3))**2
 			term2=6*(alpha(1,2)**2+alpha(1,3)**2+alpha(2,3)**2)
 			alphaani1=dsqrt((term1+term2)/2D0)
-			call diagmat(alpha,eigvecmat,eigval,300,1D-10)
+            alphatmp=alpha
+			call diagmat(alphatmp,eigvecmat,eigval,300,1D-10)
 			call sort(eigval)
 			alphaani2=eigval(3)-(eigval(1)+eigval(2))/2D0
 		

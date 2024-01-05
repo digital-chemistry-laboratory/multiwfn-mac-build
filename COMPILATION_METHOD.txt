@@ -38,7 +38,7 @@ If you encountered difficulties when compiling or running Multiwfn due to missin
     or
      yum install arb-devel
    for Ubuntu:
-     apt install libflint-arb-dev
+     apt install libflint-arb-dev libflint-dev
 
 2) Provide `WITH_FD=1` to your `make` command and `OS=Ubuntu` (For Ubuntu) or `OS=RHEL` (for Fedora, CentOS, RHEL)
    So, on my PC with Fedora 35: `make noGUI WITH_FD=1 OS=RHEL -j 6`

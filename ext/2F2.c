@@ -1,4 +1,11 @@
+#include "flint/flint.h"
+
+#if __FLINT_VERSION >= 3
+#include "flint/acb.h"
+#include "flint/acb_hypgeom.h"
+#else
 #include "acb_hypgeom.h"
+#endif
 
 #include "2F2.h"
 
