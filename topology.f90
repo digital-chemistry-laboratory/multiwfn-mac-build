@@ -119,13 +119,11 @@ do while(.true.)
 		write(*,*) "0 Return"
         call selfunc_interface(1,ifunctopo)
         if (ifunctopo==0) cycle
-		if (ifunctopo==12) then
-			if (iESPcode==2.or.iESPcode==3) then
-				call doinitlibreta(1)
-				iaccurateESP=1 !Ask libreta to calculate boys function in high precision, otherwise numerical gradient/Hessian will be too poor to converge
-				if (isys==1.and.nthreads>12) nthreads=12
-			end if
-		end if
+        if (ifdoESP(ifunctopo).and.(iESPcode==2.or.iESPcode==3)) then
+            call doinitlibreta(1)
+            iaccurateESP=1 !Ask libreta to calculate boys function in high precision, otherwise numerical gradient/Hessian will be too poor to converge
+            if (isys==1.and.nthreads>12) nthreads=12
+        end if
 		if (numcp>0.or.numpath>0.or.nple3n1path>0.or.numbassurf>0) write(*,*) "Note: All found CPs, paths, surfaces have been cleaned"
 		numcp=0
 		numpath=0

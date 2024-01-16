@@ -6369,14 +6369,14 @@ end function
 
 
 !!-------- PAEM, potential acting on one electron in a molecule, defined by Zhongzhi Yang in JCC,35,965(2014)
-!If itype=1, evaluate the XC potential based on pair density, in this case GTFint will be generated first and used throughout
+!If itype=1, evaluate the XC potential based on pair density with Muller approximation, in this case GTFint will be generated first and used throughout
 !If itype=2, it will be equivalent to DFT XC potential, in this case libreta will be used to compute ESP
 real*8 function PAEM(x,y,z,itype)
 integer itype
 real*8 x,y,z,wfnval(nmo),GTFint(nprims,nprims)
 if (itype==1) then !Based on Muller approximation form
+	call genGTFattmat(x,y,z,GTFint) !GTFint will be used in the following parts
 	!Evaluate electron contribution to ESP
-	call genGTFattmat(x,y,z,GTFint)
 	rhopot=0
 	do imo=1,nmo
 		do iprim=1,nprims
