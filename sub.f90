@@ -2558,7 +2558,7 @@ end subroutine
 
 
 !!----------- Generate unique GTF information (b_uniq, CO_uniq)
-!This reduce number of GTFs if generally contracted basis set is used, then cost in subroutine "orbserv" can be lowered
+!This reduces number of GTFs if generally contracted basis set is used, then cost in subroutine "orbserv" can be lowered
 !infomode=0: Print number of unique GTFs. =1: Do not print
 !Note that after using it, del_GTFuniq should be invoked as early as possible, otherwise when CO is changed due to some reasons, CO_uniq will be out-of-dated
 subroutine gen_GTFuniq(infomode)
@@ -2577,11 +2577,11 @@ do itime=1,2
 			nprims_uniq=nprims_uniq+1
             if (itime==2) then
 				b_uniq(nprims_uniq)=b(iGTF)
-				CO_uniq(:,nprims_uniq)=CO(:,iGTF)
+				CO_uniq(:,nprims_uniq)=CO(1:nmo,iGTF)
             end if
 			do jGTF=iGTF+1,nprims
 				if (b(jGTF)%center==b(iGTF)%center.and.b(jGTF)%type==b(iGTF)%type.and.b(jGTF)%exp==b(iGTF)%exp) then
-					if (itime==2) CO_uniq(:,nprims_uniq)=CO_uniq(:,nprims_uniq)+CO(:,jGTF)
+					if (itime==2) CO_uniq(:,nprims_uniq)=CO_uniq(:,nprims_uniq)+CO(1:nmo,jGTF)
 					ifcombined(jGTF)=1
 				end if
 			end do
