@@ -2296,6 +2296,7 @@ else !&SCF
     end if
     !if (method=="GFN1-xTB".or.method=="PM6") write(ifileid,"(a)") "      SCF_GUESS MOPAC" !Seems they benefit from this
     write(ifileid,"(a)") "#     SCF_GUESS RESTART #Use wavefunction from WFN_RESTART_FILE_NAME file as initial guess"
+    write(ifileid,"(a)") "#     IGNORE_CONVERGENCE_FAILURE #Continue calculation even if SCF not converged, works for version >= 2024.1"
     if (idiagOT==1) then
         write(ifileid,"(a)") "      &DIAGONALIZATION"
         write(ifileid,"(a)") "        ALGORITHM STANDARD #Algorithm for diagonalization"
@@ -4657,6 +4658,7 @@ else !&PRINT/&MO_CUBES
         if (navirload/=0) then
             read(10,*) c80tmp
             if (index(c80tmp,"OT|")==0) backspace(10)
+            if (index(c80tmp,"WARNING")/=0) call skiplines(10,3) !May encounter "WARNING : did not converge in ot_eigensolver", and the subsequent two lines are detailed information    
             read(10,*) MOene(nint(naelec)+1:nint(naelec)+navirload)
         end if
         if (nbvirload/=0) then
@@ -4664,6 +4666,7 @@ else !&PRINT/&MO_CUBES
             read(10,*)
             read(10,*) c80tmp
             if (index(c80tmp,"OT|")==0) backspace(10)
+            if (index(c80tmp,"WARNING")/=0) call skiplines(10,3)
             read(10,*) MOene(nbasis+nint(nbelec)+1:nbasis+nint(nbelec)+nbvirload)
         end if
     end if
