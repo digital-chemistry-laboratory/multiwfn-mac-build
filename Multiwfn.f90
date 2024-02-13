@@ -29,9 +29,11 @@ if (narg>0) then
     end if
 end if
 
+call STO_overlap(1.8D0,0D0,0D0,0D0,0.8D0,0D0,0D0,1/b2a,result)
+
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2024-Jan-31"
+write(*,*) "Version 3.8(dev), release date: 2024-Feb-12"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -668,9 +670,9 @@ do while(.true.) !Main loop
 		    write(*,*) "97 Generate natural orbitals based on density matrix outputted by MRCC program"
 		    write(*,*) "99 Show EDF information (if any)"
 		    write(*,*) "100 Check the sanity of present wavefunction"
+            write(*,*) "201 Ring-ring distance&angle statistical analysis for a trajectory" !Only used by Sobereva in C18 work
+            write(*,*) "202 Ring rotation statistical analysis for a trajectory" !Only used by Sobereva in C18 work
             write(*,*) "1303 Setup fractional calculus"
-            !write(*,*) "201 Ring-ring distance&angle statistical analysis for a trajectory" !Only used by Sobereva in C18 work
-            !write(*,*) "202 Ring rotation statistical analysis for a trajectory" !Only used by Sobereva in C18 work
 		    read(*,*) i
 		    if (i==1) then
 			    write(*,*) "Input x,y,z in Bohr, e.g. 3.0,0.0,1.3"

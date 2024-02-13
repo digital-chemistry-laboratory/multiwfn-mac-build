@@ -3733,7 +3733,7 @@ end subroutine
 
 !!-------- Randomly generate name of Sobereva's lover
 subroutine mylover(outname)
-integer,parameter :: nlovers=65
+integer,parameter :: nlovers=66
 character(len=80) lovername(nlovers),outname
 CALL RANDOM_SEED()
 CALL RANDOM_NUMBER(tmp)
@@ -3803,6 +3803,7 @@ lovername(62)="Fuufu_Ijou,_Koibito_Miman\Akari_Watanabe"
 lovername(63)="Tomo-chan_wa_Onnanoko!\Misuzu_Gundou"
 lovername(64)="The_Cafe_Terrace_and_Its_Goddesses\Akane_Hououji"
 lovername(65)="Kanojo_mo_Kanojo\Rika_Hoshizaki"
+lovername(66)="Hokkaido_Gals_Are_Super_Adorable!\Minami_Fuyuki"
 !Dear Kanan,
 !
 !You are the only one I deeply love forever in the real world,
@@ -4427,8 +4428,8 @@ if (if_initlibreta==0) then
 end if
 if (info==1) then
 	write(*,"(/,a)") " NOTE: The ESP evaluation code based on LIBRETA library is being used. &
-	Please *NOT ONLY* cite Multiwfn original paper (J. Comput. Chem., 33, 580-592 (2012)) in your work, *BUT ALSO* cite the paper describing the efficient ESP evaluation algorithm adopted by Multiwfn:"
-	write(*,"(a)") " Jun Zhang, Tian Lu, Phys. Chem. Chem. Phys., 23, 20323 (2021)"
+	Please in your work cite both Multiwfn original paper (J. Comput. Chem., 33, 580-592 (2012)) and the paper describing the &
+    efficient ESP evaluation algorithm adopted by Multiwfn: Phys. Chem. Chem. Phys., 23, 20323 (2021)"
 	if (isys==1.and.nthreads>12) then
 		write(*,"(a)") " Warning!!! In Windows system, it is found that the performance of ESP evaluation code may &
 		severely degrade when more than 12 CPU cores are used, therefore 12 cores are used in the following ESP calculation. &

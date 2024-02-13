@@ -1050,6 +1050,104 @@ end subroutine
 
 
 
+!!!-------- Evaluate overlap between two 1s STOs at (x1,y1,z1) and (x2,y2,z2) with zeta1 and zeta2
+!Ref: Jones, IJQC, 21, 1079-1089 (1982)
+!Test: call STO_overlap(1.8D0,0D0,0D0,0D0,0.8D0,0D0,0D0,1/b2a,result)
+subroutine STO_overlap(zeta1,x1,y1,z1,zeta2,x2,y2,z2,result)
+implicit real*8 (a-h,o-z)
+real*8 zeta1,x1,y1,z1,zeta2,x2,y2,z2,result
+
+aval=dsqrt((x1-x2)**2+(y1-y2)**2+(z1-z2)**2)
+pval=(zeta2+zeta1)*aval/2
+tval=(zeta2-zeta1)/(zeta1+zeta2)
+!tval=0.5D0
+!pval=2D0
+tval2=tval*tval
+tval4=tval2*tval2
+ptval=pval*tval
+preterm=(1-tval2)**1.5D0/2 * exp(-pval)
+if (abs(ptval)>=0.1D0) then !Eq. 5 of IJQC paper
+    tmp=(-1/tval**3+1/tval)/pval
+    t1=exp(ptval)*( tmp + 1/tval2 + 1/tval )
+    t2=exp(-ptval)*( -tmp + 1/tval2 - 1/tval )
+    result=preterm*(t1+t2)
+else !Eq. 6 of IJQC paper
+    tmp1=2*pval
+    tmp2=pval**2*(2D0/3D0+tval2/3)
+    tmp3=pval**3*tval2/3
+    tmp4=pval**4*(tval2/15+tval4/60)
+    tmp5=pval**5*tval4/60
+    tmp6=pval**6*(tval4/420+tval**6/2520)
+    result=preterm*(2+tmp1+tmp2+tmp3+tmp4+tmp5+tmp6)
+end if
+end subroutine
+
+
+
+
+!!!-------- Evaluate two-center 4-index Coulomb integral between four 1s STOs
+!STO 1 and 2: (x1,y1,z1) with zeta of za and zb
+!STO 3 and 4: (x2,y2,z2) with zeta of zc and zd
+!Ref: Jones, IJQC, 21, 1079-1089 (1982)
+!Test: call STO_Coulomb(1.8D0,1.8D0,0D0,0D0,0D0, 0.8D0,0.8D0,0D0,0D0,1/b2a,result)
+subroutine STO_Coulomb(za,zb,x1,y1,z1,zc,zd,x2,y2,z2,result)
+implicit real*8 (a-h,o-z)
+real*8 zeta1,x1,y1,z1,zeta2,x2,y2,z2,result
+
+aval=dsqrt((x1-x2)**2+(y1-y2)**2+(z1-z2)**2)
+zeta1=zc+zd
+zeta2=za+zb
+pval=(zeta2+zeta1)*aval/2
+
+if (zeta1==zeta2) then !Special case for (za+zb)=(zc+zd), Ref: IJQC, 20, 1217 (1981)
+    result=(za*zb*zc*zd)**1.5D0/zeta1**5 * 8/pval*(8-(8+5.5*pval+1.5*pval**2+pval**3/6)*exp(-pval))
+    return
+end if
+
+tval=(zeta2-zeta1)/(zeta1+zeta2)
+!tval=-0.1D0
+!pval=0.05D0
+
+tval2=tval*tval
+tval3=tval2*tval
+tval4=tval2*tval2
+tval5=tval2*tval3
+tval6=tval3*tval3
+tval8=tval4*tval4
+tval10=tval5*tval5
+ptval=pval*tval
+!write(*,"(' t=',f12.6,' p=',f12.6,' p*t=',f12.6)") tval,pval,ptval
+
+if (pval<=0.1D0) then !Eq. 11, H(p,t)
+    tmp1=10-12*tval2+2*tval4+pval**2*(-1D0/3D0+tval2-tval4+tval6/3)
+    tmp2=pval**4*(1D0/60D0-tval2/15+tval4/10-tval6/15+tval8/60)
+    tmp3=pval**6*(-1D0/504D0+tval2/120-17*tval4/1260-13*tval6/1260-tval8/280+tval10/2520)
+    tmp4=pval**7*(1D0/1260D0-tval2/315+tval4/210-tval6/315+tval8/1260)
+    tmpval=(tmp1+tmp2+tmp3+tmp4)/16D0
+else
+    if (abs(ptval)<=0.05D0) then !Eq. 10, G(p,t)
+        tmp1=pval*(22+12*tval2-2*tval4)
+        tmp2=pval**2*(6+12*tval2-2*tval4)
+        tmp3=pval**3*(2D0/3D0+5*tval2-tval6/3)
+        tmp4=pval**4*(tval2+2*tval4/3D0-tval6/3)
+        tmp5=pval**5*(tval2/15+19*tval4/60-tval6/10-tval8/60)
+        tmp6=pval**6*(tval4/20+tval6/90-tval8/60)
+        tmp7=pval**7*(tval4/420+23*tval6/2520-tval8/210-tval10/2520)
+        tmpval=(32-exp(-pval)*(32+tmp1+tmp2+tmp3+tmp4+tmp5+tmp6+tmp7))/16/pval
+    else !Eq. 8, F(p,t)
+        tmp1= 1/tval3-9/tval-16-9*tval+tval3+pval*(-1/tval2-3/tval-2+2*tval+3*tval2+tval3)
+        tmp2=-1/tval3+9/tval-16+9*tval-tval3+pval*(-1/tval2+3/tval-2-2*tval+3*tval2-tval3)
+        !tmpval=( 32+tmp1*exp(-zeta1*aval)+tmp2*exp(-zeta2*aval) )/16/pval !Equation in original paper, equivalent to the next line
+        tmpval=( 32+tmp1*exp(-pval*(1-tval))+tmp2*exp(-pval*(1+tval)) )/16/pval
+    end if
+end if
+
+result=16*(za*zb*zc*zd)**1.5D0*(za+zb+zc+zd)*tmpval/(za+zb)**3/(zc+zd)**3
+end subroutine
+
+
+
+
 !!---------- Print two-electron integral of (ij|kl) for four orbitals by inputting their indices
 !Cost is fairly high even for phenol, because calcGTF_ERI is too naive to calculate all ERIs 
 subroutine showorb_ERI
@@ -1108,6 +1206,7 @@ end do
 end subroutine
 
     
+
 
 !!---------- Print two-electron integral of (ij|kl) for four GTFs by inputting their GTF indices
 subroutine showGTF_ERI

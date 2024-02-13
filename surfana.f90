@@ -2200,13 +2200,13 @@ use util
 use functions
 implicit real*8 (a-h,o-z)
 integer nHirBecatm,HirBecatm(nHirBecatm),tmparr(ncenter),ifcontactvtx(nsurvtx)
-real*8 dens(nsurvtx)
+real*8 dens(nsurvtx),elecontact(nelesupp,nelesupp)
 real*8 vtxdnorm(nsurvtx),d_i(nsurvtx),d_e(nsurvtx) !In Angstrom
 real*8 :: rlow=0.6D0,rhigh=2.6D0,rstep=0.2D0
 integer :: ptsize=15
 integer,allocatable :: inarr(:),outarr(:),notHirBecatm(:)
 real*8,allocatable :: xarr(:),yarr(:)
-character c2000tmp*2000,c2tmp*2
+character c2000tmp*2000,c2tmp*2,c80tmp*80
 !Set default inside and outside fragment
 ninarr=nHirBecatm
 nnotHirBecatm=ncenter-nHirBecatm !The number of atoms do not belong to Hirshfeld/Becke fragment
@@ -2227,19 +2227,20 @@ do while(.true.)
 	write(*,*) "  -------------- Fingerprint plot and local contact analyses --------------"
 	write(*,*) "-1 Return"
 	write(*,*) "0 Start analysis"
-	write(*,"(a,i8)") " 1 Set the inside atoms, current number is",ninarr
-	write(*,"(a,i8)") " 2 Set the outside atoms, current number is",noutarr
+	write(*,"(a,i8)") " 1 Set inside atoms for option 0, current number is",ninarr
+	write(*,"(a,i8)") " 2 Set outside atoms for option 0, current number is",noutarr
+    write(*,*) "3 Calculate contact area between different elements"
 	read(*,*) isel
 
 	if (isel==-1) then
 		return
 	else if (isel==1) then
 		tmparr=0 !If tmparr(i)=1, i will be in this fragment
-		write(*,*) "The index of current inside atoms"
+		write(*,*) "The indices of current inside atoms"
 		write(*,"(10i7)") inarr
-		write(*,*) "Now input two conditions, the inside atoms will be their intersection"
+		write(*,"(a)") " Now input two conditions (atom index range and then element), the inside atoms will be their intersection"
 		write(*,*)
-		write(*,"(a)") " First, input index range, e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 are selected"
+		write(*,"(a)") " Input index range of atoms, e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 are selected"
 		write(*,"(a)") " Note: If press ENTER button directly, all atoms in the Hirshfeld/Becke fragment will be taken into consideration"
 		read(*,"(a)") c2000tmp
 		if (c2000tmp==" ") then
@@ -2249,8 +2250,8 @@ do while(.true.)
 			call str2arr(c2000tmp,nelement)
 			call str2arr(c2000tmp,nelement,tmparr(1:nelement))
 		end if
-		write(*,*) "Please input element as filter condition, e.g. Cl"
-		write(*,*) "Note: If press ENTER button directly, the element filter will be ignored"
+		write(*,*) "Input element as filter condition, e.g. Cl"
+		write(*,*) "Note: If press ENTER button directly, this condition will be ignored"
 		read(*,"(a)") c2tmp
 		deallocate(inarr)
 		if (c2tmp==" ") then
@@ -2276,11 +2277,11 @@ do while(.true.)
 		end do
 	else if (isel==2) then
 		tmparr=0 !If tmparr(i)=1, i will be in this fragment
-		write(*,*) "The index of current outside atoms"
+		write(*,*) "Index of current outside atoms"
 		write(*,"(10i7)") outarr
-		write(*,*) "Now input two conditions, the outside atoms will be their intersection"
+		write(*,"(a)") " Now input two conditions (atom index range and then element), the inside atoms will be their intersection"
 		write(*,*)
-		write(*,"(a)") " First, input index range, e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 are selected"
+		write(*,"(a)") " Input index range of atoms, e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 are selected"
 		write(*,"(a)") " Note: If press ENTER button directly, all atoms do not belong to the Hirshfeld/Becke fragment will be taken into consideration"
 		read(*,"(a)") c2000tmp
 		if (c2000tmp==" ") then
@@ -2290,8 +2291,8 @@ do while(.true.)
 			call str2arr(c2000tmp,nelement)
 			call str2arr(c2000tmp,nelement,tmparr(1:nelement))
 		end if
-		write(*,*) "Please input element as filter condition, e.g. Cl"
-		write(*,*) "Note: If press ENTER button directly, the element filter will be ignored"
+		write(*,*) "Input element as filter condition, e.g. Cl"
+		write(*,*) "Note: If press ENTER button directly, this condition will be ignored"
 		read(*,"(a)") c2tmp
 		deallocate(outarr)
 		if (c2tmp==" ") then
@@ -2544,6 +2545,68 @@ do while(.true.)
                 write(*,*) "Columns 1 and 2 in these files are d_i and d_e, respectively"
 			end if
 		end do
+
+    else if (isel==3) then !Calculate contact area between different elements 
+        !Loop over all center of surface facets, attribute its area to element pair
+		elecontact=0 !elecontact(8,1) means contact area between oxygen of inside atoms and hydrogen of outside atoms
+        do itri=1,nsurtri
+	        if (elimtri(itri)==1) cycle
+			surtrix=sum(survtx(surtriang(itri)%idx(1:3))%x)/3D0 !Center of triangles
+			surtriy=sum(survtx(surtriang(itri)%idx(1:3))%y)/3D0
+			surtriz=sum(survtx(surtriang(itri)%idx(1:3))%z)/3D0
+			dist2minin=1D100
+			dist2minout=1D100
+			iminin=0
+			iminout=0
+			do iatm=1,ncenter
+				dist2=(a(iatm)%x-surtrix)**2+(a(iatm)%y-surtriy)**2+(a(iatm)%z-surtriz)**2
+				if (any(HirBecatm==iatm)) then !Find the closest atom in Hirshfeld/Becke fragment to the surface point
+					if (dist2<dist2minin) then
+						dist2minin=dist2
+						iminin=iatm
+					end if
+				else !Find the closest atom that does not belong to Hirshfeld/Becke fragment to the surface point
+					if (dist2<dist2minout) then
+						dist2minout=dist2
+						iminout=iatm
+					end if
+				end if
+			end do
+            iele=a(iminin)%index
+            jele=a(iminout)%index
+			elecontact(iele,jele)=elecontact(iele,jele)+surtriang(itri)%area
+        end do
+        elecontact=elecontact*b2a*b2a
+        areaall=sum(elecontact)
+        write(*,"(a)") " Inside element, outside element, their contact area (Angstrom^2) and percentage (%)"
+        do iele=1,nelesupp !Loop inside elements
+			do jele=1,nelesupp !Loop outside elements
+				if (elecontact(iele,jele)/=0) then
+					write(c80tmp,"(a,'-',a)") trim(ind2name(iele)),trim(ind2name(jele))
+					write(*,"(2x,a,f12.3,f12.3)") c80tmp(1:5),elecontact(iele,jele),elecontact(iele,jele)/areaall*100
+                end if
+            end do
+        end do
+        write(*,*)
+        write(*,*) "The same as above, but do not distinguish inside and outside elements"
+        do iele=1,nelesupp
+			do jele=iele,nelesupp
+				if (iele==jele) then
+					if (elecontact(iele,iele)/=0) then
+						write(c80tmp,"(a,'-',a)") trim(ind2name(iele)),trim(ind2name(jele))
+						write(*,"(2x,a,f12.3,f12.3)") c80tmp(1:11),elecontact(iele,iele),elecontact(iele,iele)/areaall*100
+					end if
+                else
+					tmparea=elecontact(iele,jele)+elecontact(jele,iele)
+					if (tmparea/=0) then
+						write(c80tmp,"(a,'-',a,'/',a,'-',a)") trim(ind2name(iele)),trim(ind2name(jele)),trim(ind2name(jele)),trim(ind2name(iele))
+						write(*,"(2x,a,f12.3,f12.3)") c80tmp(1:11),tmparea,tmparea/areaall*100
+					end if
+                end if
+            end do
+        end do
+        write(*,*)
+		write(*,"(' Area of total contact surface is',f10.3,' Angstrom^2')") areaall
 	end if
 end do
 end subroutine
