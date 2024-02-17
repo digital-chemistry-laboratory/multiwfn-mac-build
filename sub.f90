@@ -2462,6 +2462,8 @@ use util
 implicit real*8 (a-h,o-z)
 real*8 tvec(3)
 
+if (.not.allocated(b)) return
+
 spcred=1.5D0/b2a !Spacing of reduced grid, this is fund to be optimal value
 !Define a orthogonal box for reduced grid
 call cellmaxxyz(xmax,ymax,zmax)

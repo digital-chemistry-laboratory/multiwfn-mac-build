@@ -64,7 +64,13 @@ do while(.true.)
 	if (imapfunc==5) write(*,*) "2 Select mapped function, current: Electron delocalization range function EDR(r;d)" 
 	if (imapfunc==6) write(*,*) "2 Select mapped function, current: Orbital overlap distance function D(r)"	
 	if (imapfunc==10) write(*,*) "2 Select mapped function, current: Pair density"
-	if (imapfunc==11) write(*,*) "2 Select mapped function, current: Electron density"
+	if (imapfunc==11) then
+		if (allocated(b)) then
+			write(*,*) "2 Select mapped function, current: Electron density"
+		else
+			write(*,*) "2 Select mapped function, current: Promolecular electron density"
+        end if
+    end if
 	if (imapfunc==12) write(*,*) "2 Select mapped function, current: Sign(lambda2)*rho"
 	if (imapfunc==20) write(*,*) "2 Select mapped function, current: d_i"
 	if (imapfunc==21) write(*,*) "2 Select mapped function, current: d_e"
@@ -129,7 +135,7 @@ do while(.true.)
 					exit
                 end if
             end do
-			imapfunc=22
+			imapfunc=11
 		else if (isurftypetmp==10) then
 			isurftype=10
 			write(*,*) "Input the path of .cub or .grd file, e.g. C:\ltwd.cub"
@@ -299,7 +305,7 @@ do while(.true.)
 				exit
 			else if (isel2==1) then
 				write(*,*) "Input ratio of vdW radii, e.g. 1.5"
-				write(*,"(a)") " Note: 1.7 is enough for the case of isovalue=0.001, for lower isovalue, a larger value is needed"
+				if (isurftype==1) write(*,"(a)") " Note: 1.7 is enough for the case of isovalue=0.001, for lower isovalue, a larger value is needed"
 				read(*,*) vdwmulti
 			else if (isel2==2) then
 				if (ifelim==1) then
@@ -357,10 +363,12 @@ end do
 !======== Start calculation ========!
 
 if (imapfunc/=0.and.imapfunc/=4.and.imapfunc/=20.and.imapfunc/=21.and.imapfunc/=22) call delvirorb(1) ! Delete high-lying virtual orbitals to speed up calculation
-if (ifPBC==0) then
-	call gen_GTFuniq(0) !Generate unique GTFs, for faster evaluation in orbderv
-else
-	call gen_neigh_GTF !Generate neighbouring GTFs list at reduced grids, for faster evaluation
+if (allocated(b)) then
+	if (ifPBC==0) then
+		call gen_GTFuniq(0) !Generate unique GTFs, for faster evaluation in orbderv
+	else
+		call gen_neigh_GTF !Generate neighbouring GTFs list at reduced grids, for faster evaluation
+	end if
 end if
 
 call walltime(iclktime1)
@@ -416,54 +424,62 @@ if (isurftype==1.or.isurftype==2.or.isurftype==5.or.isurftype==6) then !Calculat
 		! call savecubmat(100,1,1)
 		
 	else if (isurftype==5) then !Hirshfeld analysis, calculate weighting distribution of a specific set of atom
-		write(*,*) "Hirshfeld analysis requests atomic densities, please select how to obtain them"
-		write(*,*) "1 Use build-in sphericalized atomic densities in free-states (recommended)"
-		write(*,"(a)") " 2 Provide wavefunction file of involved elements by yourself or invoke Gaussian to automatically calculate them"
-		read(*,*) ihirshmode
 		if (allocated(cubmat)) deallocate(cubmat)
 		if (allocated(cubmattmp)) deallocate(cubmattmp)
 		allocate(cubmat(nx,ny,nz),cubmattmp(nx,ny,nz))
 		cubmat=0D0
 		cubmattmp=0D0
-		if (ihirshmode==1) then
+		!I found ihirshmode=1 is always a satisfactory choice, so I decide not bother users to select
+		!write(*,*) "Hirshfeld analysis requests atomic densities, please select how to obtain them"
+		!write(*,*) "1 Use build-in sphericalized atomic densities in free-states (recommended)"
+		!write(*,"(a)") " 2 Provide wavefunction file of involved elements by yourself or invoke Gaussian to automatically calculate them"
+		!read(*,*) ihirshmode
+		!if (ihirshmode==1) then
 			do iatm=1,ncenter
-				!$OMP PARALLEL DO SHARED(cubmat,cubmattmp) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp) schedule(dynamic) NUM_THREADS(nthreads)
+				!I attempted to use truncation, which reduce cost significantly for >1000 atoms system, unfortunately this will cost Hirshfeld surface occur at molecular open boundary...
+				!xtmp=a(iatm)%x;ytmp=a(iatm)%y;ztmp=a(iatm)%z
+    !            crit2=(vdwr(a(iatm)%index)*3)**2
+                iadd=0
+                if (any(HirBecatm==iatm)) iadd=1
+				!$OMP PARALLEL DO SHARED(cubmat,cubmattmp) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp,dist2) schedule(dynamic) NUM_THREADS(nthreads)
 				do k=1,nz
 					do j=1,ny
 						do i=1,nx
 							call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
-							denstmp=calcatmdens(iatm,tmpx,tmpy,tmpz,-1) !Use STO fitted atomic density, can elongate to rather long distance to avoid zero denominator of Hirshfeld weight
+                            !dist2=(xtmp-tmpx)**2+(ytmp-tmpy)**2+(ztmp-tmpz)**2
+                            !if (dist2>crit2) cycle
+							denstmp=calcatmdens(iatm,tmpx,tmpy,tmpz,-1) !Use STO fitted atomic density, can cover rather long distance to avoid zero denominator of Hirshfeld weight
 							cubmattmp(i,j,k)=cubmattmp(i,j,k)+denstmp
-							if (any(HirBecatm==iatm)) cubmat(i,j,k)=cubmat(i,j,k)+denstmp !Density of specified fragment
+							if (iadd==1) cubmat(i,j,k)=cubmat(i,j,k)+denstmp !Density of specified fragment
 						end do
 					end do
 				end do
 				!$OMP END PARALLEL DO
 				call showprog(iatm,ncenter)
 			end do
-		else if (ihirshmode==2) then
-			call setpromol
-			do iatm=1,ncenter_org
-				call dealloall(0)
-				call readwfn(custommapname(iatm),1)
-				!$OMP PARALLEL DO SHARED(cubmat,cubmattmp) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp) schedule(dynamic) NUM_THREADS(nthreads)
-				do k=1,nz
-					do j=1,ny
-						do i=1,nx
-							call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
-							denstmp=fdens(tmpx,tmpy,tmpz)
-							cubmattmp(i,j,k)=cubmattmp(i,j,k)+denstmp
-							if (any(HirBecatm==iatm)) cubmat(i,j,k)=cubmat(i,j,k)+denstmp !Density of specified fragment
-						end do
-					end do
-				end do
-				!$OMP END PARALLEL DO
-				call showprog(iatm,ncenter_org)
-			end do
-			call dealloall(0)
-			write(*,"(' Reloading ',a)") trim(firstfilename)
-			call readinfile(firstfilename,1) !Retrieve to first loaded file(whole molecule)
-		end if
+		!else if (ihirshmode==2) then
+		!	call setpromol
+		!	do iatm=1,ncenter_org
+		!		call dealloall(0)
+		!		call readwfn(custommapname(iatm),1)
+		!		!$OMP PARALLEL DO SHARED(cubmat,cubmattmp) PRIVATE(i,j,k,tmpx,tmpy,tmpz,denstmp) schedule(dynamic) NUM_THREADS(nthreads)
+		!		do k=1,nz
+		!			do j=1,ny
+		!				do i=1,nx
+		!					call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
+		!					denstmp=fdens(tmpx,tmpy,tmpz)
+		!					cubmattmp(i,j,k)=cubmattmp(i,j,k)+denstmp
+		!					if (any(HirBecatm==iatm)) cubmat(i,j,k)=cubmat(i,j,k)+denstmp !Density of specified fragment
+		!				end do
+		!			end do
+		!		end do
+		!		!$OMP END PARALLEL DO
+		!		call showprog(iatm,ncenter_org)
+		!	end do
+		!	call dealloall(0)
+		!	write(*,"(' Reloading ',a)") trim(firstfilename)
+		!	call readinfile(firstfilename,1) !Retrieve to first loaded file(whole molecule)
+		!end if
 		do k=1,nz
 			do j=1,ny
 				do i=1,nx
@@ -481,6 +497,7 @@ if (isurftype==1.or.isurftype==2.or.isurftype==5.or.isurftype==6) then !Calculat
 		allocate(cubmat(nx,ny,nz))
 		cubmat=0D0
 		ifinish=0
+        call showprog(0,nz)
 		!We calculate Becke weight for all atoms, but only summing up the value of we selected atoms to cubmat
 		!$OMP PARALLEL DO SHARED(cubmat) PRIVATE(i,j,k,rnowx,rnowy,rnowz,Pvec) schedule(dynamic) NUM_THREADS(nthreads)
 		do k=1,nz
@@ -488,7 +505,7 @@ if (isurftype==1.or.isurftype==2.or.isurftype==5.or.isurftype==6) then !Calculat
 				do i=1,nx
                     call getgridxyz(i,j,k,rnowx,rnowy,rnowz)
                     !Calculate Becke weight of all atoms (Pvec) at current point
-					call BeckePvec(rnowx,rnowy,rnowz,Pvec,vdwr_tianlu,3)
+					call BeckePvec(rnowx,rnowy,rnowz,Pvec,covr,3)
 					cubmat(i,j,k)=cubmat(i,j,k)+sum(Pvec(HirBecatm(:)))
 				end do
 			end do
@@ -1311,7 +1328,7 @@ write(*,*) "Surface analysis finished!"
 call walltime(iclktime2)
 write(*,"(' Total wall clock time passed during this task:',i6,' s')") iclktime2-iclktime1
 if (imapfunc/=0.and.imapfunc/=4.and.imapfunc/=20.and.imapfunc/=21.and.imapfunc/=22) call delvirorb_back(1)
-call del_GTFuniq !Destory unique GTF informtaion
+if (allocated(b)) call del_GTFuniq !Destory unique GTF informtaion
 if (imapfunc==1) write(*,"(a)") " Citation of molecular polarity index (MPI): Carbon, 171, 514 (2021) DOI: 10.1016/j.carbon.2020.09.048"
 
 
@@ -1355,7 +1372,7 @@ do while(.true.)
 ! 	write(*,*) "16 Export center of surface facets as pdb file" !Can also output to xyz file
     write(*,*) "18 Discard some surface extrema by inputting their indices"
     write(*,*) "19 Merge some surface extrema and take their average position"
-	if (imapfunc==22) write(*,*) "20 Fingerprint plot and local contact analyses"
+	if (isurftype==5.or.isurftype==6) write(*,*) "20 Fingerprint plot and local contact analyses"
 	read(*,*) isel
 	
 	if (isel==-3) then
@@ -1363,6 +1380,7 @@ do while(.true.)
 		call drawisosurgui(1)
 		
 	else if (isel==-2) then
+		write(*,*) "Exporting surf.cub..."
 		open(10,file="surf.cub",status="replace")
 		call outcube(cubmat,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
 		close(10)
@@ -2071,6 +2089,7 @@ do while(.true.)
 		end do
 		!$OMP END PARALLEL DO
         if (ishowprog/=0) call showprog(100,100)
+		write(*,*) "Exporting mapfunc.cub..."
 		open(10,file="mapfunc.cub",status="replace")
 		call outcube(cubmattmp,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
 		close(10)
@@ -2178,7 +2197,7 @@ do while(.true.)
         if (itype==2) write(*,"(i5,' negative extrema have been merged as negative extreme',i5)") ncount,ifirst
         write(*,*) "Note that the value of mapped function at this extreme is not updated"
 	else if (isel==20) then !Fingerprint plot
-		call fingerprt(HirBecatm,nHirBecatm)
+        call fingerprt(HirBecatm,nHirBecatm,imapfunc)
 	end if
 end do
 
@@ -2193,15 +2212,15 @@ end subroutine
 
 
 !!----------------- Fingerprint plot analysis
-subroutine fingerprt(HirBecatm,nHirBecatm)
+subroutine fingerprt(HirBecatm,nHirBecatm,imapfunc)
 use plot
 use surfvertex
 use util
 use functions
 implicit real*8 (a-h,o-z)
-integer nHirBecatm,HirBecatm(nHirBecatm),tmparr(ncenter),ifcontactvtx(nsurvtx)
-real*8 dens(nsurvtx),elecontact(nelesupp,nelesupp)
-real*8 vtxdnorm(nsurvtx),d_i(nsurvtx),d_e(nsurvtx) !In Angstrom
+integer nHirBecatm,HirBecatm(nHirBecatm),tmparr(ncenter),ifcontactvtx(nsurvtx),imapfunc
+real*8 dens(nsurvtx),densall(nsurvtx),elecontact(nelesupp,nelesupp)
+real*8 d_i(nsurvtx),d_e(nsurvtx) !In Angstrom
 real*8 :: rlow=0.6D0,rhigh=2.6D0,rstep=0.2D0
 integer :: ptsize=15
 integer,allocatable :: inarr(:),outarr(:),notHirBecatm(:)
@@ -2224,7 +2243,7 @@ outarr=notHirBecatm
 
 do while(.true.)
     write(*,*)
-	write(*,*) "  -------------- Fingerprint plot and local contact analyses --------------"
+    call menutitle("Fingerprint plot and local contact analyses",10,1)
 	write(*,*) "-1 Return"
 	write(*,*) "0 Start analysis"
 	write(*,"(a,i8)") " 1 Set inside atoms for option 0, current number is",ninarr
@@ -2343,7 +2362,6 @@ do while(.true.)
 			end do
 			d_i(ivtx)=dsqrt(dist2minin)*b2a
 			d_e(ivtx)=dsqrt(dist2minout)*b2a
-            vtxdnorm(ivtx)=surfana_norm(survtx(ivtx)%x,survtx(ivtx)%y,survtx(ivtx)%z,nHirBecatm,HirBecatm)
 			if (any(inarr==iminin).and.any(outarr==iminout)) then !This point is on local contact surface
 				ncontactvtx=ncontactvtx+1
                 ifcontactvtx(ivtx)=1 !This is a point on local contact surface
@@ -2354,10 +2372,22 @@ do while(.true.)
         !For each point, calculate number of other points in specific radius and divide by circle area
 		radtest=0.03D0 !Compare radius in Angstrom
         dens=0
+        densall=0
+        !$OMP PARALLEL DO SHARED(dens,densall) PRIVATE(ivtx,di1,de1,jvtx,di2,de2,dist) schedule(dynamic) NUM_THREADS(nthreads)
 		do ivtx=1,nsurvtx
-			if (ifcontactvtx(ivtx)==0) cycle
+			if (elimvtx(ivtx)==1) cycle
             di1=d_i(ivtx)
             de1=d_e(ivtx)
+            !Statisticize entire contact surface
+			do jvtx=1,nsurvtx
+				if (elimvtx(jvtx)==1) cycle
+				di2=d_i(jvtx)
+				de2=d_e(jvtx)
+                dist=dsqrt((di1-di2)**2+(de1-de2)**2)
+                if (dist<radtest) densall(ivtx)=densall(ivtx)+1
+            end do
+            !Statisticize local contact surface (may also correspond to entire surface if user do not modify definition of inside/outside atoms)
+			if (ifcontactvtx(ivtx)==0) cycle
 			do jvtx=1,nsurvtx
 				if (ifcontactvtx(jvtx)==0) cycle
 				di2=d_i(jvtx)
@@ -2366,7 +2396,9 @@ do while(.true.)
                 if (dist<radtest) dens(ivtx)=dens(ivtx)+1
 			end do
         end do
+        !$OMP END PARALLEL DO
         dens=dens/(pi*radtest**2)
+        densmax=maxval(densall)/(pi*radtest**2) !Used to define upper limit of color scale
         
         !Loop over all center of surface facets, if a facet belongs to a contact surface, sum it area to arealoc
         !Also, calculate Hirshfeld surface area here
@@ -2412,13 +2444,13 @@ do while(.true.)
         
 		do while(.true.)
 		    write(*,*)
-            write(*,*) "------ Post process menu of fingerprint map and local contact analyses ------"
+            call menutitle("Post process menu of fingerprint map and local contact analyses",6,1)
 			write(*,*) "-1 Return"
 			write(*,*) "0 Show fingerprint plot (quality is much poorer than that saved by option 1)"
 			write(*,*) "1 Save fingerprint plot to an image file in current folder"
 			write(*,"(a,i3)") " 2 Set size of points, current:",ptsize
 			write(*,"(a,f8.3,a,f8.3,a,f5.2,a)") " 3 Set range of axes, current: from",rlow," to",rhigh,', with step',rstep,' Angstrom'
-			write(*,*) "4 Export surface points to .pdb file in current folder"
+			write(*,*) "4 Export surface points to .pqr file in current folder"
 			write(*,*) "5 Export d_i and d_e of surface points to .txt file in current folder"
 			read(*,*) isel3
             
@@ -2472,7 +2504,6 @@ do while(.true.)
 				call curve(xarr,yarr,nnow)
                 deallocate(xarr,yarr)
                 !Plot points on local contact surface
-                densmax=maxval(dens)
                 do ivtx=1,nsurvtx
 					if (ifcontactvtx(ivtx)==1) then
                         call percent2RGB(1,dens(ivtx)/densmax,Rval,Gval,Bval)
@@ -2494,7 +2525,7 @@ do while(.true.)
                 write(*,*) "Input step size, e.g. 0.2"
                 read(*,*) rstep
 			else if (isel3==4) then
-				open(10,file="finger.pdb",status="replace")
+				open(10,file="finger.pqr",status="replace")
 				write(10,"('REMARK   Generated by Multiwfn, totally',i10,' points on the surface')") ncontactvtx
 				if (ifPBC>0) then
 					call getcellabc(asize,bsize,csize,alpha,beta,gamma)
@@ -2504,13 +2535,13 @@ do while(.true.)
 					if (ifcontactvtx(ivtx)==0) cycle
                     idx=ivtx
                     if (ivtx>99999) idx=99999
-					write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") &
-					"HETATM",idx,' '//"C "//' ',"MOL",'A',1,survtx(ivtx)%x*b2a,survtx(ivtx)%y*b2a,survtx(ivtx)%z*b2a,1.0,vtxdnorm(ivtx),"C "
+                    write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,f13.8,f9.4,a2)") &
+					"HETATM",idx,' '//"C "//' ',"MOL",'A',1,survtx(ivtx)%x*b2a,survtx(ivtx)%y*b2a,survtx(ivtx)%z*b2a,survtx(ivtx)%value,1D0," C"
 				end do
 				write(10,"('END')")
 				close(10)
-				write(*,"(a)") " The points on the current contact surface have been outputted to finger.pdb in current folder"
-				open(10,file="finger_all.pdb",status="replace")
+				write(*,"(a)") " The points on the local contact surface have been outputted to finger.pqr in current folder"
+				open(10,file="finger_all.pqr",status="replace")
 				write(10,"('REMARK   Generated by Multiwfn, totally',i10,' points on the surface')") ncurrvtx
 				if (ifPBC>0) then
 					call getcellabc(asize,bsize,csize,alpha,beta,gamma)
@@ -2520,13 +2551,19 @@ do while(.true.)
 					if (elimvtx(ivtx)==1) cycle
                     idx=ivtx
                     if (ivtx>99999) idx=99999
-					write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") &
-					"HETATM",idx,' '//"C "//' ',"MOL",'A',1,survtx(ivtx)%x*b2a,survtx(ivtx)%y*b2a,survtx(ivtx)%z*b2a,1.0,vtxdnorm(ivtx),"C "
+					write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,f13.8,f9.4,a2)") &
+					"HETATM",idx,' '//"C "//' ',"MOL",'A',1,survtx(ivtx)%x*b2a,survtx(ivtx)%y*b2a,survtx(ivtx)%z*b2a,survtx(ivtx)%value,1D0," C"
 				end do
 				write(10,"('END')")
 				close(10)
-				write(*,"(a)") " The points on the entire Hirshfeld/Becke surface have been outputted to finger_all.pdb in current folder"
-                write(*,*) "Beta factor in these files corresponds to d_norm in Angstrom"
+				write(*,"(a)") " The points on the entire contact surface have been outputted to finger_all.pqr in current folder"
+                if (imapfunc==11) then
+					write(*,*) """Charge"" field in these files correspond to electron density (a.u.)"
+                else if (imapfunc==22) then
+					write(*,*) """Charge"" field in these files correspond to d_norm in Angstrom"
+                else
+					write(*,*) """Charge"" field in these files correspond to the mapped function value"
+                end if
 			else if (isel3==5) then
 				open(10,file="di_de.txt",status="replace")
 				do ivtx=1,nsurvtx

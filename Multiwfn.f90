@@ -29,11 +29,9 @@ if (narg>0) then
     end if
 end if
 
-call STO_overlap(1.8D0,0D0,0D0,0D0,0.8D0,0D0,0D0,1/b2a,result)
-
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2024-Feb-12"
+write(*,*) "Version 3.8(dev), release date: 2024-Feb-16"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
