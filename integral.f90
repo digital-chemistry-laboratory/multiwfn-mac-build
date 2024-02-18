@@ -1089,7 +1089,8 @@ end subroutine
 !STO 1 and 2: (x1,y1,z1) with zeta of za and zb
 !STO 3 and 4: (x2,y2,z2) with zeta of zc and zd
 !Ref: Jones, IJQC, 21, 1079-1089 (1982)
-!Test: call STO_Coulomb(1.8D0,1.8D0,0D0,0D0,0D0, 0.8D0,0.8D0,0D0,0D0,1/b2a,result)
+!E.g. call STO_Coulomb(1.0D0,1.0D0,0D0,0D0,0D0, 1.0D0,1.0D0,0D0,0D0,20/b2a,result) returns 2.645886054515000E-002, &
+!which is exactly the same as interaction energy between two point charges separated by 20 Bohr
 subroutine STO_Coulomb(za,zb,x1,y1,z1,zc,zd,x2,y2,z2,result)
 implicit real*8 (a-h,o-z)
 real*8 zeta1,x1,y1,z1,zeta2,x2,y2,z2,result

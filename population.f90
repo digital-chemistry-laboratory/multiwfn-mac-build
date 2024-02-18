@@ -4418,6 +4418,7 @@ subroutine gasteiger
 use defvar
 use util
 implicit real*8 (a-h,o-z)
+character selectyn
 integer,parameter :: maxbond=4
 !The a,b,c and initial charge. Row is element index, column corresponds to number of bonds (hybridzation state)
 real*8 parma(nelesupp,maxbond),parmb(nelesupp,maxbond),parmc(nelesupp,maxbond),initchg(nelesupp,maxbond)
@@ -4511,6 +4512,7 @@ write(*,*)
 nbond=0
 charge=0
 !Assign a,b,c parameters to each atom
+!nbond array is fully constructed after this looping
 write(*,*) "Determined parameters:"
 do iatm=1,ncenter
     do jatm=1,ncenter
@@ -4545,15 +4547,31 @@ do iatm=1,ncenter
             atom_c(iatm)=1.34D0
         end if
     end if
-    !Special case: N with four bonds, i.e. "GASPARM n4"
+    !Special case: N with four bonds, i.e. "GASPARM n4", make it carry +1 charge
     if (eleidx==7.and.nbond(iatm)==4) charge(iatm)=1D0
     !Special case: O only connected to sulfur, i.e. "GASPARM os"
     if (eleidx==8.and.nbond(iatm)==1) then
         if (a(bondlist(iatm,1))%index==16) charge(iatm)=-1D0
     end if
+    !Special case, -COO, make each O has initial charge of -1 and C has +1
+    if (eleidx==6.and.nbond(iatm)==3) then
+		!Check if there are two terminal oxygens
+		ncheck=0
+		do itmp=1,3
+			idx=bondlist(iatm,itmp)
+			if (a(idx)%index==8.and.count(connmat(:,idx)/=0)==1) ncheck=ncheck+1
+        end do
+        if (ncheck==2) then
+			charge(iatm)=1D0
+			do itmp=1,3
+				idx=bondlist(iatm,itmp)
+				if (a(idx)%index==8) charge(idx)=-1D0
+            end do
+        end if
+    end if
     
-    write(*,"(i5,'(',a,')  numbond=',i2,'   a=',f8.3,'   b=',f8.3,'   c=',f8.3,'   init. q=',f8.4)") &
-    iatm,ind2name(eleidx),nbond(iatm),atom_a(iatm),atom_b(iatm),atom_c(iatm),charge(iatm)
+    write(*,"(i5,'(',a,')  numbond=',i2,'   a=',f8.3,'   b=',f8.3,'   c=',f8.3)") &
+    iatm,ind2name(eleidx),nbond(iatm),atom_a(iatm),atom_b(iatm),atom_c(iatm)
     if (atom_a(iatm)+atom_b(iatm)+atom_c(iatm)==0) then
         write(*,*) "Error: Parameter is missing for this atom!"
         write(*,*) "Press ENTER button to exit"
@@ -4576,6 +4594,38 @@ do iatm=1,ncenter
         charge(iatm)=noxy
     end if
 end do
+
+write(*,*)
+inquire(file="PEOEinit.txt",exist=alive)
+if (alive) then
+	write(*,"(a)") " PEOEinit.txt has been found in current folder, read initial charges from it to override default ones? (y/n)"
+    read(*,*) selectyn
+    if (selectyn=='y'.or.selectyn=="Y") then
+		open(10,file="PEOEinit.txt",status="old")
+		nread=0
+		do while(.true.)
+			read(10,*,iostat=ierror) iatm,tmp
+			if (ierror/=0) exit
+			charge(iatm)=tmp
+			nread=nread+1
+		end do
+		close(10)
+		write(*,"(i8,a)") nread," initial charges have been loaded"
+    end if
+else
+	write(*,"(a)") " Note: If you want to manually set initial charges, you can prepare PEOEinit.txt &
+    in current folder, see Section 3.9.17 of manual"
+end if
+
+write(*,*)
+if (any(charge/=0)) then
+	write(*,*) "Nonzero initial charges:"
+	do iatm=1,ncenter
+		if (charge(iatm)/=0) write(*,"(i5,'(',a,')  q=',f12.6)") iatm,ind2name(a(iatm)%index),charge(iatm)
+	end do
+else
+	write(*,"(a)") " All initial charges are zero"
+end if
 
 !Calculate atom electronegativity at q=1 state
 do iatm=1,ncenter
@@ -4638,6 +4688,7 @@ else
     do iatm=1,ncenter
 	    write(*,"(i6,'(',a,')',f14.8)") iatm,ind2name(a(iatm)%index),charge(iatm)
     end do
+    write(*,"(/,a,f12.6)") " Total charge:",sum(charge(:))
 	if (allocated(frag1)) then
 		write(ides,"(/,' Fragment charge:',f14.8)") sum(charge(frag1))
 	end if
