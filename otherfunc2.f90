@@ -1105,7 +1105,7 @@ implicit real*8 (a-h,o-z)
 integer :: ifunciso=13,ifPBCgrid=0
 integer,allocatable :: mergelist(:),grididx(:,:,:),dogrid(:,:)
 logical,allocatable :: boundgrid(:)
-character :: defdomain*20="<0.5",c80tmp*80,c1000tmp*1000,c2000tmp*2000
+character :: defdomain*20="<0.5",c80tmp*80,c1000tmp*1000,c2000tmp*2000,cubname*200
 integer,allocatable :: tmparr(:)
 
 if (allocated(gridxyz)) deallocate(gridxyz)
@@ -1298,7 +1298,7 @@ do while(.true.)
 	write(*,*) "0 Exit"
 	write(*,*) "1 Perform integration for a domain"
 	write(*,*) "2 Perform integration for all domains"
-	write(*,"(a)") " 2b Perform integration for subregion of some domains according to range of sign(lambda)*rho"
+	write(*,"(a)") " 2b Perform integration for subregion of some domains according to range of sign(lambda2)*rho"
 	write(*,*) "3 Visualize domains"
     write(*,*) "4 Sort indices of domains according to their domain volumes"
 	write(*,*) "5 Calculate q_bind index for a domain"
@@ -1354,11 +1354,29 @@ do while(.true.)
 		end if
         write(*,*) "Which data will be integrated in the selected domain?"
         write(*,*) "1 The grid data in memory"
-        write(*,*) "2 Choose a real space function"
+        write(*,*) "2 Choose a real space function, which will be directly calculated"
+        write(*,*) "3 Grid data loaded from a .cub file"
         read(*,*) inttype
         if (inttype==2) then
 			write(*,*) "Select the real space function to be integrated, e.g. 1"
 			call selfunc_interface(1,ifuncint)
+        else if (inttype==3) then
+			if (allocated(cubmattmp)) deallocate(cubmattmp)
+            write(*,*) "Input path of the cube file, e.g. D:\ltwd\rho.cub"
+            write(*,"(a)") " Note: Distribution of the grids in this file must be exactly identical to that of grid data in memory"
+            do while(.true.)
+				read(*,"(a)") cubname
+				inquire(file=cubname,exist=alive)
+				if (alive) exit
+				write(*,*) "Cannot find the file, input again!"
+			end do
+            call readcubetmp(cubname,1,inconsis)
+            if (inconsis==1) then
+				write(*,*) "Error: Distribution of the grids in this file is not exactly identical to that of grid data in memory"
+                write(*,*) "Press ENTER button to return"
+                read(*,*)
+                cycle
+            end if
         end if
 		valint=0
 		volint=0
@@ -1374,6 +1392,8 @@ do while(.true.)
 				tmpval=cubmat(dogrid(1,idx),dogrid(2,idx),dogrid(3,idx))
             else if (inttype==2) then
 				tmpval=calcfuncall(ifuncint,xnow,ynow,znow)
+            else if (inttype==3) then
+				tmpval=cubmattmp(dogrid(1,idx),dogrid(2,idx),dogrid(3,idx))
             end if
 			valint=valint+tmpval
 			volint=volint+1
@@ -1401,11 +1421,29 @@ do while(.true.)
 	else if (isel2==2) then !Perform integration for all domains
         write(*,*) "Which data will be integrated in the selected domain?"
         write(*,*) "1 The grid data in memory"
-        write(*,*) "2 Choose a real space function"
+        write(*,*) "2 Choose a real space function, which will be directly calculated"
+        write(*,*) "3 Grid data loaded from a .cub file"
         read(*,*) inttype
         if (inttype==2) then
 			write(*,*) "Select the real space function to be integrated, e.g. 1"
 			call selfunc_interface(1,ifuncint)
+        else if (inttype==3) then
+			if (allocated(cubmattmp)) deallocate(cubmattmp)
+            write(*,*) "Input path of the cube file, e.g. D:\ltwd\rho.cub"
+            write(*,"(a)") " Note: Distribution of the grids in this file must be exactly identical to that of grid data in memory"
+            do while(.true.)
+				read(*,"(a)") cubname
+				inquire(file=cubname,exist=alive)
+				if (alive) exit
+				write(*,*) "Cannot find the file, input again!"
+			end do
+            call readcubetmp(cubname,1,inconsis)
+            if (inconsis==1) then
+				write(*,*) "Error: Distribution of the grids in this file is not exactly identical to that of grid data in memory"
+                write(*,*) "Press ENTER button to return"
+                read(*,*)
+                cycle
+            end if
         end if
 		write(*,*) "Domain    Integral (a.u.)     Volume (Bohr^3)      Average"
 		valinttot=0
@@ -1419,6 +1457,8 @@ do while(.true.)
 					tmpval=cubmat(dogrid(1,idx),dogrid(2,idx),dogrid(3,idx))
                 else if (inttype==2) then
 					tmpval=calcfuncall(ifuncint,gridxyz(1,idx),gridxyz(2,idx),gridxyz(3,idx))
+				else if (inttype==3) then
+					tmpval=cubmattmp(dogrid(1,idx),dogrid(2,idx),dogrid(3,idx))
                 end if
 				valint=valint+tmpval
 				volint=volint+1

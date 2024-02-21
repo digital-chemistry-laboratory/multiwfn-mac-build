@@ -2724,6 +2724,7 @@ if (allocated(Sbas_PBC)) deallocate(Sbas_PBC)
 
 call deallo_excitinfo !Deallocate excited state information
 call deallo_basinana(0) !Deallocate basin analysis information
+call deallo_topo !Clean topology analysis information
 
 !Make LIBRETA in uninitialized status
 if_initlibreta=0

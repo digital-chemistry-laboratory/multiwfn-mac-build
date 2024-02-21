@@ -2206,8 +2206,11 @@ write(*,*) "1 Mulliken (very fast, but incompatible with diffuse functions)"
 write(*,*) "2 Hirshfeld partition (slower but very robust)"
 read(*,*) imethod
 
-if (imethod==1) call atmcontri_holeele_Mulliken(he_atm(:,1),he_atm(:,2),1) !Calculate atomic contribution to hole and electron via Mulliken-like partition
-if (imethod==2) call atmcontri_holeele_Hirshfeld(he_atm(:,1),he_atm(:,2),1) !Calculate atomic contribution to hole and electron via Hirshfeld partition
+if (imethod==1) then
+	call atmcontri_holeele_Mulliken(he_atm(:,1),he_atm(:,2),1) !Calculate atomic contribution to hole and electron via Mulliken-like partition
+else if (imethod==2) then
+	call atmcontri_holeele_Hirshfeld(he_atm(:,1),he_atm(:,2),1) !Calculate atomic contribution to hole and electron via Hirshfeld partition
+end if
 
 do iatm=1,ncenter !Evaluate overlap in atom space. If contribution to hole or electron is unphysical negative, then the overlap will be regarded as zero
 ! 	he_atm(iatm,3)=minval(he_atm(iatm,1:2)) !Not as good as below
@@ -2470,6 +2473,8 @@ implicit real*8 (a-h,o-z)
 real*8 atmhole(ncenter),atmele(ncenter)
 real*8 Tmat(nbasis,nbasis) !Used to store intermediate data during calculating atomic contribution
 
+call ask_Sbas_PBC !For PBC case, calculate Sbas if it is not currently available
+
 atmhole=0;atmele=0
 call walltime(iwalltime1)
 if (ioutinfo==1) write(*,*) "Evaluating atomic contributions..."
@@ -2565,6 +2570,12 @@ implicit real*8 (a-h,o-z)
 real*8 atmhole(ncenter),atmele(ncenter)
 real*8 hole(radpot*sphpot),ele(radpot*sphpot),promol(radpot*sphpot),tmpdens(radpot*sphpot),selfdens(radpot*sphpot)
 type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
+
+if (ifPBC/=0) then
+	write(*,*) "Error: Periodic system is unsupported in this case! Press ENTER button to exit"
+    read(*,*)
+    stop
+end if
 
 atmhole=0
 atmele=0
@@ -4147,7 +4158,7 @@ integer,allocatable :: frag(:,:),fragnatm(:)
 !Load density transition matrix in basis representation
 if (excitfilename==" ") then
 	write(*,*) "Below kinds of files are acceptable"
-	write(*,*) "(1) Gaussian/ORCA output file of electron excitation task"
+	write(*,"(a)") " (1) Output file of electron excitation task of Gaussian, ORCA, CP2K, GAMESS-US/Firefly, CP2K, xtb, BDF, TDM will be calculated based on configuration and MO coefficients"
 	write(*,*) "(2) Gaussian output file of electron excitation task with IOp(6/8=3)"
 	write(*,*) "(3) tdmat.txt, which contains transition density matrix"
 	write(*,"(a)") " (4) One of AAtrdip.txt, AAtrdipX.txt, AAtrdipY.txt, AAtrdipZ.txt, which contains atom transition dipole moment matrix"
@@ -4544,8 +4555,11 @@ if (icompmethod==1.or.icompmethod==2) then !Mulliken-like or Hirshfeld partition
 	call loadallexcinfo(1)
 	call selexcit(istate)
 	call loadexccoeff(istate,1)
-	if (icompmethod==1) call atmcontri_holeele_Mulliken(atmhole,atmele,1)
-	if (icompmethod==2) call atmcontri_holeele_Hirshfeld(atmhole,atmele,1)
+	if (icompmethod==1) then
+		call atmcontri_holeele_Mulliken(atmhole,atmele,1)
+	else if (icompmethod==2) then
+		call atmcontri_holeele_Hirshfeld(atmhole,atmele,1)
+    end if
 else if (icompmethod==3) then !Employ fuzzy partition to obtain atomic contributions based on interpolated function of existing cube files of hole and electron
 	iuserfuncold=iuserfunc
 	iuserfunc=-1

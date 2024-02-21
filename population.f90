@@ -1,14 +1,16 @@
 !!!-------- Summary of routines for calculating charges
 !Bickelhaupt !Print Bickelhaupt charges
-!EEM !Calculate EEM charges, including interface
+!MMPA !Population analysis of SCPA and Stout & Politzer
 !fitESP !Calculate MK and CHELPG charges, including interface
 !RESP !Calculate RESP charges, including interface
 !spacecharge !Calculate Hirshfeld, VDD, ADCH, CM5 and so on, including interface
 !Hirshfeld_I !Calculate Hirshfeld-I charge, including interface
-!MMPA !Population analysis of SCPA and Stout & Politzer
 !doADC !Calculate ADC type of charges based on existing atomic charges, invoked by spacecharge
 !doCM5 !Calculate CM5 charges based on existing Hirshfeld charges, invoked by spacecharge
 !genHirshfeld !A routine directly return Hirshfeld charge based on built-in density
+!MBIS !Calculate MBIS charge, including interface
+!EEM !Calculate EEM charges, including interface
+!gasteiger !Gasteiger (PEOE) charge
     
     
 !----------- Interface of various population analyses methods
@@ -107,7 +109,7 @@ else
 			write(*,*) "Citation: J. Mol. Struct.(Theochem), 538, 235-238 (2001)"
 			call spacecharge(4)
 		else if (ipopsel==5) then
-            call ask_Sbas_PBC
+            call ask_Sbas_PBC !For PBC case, calculate Sbas if it is not currently available
 			do while(.true.)
 				write(*,*)
 				write(*,*) "              ---------- Mulliken population analysis ----------"
@@ -180,7 +182,7 @@ else
         else if (ipopsel==19) then
             call gasteiger
         else if (ipopsel==20) then
-            call mbis_wrapper
+            call MBIS_wrapper
 		end if
 		if (imodwfnold==1.and.(ipopsel==1.or.ipopsel==2.or.ipopsel==6.or.ipopsel==11)) then !1,2,6,11 are the methods need to reload the initial wavefunction
 			write(*,"(a)") " Note: The wavefunction file has been reloaded, your previous modifications on occupation number will be ignored"
@@ -3403,7 +3405,7 @@ if (iautointgrid==1) then
 end if
 end subroutine
 
-!!--------- Calculate Hirshfeld-I charge and yield final atomic radial density (atmradrho)
+!!--------- Calculate Hirshfeld-I charge and yield final atomic radial density (atmradrho, global array)
 !I've compared this module with hipart, this module is faster than hipart, and the accuracy under default setting is at least never lower than hipart
 subroutine Hirshfeld_I(itype)
 use defvar
@@ -4701,18 +4703,20 @@ end subroutine
 
 
 
+
 !!============================ MBIS ============================!!
-!THIS PART OF CODE WAS CONTRIBUTED BY FRANK JENSEN, 2022-JUN
-!
-!frj addition of new MBIS routines
-!
+!!============================ MBIS ============================!!
+!!============================ MBIS ============================!!
+!!============================ MBIS ============================!!
+!!============================ MBIS ============================!!
 !Wrapper of MBIS module to automatically set radpot and sphpot to proper values
-subroutine mbis_wrapper
+!Initial experimental version of this code was contributed by FRANK JENSEN at 2022-JUN
+!Final version was written by Tian Lu, 2024-Feb
+subroutine MBIS_wrapper
 use defvar
 implicit real*8 (a-h,o-z)
 nradpotold=radpot
 nsphpotold=sphpot
-!frj cloned from HI, currently turn off reducing grid
 !if (iautointgrid==1) then
 !  	radpot=30
 !  	sphpot=170
@@ -4720,40 +4724,31 @@ nsphpotold=sphpot
 ! 	if (any(a%index>36)) radpot=50
 ! 	if (any(a%index>54)) radpot=60
 !end if
-!frj accurate grid to test against Gamess with a similar sized grid
-!radpot=100
-!sphpot=590
-write(*,*) "NOTE: This module is experimental and has not been optimized for efficiency"
-write(*,*) "Frank Jensen is acknowledged for his contribution to this module!"
-write(*,*)
-call mbis
+call MBIS
 if (iautointgrid==1) then
 	radpot=nradpotold
 	sphpot=nsphpotold
 end if
 end subroutine
-!
-!
-!!--------- Calculate MBIS charge and yield final atomic radial density
-!frj : has been tested against grid based integration from Gamess 
-subroutine mbis
+
+!!--------- Calculate MBIS charge and yield final atomic radial density (atmradrho, global array)
+subroutine MBIS
 use defvar
 use functions
 use util
 implicit real*8 (a-h,o-z)
 type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
-!real*8 molrho(radpot*sphpot),promol(radpot*sphpot),tmpdens(radpot*sphpot),selfdens(radpot*sphpot),molrhoall(ncenter,radpot*sphpot)
 real*8 charge(ncenter),lastcharge(ncenter) !Atomic charge of current iter. and last iter.
 real*8 beckeweigrid(radpot*sphpot)
-!frj new arrays, since Qini and Zini are only implemented up to Ar, there is a maxium of 5 shells, and this is currently hardwired
-real*8 shellpop(5,ncenter), zeff(5,ncenter)   !shell populations and shell effective nuclear charges, hardwired to 5 shells maximum 
-real*8 shelltmp(5,ncenter), ztmp(5,ncenter)   !new shell populations and shell effective nuclear charges, hardwired to 5 shells maximum 
+integer,parameter :: nshellmax=7 !Formally support up to the 7th row
+real*8 shellpop(nshellmax,ncenter),zeff(nshellmax,ncenter) !Shell populations and shell effective nuclear charges
+real*8 shelltmp(nshellmax,ncenter),ztmp(nshellmax,ncenter) !new shell populations and shell effective nuclear charges
 real*8 wtatm(5,ncenter,ncenter,radpot*sphpot)  !shell weights for each atomic shell for each atom and atomic grid point
 ! wtot could be calculated only once, at the expense of more memory
 !real*8 wtot(ncenter,ncenter,radpot*sphpot)      !total weight for each atom point for each atomic grid point
 real*8 znuc,znorm
 integer mshell(ncenter)
-!frj
+
 integer :: maxcyc=100,ioutmedchg=0
 real*8 :: crit=0.0001D0
 
@@ -5044,7 +5039,6 @@ do icyc=1,maxcyc
 !                        write(*,"(2i5,3f15.8)")iatm,kshell,ztmp(kshell,iatm),zeff(kshell,iatm),tmp
                 end do
         end do
-!        write(*,*)' '
 !       update zeff and return for another cycle
         zeff = ztmp
 end do
@@ -5052,7 +5046,6 @@ end do
 call walltime(iwalltime2)
 write(*,*)
 write(*,"(' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
-
 write(*,*)
 call outatmchg(10,charge(:))
 end subroutine

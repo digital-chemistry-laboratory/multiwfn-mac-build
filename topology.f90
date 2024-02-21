@@ -125,18 +125,7 @@ do while(.true.)
             if (isys==1.and.nthreads>12) nthreads=12
         end if
 		if (numcp>0.or.numpath>0.or.nple3n1path>0.or.numbassurf>0) write(*,*) "Note: All found CPs, paths, surfaces have been cleaned"
-		numcp=0
-		numpath=0
-		nple3n1path=0
-		numbassurf=0
-		CPtype=0 !Clean relationship
-		cp2surf=0
-		cp2ple3n1path=0
-		CPsearchlow=0D0
-		CPsearchhigh=0D0
-        lab_oneCP=0
-		if (allocated(bassurpath)) deallocate(bassurpath)
-		if (allocated(ple3n1path)) deallocate(ple3n1path)
+		call deallo_topo
 		!Set special parameters for specific real space functions
 		if (ifunctopo==1.or.ifunctopo==2.or.ifunctopo==4.or.(ifunctopo==100.and.(iuserfunc==49.or.iuserfunc==50.or.iuserfunc==51))) then !Tight criteria for functions with analytical Hessian
 			gradconv=1D-7
@@ -2709,4 +2698,23 @@ if (numcp>0) then
 else
 	write(*,*) "No CP has been found"
 end if
+end subroutine
+
+
+
+!!--------- Clean topology analysis information
+subroutine deallo_topo
+use topo
+numcp=0
+numpath=0
+nple3n1path=0
+numbassurf=0
+CPtype=0 !Clean relationship
+cp2surf=0
+cp2ple3n1path=0
+CPsearchlow=0D0
+CPsearchhigh=0D0
+lab_oneCP=0
+if (allocated(bassurpath)) deallocate(bassurpath)
+if (allocated(ple3n1path)) deallocate(ple3n1path)
 end subroutine
