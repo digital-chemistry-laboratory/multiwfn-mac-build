@@ -271,7 +271,7 @@ write(*,*)
 write(*,*) "Generating NOCV orbitals and eigenvalues ..."
 if (iopsh==0) then !Diagonalizing total density matrix to generate NOCV
     Ptot=Pdiff
-    call gennatorb(1,0) !Deal with Ptot, generate CObasa and MOocc
+    call gennatorb(1,0) !This subroutine deals with Ptot (which is difference density matrix currently), generate CObasa (NOCVs currently) and MOocc (eigenvalues currently)
     call CObas2CO(1) !Convert CObasa to CO
     NOCVorb=CObasa !Backing up
     NOCVeig=MOocc
@@ -753,6 +753,42 @@ do while(.true.)
             end if
             call showNOCVcomposition(6,pairidx1,pairidx2,npair,iopsh,printthres,ipair)
         end do
+        
+    else if (isel==15) then !
+        write(*,*) "Variation in electron population:"
+        vartot=0
+        do ifrag=1,nfrag
+            ibeg=ibasfrag(ifrag)
+            if (ifrag==nfrag) then
+                iend=nbasis
+            else
+                iend=ibasfrag(ifrag+1)-1
+            end if
+            popval=sum(Sbas(ibeg:iend,ibeg:iend)*Pdiff(ibeg:iend,ibeg:iend))
+            write(*,"(' Within fragment',i3,':',f12.6)") ifrag,popval
+            vartot=vartot+popval
+        end do
+        write(*,*)
+        do ifrag=1,nfrag
+            ibeg=ibasfrag(ifrag)
+            if (ifrag==nfrag) then
+                iend=nbasis
+            else
+                iend=ibasfrag(ifrag+1)-1
+            end if
+            do jfrag=ifrag+1,nfrag
+                jbeg=ibasfrag(jfrag)
+                if (jfrag==nfrag) then
+                    jend=nbasis
+                else
+                    jend=ibasfrag(jfrag+1)-1
+                end if
+                popval=2*sum(Sbas(ibeg:iend,jbeg:jend)*Pdiff(ibeg:iend,jbeg:jend))
+                write(*,"(' Between fragment',i3,' and',i3,':',f12.6)") ifrag,jfrag,popval
+                vartot=vartot+popval
+            end do
+        end do
+        write(*,"(/,' Sum of variation:',f12.6)") vartot
     end if
 end do
 end subroutine

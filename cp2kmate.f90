@@ -69,7 +69,7 @@ integer :: ifileid,ibas=2,tmparr(ncenter)
 character selectyn,c80tmp*80,c80tmp2*80,c200tmp*200,c2000tmp*2000
 character :: method*22="PBE",PBCdir*4="XYZ ",cellfix*4="NONE"
 character(len=30) :: basname(-10:30)=" "
-integer :: itask=1,idispcorr=0,imolden=0,ioutvibmol=1,ithermostat=0,ibarostat=0,inoSCFinfo=0,iSCCS=0,idipcorr=0,iwfc=0,iHFX=0,imoment=0,ihyperfine=0,ioptmethod=1,iprintlevel=1
+integer :: itask=1,idispcorr=0,imolden=0,ioutvibmol=1,ithermostat=0,ibarostat=0,inoSCFinfo=0,iSCCS=0,idipcorr=0,iwfc=0,iHFX=0,iRIHFX=0,imoment=0,ihyperfine=0,ioptmethod=1,iprintlevel=1
 integer :: iTDDFT=0,nstates_TD=3,iTDtriplet=0,isTDA=0,iNTO=0,nADDED_MOS=0,icentering=0,itightopt=0,iraman=0,iSOCTDDFT=0
 integer :: iMDformat=1,nMDsavefreq=1,ioutcube=0,idiagOT=1,imixing=2,ismear=0,iatomcharge=0,ifineXCgrid=0,iouterSCF=1,iDFTplusU=0,NHOMO=0,NLUMO=0
 integer :: natmcons=0,nthermoatm=0,ikpoint1=1,ikpoint2=1,ikpoint3=1,nrep1=1,nrep2=1,nrep3=1,ikeepcell=0
@@ -141,6 +141,9 @@ basname(2)="DZVP-MOLOPT-SR-GTH"
 basname(3)="TZVP-MOLOPT-GTH"
 basname(4)="TZV2P-MOLOPT-GTH"
 basname(5)="TZV2PX-MOLOPT-GTH"
+basname(7)="ccGRB-D"
+basname(8)="ccGRB-T"
+basname(9)="ccGRB-Q"
 basname(10)="6-31G*"
 basname(11)="6-311G**"
 basname(12)="Ahlrichs-def2-TZVP"
@@ -236,10 +239,18 @@ do while(.true.)
     if (itask==14) write(*,*) "-1 Choose task, current: Path-integral molecular dynamics (PIMD)"
     if (itask==15) write(*,*) "-1 Choose task, current: X-ray absorption spectroscopy"
     write(*,*) " 0 Generate input file now!"
+    c80tmp=" "
+    if (iHFX==1) then
+        if (iRIHFX==1) then
+            c80tmp=" with RI-HFX"
+        else
+            c80tmp=" without RI-HFX"
+        end if
+    end if
     if (index(method,"PBEh")==0) then
-        write(*,*) " 1 Choose theoretical method, current: "//trim(method)
+        write(*,*) " 1 Choose theoretical method, current: "//trim(method)//trim(c80tmp)
     else
-        write(*,"(a,f7.3,' %')") "  1 Choose theoretical method, current: "//trim(method)//" with HFX of",PBEh_HFX
+        write(*,"(a,f7.3,' %',a)") "  1 Choose theoretical method, current: "//trim(method)//" with HFX of",PBEh_HFX,trim(c80tmp)
     end if
     if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB".and.method/="FIST") write(*,*) " 2 Choose basis set and pseudopotential, current: "//trim(basname(ibas))
     if (index(method,"MP2")==0.and.index(method,"RPA")==0.and.index(method,"GW")==0.and.method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB".and.method/="BEEFVDW".and.method/="FIST") then
@@ -615,6 +626,10 @@ do while(.true.)
                 write(*,*) "Input number of virtual orbitals to solve, e.g. 30"
                 write(*,*) "If inputting -1, then all virtual orbitals will be solved" !Work since CP2K 9.1
                 read(*,*) nADDED_MOS
+                if (nADDED_MOS>0.and.idiagOT==2) then
+                    write(*,"(a)") " NOTE: OT is changed to diagonalization since virtual orbitals cannot be generated in the case of OT"
+                    idiagOT=1
+                end if
             else if (isel2==13) then
                 if (icentering==0) then
                     icentering=1
@@ -874,120 +889,140 @@ do while(.true.)
             ikeepcell=0
         end if
     else if (isel==1) then !Functionals description: https://manual.cp2k.org/trunk/CP2K_INPUT/ATOM/METHOD/XC/XC_FUNCTIONAL.html
-        !write(*,*) "-1 Molecular mechanism (MM)"
-        write(*,*) "1 Pade (LDA)"
-        write(*,*) "2 PBE               -2 revPBE            -3 PBEsol"
-        write(*,*) "3 TPSS (via LibXC)   4 BP86               5 BLYP"
-        write(*,*) "6 PBE0        -6 PBE0 with ADMM"
-        write(*,*) "7 B3LYP       -7 B3LYP with ADMM"
-        write(*,*) "8 HSE06       -8 HSE06 with ADMM"
-        write(*,*) "9 BHandHLYP   -9 BHandHLYP with ADMM"
-        write(*,*) "10 M06-2X    -10 M06-2X with ADMM"
-        write(*,*) "11 B97M-rV (via LibXC)       12 MN15L (via LibXC)"
-        write(*,*) "13 SCAN (via LibXC)          14 r2SCAN (via LibXC)"
-        write(*,*) "15 RPBE (via LibXC)          16 revTPSS (via LibXC)"
-        write(*,*) "17 BEEF-vdW                  18 HLE17 (via LibXC)"
-        write(*,*) "20 RI-MP2     21 RI-SCS-MP2    22 RI-(EXX+RPA)@PBE"
-        write(*,*) "25 RI-B2PLYP  26 RI-B2GP-PLYP  27 RI-DSD-BLYP  28 RI-revDSD-PBEP86 with ADMM"
-        write(*,*) "30 GFN1-xTB   40 PM6           50 SCC-DFTB + disp. corr."
-        write(*,*) "60 GW@BHandHLYP with ADMM      61 GW@MN15L"
-        write(*,*) "80 PBEh      -80 PBEh with ADMM  (customize HFX composition)"
-        write(*,*) "100 FIST module (molecular mechanics)"
-        read(*,*) isel2
-        iwfc=0 !Do not involve wavefunction-based correlation
-        iHFX=0 !Do not involve HF exchange
-        if (isel2==1) method="Pade"
-        if (isel2==2) method="PBE"
-        if (isel2==-2) method="revPBE"
-        if (isel2==-3) method="PBEsol"
-        if (isel2==3) method="TPSS_LIBXC"
-        if (isel2==4) method="BP"
-        if (isel2==5) method="BLYP"
-        if (isel2==6) method="PBE0"
-        if (isel2==-6) method="PBE0_ADMM"
-        if (isel2==7) method="B3LYP"
-        if (isel2==-7) method="B3LYP_ADMM"
-        if (isel2==8) method="HSE06"
-        if (isel2==-8) method="HSE06_ADMM"
-        if (isel2==9) method="BHandHLYP"
-        if (isel2==-9) method="BHandHLYP_ADMM"
-        if (isel2==10) method="M06-2X"
-        if (isel2==-10) method="M06-2X_ADMM"
-        if (abs(isel2)==80) then
-            if (isel2==80) method="PBEh"
-            if (isel2==-80) method="PBEh_ADMM"
-            write(*,*) "Input HF exchange hybrid composition (%), e.g. 45"
-            read(*,*) PBEh_HFX
-        end if
-        if (isel2==100) method="FIST"
-        if (isel2==11) then
-            method="B97M-rV_LIBXC"
-            idispcorr=5
-        end if
-        if (isel2==12) method="MN15L_LIBXC"
-        if (isel2==13) method="SCAN_LIBXC"
-        if (isel2==14) method="r2SCAN_LIBXC"
-        if (isel2==15) method="RPBE_LIBXC"
-        if (isel2==16) method="revTPSS_LIBXC"
-        if (isel2==17) then
-            method="BEEFVDW"
-            idispcorr=0
-        end if
-        if (isel2==18) method="HLE17_LIBXC"
-        if ((isel2>=20.and.isel2<=29).or.(isel2>=60.and.isel2<=61)) then !Involve wavefunction-based correlation
-            if (isel2==20) method="RI-MP2"
-            if (isel2==21) method="RI-SCS-MP2"
-            if (isel2==22) method="RI-(EXX+RPA)@PBE"
-            if (isel2==25) method="RI-B2PLYP"
-            if (isel2==26) method="RI-B2GP-PLYP"
-            if (isel2==27) method="RI-DSD-BLYP"
-            if (isel2==28) method="RI-revDSD-PBEP86_ADMM"
-            if (isel2>=60.and.isel2<=61) then
-                if (isel2==60) method="GW@BHandHLYP_ADMM"
-                if (isel2==61) method="GW@MN15L"
-                write(*,*) "Use which type of GW?"
-                write(*,*) "1 G0W0"
-                write(*,*) "2 evGW"
-                write(*,*) "3 scGW0"
-                read(*,*) itmp
-                niter_evGW=1
-                niter_scGW0=1
-                if (itmp==2) then
-                    niter_evGW=10
-                else if (itmp==3) then
-                    niter_scGW0=10
+        do while(.true.)
+            !write(*,*) "-1 Molecular mechanism (MM)"
+            if (iRIHFX==0) write(*,*) "0 Toggle using RI-HFX for hybrid functionals, current: No"
+            if (iRIHFX==1) write(*,*) "0 Toggle using RI-HFX for hybrid functionals, current: Yes"
+            write(*,*) "1 Pade (LDA)"
+            write(*,*) "2 PBE               -2 revPBE            -3 PBEsol"
+            write(*,*) "3 TPSS (via LibXC)   4 BP86               5 BLYP"
+            write(*,*) "6 PBE0        -6 PBE0 with ADMM"
+            write(*,*) "7 B3LYP       -7 B3LYP with ADMM"
+            write(*,*) "8 HSE06       -8 HSE06 with ADMM"
+            write(*,*) "9 BHandHLYP   -9 BHandHLYP with ADMM"
+            write(*,*) "10 M06-2X    -10 M06-2X with ADMM"
+            write(*,*) "11 B97M-rV (via LibXC)       12 MN15L (via LibXC)"
+            write(*,*) "13 SCAN (via LibXC)          14 r2SCAN (via LibXC)"
+            write(*,*) "15 RPBE (via LibXC)          16 revTPSS (via LibXC)"
+            write(*,*) "17 BEEF-vdW                  18 HLE17 (via LibXC)"
+            write(*,*) "20 RI-MP2     21 RI-SCS-MP2    22 RI-(EXX+RPA)@PBE"
+            write(*,*) "25 RI-B2PLYP  26 RI-B2GP-PLYP  27 RI-DSD-BLYP  28 RI-revDSD-PBEP86 with ADMM"
+            write(*,*) "30 GFN1-xTB   40 PM6           50 SCC-DFTB + disp. corr."
+            write(*,*) "60 GW@BHandHLYP with ADMM      61 GW@MN15L"
+            write(*,*) "80 PBEh      -80 PBEh with ADMM  (customize HFX composition)"
+            write(*,*) "100 FIST module (molecular mechanics)"
+            read(*,*) isel2
+            if (isel2==0) then
+                if (iRIHFX==0) then
+                    iRIHFX=1
+                else
+                    iRIHFX=0
                 end if
+                cycle
             end if
-            iwfc=1
-            if (ibas/=20) ibas=21 !Default to cc-TZ with RI_TZ
-            if (index(method,"GW")/=0) ibas=22 !Change to QZ level because slow basis set convergence feature of GW
-        end if
-        if (isel2==30) method="GFN1-xTB"
-        if (isel2==40) method="PM6"
-        if (isel2==50) method="SCC-DFTB"
-        if (index(method,"ADMM")/=0.or.isel2==30.or.isel2==40.or.isel2==50) idiagOT=2 !When ADMM is used, OT must also be used. OT is suggested for GFN-xTB and PM6 dealing with large system
-        if (isel2==40) imixing=1
-        if (index(method,"SCAN")/=0) then
-            write(*,"(a)") " NOTE: If you are using CP2K >=9.1, in the generated CP2K input file, it is suggested to replace &
-            ""POTENTIAL_FILE_NAME  POTENTIAL"" with ""POTENTIAL_FILE_NAME  POTENTIAL_UZH"", and replace ""BASIS_SET_FILE_NAME  BASIS_MOLOPT"" with ""BASIS_SET_FILE_NAME  BASIS_MOLOPT_UZH"", &
-            and manually specify proper GTH potential and corresponding valence basis set optimized for SCAN calculation"
-        else if (index(method,"PBE0")/=0) then
-            write(*,"(a)") " NOTE: If you are using CP2K >=9.1, in the generated CP2K input file, it is suggested to replace &
-            ""POTENTIAL_FILE_NAME  POTENTIAL"" with ""POTENTIAL_FILE_NAME  POTENTIAL_UZH"", and replace ""BASIS_SET_FILE_NAME  BASIS_MOLOPT"" with ""BASIS_SET_FILE_NAME  BASIS_MOLOPT_UZH"", &
-            and manually specify proper GTH potential and corresponding valence basis set optimized for PBE0 calculation"
-        end if
-        if (abs(isel2)==6.or.abs(isel2)==7.or.abs(isel2)==8.or.abs(isel2)==9.or.abs(isel2)==10.or.abs(isel2)==80.or.iwfc==1) then !Hybrid functionals and wavefunction-based correlation methods need HF exchange
-            iHFX=1
-            if (method=="RI-(EXX+RPA)@PBE".or.method=="GW@MN15L") iHFX=0 !Based on PBE orbitals, HFX is not involved in SCF process
-        end if
+            iwfc=0 !Do not involve wavefunction-based correlation
+            iHFX=0 !Do not involve HF exchange
+            if (isel2==1) method="Pade"
+            if (isel2==2) method="PBE"
+            if (isel2==-2) method="revPBE"
+            if (isel2==-3) method="PBEsol"
+            if (isel2==3) method="TPSS_LIBXC"
+            if (isel2==4) method="BP"
+            if (isel2==5) method="BLYP"
+            if (isel2==6) method="PBE0"
+            if (isel2==-6) method="PBE0_ADMM"
+            if (isel2==7) method="B3LYP"
+            if (isel2==-7) method="B3LYP_ADMM"
+            if (isel2==8) method="HSE06"
+            if (isel2==-8) method="HSE06_ADMM"
+            if (isel2==9) method="BHandHLYP"
+            if (isel2==-9) method="BHandHLYP_ADMM"
+            if (isel2==10) method="M06-2X"
+            if (isel2==-10) method="M06-2X_ADMM"
+            if (abs(isel2)==80) then
+                if (isel2==80) method="PBEh"
+                if (isel2==-80) method="PBEh_ADMM"
+                write(*,*) "Input HF exchange hybrid composition (%), e.g. 45"
+                read(*,*) PBEh_HFX
+            end if
+            if (isel2==100) method="FIST"
+            if (isel2==11) then
+                method="B97M-rV_LIBXC"
+                idispcorr=5
+            end if
+            if (isel2==12) method="MN15L_LIBXC"
+            if (isel2==13) method="SCAN_LIBXC"
+            if (isel2==14) method="r2SCAN_LIBXC"
+            if (isel2==15) method="RPBE_LIBXC"
+            if (isel2==16) method="revTPSS_LIBXC"
+            if (isel2==17) then
+                method="BEEFVDW"
+                idispcorr=0
+            end if
+            if (isel2==18) method="HLE17_LIBXC"
+            if ((isel2>=20.and.isel2<=29).or.(isel2>=60.and.isel2<=61)) then !Involve wavefunction-based correlation
+                if (isel2==20) method="RI-MP2"
+                if (isel2==21) method="RI-SCS-MP2"
+                if (isel2==22) method="RI-(EXX+RPA)@PBE"
+                if (isel2==25) method="RI-B2PLYP"
+                if (isel2==26) method="RI-B2GP-PLYP"
+                if (isel2==27) method="RI-DSD-BLYP"
+                if (isel2==28) method="RI-revDSD-PBEP86_ADMM"
+                if (isel2>=60.and.isel2<=61) then
+                    if (isel2==60) method="GW@BHandHLYP_ADMM"
+                    if (isel2==61) method="GW@MN15L"
+                    write(*,*) "Use which type of GW?"
+                    write(*,*) "1 G0W0"
+                    write(*,*) "2 evGW"
+                    write(*,*) "3 scGW0"
+                    read(*,*) itmp
+                    niter_evGW=1
+                    niter_scGW0=1
+                    if (itmp==2) then
+                        niter_evGW=10
+                    else if (itmp==3) then
+                        niter_scGW0=10
+                    end if
+                end if
+                iwfc=1
+                if (ibas/=20) ibas=21 !Default to cc-TZ with RI_TZ
+                if (index(method,"GW")/=0) ibas=22 !Change to QZ level because slow basis set convergence feature of GW
+            end if
+            if (isel2==30) method="GFN1-xTB"
+            if (isel2==40) method="PM6"
+            if (isel2==50) method="SCC-DFTB"
+            if (index(method,"ADMM")/=0.or.isel2==30.or.isel2==40.or.isel2==50) idiagOT=2 !When ADMM is used, OT must also be used. OT is suggested for GFN-xTB and PM6 dealing with large system
+            if (isel2==40) imixing=1
+            if (index(method,"SCAN")/=0) then
+                write(*,"(a)") " NOTE: If you are using CP2K >=9.1, in the generated CP2K input file, it is suggested to replace &
+                ""POTENTIAL_FILE_NAME  POTENTIAL"" with ""POTENTIAL_FILE_NAME  POTENTIAL_UZH"", and replace ""BASIS_SET_FILE_NAME  BASIS_MOLOPT"" with ""BASIS_SET_FILE_NAME  BASIS_MOLOPT_UZH"", &
+                and manually specify proper GTH potential and corresponding valence basis set optimized for SCAN calculation"
+            else if (index(method,"PBE0")/=0) then
+                write(*,"(a)") " NOTE: If you are using CP2K >=9.1, in the generated CP2K input file, it is suggested to replace &
+                ""POTENTIAL_FILE_NAME  POTENTIAL"" with ""POTENTIAL_FILE_NAME  POTENTIAL_UZH"", and replace ""BASIS_SET_FILE_NAME  BASIS_MOLOPT"" with ""BASIS_SET_FILE_NAME  BASIS_MOLOPT_UZH"", &
+                and manually specify proper GTH potential and corresponding valence basis set optimized for PBE0 calculation"
+            end if
+            if (abs(isel2)==6.or.abs(isel2)==7.or.abs(isel2)==8.or.abs(isel2)==9.or.abs(isel2)==10.or.abs(isel2)==80.or.iwfc==1) then !Hybrid functionals and wavefunction-based correlation methods need HF exchange
+                iHFX=1
+                if (method=="RI-(EXX+RPA)@PBE".or.method=="GW@MN15L") iHFX=0 !Based on PBE orbitals, HFX is not involved in SCF process
+            end if
+            exit
+        end do
         
     else if (isel==2) then !Select basis set
-        write(*,"(a)") " Note: <=5, 20, 21 correspond to GPW calculation using GTH pseudopotential, the other ones correspond to full electron GAPW calculation"
-        do i=-10,30
-            if (basname(i)/=" ") write(*,"(1x,i2,1x,a)") i,trim(basname(i))
+       write(*,*) "  GTH pseudopotential basis sets:"
+        do ibas=-10,9
+            if (basname(ibas)/=" ") write(*,"(1x,i2,1x,a)") ibas,trim(basname(ibas))
+        end do
+        do ibas=20,30
+            if (basname(ibas)/=" ") write(*,"(1x,i2,1x,a)") ibas,trim(basname(ibas))
+        end do
+        write(*,*) "  All-electron basis sets:"
+        do ibas=10,19
+            if (basname(ibas)/=" ") write(*,"(1x,i2,1x,a)") ibas,trim(basname(ibas))
         end do
         read(*,*) ibassel
-        if (iwfc==1.and.ibassel/=20.and.ibassel/=21) then
+        if (iwfc==1.and.ibassel/=20.and.ibassel/=21.and.ibassel/=22) then
             write(*,"(a)") " Error: To perform RI calculation, you must choose 20 or 21, because they are accompanied by auxiliary basis set" 
             write(*,*) "Press ENTER button to continue"
             read(*,*)
@@ -1062,8 +1097,6 @@ do while(.true.)
         read(*,*) ikpoint1,ikpoint2,ikpoint3
         if (idiagOT==2.and.(ikpoint1/=1.or.ikpoint2/=1.or.ikpoint3/=1)) then
             write(*,"(a)") " Warning: OT can be used for Gamma point only! Now diagonalization is used instead"
-            write(*,*) "Press ENTER button to continue"
-            read(*,*)
             idiagOT=1
         end if
     else if (isel==9) then
@@ -1452,7 +1485,7 @@ if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB".and.method/="FIS
                 write(ifileid,"(a)") "      BASIS_SET cc-QZ"
                 write(ifileid,"(a)") "      BASIS_SET RI_AUX RI_QZ"
             else
-                if ((ibas>=-6.and.ibas<=-1).or.(ibas>=1.and.ibas<=5)) then
+                if ((ibas>=-6.and.ibas<=-1).or.(ibas>=1.and.ibas<=5).or.ibas==7.or.ibas==8.or.ibas==9) then
                     write(c80tmp,"(i3)") Nval(kindeleidx(ikind))
                     write(ifileid,"(a)") "      BASIS_SET "//trim(basname(ibas))//'-q'//trim(adjustl(c80tmp))
                 else
@@ -1460,8 +1493,12 @@ if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB".and.method/="FIS
                 end if
             end if
             if (index(method,"ADMM")/=0) then !Set auxiliary basis set file for ADMM
-                write(c80tmp,"(i3)") Nval(kindeleidx(ikind))
-                write(ifileid,"(a)") "      BASIS_SET AUX_FIT admm-dzp"//'-q'//trim(adjustl(c80tmp)) !Use ADMM
+                if (iGAPW==1) then !All-electron basis set
+                    write(ifileid,"(a)") "      BASIS_SET AUX_FIT pob-DZVP-rev2" !Small but good enough for ADMM
+                else !Pseudopotential basis set
+                    write(c80tmp,"(i3)") Nval(kindeleidx(ikind))
+                    write(ifileid,"(a)") "      BASIS_SET AUX_FIT admm-dzp"//'-q'//trim(adjustl(c80tmp)) !Small but good enough for ADMM
+                end if
             end if
             if (iLRIGPW==1) then !Set auxiliary basis set file for LRIGPW
                 write(ifileid,"(a)") "      BASIS_SET LRI_AUX LRI-DZVP-MOLOPT-GTH-MEDIUM"
@@ -1605,16 +1642,18 @@ if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  GTH_BASIS_SETS"
     else if (ibas<=5) then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_MOLOPT"
+    else if (ibas==7.or.ibas==8.or.ibas==9) then
+        write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_ccGRB_UZH"
     else if (ibas==10.or.ibas==11.or.ibas==12.or.ibas==16) then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  EMSL_BASIS_SETS"
-    else if (ibas==13.or.ibas==14.or.ibas==15) then
+    else if (ibas==13.or.ibas==14.or.ibas==15.or. (index(method,"ADMM")/=0.and.iGAPW==1) ) then !This file is also needed when pob-DZVP-rev2 is used as ADMM auxiliary basis set
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_pob"
     else if (ibas==19) then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_def2_QZVP_RI_ALL"
     else if (ibas==20.or.ibas==21.or.ibas==22) then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_RI_cc-TZ"
     end if
-    if (index(method,"ADMM")/=0) then !Set basis set file for ADMM
+    if (index(method,"ADMM")/=0.and.iGAPW==0) then !Set basis set file for ADMM
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  BASIS_ADMM_UZH"
     end if
     if (iLRIGPW==1) then !Set basis set file for LRIGPW
@@ -1634,8 +1673,19 @@ if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") then
     else
         write(ifileid,"(a)") "    POTENTIAL_FILE_NAME  POTENTIAL"
     end if
+    write(ifileid,"(a)") "    AUTO_BASIS RI_HFX MEDIUM"
 end if
-write(ifileid,"(a)") "#   WFN_RESTART_FILE_NAME "//trim(c200tmp)//"-RESTART.wfn"
+if (iRIHFX==1) write(ifileid,"(a)") "    SORT_BASIS EXP"
+if (ikpoint1==1.and.ikpoint2==1.and.ikpoint3==1) then
+    c80tmp=".wfn"
+else
+    c80tmp=".kp"
+end if
+if (iHFX==1) then
+    write(ifileid,"(a)") "    WFN_RESTART_FILE_NAME "//trim(c200tmp)//"-RESTART"//trim(c80tmp)
+else
+    write(ifileid,"(a)") "#   WFN_RESTART_FILE_NAME "//trim(c200tmp)//"-RESTART"//trim(c80tmp)
+end if
 write(ifileid,"(a,i5,a)") "    CHARGE",netchg," #Net charge"
 write(ifileid,"(a,i5,a)") "    MULTIPLICITY",multispin," #Spin multiplicity"
 if (multispin>1.or.any(kindmag(1:nkind)/=0)) write(ifileid,"(a)") "    UKS"
@@ -1697,8 +1747,12 @@ else !Other tasks involving energy derivative, use marginally tighter convergenc
 end if
 write(ifileid,"(a,1PE8.1,a)") "      EPS_DEFAULT",eps_def," #Set all EPS_xxx to values such that the energy will be correct up to this value"
 
-if (iHFX==1.or.method=="RI-(EXX+RPA)@PBE".or.index(method,"GW")/=0) then
-    write(ifileid,"(a)") "      EPS_PGF_ORB 1E-12 #If warning ""Kohn Sham matrix not 100% occupied"" occurs and meantime calculation is unstable, decrease it"
+if (iRIHFX==1) then
+    write(ifileid,"(a)") "      EPS_PGF_ORB 1E-5"
+else
+    if (iHFX==1.or.method=="RI-(EXX+RPA)@PBE".or.index(method,"GW")/=0) then
+        write(ifileid,"(a)") "      EPS_PGF_ORB 1E-12 #If warning ""Kohn Sham matrix not 100% occupied"" occurs and meantime calculation is unstable, decrease it"
+    end if
 end if
 if (ikpoint1==1.and.ikpoint2==1.and.ikpoint3==1) then !Gamma
     if (itask==6) then !Explicitly add these, allowing users to adapt
@@ -1843,16 +1897,20 @@ write(ifileid,"(a)") "    &END POISSON"
 
 if (index(method,"ADMM")/=0) then !Use ADMM
     write(ifileid,"(a)") "    &AUXILIARY_DENSITY_MATRIX_METHOD"
-    write(ifileid,"(a)") "      METHOD BASIS_PROJECTION #Method used for wavefunction fitting"
-    if (iTDDFT==1) then
-        write(ifileid,"(a)") "      ADMM_PURIFICATION_METHOD NONE #NONE is the only choice for TDDFT with ADMM"
-    else if (itask==15) then !It is recommended by XAS_TDP tutorial to use NONE, although purification version seems also to be supported by XAS_TDP
-        write(ifileid,"(a)") "      ADMM_PURIFICATION_METHOD NONE"
+    if (iRIHFX==1) then
+        write(ifileid,"(a)") "      ADMM_TYPE ADMMS #Best choice for RI-HFX with ADMM"
     else
-        if (idiagOT==1) then !Diagonalization cannot be used with purification
+        write(ifileid,"(a)") "      METHOD BASIS_PROJECTION #Method used for wavefunction fitting"
+        if (iTDDFT==1) then
+            write(ifileid,"(a)") "      ADMM_PURIFICATION_METHOD NONE #NONE is the only choice for TDDFT with ADMM"
+        else if (itask==15) then !It is recommended by XAS_TDP tutorial to use NONE, although purification version seems also to be supported by XAS_TDP
             write(ifileid,"(a)") "      ADMM_PURIFICATION_METHOD NONE"
-        else !When use OT, the default MO_DIAG is the best
-            write(ifileid,"(a)") "      ADMM_PURIFICATION_METHOD MO_DIAG"
+        else
+            if (idiagOT==1) then !Diagonalization cannot be used with purification
+                write(ifileid,"(a)") "      ADMM_PURIFICATION_METHOD NONE"
+            else !When use OT, the default MO_DIAG is the best
+                write(ifileid,"(a)") "      ADMM_PURIFICATION_METHOD MO_DIAG"
+            end if
         end if
     end if
     if (iTDDFT==1.and.index(method,"_ADMM")/=0) then !Needed otherwise cannot run. Suggested by https://www.cp2k.org/howto:tddft
@@ -2038,7 +2096,8 @@ ifdoPBCx=1;ifdoPBCy=1;ifdoPBCz=1
 call cellplane_spacing(0,0,1,d1)
 call cellplane_spacing(0,1,0,d2)
 call cellplane_spacing(1,0,0,d3)
-trunc_rad=min(min(d1,d2),d3)/2.01D0 !In Angstrom
+trunc_rad=min(min(d1,d2),d3)/2.01D0 !Maximum truncation radius in Angstrom
+trunc_rad_kp=min(min(d1*ikpoint1,d2*ikpoint2),d3*ikpoint3)/2.01D0 !Maximum truncation radius in Angstrom with considering k-points
 ifdoPBCx=i1; ifdoPBCy=i2; ifdoPBCz=i3
 cellv1=cellv1_tmp;cellv2=cellv2_tmp;cellv3=cellv3_tmp
 
@@ -2061,7 +2120,7 @@ if (iHFX==1) then !HFX potential
     else !Hybrid functionals
         write(ifileid,"(a)") "          EPS_SCHWARZ 1E-6 #The larger the value, the lower the cost and lower the accuracy"
     end if
-    write(ifileid,"(a)") "          SCREEN_ON_INITIAL_P T #Screening ERI based on initial density matrix, need to provide wavefunction restart file"
+    if (iRIHFX==0) write(ifileid,"(a)") "          SCREEN_ON_INITIAL_P T #Screening ERI based on initial density matrix, need to provide wavefunction restart file"
     write(ifileid,"(a)") "        &END SCREENING"
     if (index(method,"HSE")/=0) then
         write(ifileid,"(a)") "        &INTERACTION_POTENTIAL"
@@ -2072,20 +2131,48 @@ if (iHFX==1) then !HFX potential
         if (PBCdir/="NONE") then !PBC system needs Coulomb truncation for common hybrid functionals. By default the Coulomb interaction is not truncated
             write(ifileid,"(a)") "        &INTERACTION_POTENTIAL"
             write(ifileid,"(a)") "          POTENTIAL_TYPE TRUNCATED"
-            if (trunc_rad>6) then !If half of shortest box length is larger than 6 Angstrom, simply use 6, this is usually adequate
-                write(ifileid,"(a,f8.4)") "          CUTOFF_RADIUS 6.0 #Cutoff radius (Angstrom) for truncated 1/r Coulomb operator"
-            else
-                write(ifileid,"(a,f8.4,a)") "          CUTOFF_RADIUS",trunc_rad," #Cutoff radius (Angstrom) for truncated 1/r Coulomb operator"
+            if (ikpoint1==1.and.ikpoint2==1.and.ikpoint3==1) then !Gamma point
+                if (trunc_rad>6) then !If half of shortest box length is larger than 6 Angstrom, simply use 6, this is usually adequate
+                    write(ifileid,"(a,f8.4)") "          CUTOFF_RADIUS 6.0 #Cutoff radius (Angstrom) for truncated 1/r Coulomb operator"
+                else
+                    write(ifileid,"(a,f8.4,a)") "          CUTOFF_RADIUS",trunc_rad," #Cutoff radius (Angstrom) for truncated 1/r Coulomb operator"
+                end if
+            else !RI-HFXk case
+                if (trunc_rad_kp>6) then !If half of shortest box length is larger than 6 Angstrom, simply use 6, this is usually adequate
+                    write(ifileid,"(a,f8.4)") "          CUTOFF_RADIUS 6.0 #Cutoff radius (Angstrom) for truncated 1/r Coulomb operator"
+                else
+                    write(ifileid,"(a,f8.4,a)") "          CUTOFF_RADIUS",trunc_rad_kp," #Cutoff radius (Angstrom) for truncated 1/r Coulomb operator"
+                end if
             end if
             write(ifileid,"(a)") "        &END INTERACTION_POTENTIAL"
         end if
     end if
-    write(ifileid,"(a)") "        &MEMORY"
-    write(ifileid,"(a)") "          MAX_MEMORY 3000 #Memory(MB) per MPI process for calculating HF exchange"
-    !Scaling factor to scale EPS_SCHWARZ. Storage threshold for compression will be EPS_SCHWARZ*EPS_STORAGE_SCALING
-    write(ifileid,"(a)") "          EPS_STORAGE_SCALING 0.1"
-    write(ifileid,"(a)") "        &END MEMORY"
-    write(ifileid,"(a)") "      &END HF"
+    if (iRIHFX==0) then !Calculate 4-center ERI, takes lots of memory
+        write(ifileid,"(a)") "        &MEMORY"
+        write(ifileid,"(a)") "          MAX_MEMORY 3000 #Memory(MB) per MPI process for calculating HF exchange"
+        !Scaling factor to scale EPS_SCHWARZ. Storage threshold for compression will be EPS_SCHWARZ*EPS_STORAGE_SCALING
+        write(ifileid,"(a)") "          EPS_STORAGE_SCALING 0.1"
+        write(ifileid,"(a)") "        &END MEMORY"
+        write(ifileid,"(a)") "      &END HF"
+    else
+        write(ifileid,"(a)") "        &RI #Activate and set RI-HFX"
+        write(ifileid,"(a)") "          KP_NGROUPS 1 #Number of MPI subgroup. Larger leads to evidently faster calculation but takes more memory. Total MPI ranks must be divisible by this"
+        if (ikpoint1==1.and.ikpoint2==1.and.ikpoint3==1) then !Gamma point RI-HFX
+            if (ifPBC==0.or.PBCdir=="NONE") then !Isolated. Full Coulomb
+                write(ifileid,"(a)") "          RI_METRIC HFX #Default, using same Coulomb operator as &INTERACTION_POTENTIAL for RI metric"
+            else !Periodic, this setting is robust and efficient. When calculating gamma point, it is unlikely cell is very small, so 1.5 angstrom is always applicable
+                write(ifileid,"(a)") "          RI_METRIC TRUNCATED #Type of RI metric operator"
+                write(ifileid,"(a)") "          CUTOFF_RADIUS 1.5 #Cutoff radius (in Angstrom) for truncated RI Coulomb operator"
+            end if
+        else !RI-HFXk, this setting is saftest and recommended
+            write(ifileid,"(a)") "          RI_METRIC HFX #Default, using same Coulomb operator as &INTERACTION_POTENTIAL for RI metric"
+        end if
+        write(ifileid,"(a)") "          KP_USE_DELTA_P T #Using incremental Fock, set to F if SCF is difficult to converge"
+        write(ifileid,"(a)") "          EPS_PGF_ORB 1E-5 #Set precision of integral tensors, the default 1E-5 is usually fine enough"
+        !write(ifileid,"(a)") "          MEMORY_CUT 3 #Memory reduction factor. Larger saves more memory but more time-consuming"
+        write(ifileid,"(a)") "        &END RI"
+        write(ifileid,"(a)") "      &END HF"
+    end if
 end if
 
 !Wavefunction-based correlation part
@@ -2295,7 +2382,11 @@ else !&SCF
         write(ifileid,"(a,1PE8.1,a)") "      EPS_SCF",eps_scf," #Convergence threshold of density matrix of inner SCF"
     end if
     !if (method=="GFN1-xTB".or.method=="PM6") write(ifileid,"(a)") "      SCF_GUESS MOPAC" !Seems they benefit from this
-    write(ifileid,"(a)") "#     SCF_GUESS RESTART #Use wavefunction from WFN_RESTART_FILE_NAME file as initial guess"
+    if (iHFX==1) then
+        write(ifileid,"(a)") "      SCF_GUESS RESTART #Use wavefunction from WFN_RESTART_FILE_NAME file as initial guess"
+    else
+        write(ifileid,"(a)") "#     SCF_GUESS RESTART #Use wavefunction from WFN_RESTART_FILE_NAME file as initial guess"
+    end if
     write(ifileid,"(a)") "#     IGNORE_CONVERGENCE_FAILURE #Continue calculation even if SCF not converged, works for version >= 2024.1"
     if (idiagOT==1) then
         write(ifileid,"(a)") "      &DIAGONALIZATION"

@@ -13,7 +13,7 @@ use util
 implicit real*8 (a-h,o-z)
 real*8,allocatable :: weight(:) !Weight of various system for plotting mixed spectrum
 real*8,allocatable :: dataxall(:,:),dataxall_org(:,:),strall(:,:),FWHMall(:,:) !Transition data loaded from multiple files. The first index corresponds to system index
-integer,allocatable :: numdataall(:) !numdata is number of data, while for multiple system case, 
+integer,allocatable :: numdataall(:) !numdata is number of data, while for multiple system case
 character(len=80),allocatable :: mollegend(:)
 real*8,allocatable :: linexall(:,:),lineyall(:,:) !Array used to draw discrete lines for all systems. The first index corresponds to system index
 real*8,allocatable :: curveyall(:,:) !The first index corresponds to system index. curvey in global array is used to record weighted curve
@@ -194,6 +194,9 @@ if (index(filename,"multiple.txt")/=0) then !Multiple file list with weights is 
 		inquire(file=c200tmp2,exist=alive)
 		if (.not.alive) then
 			write(*,"(' Error: Cannot find ',a)") trim(c200tmp2)
+			if (isys==2.and.index(c200tmp,'\')/=0) then
+				write(*,"(a)") " NOTE: ""\"" was found in the path, however in Linux/Mac, the separator in path should be ""/"", you need to manually fix it"
+            end if
 			if (index(c200tmp,'/')/=0) then
 				write(*,"(a)") " Reminder: Since the file path contains / symbol, you should add "" at the two ends of the path, so that the file can be properly loaded"
 			end if
@@ -4072,6 +4075,9 @@ if (index(filename,"multiple.txt")/=0) then !Load multiple systems
 		inquire(file=c200tmp,exist=alive)
 		if (.not.alive) then
 			write(*,"(' Error: Cannot find ',a)") trim(c200tmp)
+			if (isys==2.and.index(c200tmp,'\')/=0) then
+				write(*,"(a)") " NOTE: ""\"" was found in the path, however in Linux/Mac, the separator in path should be ""/"", you need to manually fix it"
+            end if
 			if (index(c200tmp,'/')/=0) then
 				write(*,*) "Reminder: Since the file path contains / symbol, you should add "" at the two ends of the path, so that the file can be properly loaded"
 			end if

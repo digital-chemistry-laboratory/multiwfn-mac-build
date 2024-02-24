@@ -117,6 +117,8 @@ case (10) !Potential energy density, also known as virial field
     userfunc=-Hamkin(x,y,z,0)-lagkin(x,y,z,0)
 case (11) !Energy density
     userfunc=-Hamkin(x,y,z,0)
+case (-11) !Scaled energy density
+    userfunc=-Hamkin(x,y,z,0)*(virialratio-1)
 case (12) !Local nuclear attraction potential energy
     userfunc=-nucesp(x,y,z)*fdens(x,y,z)
 case (13) !This quantity at bond critical point is useful to discriminate covalent bonding and closed-shell interaction

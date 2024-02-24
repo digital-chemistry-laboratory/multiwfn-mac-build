@@ -154,7 +154,6 @@ use util
 implicit real*8 (a-h,o-z)
 real*8 dispvec(3)
 real*8,external :: doSintactual_disp
-real*8 Sbas_tmp(nbasisCar,nbasisCar)
 
 Sbas=0D0
 if (ifPBC==0) then
@@ -175,7 +174,8 @@ else !PBC case
 	!Summing up all neighbouring cells. This is valid for analysis for periodic system
 	!See (9.4) in p328 of Quantum Chemistry of Solids - The LCAO First Principles Treatment of Crystals
 	ifinish=0
-	!$OMP PARALLEL DO SHARED(Sbas,ifinish) PRIVATE(i,ii,j,jj,icell,jcell,kcell,tmp,Sbasadd,dispvec,facreal) schedule(dynamic) NUM_THREADS(nthreads)
+	ntmp=floor(nbasisCar/100D0)
+	!$OMP PARALLEL DO SHARED(Sbas,ifinish,ishowprog) PRIVATE(i,ii,j,jj,icell,jcell,kcell,tmp,Sbasadd,dispvec,facreal) schedule(dynamic) NUM_THREADS(nthreads)
 	do i=1,nbasisCar
 		do icell=-PBCnx,PBCnx
 			do jcell=-PBCny,PBCny
@@ -198,10 +198,12 @@ else !PBC case
 		end do
 		!$OMP CRITICAL
         ifinish=ifinish+1
-        call showprog(ifinish,nbasisCar)
+		ishowprog=mod(ifinish,ntmp)
+        if (ishowprog==0) call showprog(floor(100D0*ifinish/nbasisCar),100)
 		!$OMP END CRITICAL
 	end do
 	!$OMP END PARALLEL DO
+    if (ishowprog/=0) call showprog(100,100)
     
 	do i=1,nbasisCar
 		do j=i,nbasisCar
@@ -282,21 +284,22 @@ end subroutine
 
 
 
-!!!-------- Evaluate electric dipole moment integral for two unnormalized GTFs, <GTF|-r|GTF>, the negative charge of electron has been considered!
+!!!-------- Evaluate electric dipole moment integral for two unnormalized GTFs, <iGTF|-r|jGTF>, the negative charge of electron has been considered!
 !~p arguments are the shifts of GTF index as doSintactual
-!xint/yint/zint correspond to dipole moment integral in X/Y/Z
-subroutine dodipoleint(iGTF,jGTF,ix1p,iy1p,iz1p,ix2p,iy2p,iz2p,xint,yint,zint)
+!xadd,yadd,zadd are shift of coordinate of jGTF
+!xint/yint/zint are returned dipole moment integral in X/Y/Z
+subroutine dodipoleint(iGTF,jGTF,ix1p,iy1p,iz1p,ix2p,iy2p,iz2p,xadd,yadd,zadd,xint,yint,zint)
 use util
 use defvar
 implicit real*8 (a-h,o-z)
-real*8 xint,yint,zint
+real*8 xint,yint,zint,xadd,yadd,zadd
 integer iGTF,jGTF,ix1p,iy1p,iz1p,ix2p,iy2p,iz2p
 x1=a(b(iGTF)%center)%x
 y1=a(b(iGTF)%center)%y
 z1=a(b(iGTF)%center)%z
-x2=a(b(jGTF)%center)%x
-y2=a(b(jGTF)%center)%y
-z2=a(b(jGTF)%center)%z
+x2=a(b(jGTF)%center)%x+xadd
+y2=a(b(jGTF)%center)%y+yadd
+z2=a(b(jGTF)%center)%z+zadd
 ee1=b(iGTF)%exp
 ee2=b(jGTF)%exp
 ep=ee1+ee2
@@ -378,7 +381,7 @@ end subroutine
 real*8 function dipintcomp(icomp,iGTF,jGTF,ix1p,iy1p,iz1p,ix2p,iy2p,iz2p)
 integer icomp,iGTF,jGTF,ix1p,iy1p,iz1p,ix2p,iy2p,iz2p
 real*8 xcomp,ycomp,zcomp
-call dodipoleint(iGTF,jGTF,ix1p,iy1p,iz1p,ix2p,iy2p,iz2p,xcomp,ycomp,zcomp)
+call dodipoleint(iGTF,jGTF,ix1p,iy1p,iz1p,ix2p,iy2p,iz2p,0D0,0D0,0D0,xcomp,ycomp,zcomp)
 if (icomp==1) dipintcomp=xcomp
 if (icomp==2) dipintcomp=ycomp
 if (icomp==3) dipintcomp=zcomp
@@ -394,7 +397,7 @@ real*8 GTFdipmat(3,nsize)
 do iGTF=1,nprims
 	do jGTF=iGTF,nprims
 		ides=jGTF*(jGTF-1)/2+iGTF
-		call dodipoleint(iGTF,jGTF,0,0,0,0,0,0,xdiptmp,ydiptmp,zdiptmp)
+		call dodipoleint(iGTF,jGTF,0,0,0,0,0,0,0D0,0D0,0D0,xdiptmp,ydiptmp,zdiptmp)
 		GTFdipmat(1,ides)=xdiptmp
 		GTFdipmat(2,ides)=ydiptmp
 		GTFdipmat(3,ides)=zdiptmp
@@ -411,7 +414,7 @@ allocate(Dprim(3,nprims,nprims))
 !$OMP PARALLEL DO SHARED(Dprim) PRIVATE(iGTF,jGTF) schedule(dynamic) NUM_THREADS(nthreads)
 do iGTF=1,nprims
 	do jGTF=iGTF,nprims
-		call dodipoleint(iGTF,jGTF,0,0,0,0,0,0,Dprim(1,iGTF,jGTF),Dprim(2,iGTF,jGTF),Dprim(3,iGTF,jGTF))
+		call dodipoleint(iGTF,jGTF,0,0,0,0,0,0,0D0,0D0,0D0,Dprim(1,iGTF,jGTF),Dprim(2,iGTF,jGTF),Dprim(3,iGTF,jGTF))
         Dprim(:,jGTF,iGTF)=Dprim(:,iGTF,jGTF)
 	end do
 end do
@@ -422,24 +425,73 @@ end subroutine
 !If current basis functions contain spherical ones, it must be then converted to spherical-harmonic one before any practical use
 subroutine genDbas
 use defvar
+use util
 implicit real*8 (a-h,o-z)
+real*8 dispvec(3),Dbasadd(3)
+
 Dbas=0D0
-!$OMP PARALLEL DO SHARED(Dbas) PRIVATE(i,ii,j,jj,xdiptmp,ydiptmp,zdiptmp) schedule(dynamic) NUM_THREADS(nthreads)
-do i=1,nbasisCar
-	do j=i,nbasisCar
-		do ii=primstart(i),primend(i)
-			do jj=primstart(j),primend(j)
-				call dodipoleint(ii,jj,0,0,0,0,0,0,xdiptmp,ydiptmp,zdiptmp)
-				Dbas(1,i,j)=Dbas(1,i,j)+primconnorm(ii)*primconnorm(jj)*xdiptmp
-				Dbas(2,i,j)=Dbas(2,i,j)+primconnorm(ii)*primconnorm(jj)*ydiptmp
-				Dbas(3,i,j)=Dbas(3,i,j)+primconnorm(ii)*primconnorm(jj)*zdiptmp
+if (ifPBC==0) then
+	!$OMP PARALLEL DO SHARED(Dbas) PRIVATE(i,ii,j,jj,xdiptmp,ydiptmp,zdiptmp) schedule(dynamic) NUM_THREADS(nthreads)
+	do i=1,nbasisCar
+		do j=i,nbasisCar
+			do ii=primstart(i),primend(i)
+				do jj=primstart(j),primend(j)
+					call dodipoleint(ii,jj,0,0,0,0,0,0,0D0,0D0,0D0,xdiptmp,ydiptmp,zdiptmp)
+					Dbas(1,i,j)=Dbas(1,i,j)+primconnorm(ii)*primconnorm(jj)*xdiptmp
+					Dbas(2,i,j)=Dbas(2,i,j)+primconnorm(ii)*primconnorm(jj)*ydiptmp
+					Dbas(3,i,j)=Dbas(3,i,j)+primconnorm(ii)*primconnorm(jj)*zdiptmp
+				end do
+			end do
+			Dbas(:,j,i)=Dbas(:,i,j)
+		end do
+	end do
+	!$OMP END PARALLEL DO
+else !PBC case. This is meaningless, dipole operator based on the Berry-phase formula is needed of practical use, see SUBROUTINE tddfpt_dipole_operator in CP2K
+	call walltime(iwalltime1)
+	!Summing up all neighbouring cells. This is valid for analysis for periodic system
+	ifinish=0
+	ntmp=floor(nbasisCar/100D0)
+	!$OMP PARALLEL DO SHARED(Dbas,ifinish,ishowprog) PRIVATE(i,ii,j,jj,icell,jcell,kcell,xdiptmp,ydiptmp,zdiptmp,dispvec,facreal,Dbasadd) schedule(dynamic) NUM_THREADS(nthreads)
+	do i=1,nbasisCar
+		do icell=-PBCnx,PBCnx
+			do jcell=-PBCny,PBCny
+				do kcell=-PBCnz,PBCnz
+					call tvec_PBC(icell,jcell,kcell,dispvec)
+                    facreal=cos(2*pi*(icell*kp1crd+jcell*kp2crd+kcell*kp3crd)) !Real part of exponent term of the matrix
+					do j=i,nbasisCar
+						Dbasadd(:)=0
+						do ii=primstart(i),primend(i)
+							do jj=primstart(j),primend(j)
+								call dodipoleint(ii,jj,0,0,0,0,0,0,dispvec(1),dispvec(2),dispvec(3),xdiptmp,ydiptmp,zdiptmp)
+								Dbasadd(1)=Dbasadd(1)+primconnorm(ii)*primconnorm(jj)*xdiptmp
+								Dbasadd(2)=Dbasadd(2)+primconnorm(ii)*primconnorm(jj)*ydiptmp
+								Dbasadd(3)=Dbasadd(3)+primconnorm(ii)*primconnorm(jj)*zdiptmp
+							end do
+						end do
+						Dbas(:,i,j)=Dbas(:,i,j)+Dbasadd(:)*facreal
+					end do
+				end do
 			end do
 		end do
-		Dbas(:,j,i)=Dbas(:,i,j)
+		!$OMP CRITICAL
+        ifinish=ifinish+1
+		ishowprog=mod(ifinish,ntmp)
+        if (ishowprog==0) call showprog(floor(100D0*ifinish/nbasisCar),100)
+		!$OMP END CRITICAL
 	end do
-end do
-!$OMP END PARALLEL DO
+	!$OMP END PARALLEL DO
+    if (ishowprog/=0) call showprog(100,100)
+    
+	do i=1,nbasisCar
+		do j=i,nbasisCar
+			Dbas(:,j,i)=Dbas(:,i,j)
+        end do
+    end do
+	call walltime(iwalltime2)
+	write(*,"(' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
+end if
 end subroutine
+
 !!!--------------- Generate electric dipole moment integral matrix between all current basis functions
 subroutine genDbas_curr
 use defvar
@@ -462,13 +514,17 @@ end subroutine
 !Dbas must be already filled. DorbA and DorbB are global arrays
 subroutine genDorb
 use defvar
+use util
+real*8 tmpmat(nbasis,nbasis)
 integer i
 do i=1,3
-	DorbA(i,:,:)=matmul(matmul(transpose(CObasa),Dbas(i,:,:)),CObasa)
+    tmpmat(:,:)=matmul_blas(CObasa,Dbas(i,:,:),nbasis,nbasis,1,0)
+    DorbA(i,:,:)=matmul_blas(tmpmat,CObasa,nbasis,nbasis,0,0)
 end do
 if (allocated(CObasb)) then
 	do i=1,3
-		DorbB(i,:,:)=matmul(matmul(transpose(CObasb),Dbas(i,:,:)),CObasb)
+		tmpmat(:,:)=matmul_blas(CObasb,Dbas(i,:,:),nbasis,nbasis,1,0)
+		DorbB(i,:,:)=matmul_blas(tmpmat,CObasb,nbasis,nbasis,0,0)
 	end do
 end if
 end subroutine
@@ -582,13 +638,17 @@ end subroutine
 !Magbas must be already filled. MagorbA and MagorbB are global arrays
 subroutine genMagorb
 use defvar
+use util
 integer i
+real*8 tmpmat(nbasis,nbasis)
 do i=1,3
-	MagorbA(i,:,:)=matmul(matmul(transpose(CObasa),Magbas(i,:,:)),CObasa)
+    tmpmat(:,:)=matmul_blas(CObasa,Magbas(i,:,:),nbasis,nbasis,1,0)
+    MagorbA(i,:,:)=matmul_blas(tmpmat,CObasa,nbasis,nbasis,0,0)
 end do
 if (allocated(CObasb)) then
 	do i=1,3
-		MagorbB(i,:,:)=matmul(matmul(transpose(CObasb),Magbas(i,:,:)),CObasb)
+		tmpmat(:,:)=matmul_blas(CObasb,Magbas(i,:,:),nbasis,nbasis,1,0)
+		MagorbB(i,:,:)=matmul_blas(tmpmat,CObasb,nbasis,nbasis,0,0)
 	end do
 end if
 end subroutine

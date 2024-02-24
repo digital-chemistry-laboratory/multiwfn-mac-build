@@ -3034,6 +3034,12 @@ real*8,allocatable :: GTFdipint(:,:)
 integer,allocatable :: stateidx(:)
 character strtmp1,strtmp2,selectyn,c2000tmp*2000
 
+if (ifPBC/=0) then
+	write(*,"(a)") " Error: This function does not support periodic case yet! Press ENTER button to return"
+    read(*,*)
+    return
+end if
+
 write(*,*) "Initializing data, please wait..."
 write(*,*)
 !Calculate dipole moment integral matrix
@@ -3181,6 +3187,12 @@ real*8 beckeweigrid(radpot*sphpot),orbval(nmo,radpot*sphpot),orbvalpt(radpot*sph
 type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
 character strtmp1,strtmp2,selectyn,c2000tmp*2000
 ! excitfilename="x\excittrans\4-Nitroaniline\4-Nitroaniline.out"
+
+if (ifPBC/=0) then
+	write(*,"(a)") " Error: This function does not support periodic case yet! Press ENTER button to return"
+    read(*,*)
+    return
+end if
 
 call walltime(iwalltime1)
 write(*,*) "Calculating overlap matrix between MOs, please wait patiently..."
@@ -5472,6 +5484,7 @@ call loadallexcinfo(1)
 call selexcit(istate)
 call loadexccoeff(istate,1)
 call genTDM(1,3)
+call ask_Sbas_PBC
 
 bastrpopa=0
 if (wfntype==1.or.wfntype==4) then
@@ -6221,7 +6234,7 @@ do ifrag=1,nfrag
 end do
 close(12)
 
-!Generate data in CTspectrum\total_spectrum.txt
+!Generate data in CT_multiple\total_spectrum.txt
 open(12,file=tmpdir//"total_spectrum.txt",status="replace")
 write(12,*) nstates,1
 do istate=1,nstates
@@ -6229,7 +6242,7 @@ do istate=1,nstates
 end do
 close(12)
 
-!Generate data in CTspectrum\Redis_xxx.txt
+!Generate data in CT_multiple\Redis_xxx.txt
 do ifrag=1,nfrag
     write(c80tmp,"(a,i1,a)") tmpdir//"Redis_",ifrag,".txt"
     open(12,file=trim(c80tmp),status="replace")
@@ -6240,7 +6253,7 @@ do ifrag=1,nfrag
     close(12)
 end do
 
-!Generate data in CTspectrum\ET_xxx.txt
+!Generate data in CT_multiple\ET_xxx.txt
 do ifrag=1,nfrag
     do jfrag=ifrag+1,nfrag
         write(c80tmp,"(a,i1,a,i1,a)") tmpdir//"ET_",ifrag,"to",jfrag,".txt"

@@ -5,7 +5,7 @@ use GUI
 use functions
 use util
 implicit real*8 (a-h,o-z)
-character keywords*200,c200tmp*200,inpname*200,selectyn,c3*3,c3p*3,c3q*3
+character keywords*200,c10tmp*10,c200tmp*200,inpname*200,selectyn,c3*3,c3p*3,c3q*3
 character(len=200) wfnfile(4)
 integer charge(4),spin(4) !Charge and spin multiplicity for N,N+1,N-1,N-2 states
 integer :: iwcubic=0,iQCprog=1
@@ -13,7 +13,7 @@ integer :: np=1,nq=1 !Degenerate of LUMO, HOMO. Normal case is 1,1, for (quasi)-
 real*8 atmchg(ncenter,3) !Hirshfeld charges of N,N+1,N-1,N-2 states
 real*8 ene(4),E_HOMO(4) !Energy and E_HOMO of N,N+1,N-1,N-2 states
 real*8 atmfneg(ncenter),atmfpos(ncenter),atmf0(ncenter),atmCDD(ncenter)
-real*8 atmsneg(ncenter),atmspos(ncenter),atms0(ncenter),atmelectphi(ncenter),atmnucleophi(ncenter),atmwcubic(ncenter)
+real*8 atmsneg(ncenter),atmspos(ncenter),atms0(ncenter),atms2(ncenter),atmelectphi(ncenter),atmnucleophi(ncenter),atmwcubic(ncenter)
 real*8 nucleophi,expterm(nmo)
 real*8,allocatable :: rhoN(:,:,:),rhoNp1(:,:,:),rhoNn1(:,:,:),OW_fpos(:,:,:),OW_fneg(:,:,:)
 real*8 OWfposgrid(radpot*sphpot),OWfneggrid(radpot*sphpot),promol(radpot*sphpot),tmpdens(radpot*sphpot),selfdens(radpot*sphpot),wfnval(nmo)
@@ -45,7 +45,7 @@ do while(.true.)
     if (iwcubic==1) write(*,*) "1 Generate .wfn files for N, N+1, N-1, N-2 electrons states"
     if (iwcubic==0) write(*,*) "2 Calculate various quantitative indices"
     if (iwcubic==1) write(*,*) "2 Calculate various quantitative indices including w_cubic"
-    write(*,*) "3 Calculate grid data of Fukui function and dual descriptor"
+    write(*,*) "3 Calculate grid data of Fukui function, dual descriptor and related functions"
     write(*,"(a,f7.4,' a.u.')") " 4 Set delta in orbital-weighted (OW) calculation, current:",orbwei_delta
     write(*,*) "5 Print current orbital weights used in orbital-weighted (OW) calculation"
     write(*,*) "6 Calculate condensed OW Fukui function and OW dual descriptor"
@@ -513,6 +513,7 @@ do while(.true.)
         atmsneg(:)=atmfneg(:)*softness
         atmspos(:)=atmfpos(:)*softness
         atms0(:)=atmf0(:)*softness
+        atms2(:)=atmCDD(:)*softness**2
         atmelectphi(:)=atmfpos(:)*electphi !e*Hartree
         atmnucleophi(:)=atmfneg(:)*nucleophi !e*Hartree
         
@@ -554,11 +555,11 @@ do while(.true.)
             end do
         end if
         write(10,*)
-        write(10,"(a)") " Condensed local softnesses (Hartree*e) and relative electrophilicity/nucleophilicity (dimensionless)"
-        write(10,*) "    Atom         s-          s+          s0        s+/s-       s-/s+"
+        write(10,"(a)") " Condensed local softness (e/Hartree), relative electrophilicity/nucleophilicity (dimensionless) and condensed local hyper-softness (e/Hartree^2)"
+        write(10,*) "    Atom         s-          s+          s0        s+/s-       s-/s+       s(2)"
         do iatm=1,ncenter
-            write(10,"(i6,'(',a')',5f12.4)") iatm,a(iatm)%name,atmsneg(iatm),&
-            atmspos(iatm),atms0(iatm),atmspos(iatm)/atmsneg(iatm),atmsneg(iatm)/atmspos(iatm)
+            write(10,"(i6,'(',a')',6f12.4)") iatm,a(iatm)%name,atmsneg(iatm),&
+            atmspos(iatm),atms0(iatm),atmspos(iatm)/atmsneg(iatm),atmsneg(iatm)/atmspos(iatm),atms2(iatm)
         end do
         
         write(10,*)
@@ -577,6 +578,7 @@ do while(.true.)
         write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Chemical potential:         ",chempot,chempot*au2eV
         write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Hardness (=fundamental gap):",hardness,hardness*au2eV
         write(10,"(a,f12.6,' Hartree^-1,',f10.4,' eV^-1')") " Softness:",softness,softness/au2eV
+        write(10,"(a,f12.6,' Hartree^-2,',f10.4,' eV^-2')") " Softness^2:",softness**2,(softness/au2eV)**2
         write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Electrophilicity index:",electphi,electphi*au2eV
        if (wfntype==0.or.wfntype==1.or.wfntype==2) write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Nucleophilicity index: ",nucleophi,nucleophi*au2eV
         if (iwcubic==1) write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Cubic electrophilicity index (w_cubic):",w_cubic,w_cubic*au2eV
@@ -644,20 +646,22 @@ do while(.true.)
         
 	 	sur_value=0.01D0
         do while(.true.)
+            c10tmp=" "
+            if (cubfac/=1D0) c10tmp=" scaled"
             write(*,*)
-            write(*,"(' -1 Set the value multiplied to all grid data, current:',f12.6)") cubfac
+            write(*,"(' -1 Set the scale factor to various grid data, current:',f12.6)") cubfac
             write(*,*) "0 Return"
-            write(*,*) "1 Visualize isosurface of f+"
-            write(*,*) "2 Visualize isosurface of f-"
-            write(*,*) "3 Visualize isosurface of f0"
-            write(*,*) "4 Visualize isosurface of dual descriptor"
-            write(*,*) "5 Export grid data of f+ as f+.cub in current folder"
-            write(*,*) "6 Export grid data of f- as f-.cub in current folder"
-            write(*,*) "7 Export grid data of f0 as f0.cub in current folder"
-            write(*,*) "8 Export grid data of dual descriptor as DD.cub in current folder"
+            write(*,*) "1 Visualize isosurface of"//trim(c10tmp)//" f+"
+            write(*,*) "2 Visualize isosurface of"//trim(c10tmp)//" f-"
+            write(*,*) "3 Visualize isosurface of"//trim(c10tmp)//" f0"
+            write(*,*) "4 Visualize isosurface of"//trim(c10tmp)//" dual descriptor"
+            write(*,*) "5 Export grid data of"//trim(c10tmp)//" f+ as f+.cub in current folder"
+            write(*,*) "6 Export grid data of"//trim(c10tmp)//" f- as f-.cub in current folder"
+            write(*,*) "7 Export grid data of"//trim(c10tmp)//" f0 as f0.cub in current folder"
+            write(*,*) "8 Export grid data of"//trim(c10tmp)//" dual descriptor as DD.cub in current folder"
             read(*,*) isel2
             if (isel2==-1) then
-                write(*,*) "Input the value, e.g. 0.325"
+                write(*,*) "Input the scale factor, e.g. 0.325"
                 read(*,*) cubfac
             else if (isel2==0) then
                 deallocate(rhoN,rhoNp1,rhoNn1)
