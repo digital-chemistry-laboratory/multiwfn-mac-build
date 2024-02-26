@@ -5,17 +5,26 @@ use GUI
 use functions
 use util
 implicit real*8 (a-h,o-z)
-character keywords*200,c10tmp*10,c200tmp*200,inpname*200,selectyn,c3*3,c3p*3,c3q*3
-character(len=200) wfnfile(4)
-integer charge(4),spin(4) !Charge and spin multiplicity for N,N+1,N-1,N-2 states
+character keywords*200,c10tmp*10,c200tmp*200,inpname*200,selectyn
+character c3p*3,c3q*3 !e.g. c3p="N+4" if np=4, c3q="N-4" if nq=4
+!Maximum number of electron states in order: N,N+p,N-q,N-2,N+1,N-1 (six slots)
+!For nondegeneracy case, p=1 and q=1, slots 5 and 6 are not used
+!N-2 is only used for calculating w_cubic. In this case only nondegeneracy case is supported
+!Slot 5 records N+1 when p/=1
+!Slot 6 records N-1 when q/=1
+integer,parameter :: maxstate=6 
+character(len=200) wfnfile(maxstate)
+character :: statename(maxstate)*3=(/ "N  ","N+3","N-3","N-2","N+1","N-1" /) !The slots 2 and 3 are temporary names, which will be defined later
+integer charge(maxstate),spin(maxstate) !Charge and spin multiplicity for various states
 integer :: iwcubic=0,iQCprog=1
-integer :: np=1,nq=1 !Degenerate of LUMO, HOMO. Normal case is 1,1, for (quasi)-degenerate case they are p,q
-real*8 atmchg(ncenter,3) !Hirshfeld charges of N,N+1,N-1,N-2 states
-real*8 ene(4),E_HOMO(4) !Energy and E_HOMO of N,N+1,N-1,N-2 states
+integer :: np=1,nq=1 !Default degeneracy of LUMO, HOMO
+real*8 atmchg(ncenter,3) !Hirshfeld charges of N,N+p,N-q states
+real*8 ene(-9:9),E_HOMO(-9:9) !Energy and E_HOMO of various states, e.g. ene(-3) is energy of N-3 state, E_HOMO(0) is HOMO energy of N state
 real*8 atmfneg(ncenter),atmfpos(ncenter),atmf0(ncenter),atmCDD(ncenter)
 real*8 atmsneg(ncenter),atmspos(ncenter),atms0(ncenter),atms2(ncenter),atmelectphi(ncenter),atmnucleophi(ncenter),atmwcubic(ncenter)
 real*8 nucleophi,expterm(nmo)
-real*8,allocatable :: rhoN(:,:,:),rhoNp1(:,:,:),rhoNn1(:,:,:),OW_fpos(:,:,:),OW_fneg(:,:,:)
+real*8,allocatable :: rhoN(:,:,:),rhoNp(:,:,:),rhoNq(:,:,:) !Electron density of N, N+p, N-q states
+real*8,allocatable :: OW_fpos(:,:,:),OW_fneg(:,:,:)
 real*8 OWfposgrid(radpot*sphpot),OWfneggrid(radpot*sphpot),promol(radpot*sphpot),tmpdens(radpot*sphpot),selfdens(radpot*sphpot),wfnval(nmo)
 real*8,allocatable :: atmcomp(:,:),atmref(:,:)
 type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
@@ -27,12 +36,16 @@ write(*,"(a)") " Tian Lu, Qinxue Chen. Realization of Conceptual Density Functio
 Multiwfn Program. In Conceptual Density Functional Theory, WILEY-VCH GmbH: Weinheim (2022); pp 631-647 DOI: 10.1002/9783527829941.ch31"
 
 do while(.true.)
+	write(c3p,"(a,i1)") "N+",np !For more convenient output
+	write(c3q,"(a,i1)") "N-",nq
+    statename(2)=c3p
+    statename(3)=c3q
     write(*,*)
     write(*,*) "---- Calculate various quantities in conceptual density functional theory ----"
     if (np==1.and.nq==1) then
-		write(*,*) "-3 Set degree of degeneracy for options 1, 2 and 3, current: Nondegenerate"
+		write(*,*) "-3 Set degree of FMO degeneracy for options 1, 2 and 3, current: Nondegenerate"
     else
-		write(*,"(a,i2,a,i2,a)") " -3 Set degree of degeneracy for options 1, 2 and 3, current: Degeneracy of HOMO and LUMO are",np," and",nq,", respectively"
+		write(*,"(a,i2,a,i2,a)") " -3 Set degree of degeneracy for options 1, 2 and 3, current: Degeneracy of HOMO and LUMO are",nq," and",np,", respectively"
     end if
     if (iQCprog==1) write(*,*) "-2 Choose the quantum chemistry program used in option 1, current: Gaussian"
     if (iQCprog==2) write(*,*) "-2 Choose the quantum chemistry program used in option 1, current: ORCA"
@@ -41,10 +54,17 @@ do while(.true.)
 		if (iwcubic==1) write(*,*) "-1 Toggle calculating w_cubic electrophilicity index by option 2, current: Yes"
     end if
     write(*,*) "0 Return"
-    if (iwcubic==0) write(*,"(a,i1,a,i1,a)") " 1 Generate .wfn files for N, N+",np,", N-",nq," electrons states"
-    if (iwcubic==1) write(*,*) "1 Generate .wfn files for N, N+1, N-1, N-2 electrons states"
-    if (iwcubic==0) write(*,*) "2 Calculate various quantitative indices"
-    if (iwcubic==1) write(*,*) "2 Calculate various quantitative indices including w_cubic"
+    if (iwcubic==0) then
+        if (np==1.and.nq==1) then
+            write(*,*) "1 Generate .wfn files for N, N+1, N-1 electrons states"
+        else
+            write(*,"(a,i1,a,i1,a)") " 1 Generate .wfn files for various electrons states"
+        end if
+        write(*,*) "2 Calculate various quantitative indices"
+    else
+        write(*,*) "1 Generate .wfn files for N, N+1, N-1, N-2 electrons states"
+        write(*,*) "2 Calculate various quantitative indices including w_cubic"
+    end if
     write(*,*) "3 Calculate grid data of Fukui function, dual descriptor and related functions"
     write(*,"(a,f7.4,' a.u.')") " 4 Set delta in orbital-weighted (OW) calculation, current:",orbwei_delta
     write(*,*) "5 Print current orbital weights used in orbital-weighted (OW) calculation"
@@ -53,58 +73,85 @@ do while(.true.)
     write(*,*) "8 Calculate nucleophilic and electrophilic superdelocalizabilities"
     read(*,*) isel
     
-	write(c3p,"(a,i1)") "N+",np !For more convenient output
-	write(c3q,"(a,i1)") "N-",nq
-    
     if (isel==-3) then
         if (wfntype/=0) then
-            write(*,"(a)") " Error: This function is only available for closed-shell single-determinant wavefunction! Press ENTER button to return"
+            write(*,"(a)") " Error: Nondegeneracy case is only available for closed-shell single-determinant wavefunction! Press ENTER button to return"
             read(*,*)
             cycle
         end if
-        call getHOMOidx
-        idxLUMO=idxHOMO+1
-        nshow=min(nmo,idxLUMO+9)-idxLUMO+1
-        write(*,"(/,i3,a)") nshow," lowest unoccupied orbitals:"
-        write(*,*) "E_diff denotes difference of the orbital energy with respect to LUMO"
-        do imo=min(nmo,idxLUMO+9),idxLUMO,-1
-            if (imo==idxLUMO) then
-                write(*,"(' Orbital',i6,' (LUMO  )   Energy:',f10.3,' eV')") imo,MOene(imo)*au2eV
-            else
-                write(*,"(' Orbital',i6,' (LUMO+',i1,')   Energy:',f10.3,' eV  E_diff:',f10.3,' eV')") imo,imo-idxLUMO,MOene(imo)*au2eV,(MOene(imo)-MOene(idxLUMO))*au2eV
-            end if
-        end do
+        if (allocated(b)) then
+            call getHOMOidx
+            idxLUMO=idxHOMO+1
+            nshow=min(nmo,idxLUMO+9)-idxLUMO+1
+            write(*,"(/,i3,a)") nshow," lowest unoccupied orbitals:"
+            write(*,*) "E_diff denotes difference of the orbital energy with respect to LUMO"
+            nsugg=0
+            do imo=min(nmo,idxLUMO+9),idxLUMO,-1
+                if (imo==idxLUMO) then
+                    write(*,"(' Orbital',i6,' (LUMO  )   Energy:',f10.3,' eV')") imo,MOene(imo)*au2eV
+                else
+                    write(*,"(' Orbital',i6,' (LUMO+',i1,')   Energy:',f10.3,' eV  E_diff:',f10.3,' eV')") imo,imo-idxLUMO,MOene(imo)*au2eV,(MOene(imo)-MOene(idxLUMO))*au2eV
+                end if
+                if ( (MOene(imo)-MOene(idxLUMO))*au2eV<0.01D0 ) nsugg=nsugg+1
+            end do
+        else
+            write(*,"(a)") " Because the input file does not contain orbital information, energies of lowest unoccupied orbitals are not listed here. &
+            Please manually check orbital energies to determine degeneracy"
+        end if
+        write(*,*)
         write(*,*) "Please input degeneracy of LUMO, e.g. 3"
-        read(*,*) np
+        write(*,"(a,i2,a)") " If you press ENTER button directly, suggested value (",nsugg,") will be used"
+        read(*,"(a)") c10tmp
+        if (c10tmp==" ") then
+            np=nsugg
+        else
+            read(c10tmp,*) np
+        end if
         if (np>9.or.np<1) then
-			if (np>9) write(*,*) "Error: The degeneracy must < 9! Press ENTER button to continue"
-			if (np<1) write(*,*) "Error: The degeneracy must >=1! Press ENTER button to continue"
+			if (np>9) write(*,*) "Error: The degeneracy must be < 9! Press ENTER button to continue"
+			if (np<1) write(*,*) "Error: The degeneracy must be >=1! Press ENTER button to continue"
             read(*,*)
             np=1
+            write(*,*) "NOTE: The degeneracy has be set to 1"
             cycle
         end if
-        nshow=idxHOMO-max(1,idxHOMO-9)+1
-        write(*,"(/,i3,a)") nshow," highest occupied orbitals:"
-        write(*,*) "E_diff denotes difference of the orbital energy with respect to HOMO"
-        do imo=idxHOMO,max(1,idxHOMO-9),-1
-            if (imo==idxHOMO) then
-                write(*,"(' Orbital',i6,' (HOMO  )   Energy:',f10.3,' eV')") imo,MOene(imo)*au2eV
-            else
-                write(*,"(' Orbital',i6,' (HOMO',i2,')   Energy:',f10.3,' eV  E_diff:',f10.3,' eV')") imo,imo-idxHOMO,MOene(imo)*au2eV,(MOene(imo)-MOene(idxHOMO))*au2eV
-            end if
-        end do
+        if (allocated(b)) then
+            nshow=idxHOMO-max(1,idxHOMO-9)+1
+            write(*,"(/,i3,a)") nshow," highest occupied orbitals:"
+            write(*,*) "E_diff denotes difference of the orbital energy with respect to HOMO"
+            nsugg=0
+            do imo=idxHOMO,max(1,idxHOMO-9),-1
+                if (imo==idxHOMO) then
+                    write(*,"(' Orbital',i6,' (HOMO  )   Energy:',f10.3,' eV')") imo,MOene(imo)*au2eV
+                else
+                    write(*,"(' Orbital',i6,' (HOMO',i2,')   Energy:',f10.3,' eV  E_diff:',f10.3,' eV')") imo,imo-idxHOMO,MOene(imo)*au2eV,(MOene(imo)-MOene(idxHOMO))*au2eV
+                end if
+                if ( (MOene(idxHOMO)-MOene(imo))*au2eV<0.01D0 ) nsugg=nsugg+1
+            end do
+        else
+            write(*,"(a)") " Because the input file does not contain orbital information, energies of highest occupied orbitals are not listed here. &
+            Please manually check orbital energies to determine degeneracy"
+        end if
+        write(*,*)
         write(*,*) "Please input degeneracy of HOMO, e.g. 3"
-        read(*,*) nq
+        write(*,"(a,i2,a)") " If you press ENTER button directly, suggested value (",nsugg,") will be used"
+        read(*,"(a)") c10tmp
+        if (c10tmp==" ") then
+            nq=nsugg
+        else
+            read(c10tmp,*) nq
+        end if
         if (nq>9.or.nq<1) then
-			if (nq>9) write(*,*) "Error: The degeneracy must < 9! Press ENTER button to continue"
-			if (nq<1) write(*,*) "Error: The degeneracy must >=1! Press ENTER button to continue"
+			if (nq>9) write(*,*) "Error: The degeneracy must be < 9! Press ENTER button to continue"
+			if (nq<1) write(*,*) "Error: The degeneracy must be >=1! Press ENTER button to continue"
             read(*,*)
             nq=1
+            write(*,*) "NOTE: The degeneracy has be set to 1"
             cycle
         end if
 		if ((np/=1.or.nq/=1).and.iwcubic==1) iwcubic=0 !w_cubic is undefined for (quasi)-degenerate case
     else if (isel==-2) then
-        write(*,*) "Select the program for which the input file will be generated by option 1"
+        write(*,*) "Select the program for which the input files will be generated by option 1"
         write(*,*) "1 Gaussian"
         write(*,*) "2 ORCA"
         read(*,*) iQCprog
@@ -178,13 +225,13 @@ do while(.true.)
     if (isel==0) then
         return
         
-    else if (isel==1) then
+    else if (isel==1) then !Generate input files
         if (iQCprog==1) then
             write(*,*) "Input Gaussian keywords used for single point task, e.g. PBE1PBE/def2SVP"
             write(*,*) "You can also meantime add some keywords for facilitating SCF convergence"
             write(*,*) "If press ENTER button directly, B3LYP/6-31G* will be employed"
             read(*,"(a)") keywords
-            if (keywords==" ") keywords="B3LYP/6-31G* SCF=conver=6"
+            if (keywords==" ") keywords="B3LYP/6-31G* SCF=conver=7" !=7 is accurate enough, and take less computational time, reduce probability of unconvergence especially when diffuse functions are used
             c200tmp=keywords
             if (index(keywords,"gen")/=0) then
                 inquire(file="basis.txt",exist=alive)
@@ -197,51 +244,69 @@ do while(.true.)
             end if
             !"nosymm" is not absolutely needed, however, because Gaussian may move the coordinate, the final coordinate in the resulting .wfn
             !may be different to the coordinate in the firstly loaded file, therefore add nosymm to guarantee the coordinate consistency
-            keywords="#P "//trim(c200tmp)//" out=wfn nosymm"
+            !But this is commented because it increases computational cost for many cases significantly
+            keywords="#P "//trim(c200tmp)//" out=wfn"
+        else if (iQCprog==2) then !ORCA
+            write(*,*) "Input ORCA keywords used single point task, e.g. PBE0 def2-TZVP"
+            write(*,*) "You can also meantime add some keywords for facilitating SCF convergence"
+            write(*,*) "If press ENTER button directly, B3LYP/G 6-31G* will be employed"
+            read(*,"(a)") keywords
+            if (keywords==" ") keywords="B3LYP/G 6-31G* autoaux"
+        end if
         
-            write(*,*) "Input the net charge and spin multiplicity for N electrons state, e.g. 0 1"
-            if (np==1.and.nq==1) then !Normal case
-				if (iwcubic==0) write(*,"(a)") " Note: If pressing ENTER button directly, (0 1), (-1 2) and (1 2) will be employed for N, N+1 and N-1 states, respectively"
-				if (iwcubic==1) write(*,"(a)") " Note: If pressing ENTER button directly, (0 1), (-1 2), (1 2) and (2,1) will be employed for N, N+1, N-1 and N-2 states, respectively"
-            else
-				write(*,"(a,i1,1x,i1,a,i1,1x,i1,a)") " Note: If pressing ENTER button directly, (0 1), (-",np,np+1,") and (",nq,nq+1,") will be employed for N, "//c3p//" and "//c3q//" states, respectively"
-            end if
-            read(*,"(a)") c200tmp
-            if (c200tmp==" ") then
-				if (np==1.and.nq==1) then !Normal case
-					charge(1)=0;spin(1)=1
-					charge(2)=-1;spin(2)=2
-					charge(3)=1;spin(3)=2
-					charge(4)=2;spin(4)=1
-                else
-					charge(1)=0;spin(1)=1
-					charge(2)=-np;spin(2)=np+1
-					charge(3)=nq;spin(3)=nq+1
+        spin(:)=0
+        write(*,*) "Input the net charge and spin multiplicity for N electrons state, e.g. 0 1"
+        if (np==1.and.nq==1) then !Non-degeneracy case
+			if (iwcubic==0) write(*,"(a)") " Note: If pressing ENTER button directly, (0 1), (-1 2) and (1 2) will be employed for N, N+1 and N-1 states, respectively"
+			if (iwcubic==1) write(*,"(a)") " Note: If pressing ENTER button directly, (0 1), (-1 2), (1 2) and (2,1) will be employed for N, N+1, N-1 and N-2 states, respectively"
+        else !Degeneracy case
+			write(*,"(a,i1,1x,i1,a,i1,1x,i1,a)") " Note: If pressing ENTER button directly, (0 1), (-",np,np+1,") and (",nq,nq+1,") will be employed for N, "//c3p//" and "//c3q//" states, respectively"
+        end if
+        read(*,"(a)") c200tmp
+        if (c200tmp==" ") then !Use default charge and spin multiplicity
+			if (np==1.and.nq==1) then !Non-degeneracy case
+				charge(1)=0;spin(1)=1
+				charge(2)=-1;spin(2)=2
+				charge(3)=1;spin(3)=2
+				if (iwcubic==1) then
+                    charge(4)=2;spin(4)=1
                 end if
-            else
-                read(c200tmp,*) charge(1),spin(1)
-                write(*,"(a,i1,a,2i2)") " Input the net charge and spin multiplicity for N+",np," electrons state, e.g. ",-np,np+1
-                read(*,*) charge(2),spin(2)
-                write(*,"(a,i1,a,2i2)") " Input the net charge and spin multiplicity for N-",nq," electrons state, e.g. ",nq,nq+1
-                read(*,*) charge(3),spin(3)
-                if (iwcubic==1) then
-                    write(*,*) "Input the net charge and spin multiplicity for N-2 electrons state, e.g. 2 1"
-                    read(*,*) charge(4),spin(4)
-                end if
+            else !Degeneracy case
+				charge(1)=0;spin(1)=1
+				charge(2)=-np;spin(2)=np+1
+				charge(3)=nq;spin(3)=nq+1
             end if
+        else
+            read(c200tmp,*) charge(1),spin(1)
+            write(*,"(a,i1,a,2i2)") " Input the net charge and spin multiplicity for N+",np," electrons state, e.g. ",-np,np+1
+            read(*,*) charge(2),spin(2)
+            write(*,"(a,i1,a,2i2)") " Input the net charge and spin multiplicity for N-",nq," electrons state, e.g. ",nq,nq+1
+            read(*,*) charge(3),spin(3)
+            if (iwcubic==1) then
+                write(*,*) "Input the net charge and spin multiplicity for N-2 electrons state, e.g. 2 1"
+                read(*,*) charge(4),spin(4)
+            end if
+        end if
+        if (np/=1) then !May also need to calculate N+1 state
+            write(*,"(a,i1,a,2i2)") " Input the net charge and spin multiplicity for N+1 electrons state, e.g. -1,2"
+            write(*,"(a)") " If you press ENTER button directly, then this state will not be calculated, and all quantities defined based on first VEA will not be given in option 2"
+            read(*,"(a)") c10tmp
+            if (c10tmp/=" ") read(c10tmp,*) charge(5),spin(5)
+        end if
+        if (nq/=1) then !May also need to calculate N-1 state
+            write(*,"(a,i1,a,2i2)") " Input the net charge and spin multiplicity for N-1 electrons state, e.g. 1,2"
+            write(*,"(a)") " If you press ENTER button directly, then this state will not be calculated, and all quantities defined based on first VIP will not be given in option 2"
+            read(*,"(a)") c10tmp
+            if (c10tmp/=" ") read(c10tmp,*) charge(6),spin(6)
+        end if
         
-            !Generate .gjf for N, N+1, N-1, N-2 states
-            nstates=3
-            if (iwcubic==1) nstates=4
-            do istate=1,nstates
-                if (istate==1) inpname="N.gjf"
-                if (istate==2) inpname=c3p//".gjf"
-                if (istate==3) inpname=c3q//".gjf"
-                if (istate==4) inpname="N-2.gjf"
+        if (iQCprog==1) then !Generate Gaussian .gjf for defined electronic states
+            do istate=1,maxstate
+                if (spin(istate)==0) cycle
+                inpname=trim(statename(istate))//".gjf"
                 write(*,*) "Generating "//trim(inpname)//"..."
-        
                 open(10,file=inpname)
-                !Under windows, most user don't know Default.Rou must be placed in current folder to make it take effect. So directly set number of cores
+                !Under Windows, most users don't know Default.Rou must be placed in current folder to make it take effect. So directly set number of cores
                 if (isys==1)  write(10,"(a,i4)") "%nprocs=",nthreads
                 write(10,"(a)") trim(keywords)
                 write(10,*)
@@ -262,10 +327,7 @@ do while(.true.)
                     close(11)
                 end if
                 write(10,*)
-                if (istate==1) write(10,"(a)") "N.wfn"
-                if (istate==2) write(10,"(a)") c3p//".wfn"
-                if (istate==3) write(10,"(a)") c3q//".wfn"
-                if (istate==4) write(10,"(a)") "N-2.wfn"
+                write(10,"(a)") trim(statename(istate))//".wfn"
                 write(10,*)
                 write(10,*)
                 close(10)
@@ -280,101 +342,36 @@ do while(.true.)
                 write(*,*) "Note: You can manually edit the .gjf files before inputting ""y"""
                 read(*,*) selectyn
                 if (selectyn=='y'.or.selectyn=='Y') then
-                    call runGaussian("N.gjf",isuccess1)
-                    if (isuccess1==1) then
-                        call delfile("N.gjf N.out")
-                        write(*,"(a,/)") " Now current folder should contain N.wfn"
-                    else
-                        write(*,"(a,/)") " The task has failed! Please manually check N.gjf and N.out"
-                    end if
-                    call runGaussian(c3p//".gjf",isuccess2)
-                    if (isuccess2==1) then
-                        call delfile(c3p//".gjf "//c3p//".out")
-                        write(*,"(a,/)") " Now current folder should contain "//c3p//".wfn"
-                    else
-                        write(*,"(a,/)") " The task has failed! Please manually check "//c3p//".gjf and "//c3p//".out"
-                    end if
-                    call runGaussian(c3q//".gjf",isuccess3)
-                    if (isuccess3==1) then
-                        call delfile(c3q//".gjf "//c3q//".out")
-                        write(*,"(a,/)") " Now current folder should contain "//c3q//".wfn"
-                    else
-                        write(*,"(a,/)") " The task has failed! Please manually check "//c3q//".gjf and "//c3q//".out"
-                    end if
-                    if (iwcubic==1) then
-                        call runGaussian("N-2.gjf",isuccess4)
-                        if (isuccess4==1) then
-                            call delfile("N-2.gjf N-2.out")
-                            write(*,"(a,/)") " Now current folder should contain N-2.wfn"
+                    ifailed=0
+                    do istate=1,maxstate
+                        if (spin(istate)==0) cycle
+                        call runGaussian(trim(statename(istate))//".gjf",isuccess)
+                        if (isuccess==1) then
+                            call delfile(trim(statename(istate))//".gjf "//trim(statename(istate))//".out")
+                            write(*,"(a,/)") " Now current folder should contain "//trim(statename(istate))//".wfn"
                         else
-                            write(*,"(a,/)") " The task has failed! Please manually check N-2.gjf and N-2.out"
+                            write(*,"(a,/)") " The task has failed! Please manually check "//trim(statename(istate))//".gjf and "//trim(statename(istate))//".out"
+                            ifailed=1
                         end if
-                    end if
-                    if (iwcubic==0.and.isuccess1*isuccess2*isuccess3==1) then
-                        write(*,"(a)") " Since N.wfn, "//c3p//".wfn and "//c3q//".wfn have been successfully generated, &
-                        now you can use option 2 or 3 to start the analysis"
-                    else if (iwcubic==1.and.isuccess1*isuccess2*isuccess3*isuccess4==1) then
-                        write(*,"(a)") " Since N.wfn, N+1.wfn, N-1.wfn and N-2.wfn have been successfully generated, &
-                        now you can use option 2 or 3 to start the analysis"
+                    end do
+                    if (ifailed==1) then
+                        write(*,"(a)") " Since one or more .wfn files was not successfully generated, the subsequent analysis cannot be conducted"
                     else
-                        write(*,"(a)") " Since one or more .wfn file was not successfully generated, the analysis cannot be conducted currently"
+                        write(*,"(a)") " All .wfn files have been successfully generated, now you can use option 2 or 3 to start the analysis"
                     end if
                 end if
             else
-                write(*,"(a)") " Since ""gaupath"" in settings.ini has not been set to actual path of Gaussian executable, &
+                write(*,"(a,/)") " Since ""gaupath"" in settings.ini has not been set to actual path of Gaussian executable, &
                 automatically invoking Gaussian to run the input files is skipped"
-                write(*,*)
             end if
             if ((.not.alive).or.selectyn=='n') then
 				write(*,"(a)") " Now please manually run the input files by Gaussian, and then put the generated .wfn files to current folder, so that &
 				options 2 and 3 can perform analyses based on them"
             end if
-        else if (iQCprog==2) then !ORCA
-            write(*,*) "Input ORCA keywords used single point task, e.g. PBE0 def2-TZVP"
-            write(*,*) "You can also meantime add some keywords for facilitating SCF convergence"
-            write(*,*) "If press ENTER button directly, B3LYP/G 6-31G* will be employed"
-            read(*,"(a)") keywords
-            if (keywords==" ") keywords="B3LYP/G 6-31G* autoaux"
-        
-            write(*,*) "Input the net charge and spin multiplicity for N electrons state, e.g. 0 1"
-            if (np==1.and.nq==1) then
-				if (iwcubic==0) write(*,"(a)") " Note: If pressing ENTER button directly, (0 1), (-1 2) and (1 2) will be employed for N, N+1 and N-1 states, respectively"
-				if (iwcubic==1) write(*,"(a)") " Note: If pressing ENTER button directly, (0 1), (-1 2), (1 2) and (2,1) will be employed for N, N+1, N-1 and N-2 states, respectively"
-            else
-				write(*,"(a,i1,1x,i1,a,i1,1x,i1,a)") " Note: If pressing ENTER button directly, (0 1), (-",np,np+1,") and (",nq,nq+1,") will be employed for N, "//c3p//" and "//c3q//" states, respectively"
-            end if
-            read(*,"(a)") c200tmp
-            if (c200tmp==" ") then
-				if (np==1.and.nq==1) then !Normal case
-					charge(1)=0;spin(1)=1
-					charge(2)=-1;spin(2)=2
-					charge(3)=1;spin(3)=2
-					charge(4)=2;spin(4)=1
-                else
-					charge(1)=0;spin(1)=1
-					charge(2)=-np;spin(2)=np+1
-					charge(3)=nq;spin(3)=nq+1
-                end if
-            else
-                read(c200tmp,*) charge(1),spin(1)
-                write(*,"(a,i1,a,2i2)") " Input the net charge and spin multiplicity for N+",np," electrons state, e.g. ",-np,np+1
-                read(*,*) charge(2),spin(2)
-                write(*,"(a,i1,a,2i2)") " Input the net charge and spin multiplicity for N-",nq," electrons state, e.g. ",nq,nq+1
-                read(*,*) charge(3),spin(3)
-                if (iwcubic==1) then
-                    write(*,*) "Input the net charge and spin multiplicity for N-2 electrons state, e.g. 2 1"
-                    read(*,*) charge(4),spin(4)
-                end if
-            end if
-        
-            !Generate .inp for N, N+1, N-1, N-2 states
-            nstates=3
-            if (iwcubic==1) nstates=4
-            do istate=1,nstates
-                if (istate==1) inpname="N.inp"
-                if (istate==2) inpname=c3p//".inp"
-                if (istate==3) inpname=c3q//".inp"
-                if (istate==4) inpname="N-2.inp"
+        else if (iQCprog==2) then !Generate ORCA .inp for defined electronic states
+            do istate=1,maxstate
+                if (spin(istate)==0) cycle
+                inpname=trim(statename(istate))//".inp"
                 write(*,*) "Generating "//trim(inpname)//"..."
                 open(10,file=inpname)
                 write(10,"(a)") "! "//trim(keywords)//" aim"
@@ -387,63 +384,33 @@ do while(.true.)
                 write(10,"(a)") "*"
                 close(10)
             end do
-            
             write(*,*) "ORCA input files for all states have been generated in current folder"
+            write(*,*)
             inquire(file=orcapath,exist=alive)
             selectyn='n'
             if (alive) then
-                write(*,*)
                 write(*,"(a)") " Do you want to invoke ORCA to calculate these .inp files now to yield .wfn &
                 files, and then automatically delete the .inp, .out and temporary files? (y/n)"
                 write(*,*) "Note: You can manually edit the .inp files before inputting ""y"""
                 read(*,*) selectyn
                 if (selectyn=='y'.or.selectyn=='Y') then
-                    call runORCA("N.inp",isuccess1)
-                    if (isuccess1==1) then
-                        call delfile("N.inp N.out")
-                        write(*,"(a)") " Now current folder should contain N.wfn"
-                    else
-                        write(*,"(a)") " The task has failed! Please manually check N.inp and N.out"
-                    end if
-                    call delfile("N.gbw N.densities N.PDAT.tmp N_property.txt N.wfx")
-                    write(*,*)
-                    call runORCA(c3p//".inp",isuccess2)
-                    if (isuccess2==1) then
-                        call delfile(c3p//".inp "//c3p//".out")
-                        write(*,"(a)") " Now current folder should contain "//c3p//".wfn"
-                    else
-                        write(*,"(a)") " The task has failed! Please manually check "//c3p//".inp and "//c3p//".out"
-                    end if
-                    call delfile(c3p//".gbw "//c3p//".densities "//c3p//".PDAT.tmp "//c3p//"_property.txt "//c3p//".wfx")
-                    write(*,*)
-                    call runORCA(c3q//".inp",isuccess3)
-                    if (isuccess3==1) then
-                        call delfile(c3q//".inp "//c3q//".out")
-                        write(*,"(a)") " Now current folder should contain "//c3q//".wfn"
-                    else
-                        write(*,"(a)") " The task has failed! Please manually check "//c3q//".inp and "//c3q//".out"
-                    end if
-                    call delfile(c3q//".gbw "//c3q//".densities "//c3q//".PDAT.tmp "//c3q//"_property.txt "//c3q//".wfx")
-                    write(*,*)
-                    if (iwcubic==1) then
-                        call runORCA("N-2.inp",isuccess4)
-                        if (isuccess4==1) then
-                            call delfile("N-2.inp N-2.out")
-                            write(*,"(a)") " Now current folder should contain N-2.wfn"
+                    ifailed=0
+                    do istate=1,maxstate
+                        if (spin(istate)==0) cycle
+                        call runORCA(trim(statename(istate))//".inp",isuccess)
+                        if (isuccess==1) then
+                            call delfile(trim(statename(istate))//".inp "//trim(statename(istate))//".out")
+                            write(*,"(a,/)") " Now current folder should contain "//trim(statename(istate))//".wfn"
                         else
-                            write(*,"(a)") " The task has failed! Please manually check N-2.inp and N-2.out"
+                            write(*,"(a,/)") " The task has failed! Please manually check "//trim(statename(istate))//".inp and "//trim(statename(istate))//".out"
+                            ifailed=1
                         end if
-                        call delfile("N-2.gbw N-2.densities N-2.PDAT.tmp N-2_property.txt N-2.wfx")
-                        write(*,*)
-                    end if
-                    if (iwcubic==0.and.isuccess1*isuccess2*isuccess3==1) then
-                        write(*,"(a)") " Since N.wfn, "//c3p//".wfn and "//c3q//".wfn have been successfully generated, &
-                        now you can use option 2 or 3 to start the analysis"
-                    else if (iwcubic==1.and.isuccess1*isuccess2*isuccess3*isuccess4==1) then
-                        write(*,"(a)") " Since N.wfn, N+1.wfn, N-1.wfn and N-2.wfn have been successfully generated, &
-                        now you can use option 2 or 3 to start the analysis"
+                        call delfile(trim(statename(istate))//".gbw "//trim(statename(istate))//".densities "//trim(statename(istate))//".PDAT.tmp "//trim(statename(istate))//"_property.txt "//trim(statename(istate))//".wfx")
+                    end do
+                    if (ifailed==1) then
+                        write(*,"(a)") " Since one or more .wfn files was not successfully generated, the subsequent analysis cannot be conducted"
                     else
-                        write(*,"(a)") " Since one or more .wfn file was not successfully generated, the analysis cannot be conducted currently"
+                        write(*,"(a)") " All .wfn files have been successfully generated, now you can use option 2 or 3 to start the analysis"
                     end if
                 end if
             else
@@ -457,74 +424,118 @@ do while(.true.)
             end if
         end if
     
-    else if (isel==2) then
+    else if (isel==2) then !Calculate various CDFT global and atomic quantities
         write(*,"(/,' Radial grids:',i5,'    Angular grids:',i5,'   Total:',i10)") radpot,sphpot,radpot*sphpot
+        E_HOMO(:)=0 !If zero, that means not available
+        ene(:)=0
         call dealloall(0)
         !N electrons
         call readinfile(wfnfile(1),1)
-        ene(1)=totenergy
+        ene(0)=totenergy
         call getHOMOidx
-        E_HOMO(1)=max(MOene(idxHOMO),MOene(idxHOMOb))
+        E_HOMO(0)=max(MOene(idxHOMO),MOene(idxHOMOb))
         write(*,*) "Calculating Hirshfeld charges for N electrons state..."
         call genHirshfeld(atmchg(:,1))
         call dealloall(0)
-        !N+1 electrons
+        !N+p electrons
         call readinfile(wfnfile(2),1)
-        ene(2)=totenergy
+        ene(np)=totenergy
         call getHOMOidx
-        E_HOMO(2)=max(MOene(idxHOMO),MOene(idxHOMOb))
+        E_HOMO(np)=max(MOene(idxHOMO),MOene(idxHOMOb))
         write(*,"(a,i1,a)") " Calculating Hirshfeld charges for N+",np," electrons state..."
         call genHirshfeld(atmchg(:,2))
         call dealloall(0)
-        !N-1 electrons
+        !N-q electrons
         call readinfile(wfnfile(3),1)
-        ene(3)=totenergy
+        ene(-nq)=totenergy
         call getHOMOidx
-        E_HOMO(3)=max(MOene(idxHOMO),MOene(idxHOMOb))
+        E_HOMO(-nq)=max(MOene(idxHOMO),MOene(idxHOMOb))
         write(*,"(a,i1,a)") " Calculating Hirshfeld charges for N-",nq," electrons state..."
         call genHirshfeld(atmchg(:,3))
         call dealloall(0)
         !N-2 electrons
         if (iwcubic==1) then
             call readinfile(wfnfile(4),1)
-            ene(4)=totenergy
+            ene(-2)=totenergy
             call getHOMOidx
-            E_HOMO(4)=max(MOene(idxHOMO),MOene(idxHOMOb))
+            E_HOMO(-2)=max(MOene(idxHOMO),MOene(idxHOMOb))
             call dealloall(0)
         end if
+        
+        !If iIPEA=1, various quantities defined based on first IP and EA will be given later, N+1 and N-1 .wfn files must be available
+        iIPEA=1
+        if (np/=1) then !Degeneracy case, total and HOMO energies of N+1 state has not been loaded above
+            write(*,*)
+            inquire(file="N+1.wfn",exist=alive)
+	        if (alive) then
+                write(*,*) "N+1.wfn has been found in current folder"
+                call readinfile("N+1.wfn",1)
+                ene(1)=totenergy
+                call getHOMOidx
+                E_HOMO(1)=max(MOene(idxHOMO),MOene(idxHOMOb))
+                call dealloall(0)
+            else
+                write(*,*) "N+1.wfn is not available in current folder"
+                iIPEA=0
+            end if
+        end if
+        if (nq/=1) then !Degeneracy case, total and HOMO energies of N-1 state has not been loaded above
+            write(*,*)
+            inquire(file="N-1.wfn",exist=alive)
+	        if (alive) then
+                write(*,*) "N-1.wfn has been found in current folder"
+                call readinfile("N-1.wfn",1)
+                ene(-1)=totenergy
+                call getHOMOidx
+                E_HOMO(-1)=max(MOene(idxHOMO),MOene(idxHOMOb))
+                call dealloall(0)
+            else
+                write(*,*) "N-1.wfn is not available in current folder"
+                iIPEA=0
+            end if
+        end if
+        if (iIPEA==0) write(*,"(a)") " NOTE: Quantities related to first VIP and VEA will not be given because energy of E(N+1) or E(N-1) is not available"
+        
+        write(*,*)
         write(*,*) "Reloading the file initially loaded after booting up Multiwfn..."
         call readinfile(firstfilename,1)
         write(*,*)
         
-        VIP=(ene(3)-ene(1))/nq ![E(N-q) - E(N)]/nq
-        VEA=(ene(1)-ene(2))/np ![E(N) - E(N+p)]/np
-        elenegMul=(VIP+VEA)/2D0
-        chempot=-elenegMul
-        hardness=VIP-VEA
-        softness=1/hardness
-        electphi=chempot**2/(2*hardness)
+        !Global indices
+        if (iIPEA==1) then
+            VIP=ene(-1)-ene(0) !First IP, E(N-1) - E(N)
+            VEA=ene(0)-ene(1) !First EA, E(N) - E(N+1)
+            elenegMul=(VIP+VEA)/2D0
+            chempot=-elenegMul
+            hardness=VIP-VEA
+            softness=1/hardness
+            electphi=chempot**2/(2*hardness)
+        end if
         E_HOMO_TCE=-0.335198D0 !TCE at B3LYP/6-31G* wavefunction and geometry
-        nucleophi=E_HOMO(1)-E_HOMO_TCE
+        nucleophi=E_HOMO(0)-E_HOMO_TCE
         
+        !Atomic indices
         atmfneg(:)=(atmchg(:,3)-atmchg(:,1))/nq
         atmfpos(:)=(atmchg(:,1)-atmchg(:,2))/np
         atmCDD(:)=atmfpos(:)-atmfneg(:)
         atmf0(:)=(atmfpos(:)+atmfneg(:))/2
-        atmsneg(:)=atmfneg(:)*softness
-        atmspos(:)=atmfpos(:)*softness
-        atms0(:)=atmf0(:)*softness
-        atms2(:)=atmCDD(:)*softness**2
-        atmelectphi(:)=atmfpos(:)*electphi !e*Hartree
-        atmnucleophi(:)=atmfneg(:)*nucleophi !e*Hartree
+        if (iIPEA==1) then
+            atmsneg(:)=atmfneg(:)*softness
+            atmspos(:)=atmfpos(:)*softness
+            atms0(:)=atmf0(:)*softness
+            atms2(:)=atmCDD(:)*softness**2
+            atmelectphi(:)=atmfpos(:)*electphi
+            atmnucleophi(:)=atmfneg(:)*nucleophi
+        end if
         
         if (iwcubic==1) then
             !Calculate terms specific for w_cubic
-            VIP2=ene(4)-ene(3) !E(N-2) - E(N-1)
+            VIP2=ene(-2)-ene(-1) !E(N-2) - E(N-1)
             c_miu=(-2*VEA-5*VIP+VIP2)/6
             c_eta=hardness
             c_gamma=2*VIP-VIP2-VEA
             w_cubic=c_miu**2/(2*c_eta)*(1+c_miu*c_gamma/3/c_eta**2)
-            atmwcubic(:)=atmfpos(:)*w_cubic !e*Hartree
+            atmwcubic(:)=atmfpos(:)*w_cubic
         end if
         
         open(10,file="CDFT.txt",status="replace")
@@ -540,47 +551,60 @@ do while(.true.)
         do iatm=1,ncenter
             write(10,"(i6,'(',a')',7f9.4)") iatm,a(iatm)%name,atmchg(iatm,:),atmfneg(iatm),atmfpos(iatm),atmf0(iatm),atmCDD(iatm)
         end do
-        write(10,*)
-        write(10,*) "Condensed local electrophilicity/nucleophilicity index (e*eV)"
-        write(10,*) "    Atom              Electrophilicity          Nucleophilicity"
-        do iatm=1,ncenter
-            write(10,"(i6,'(',a')',2f25.5)") iatm,a(iatm)%name,atmelectphi(iatm)*au2eV,atmnucleophi(iatm)*au2eV
-        end do
-        if (iwcubic==1) then
+        if (iIPEA==1) then
             write(10,*)
-            write(10,*) "Condensed local cubic electrophilicity index (e*eV)"
-            write(10,*) "    Atom              Value"
+            write(10,*) "Condensed local electrophilicity/nucleophilicity index (e*eV)"
+            write(10,*) "    Atom              Electrophilicity          Nucleophilicity"
             do iatm=1,ncenter
-                write(10,"(i6,'(',a')',f19.5)") iatm,a(iatm)%name,atmwcubic(iatm)*au2eV
+                write(10,"(i6,'(',a')',2f25.5)") iatm,a(iatm)%name,atmelectphi(iatm)*au2eV,atmnucleophi(iatm)*au2eV
+            end do
+            if (iwcubic==1) then
+                write(10,*)
+                write(10,*) "Condensed local cubic electrophilicity index (e*eV)"
+                write(10,*) "    Atom              Value"
+                do iatm=1,ncenter
+                    write(10,"(i6,'(',a')',f19.5)") iatm,a(iatm)%name,atmwcubic(iatm)*au2eV
+                end do
+            end if
+            write(10,*)
+            write(10,"(a)") " Condensed local softness (e/Hartree), relative electrophilicity/nucleophilicity (dimensionless) and condensed local hyper-softness (e/Hartree^2)"
+            write(10,*) "    Atom         s-          s+          s0        s+/s-       s-/s+       s(2)"
+            do iatm=1,ncenter
+                write(10,"(i6,'(',a')',6f12.4)") iatm,a(iatm)%name,atmsneg(iatm),&
+                atmspos(iatm),atms0(iatm),atmspos(iatm)/atmsneg(iatm),atmsneg(iatm)/atmspos(iatm),atms2(iatm)
             end do
         end if
-        write(10,*)
-        write(10,"(a)") " Condensed local softness (e/Hartree), relative electrophilicity/nucleophilicity (dimensionless) and condensed local hyper-softness (e/Hartree^2)"
-        write(10,*) "    Atom         s-          s+          s0        s+/s-       s-/s+       s(2)"
-        do iatm=1,ncenter
-            write(10,"(i6,'(',a')',6f12.4)") iatm,a(iatm)%name,atmsneg(iatm),&
-            atmspos(iatm),atms0(iatm),atmspos(iatm)/atmsneg(iatm),atmsneg(iatm)/atmspos(iatm),atms2(iatm)
-        end do
         
         write(10,*)
-        write(10,"(a,f14.6,' Hartree')") " E(N):  ",ene(1)
-        write(10,"(a,f14.6,' Hartree')") " E("//c3p//"):",ene(2)
-        write(10,"(a,f14.6,' Hartree')") " E("//c3q//"):",ene(3)
+        !Show all available total energy
+        write(10,"(a,f14.6,' Hartree')") " E(N):  ",ene(0)
+        do istate=1,9
+            if (ene(istate)/=0) write(10,"(a,i1,a,f14.6,' Hartree')") " E(N+",istate,"):  ",ene(istate)
+        end do
+        do istate=-1,-9,-1
+            if (ene(istate)/=0) write(10,"(a,i2,a,f14.6,' Hartree')") " E(N",istate,"):  ",ene(istate)
+        end do
         if (wfntype==0.or.wfntype==1.or.wfntype==2) then
-            write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " E_HOMO(N):  ",E_HOMO(1),E_HOMO(1)*au2eV
-            write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " E_HOMO("//c3p//"):",E_HOMO(2),E_HOMO(2)*au2eV
-            write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " E_HOMO("//c3q//"):",E_HOMO(3),E_HOMO(3)*au2eV
+            write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " E_HOMO(N):  ",E_HOMO(0),E_HOMO(0)*au2eV
+            do istate=1,9
+                if (E_HOMO(istate)/=0) write(10,"(a,i1,a,f12.6,' Hartree,',f10.4,' eV')") " E_HOMO(N+",istate,"):",E_HOMO(istate),E_HOMO(istate)*au2eV
+            end do
+            do istate=-1,-9,-1
+                if (E_HOMO(istate)/=0) write(10,"(a,i2,a,f12.6,' Hartree,',f10.4,' eV')") " E_HOMO(N",istate,"):",E_HOMO(istate),E_HOMO(istate)*au2eV
+            end do
         end if
-        write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Vertical IP:",VIP,VIP*au2eV
-        if (iwcubic==1) write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Vertical second IP:",VIP2,VIP2*au2eV
-        write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Vertical EA:",VEA,VEA*au2eV
-        write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Mulliken electronegativity: ",elenegMul,elenegMul*au2eV
-        write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Chemical potential:         ",chempot,chempot*au2eV
-        write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Hardness (=fundamental gap):",hardness,hardness*au2eV
-        write(10,"(a,f12.6,' Hartree^-1,',f10.4,' eV^-1')") " Softness:",softness,softness/au2eV
-        write(10,"(a,f12.6,' Hartree^-2,',f10.4,' eV^-2')") " Softness^2:",softness**2,(softness/au2eV)**2
-        write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Electrophilicity index:",electphi,electphi*au2eV
-       if (wfntype==0.or.wfntype==1.or.wfntype==2) write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Nucleophilicity index: ",nucleophi,nucleophi*au2eV
+        if (iIPEA==1) then
+        write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " First vertical IP: ",VIP,VIP*au2eV
+        if (iwcubic==1) write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Second vertical IP:",VIP2,VIP2*au2eV
+            write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " First vertical EA: ",VEA,VEA*au2eV
+            write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Mulliken electronegativity: ",elenegMul,elenegMul*au2eV
+            write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Chemical potential:         ",chempot,chempot*au2eV
+            write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Hardness (=fundamental gap):",hardness,hardness*au2eV
+            write(10,"(a,f12.6,' Hartree^-1,',f10.4,' eV^-1')") " Softness:  ",softness,softness/au2eV
+            write(10,"(a,f12.6,' Hartree^-2,',f10.4,' eV^-2')") " Softness^2:",softness**2,(softness/au2eV)**2
+            write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Electrophilicity index:",electphi,electphi*au2eV
+        end if
+        if (wfntype==0.or.wfntype==1.or.wfntype==2) write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Nucleophilicity index: ",nucleophi,nucleophi*au2eV
         if (iwcubic==1) write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Cubic electrophilicity index (w_cubic):",w_cubic,w_cubic*au2eV
         close(10)
         write(*,*) "Done! Data have been outputted to CDFT.txt in current folder!"
@@ -592,7 +616,7 @@ do while(.true.)
         write(*,*)
         call setgrid(1,inouse)
         aug3D=aug3Dold
-        allocate(rhoN(nx,ny,nz),rhoNp1(nx,ny,nz),rhoNn1(nx,ny,nz),cubmat(nx,ny,nz))
+        allocate(rhoN(nx,ny,nz),rhoNp(nx,ny,nz),rhoNq(nx,ny,nz),cubmat(nx,ny,nz))
         call dealloall(0)
         !N electrons
         call readinfile(wfnfile(1),1)
@@ -602,14 +626,14 @@ do while(.true.)
         call savecubmat(1,1,0)
         rhoN=cubmat
         call dealloall(0)
-        !N+1 electrons
+        !N+p electrons
         call readinfile(wfnfile(2),1)
         do iatm=1,ncenter
             devdist=dsqrt((atmref(1,iatm)-a(iatm)%x)**2+(atmref(2,iatm)-a(iatm)%y)**2+(atmref(3,iatm)-a(iatm)%z)**2)*b2a
             if (devdist>0.05D0) then
-                write(*,"(' Warning: Coodinate of atom',i5,' in N+1 state file is different to that in N state file!')") iatm
+                write(*,"(' Warning: Coodinate of atom',i5,' in "//c3p//" state file is different to that in N state file!')") iatm
                 write(*,"(' X,Y,Z of the atom in N state file:  ',3f11.5,' Angstrom')") atmref(:,iatm)*b2a
-                write(*,"(' X,Y,Z of the atom in N+1 state file:',3f11.5,' Angstrom')") a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%x*b2a
+                write(*,"(' X,Y,Z of the atom in "//c3p//" state file:',3f11.5,' Angstrom')") a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%x*b2a
                 write(*,"(a)") " You need to carefully check input files of quantum chemistry program for generating the wavefunction files so that all &
                 atomic coordinates in these files are completely identical, otherwise the resulting density difference will be fully meaningless!"
                 write(*,*) "Press ENTER button to continue"
@@ -619,16 +643,16 @@ do while(.true.)
         end do
         write(*,*) "Calculating electron density grid data for "//c3p//" electrons state..."
         call savecubmat(1,1,0)
-        rhoNp1=cubmat
+        rhoNp=cubmat
         call dealloall(0)
-        !N-1 electrons
+        !N-q electrons
         call readinfile(wfnfile(3),1)
         do iatm=1,ncenter
             devdist=dsqrt((atmref(1,iatm)-a(iatm)%x)**2+(atmref(2,iatm)-a(iatm)%y)**2+(atmref(3,iatm)-a(iatm)%z)**2)*b2a
             if (devdist>0.05D0) then
-                write(*,"(' Warning: Coodinate of atom',i5,' in N-1 state file is different to that in N state file!')") iatm
+                write(*,"(' Warning: Coodinate of atom',i5,' in "//c3q//" state file is different to that in N state file!')") iatm
                 write(*,"(' X,Y,Z of the atom in N state file:  ',3f11.5,' Angstrom')") atmref(:,iatm)*b2a
-                write(*,"(' X,Y,Z of the atom in N-1 state file:',3f11.5,' Angstrom')") a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%x*b2a
+                write(*,"(' X,Y,Z of the atom in "//c3q//" state file:',3f11.5,' Angstrom')") a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%x*b2a
                 write(*,"(a)") " You need to carefully check input files of quantum chemistry program for generating the wavefunction files so that all &
                 atomic coordinates in these files are completely identical, otherwise the resulting density difference will be fully meaningless!"
                 write(*,*) "Press ENTER button to continue"
@@ -638,7 +662,7 @@ do while(.true.)
         end do
         write(*,*) "Calculating electron density grid data for "//c3q//" electrons state..."
         call savecubmat(1,1,0)
-        rhoNn1=cubmat
+        rhoNq=cubmat
         call dealloall(0)
         deallocate(atmref)
         write(*,*) "Loading the file initially loaded after booting up Multiwfn..."
@@ -664,13 +688,13 @@ do while(.true.)
                 write(*,*) "Input the scale factor, e.g. 0.325"
                 read(*,*) cubfac
             else if (isel2==0) then
-                deallocate(rhoN,rhoNp1,rhoNn1)
+                deallocate(rhoN,rhoNp,rhoNq)
                 exit
             else
-                if (isel2==1.or.isel2==5) cubmat=(rhoNp1-rhoN)/np !f+
-                if (isel2==2.or.isel2==6) cubmat=(rhoN-rhoNn1)/nq !f-
-                if (isel2==3.or.isel2==7) cubmat=((rhoNp1-rhoN)/np+(rhoN-rhoNn1)/nq)/2 !(f+ + f-)/2
-                if (isel2==4.or.isel2==8) cubmat=(rhoNp1-rhoN)/np - (rhoN-rhoNn1)/nq !f+ - f-
+                if (isel2==1.or.isel2==5) cubmat=(rhoNp-rhoN)/np !f+
+                if (isel2==2.or.isel2==6) cubmat=(rhoN-rhoNq)/nq !f-
+                if (isel2==3.or.isel2==7) cubmat=((rhoNp-rhoN)/np+(rhoN-rhoNq)/nq)/2 !(f+ + f-)/2
+                if (isel2==4.or.isel2==8) cubmat=(rhoNp-rhoN)/np - (rhoN-rhoNq)/nq !f+ - f-
                 cubmat=cubmat*cubfac
                 if (isel2<=4) then
 		            call drawisosurgui(1)
