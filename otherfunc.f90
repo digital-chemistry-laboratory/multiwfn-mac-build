@@ -193,6 +193,7 @@ write(*,*) "34 Output current structure and cell information as .gro file"
 if (allocated(cubmat)) then
     write(*,*) "35 Output current grid data to Gaussian-type .cub file"
     write(*,*) "36 Output current grid data to .vti file"
+    write(*,*) "37 Output current grid data to VASP grid data file"
 end if
 write(*,*) "             Generate input file of quantum chemistry codes:"
 if (allocated(CObasa)) then
@@ -367,7 +368,15 @@ else if (isel==35) then
 else if (isel==36) then
 	write(*,*) "Input path for exporting file, e.g. C:\ltwd.vti"
 	read(*,"(a)") c200tmp
+    write(*,*) "Exporting..."
 	call outvti(c200tmp,10)
+else if (isel==37) then
+	write(*,*) "Input path for exporting file, e.g. D:\CHGCAR"
+    write(*,"(a)") " If press ENTER button directly, the file will be exported to CHGCAR in current folder"
+	read(*,"(a)") c200tmp
+    if (c200tmp==" ") c200tmp="CHGCAR"
+    write(*,*) "Exporting..."
+    call outVASPgrd(c200tmp,10)
 end if
 end subroutine
 

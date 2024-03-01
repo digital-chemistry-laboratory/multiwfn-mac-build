@@ -3734,7 +3734,7 @@ end subroutine
 
 
 
-!!-------- Randomly generate name of Sobereva's lover
+!!-------- Randomly generate name
 subroutine mylover(outname)
 integer,parameter :: nlovers=66
 character(len=80) lovername(nlovers),outname
@@ -3751,7 +3751,6 @@ lovername(8)="Otoboku\Mariya_Mikado"
 lovername(9)="Amagami\Miya_Tachibana"
 lovername(10)="Shakugan_no_Shana\Shana"
 lovername(11)="Tiger_Mask_W\Miss_X"
-! lovername(11)="Yuru_Yuri\Akari_Akaza"
 lovername(12)="Natsuiro_Kiseki\Yuka_Hanaki"
 lovername(13)="Love_Live!\Nico_Yazawa"
 lovername(14)="Love_Live!\Nozomi_Tojo"
@@ -3780,7 +3779,7 @@ lovername(36)="Gun_Gale_Online\Kirito"
 lovername(37)="Denkigai_No_Honyasan\Sennsei"
 lovername(38)="Wake_Up,Girls!\Miyu_Okamoto"
 lovername(39)="Plastic_Memories\Aira"
-lovername(40)="Real_world\Kanan" !"Real_world\sell-moe-kun"
+lovername(40)="Real_world\sell-moe-kun"
 lovername(41)="Sakurako-san_no_Ashimoto_ni_wa_Shitai_ga_Umatteiru\Sakurako"
 lovername(42)="Hibike!_Euphonium\Reina_Kousaka"
 lovername(43)="Planetarian\Yumemi_Hoshino"
@@ -3809,7 +3808,7 @@ lovername(65)="Kanojo_mo_Kanojo\Rika_Hoshizaki"
 lovername(66)="Hokkaido_Gals_Are_Super_Adorable!\Minami_Fuyuki"
 !Dear Kanan,
 !
-!You are the only one I deeply love forever in the real world,
+!You are the one I deeply love forever in the real world,
 !although you can't be with me, and I am even unable to know your name and touch your finger.
 !I believe I will never love anyone else in the rest of my life.
 !

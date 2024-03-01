@@ -991,7 +991,7 @@ do while(.true.)
             if (isel2==30) method="GFN1-xTB"
             if (isel2==40) method="PM6"
             if (isel2==50) method="SCC-DFTB"
-            if (index(method,"ADMM")/=0.or.isel2==30.or.isel2==40.or.isel2==50) idiagOT=2 !When ADMM is used, OT must also be used. OT is suggested for GFN-xTB and PM6 dealing with large system
+            if (isel2==30.or.isel2==40.or.isel2==50) idiagOT=2 !OT is suggested for GFN-xTB, PM6, SCC-DFTB dealing with large system
             if (isel2==40) imixing=1
             if (index(method,"SCAN")/=0) then
                 write(*,"(a)") " NOTE: If you are using CP2K >=9.1, in the generated CP2K input file, it is suggested to replace &
@@ -1673,7 +1673,7 @@ if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") then
     else
         write(ifileid,"(a)") "    POTENTIAL_FILE_NAME  POTENTIAL"
     end if
-    write(ifileid,"(a)") "    AUTO_BASIS RI_HFX MEDIUM"
+    if (iRIHFX==1) write(ifileid,"(a)") "    AUTO_BASIS RI_HFX MEDIUM"
 end if
 if (iRIHFX==1) write(ifileid,"(a)") "    SORT_BASIS EXP"
 if (ikpoint1==1.and.ikpoint2==1.and.ikpoint3==1) then

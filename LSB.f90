@@ -1702,7 +1702,7 @@ use util
 use functions
 implicit real*8 (a-h,o-z)
 character refsysname*200
-real*8 intval,funcval(radpot*sphpot),beckeweigrid(radpot*sphpot),atmintval(ncenter)
+real*8 intval,funcval(radpot*sphpot),beckeweigrid(radpot*sphpot)
 type(content) gridatmorg(radpot*sphpot),gridatm(radpot*sphpot)
 real*8 eval(radpot*sphpot),egrad(3,radpot*sphpot),elapl(radpot*sphpot)
 real*8 e0val(radpot*sphpot),e0grad(3,radpot*sphpot),e0lapl(radpot*sphpot)
@@ -1756,6 +1756,12 @@ write(*,"(a)") " 7 Fermionic quantum energy Eq=Tp+Exc (evaluating Tp based on Ha
 write(*,"(a)") " -7 Fermionic quantum energy Eq=Tp+Exc (evaluating Tp based on Lagrangian kinetic energy density)"
 read(*,*) ienedens
 
+write(*,*)
+write(*,*) "Use origin form or scaled (normalized) form of the energy density?"
+write(*,*) "1 Origin form"
+write(*,*) "2 Scaled form"
+read(*,*) iform
+
 if (ienedens==2) then
 	ifunc=6
 else if (ienedens==-2) then
@@ -1771,11 +1777,73 @@ else
 	if (ienedens==-7) iuserfunc=-69
 end if
 
+call walltime(iwalltime1)
 write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
 call gen1cintgrid(gridatmorg,iradcut)
-call walltime(iwalltime1)
+
+!Calculate integral of energy density over whole space, so that we can use scaled (normalized) electron density later
+if (iform==1) then
+	eint=1
+    e0int=1
+else if (iform==2) then
+	write(*,*) "Calculating integral of energy density over whole space..."
+	eint=0 !Interal of present molecule
+    e0int=0 !Integral of reference state
+	do iatm=1,ncenter
+		write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
+		gridatm%x=gridatmorg%x+a(iatm)%x
+		gridatm%y=gridatmorg%y+a(iatm)%y
+		gridatm%z=gridatmorg%z+a(iatm)%z
+    
+		if (ienedens==3) call doinitlibreta(2)
+    
+		!Calculate energy density for present system
+		!$OMP parallel do shared(eval) private(ipt) num_threads(nthreads)
+		do ipt=1+iradcut*sphpot,radpot*sphpot
+			eval(ipt)=calcfuncall(ifunc,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
+		end do
+		!$OMP end parallel do
+    
+		!Calculate energy density for reference (promolecule)
+		if (ieneinfo==4.or.ieneinfo==5.or.ieneinfo==6) then
+			if (ireftype==1) then
+				deallocate(MOocc,MOtype,MOene,CO)
+				allocate(MOocc(nmo_pmol),MOene(nmo_pmol),MOtype(nmo_pmol),CO(nmo_pmol,nprims))
+				nmo=nmo_pmol
+				MOocc=MOocc_pmol
+				MOene=MOene_pmol
+				MOtype=MOtype_pmol
+				CO=CO_pmol
+			else if (ireftype==2) then
+				call dealloall(0)
+				call readinfile(refsysname,1)
+			end if
+			if (ienedens==3) call doinitlibreta(2)
+			!$OMP parallel do shared(e0val) private(ipt) num_threads(nthreads)
+			do ipt=1+iradcut*sphpot,radpot*sphpot
+				e0val(ipt)=calcfuncall(ifunc,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
+			end do
+			!$OMP end parallel do
+			call dealloall(0)
+			call readinfile(firstfilename,1) !Retrieve the first loaded file
+		end if
+		
+		call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid,covr_tianlu,3)
+		do ipt=1+iradcut*sphpot,radpot*sphpot
+			eint=eint+eval(ipt)*gridatmorg(ipt)%value*beckeweigrid(ipt)
+			e0int=e0int+e0val(ipt)*gridatmorg(ipt)%value*beckeweigrid(ipt)
+		end do
+	end do
+    write(*,"(' Integral of present system:',1PE20.10)") eint
+    if (ieneinfo==4.or.ieneinfo==5.or.ieneinfo==6) write(*,"(' Integral of reference system:',1PE20.10)") e0int
+end if
+
+!Start formal calculation
+if (iform==2) then
+	write(*,*)
+	write(*,*) "Start formal calculation"
+end if
 intval=0
-atmintval=0
 do iatm=1,ncenter
 	write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
 	gridatm%x=gridatmorg%x+a(iatm)%x
@@ -1783,7 +1851,8 @@ do iatm=1,ncenter
 	gridatm%z=gridatmorg%z+a(iatm)%z
     
     if (ienedens==3) call doinitlibreta(2)
-    !Calculate value, gradiant and Laplacian of energy density for present system
+    
+    !Calculate value (eval), gradiant (egrad) and Laplacian (elapl) of energy density for present system
 	!$OMP parallel do shared(eval,egrad,elapl) private(ipt,x,y,z,hess) num_threads(nthreads)
 	do ipt=1+iradcut*sphpot,radpot*sphpot
 		x=gridatm(ipt)%x
@@ -1791,14 +1860,19 @@ do iatm=1,ncenter
 		z=gridatm(ipt)%z
         if (ider==0) then !Only need value
 			eval(ipt)=calcfuncall(ifunc,x,y,z)
-        else !Need derivative
+        else !Need 1st or 1st+2nd derivative
 			call gencalchessmat(ider,ifunc,x,y,z,eval(ipt),egrad(:,ipt),hess(:,:),1)
 			elapl(ipt)=hess(1,1)+hess(2,2)+hess(3,3)
         end if
 	end do
 	!$OMP end parallel do
+    if (iform==2) then
+		eval=eval/eint
+		egrad=egrad/eint
+		elapl=elapl/eint
+    end if
     
-    !Calculate reference part
+    !Calculate value, gradiant and Laplacian of energy density for reference (promolecule), e0
     if (ieneinfo==4.or.ieneinfo==5.or.ieneinfo==6) then
 		if (ireftype==1) then
 			deallocate(MOocc,MOtype,MOene,CO)
@@ -1820,14 +1894,17 @@ do iatm=1,ncenter
 			z=gridatm(ipt)%z
 			if (ider==0) then !Only need value
 				e0val(ipt)=calcfuncall(ifunc,x,y,z)
-			else !Need derivative
-				call gencalchessmat(ider,ifunc,x,y,z,e0val(ipt),e0grad(:,ipt),hess(:,:),1)
-				e0lapl(ipt)=hess(1,1)+hess(2,2)+hess(3,3)
+			else !Need 1st derivative
+				call gencalchessmat(1,ifunc,x,y,z,e0val(ipt),e0grad(:,ipt),hess(:,:),1)
 			end if
 		end do
 		!$OMP end parallel do
 		call dealloall(0)
 		call readinfile(firstfilename,1) !Retrieve the first loaded file
+    end if
+    if (iform==2) then
+		e0val=e0val/e0int
+		e0grad=e0grad/e0int
     end if
     
     !Calculate function value at every point

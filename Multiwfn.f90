@@ -31,9 +31,9 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2024-Feb-25"
+write(*,*) "Version 3.8(dev), release date: 2024-Mar-1"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
-write(*,*) "Below paper ***MUST BE CITED*** if Multiwfn is utilized in your work:"
+write(*,*) "Below paper ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
 write(*,*) "See ""How to cite Multiwfn.pdf"" in Multiwfn binary package for more information"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
@@ -77,8 +77,8 @@ write(*,*)
 if (trim(filename)==" ") then !Haven't defined filename variable
 	call mylover(lovername)
 	write(*,"(a,a,a)") " Input file path, for example E:\",trim(lovername),".wfn"
-	write(*,*) "(Supported: .mwfn/wfn/wfx/fch/molden/31/chg/pdb/xyz/mol/mol2/cif/cub, etc.)"
-	write(*,"(a)") " Hint: Press ENTER button directly can select file in a GUI window. To reload the file last time used, simply input the letter ""o"". &
+	write(*,*) "(.mwfn/wfn/wfx/fch/molden/pdb/xyz/mol2/cif/cub... see Section 2.5 of manual)"
+	write(*,"(a)") " Hint: Pressing ENTER button directly can select file in a GUI window. To reload the file last time used, simply input the letter ""o"". &
 	Input such as ?miku.fch can open the miku.fch in the same folder as the file last time used."
 	do while(.true.)
 		read(*,"(a)") filename

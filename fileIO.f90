@@ -7260,6 +7260,7 @@ write(*,"(a)") " If press ENTER button directly, will export to POSCAR in curren
 read(*,"(a)") outname
 if (outname==" ") outname="POSCAR"
 call outPOSCAR(outname,10)
+write(*,"(a)") " VASP POSCAR file has been exported to "//trim(outname)//" in current folder"
 end subroutine
 !!---------- Output current coordinate to VASP position file POSCAR
 subroutine outPOSCAR(outname,ifileid)
@@ -7305,8 +7306,6 @@ do iele=1,nelesupp
     end do
 end do
 close(ifileid)
-
-write(*,"(a)") " VASP POSCAR file has been exported to "//trim(outname)//" in current folder"
 end subroutine
 
 
@@ -7396,6 +7395,49 @@ if (selectyn=='y') then
     call outcml(outcmlname,ifileid,1)
 end if
 end subroutine
+
+
+
+
+!!------------- Output grid data in VASP format (like CHGCAR, LOCPOT)    
+subroutine outVASPgrd(outname,ifileid)
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+integer infomode
+character(len=*) outname
+
+!If cell information is not available, Use grid data vectors as cell vectors
+if (all(cellv1==0)) then
+    cellv1(:)=gridv1(:)*nx
+    cellv2(:)=gridv2(:)*ny
+    cellv3(:)=gridv3(:)*nz
+    itmp=1
+end if
+
+!The first part of CHGCAR/CHG is identical to POSCAR
+!Because VASP grid data format does not record origin position, we need to temporarily translate atoms so that origin happens to be (0,0,0)
+a(:)%x=a(:)%x-orgx
+a(:)%y=a(:)%y-orgy
+a(:)%z=a(:)%z-orgz
+call outPOSCAR(outname,ifileid)
+a(:)%x=a(:)%x+orgx
+a(:)%y=a(:)%y+orgy
+a(:)%z=a(:)%z+orgz
+
+open(ifileid,file=outname,status="old",position="append")
+write(ifileid,"(/,3i6)") nx,ny,nz
+write(ifileid,"(5E18.11)") (((cubmat(ix,iy,iz),ix=1,nx),iy=1,ny),iz=1,nz)
+close(ifileid)
+write(*,"(a)") " Done, the grid data has been exported in VASP grid data format"
+
+if (itmp==1) then
+	cellv1(:)=0
+	cellv2(:)=0
+	cellv3(:)=0
+end if
+end subroutine
+
 
 
 
