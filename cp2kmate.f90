@@ -4802,39 +4802,61 @@ if (ifound==0) then
     read(*,*)
     close(10)
     return
-else
-    read(10,*);read(10,*)
 end if
 
-write(*,*) "Input fractional coordinate of this k-point in reciprocal space"
-write(*,*) "e.g. 0,0.5,0"
-write(*,*) "If press ENTER button directly, the coordinate will be 0,0,0"
-read(*,"(a)") c80tmp
-if (c80tmp==" ") then
-    kp1crd=0
-    kp2crd=0
-    kp3crd=0
+!Try to find k-point coordinate, available when PRINT_LEVEL >= MEDIUM
+call loclabel(10," BRILLOUIN| Number ",ifound)
+if (ifound) then
+    call skiplines(10,ikp)
+    read(10,*) c200tmp,c200tmp,c200tmp,kp1crd,kp2crd,kp3crd
+    write(*,"(' Coordinate of this k-point:',3f12.6)") kp1crd,kp2crd,kp3crd
 else
-    read(c80tmp,*) kp1crd,kp2crd,kp3crd
+    write(*,*) "Input fractional coordinate of this k-point in reciprocal space"
+    write(*,*) "e.g. 0,0.5,0"
+    write(*,*) "If press ENTER button directly, 0,0,0 will be used"
+    read(*,"(a)") c80tmp
+    if (c80tmp==" ") then
+        kp1crd=0
+        kp2crd=0
+        kp3crd=0
+    else
+        read(c80tmp,*) kp1crd,kp2crd,kp3crd
+    end if
 end if
 
-!nprintorb=18
-write(*,*)
-write(*,*) "How many orbitals were printed in the CP2K output file? e.g. 18"
-read(*,*) nprintorb
+!Try to find number of orbitals, available when PRINT_LEVEL >= MEDIUM
+call loclabel(10,"Number of molecular orbitals:",ifound)
+if (ifound==1) then
+    read(10,"(a)") c200tmp
+    call readaftersign_int(c200tmp,':',nprintorb)
+    write(*,"(' Number of orbitals to read:',i10)") nprintorb
+else
+    write(*,*)
+    write(*,*) "How many orbitals were printed in the CP2K output file? e.g. 18"
+    read(*,*) nprintorb
+end if
+
+call loclabelfinal(10,"FOR K POINT "//trim(adjustl(c80tmp)),ifound)
+call skiplines(10,2)
 
 !Load CP2K coefficient matrix to CObasa_tmp
+write(*,*) "Loading..."
 allocate(CObasa_tmp(nbasis,nbasis))
 CObasa_tmp=0
-nframe=ceiling(nprintorb/4D0)
+neach=3 !Number of columns each frame. This is dynamic, when &MO / NDIGITS 8, it should be 3; while NDIGITS 6, it should be 4
+nframe=ceiling(nprintorb/dfloat(neach))
 do iframe=1,nframe
-    call skiplines(10,5)
-    ibeg=(iframe-1)*4+1
+    ibeg=(iframe-1)*neach+1
     if (iframe==nframe) then
-        iend=(iframe-1)*4+mod(nprintorb,4)
+        iend=(iframe-1)*neach+mod(nprintorb,neach)
     else
-        iend=(iframe-1)*4+4
+        iend=(iframe-1)*neach+neach
     end if
+    read(10,*)
+    read(10,*) c80tmp,MOene(ibeg:iend)
+    read(10,*)
+    read(10,*) c80tmp,MOocc(ibeg:iend)
+    read(10,*)
     do iatm=1,ncenter
         do ibas=basstart(iatm),basend(iatm)
             read(10,"(a)") c200tmp

@@ -848,9 +848,9 @@ end if
 if (iquick==1) then !Utilizing neighbouring GTF list at reduced grids to significantly reduce number of candidate GTFs. Unique GTF cannot be utilized in this case
 
 nloopGTF=neighnGTF(ix_red,iy_red,iz_red)
-do iloopGTF=1,nloopGTF
+do iloopGTF=1,nloopGTF !Only loop the neighbouring GTFs corresponding to the reduced grid that the current position belongs to
 	j=neighGTF(iloopGTF,ix_red,iy_red,iz_red)
-    icell=neighGTFcell(1,iloopGTF,ix_red,iy_red,iz_red)
+    icell=neighGTFcell(1,iloopGTF,ix_red,iy_red,iz_red) !Obtaining the cell index that the neighbouring GTF attributed to
     jcell=neighGTFcell(2,iloopGTF,ix_red,iy_red,iz_red)
     kcell=neighGTFcell(3,iloopGTF,ix_red,iy_red,iz_red)
     call tvec_PBC(icell,jcell,kcell,tvec)
