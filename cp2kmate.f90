@@ -4779,7 +4779,6 @@ implicit real*8 (a-h,o-z)
 character c2000tmp*2000,c80tmp*80,c200tmp*200
 real*8,allocatable :: CObasa_tmp(:,:),CObasb_tmp(:,:)
 
-!c2000tmp="C:\Users\sober\Desktop\kp.out"
 write(*,"(/,a)") " Input the path of CP2K output file containing orbital coefficients, e.g. D:\sobereva.out"
 do while(.true.)
 	read(*,"(a)") c2000tmp
@@ -4806,7 +4805,7 @@ end if
 
 !Try to find k-point coordinate, available when PRINT_LEVEL >= MEDIUM
 call loclabel(10," BRILLOUIN| Number ",ifound)
-if (ifound) then
+if (ifound==1) then
     call skiplines(10,ikp)
     read(10,*) c200tmp,c200tmp,c200tmp,kp1crd,kp2crd,kp3crd
     write(*,"(' Coordinate of this k-point:',3f12.6)") kp1crd,kp2crd,kp3crd

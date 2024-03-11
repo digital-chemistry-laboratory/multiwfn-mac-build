@@ -3736,7 +3736,7 @@ end subroutine
 
 !!-------- Randomly generate name
 subroutine mylover(outname)
-integer,parameter :: nlovers=66
+integer,parameter :: nlovers=67
 character(len=80) lovername(nlovers),outname
 CALL RANDOM_SEED()
 CALL RANDOM_NUMBER(tmp)
@@ -3784,8 +3784,8 @@ lovername(41)="Sakurako-san_no_Ashimoto_ni_wa_Shitai_ga_Umatteiru\Sakurako"
 lovername(42)="Hibike!_Euphonium\Reina_Kousaka"
 lovername(43)="Planetarian\Yumemi_Hoshino"
 lovername(44)="Lovelive_Sunshine!!\Yoshiko_Tsushima"
-lovername(45)="Lovelive_Sunshine!!\Kurosawa Dia"
-lovername(46)="Lovelive_Sunshine!!\Sakurauchi_Riko"
+lovername(45)="Lovelive_Sunshine!!\Dia_Kurosawa"
+lovername(46)="Lovelive_Sunshine!!\Riko_Sakurauchi"
 lovername(47)="Violet_Evergarden\Violet_Evergarden"
 lovername(48)="Otobuko\Mizuho_Miyanokouji"
 lovername(49)="iDOLM@STER\Makoto_Kikuchi"
@@ -3806,6 +3806,7 @@ lovername(63)="Tomo-chan_wa_Onnanoko!\Misuzu_Gundou"
 lovername(64)="The_Cafe_Terrace_and_Its_Goddesses\Akane_Hououji"
 lovername(65)="Kanojo_mo_Kanojo\Rika_Hoshizaki"
 lovername(66)="Hokkaido_Gals_Are_Super_Adorable!\Minami_Fuyuki"
+lovername(67)="Love_Live!\Mari_Ohara"
 !Dear Kanan,
 !
 !You are the one I deeply love forever in the real world,
