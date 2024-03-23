@@ -2404,7 +2404,7 @@ else !&SCF
             end if
         end if
         write(ifileid,"(a)") "        MINIMIZER DIIS #CG is worth to consider in difficult cases" !BROYDEN in fact can also be used, but quite poor!
-        write(ifileid,"(a)") "        LINESEARCH 2PNT #1D line search algorithm for CG. 2PNT is default, 3PNT is better but more costly. GOLD is best but very expensive"
+        write(ifileid,"(a)") "        LINESEARCH 2PNT #1D line search algorithm for CG. 2PNT is default. 3PNT is more expensive but may be better. GOLD is best but very expensive"
         if (nCDFTgroup>0.or.ibas==13.or.ibas==14.or.ibas==15) then
             write(ifileid,"(a)") "        ALGORITHM IRAC #Algorithm of OT. Can be STRICT (default) or IRAC" !For CDFT, this is much easier to converge than the default STRICT when lambda>0; For pob, often IRAC converges more smoothly
         else

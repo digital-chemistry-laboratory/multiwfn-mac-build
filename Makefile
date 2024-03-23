@@ -16,7 +16,7 @@ LIBRETAPATH = ./libreta_hybrid
 
 objects = define.o util.o plot.o Bspline.o sym.o libreta.o function.o GUI.o sub.o integral.o Lebedev-Laikov.o \
 DFTxclib.o edflib.o fparser.o fileIO.o spectrum.o DOS.o Multiwfn.o 0123dim.o LSB.o \
-population.o orbcomp.o bondorder.o topology.o excittrans.o otherfunc.o \
+population.o frj.o orbcomp.o bondorder.o topology.o excittrans.o otherfunc.o \
 otherfunc2.o otherfunc3.o O1.o surfana.o procgriddata.o AdNDP.o fuzzy.o CDA.o basin.o \
 orbloc.o visweak.o EDA.o CDFT.o ETS_NOCV.o atmraddens.o NAONBO.o grid.o PBC.o hyper_polar.o deloc_aromat.o cp2kmate.o\
 minpack.o blockhrr_012345.o ean.o hrr_012345.o eanvrr_012345.o boysfunc.o naiveeri.o ryspoly.o 2F2.f90.o
@@ -152,6 +152,9 @@ LSB.o : LSB.f90 $(modules)
 
 population.o : population.f90 $(modules)
 	$(FC) $(OPT) -c population.f90
+
+frj.o : ext/frj.f90 $(modules)
+	$(FC) $(OPT) -c ext/frj.f90 -o frj.o
 
 orbcomp.o : orbcomp.f90 $(modules)
 	$(FC) $(OPT) -c orbcomp.f90

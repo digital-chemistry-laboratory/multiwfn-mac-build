@@ -19,8 +19,9 @@ do while(.true.)
 	write(*,"(' GTF:',i6,', Orb:',i6,', Atom:',i5,', A/B/tot ele:',3f10.3)") nprims,nmo,ncenter,naelec,nbelec,nelec
 	if (ifragcontri/=1) write(*,*) "-4 Exclude contribution of some atoms to real space functions"
 	if (ifragcontri/=1) write(*,*) "-3 Only retain contribution of some atoms to real space functions"
+    if (ifPBC==3) write(*,"(a,3f10.6)") " -2 Set k-point, current:",kp1crd,kp2crd,kp3crd
 	write(*,*) "-1 Return"
-	write(*,*) "0 Save the modified wavefunction to a new .wfn file"
+	write(*,*) "0 Save the present wavefunction to new.wfn file in current folder"
 	if (allocated(CObasa)) then
 		write(*,*) "1 List all GTFs                    2 List all basis function"
 	else
@@ -58,7 +59,9 @@ do while(.true.)
 		end if
         if (imodwfn==1) if_initlibreta=0 !LIBRETA should then be re-initialized
 		exit
-		
+	else if (isel==-2) then
+		write(*,*) "Input k-point coordinate in reciprocal space, e.g. 0.5,0.5,0"
+        read(*,*) kp1crd,kp2crd,kp3crd
 	else if (isel==-3.or.isel==-4) then
 		if (allocated(fragatm)) deallocate(fragatm) !fragatm has been defined previously by default, fragatm contains all atoms
 		if (isel==-3) then
