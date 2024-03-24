@@ -53,6 +53,7 @@ file(
   ${PROJECT_SOURCE_DIR}/*.F
   ${PROJECT_SOURCE_DIR}/ext/2F2.f90
   ${PROJECT_SOURCE_DIR}/ext/2F2.c
+  ${PROJECT_SOURCE_DIR}/ext/frj.f90
   ${PROJECT_SOURCE_DIR}/libreta_hybrid/*.f90)
 if(NOT WITH_GUI)
   list(APPEND srcs ${PROJECT_SOURCE_DIR}/noGUI/dislin_d_empty.f90)
