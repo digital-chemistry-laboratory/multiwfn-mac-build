@@ -156,6 +156,7 @@ if (ifPBC==0) call swgatt(idisshowcell,"INACTIVE","STATUS")
 CALL wgapp(idisotherset,"Toggle showing all boundary atoms",idisshowboundaryatom)
 if (ifPBC==0) call swgatt(idisshowboundaryatom,"INACTIVE","STATUS")
 CALL wgapp(idisotherset,"Set atom highlighting",idishighlightatom)
+CALL wgapp(idisotherset,"Choose plotting wavefunction or density",idiswfndens)
 CALL wgapp(idisotherset,"Load bonding connectivity from mol/mol2 file",idisloadconn)
 CALL WGPOP(idiswindow,"Tools",idistools)
 CALL wgapp(idistools,"Write settings to GUIsettings.ini",idiswriteGUIsetting)
@@ -219,9 +220,9 @@ if (isys==1.and.(imodlayout==0.or.imodlayout==2)) then
 	!Set scale bar of isosurvalue
 	call swgwin(100,5,70,115)
 	call swgtyp("VERT","SCALE")
-	call swgstp(0.002D0)
+	call swgstp(0.001D0)
     if (ncenter<200) then
-		call wgscl(idisbotrig,"Isovalue",0D0,0.4D0,sur_value_orb,3,idisisosurscl)
+		call wgscl(idisbotrig,"Isovalue",0D0,0.3D0,sur_value_orb,3,idisisosurscl)
     else if (ncenter<400) then
 		call wgscl(idisbotrig,"Isovalue",0D0,0.2D0,sur_value_orb,3,idisisosurscl)
     else
@@ -238,9 +239,9 @@ else if ((isys==1.and.imodlayout==1).or.isys==2) then !Use different layout for 
 	call swgclr(0D0,0D0,1D0,"PBAR")
 	call swgtyp("HORI","PBAR")
 	call swgtyp("HORI","SCALE")
-	call swgstp(0.002D0)
+	call swgstp(0.001D0)
     if (ncenter<200) then
-		call wgscl(idisright2,"Isovalue of orbital",0D0,0.4D0,sur_value_orb,3,idisisosurscl)
+		call wgscl(idisright2,"Isovalue of orbital",0D0,0.3D0,sur_value_orb,3,idisisosurscl)
     else if (ncenter<400) then
 		call wgscl(idisright2,"Isovalue of orbital",0D0,0.2D0,sur_value_orb,3,idisisosurscl)
     else
@@ -301,6 +302,7 @@ call SWGCBK(idisshowdatarange,setshowdatarange_menu)
 call SWGCBK(idisshowcell,setshowcell)
 call SWGCBK(idisshowboundaryatom,setshowboundaryatom)
 call SWGCBK(idishighlightatom,sethighlightatom)
+call SWGCBK(idiswfndens,setwfndens)
 call SWGCBK(idismeasure,measuregeom)
 call SWGCBK(idiswriteGUIsetting,writeGUIsetting)
 call SWGCBK(idisloadGUIsetting,loadGUIsetting)
@@ -627,7 +629,6 @@ call swgatt(idiswindow,"INACTIVE","CLOSE") !Disable close button
 call swgatt(idiswindow,"OFF","MAXI") !Disable maximization button
 !Menu bar
 CALL WGPOP(idiswindow,"CP labelling settings",idissetlabclr)
-CALL wgapp(idissetlabclr,"Set atomic label color",idisatmlabclr)
 CALL wgapp(idissetlabclr,"Set CP label color",idisCPlabclr)
 CALL wgapp(idissetlabclr,"Labelling only one CP",idisCPlabone)
 CALL WGPOP(idiswindow,"Set view",idissetpersp)
@@ -710,7 +711,6 @@ call SWGCBK(idissetzoom,setzoom)
 call SWGCBK(idisshowboundaryatom,setshowboundaryatom)
 call SWGCBK(idisloadconn,loadconn)
 call SWGCBK(idisatmlabtyp,setatmlabtyp)
-call SWGCBK(idisatmlabclr,setatmlabclr)
 call SWGCBK(idisuseCPK,setCPKstyle)
 call SWGCBK(idisusevdW,setvdWstyle)
 call SWGCBK(idisuseline,setlinestyle)
@@ -1629,6 +1629,7 @@ call showorbsel(id,iorbvis)
 end subroutine
 
 !Calculate grid data of selected orbital and plot it as isosurface
+!If ishoworbsel_prt=1, orbital information of iorb will be shown
 subroutine showorbsel(id,iorb)
 use functions
 use defvar
@@ -1705,16 +1706,13 @@ else
 			do j=1,ny
 				do i=1,nx
 					call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
-					cubmat(i,j,k)=fmo(tmpx,tmpy,tmpz,iorb)
+                    if (iplotwfndens==1) then
+						cubmat(i,j,k)=fmo(tmpx,tmpy,tmpz,iorb)
+                    else
+						cubmat(i,j,k)=forbdens(tmpx,tmpy,tmpz,iorb)
+                    end if
 				end do
 			end do
-            !I found progress cannot normally display in GUI during parallel calculation, program will get stuck...
-			!!$OMP CRITICAL
-            !ifinish=ifinish+1
-            !write(tmpstr,"(f5.1,'%')") dfloat(ifinish)/nz*100
-            !call showprog(ifinish,nz)
-            !call SWGTXT(iorbseltext,trim(tmpstr))
-			!!$OMP end CRITICAL
 		end do
 		!$OMP end parallel do
 		!call walltime(iwalltime2)
@@ -1728,7 +1726,11 @@ else
 			do j=1,ny
 				do i=1,nx
 					call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
-					cubmattmp(i,j,k)=fmo(tmpx,tmpy,tmpz,iorb)
+                    if (iplotwfndens==1) then
+						cubmattmp(i,j,k)=fmo(tmpx,tmpy,tmpz,iorb)
+                    else
+						cubmattmp(i,j,k)=forbdens(tmpx,tmpy,tmpz,iorb)
+                    end if
 				end do
 			end do
 		end do
@@ -2052,7 +2054,11 @@ if (nprevorbgrid/=nprevorbgridold) then !Remove current isosurface and correspon
 	if (allocated(cubmattmp)) deallocate(cubmattmp)
 	isosursec=0
 	call swgbut(idisisosursec,0)
-	if (iorbvis/=0) call showorbsel(id,iorbvis) !iorbvis==0 corresponds to "none"
+	if (iorbvis/=0) then
+		ishoworbsel_prt=0
+		call showorbsel(id,iorbvis) !iorbvis==0 corresponds to "none"
+		ishoworbsel_prt=1
+    end if
 end if
 end subroutine
 
@@ -2144,7 +2150,9 @@ CALL swgtit("Set extension distance")
 call dwgtxt("Input extension distance for calculating grid data of orbitals",inpstring)
 read(inpstring,*,iostat=ierror) aug3D_main0
 if (ierror/=0) aug3D_main0=0
+ishoworbsel_prt=0
 call showorbsel(id,iorbvis)
+ishoworbsel_prt=1
 CALL SWGWTH(20) !Recover default
 end subroutine
 
@@ -2153,7 +2161,9 @@ subroutine setboxeqcell(id)
 use defvar
 integer,intent (in) :: id
 aug3D_main0=-1
+ishoworbsel_prt=0
 call showorbsel(id,iorbvis)
+ishoworbsel_prt=1
 end subroutine
 
 !Set orbital isovalue to specified value in main function 0 GUI
@@ -2188,14 +2198,11 @@ if (any(a%index==0)) then
 else
 	typelist="Element symbol|Atom index|Element+Index"
 end if
-call SWGPOP("NOOK")  !Don't show OK&QUIT&HELP in upper menu
-call SWGPOP("NOQUIT")
-call SWGPOP("NOHELP")
 CALL swgtit("Choose label type")
 CALL WGINI('VERT',idiswindow)
-call swgatt(idiswindow,"INACTIVE","CLOSE") !Disable close button
-call swgatt(idiswindow,"OFF","MAXI") !Disable maximization button
+call swgatt(idiswindow,"OFF","MENU") !Make close/minimize/maximize buttons invisible
 CALL WGLIS(idiswindow,typelist,0,idisseltype)
+call SWGLIS(idisseltype,iatmlabtype3D)
 call wgpbut(idiswindow,"RETURN",idisreturn)
 call SWGCBK(idisseltype,changeatmlabtype)
 call SWGCBK(idisreturn,GUIreturn)
@@ -2216,20 +2223,14 @@ use defvar
 integer,intent (in) :: id
 character clrlist*200
 clrlist="Red|Green|Blue|White|Black|Gray|Cyan|Yellow|Orange|Magenta|Crimson|Dark green|Purple|Brown|Dark blue|Pink"
-call SWGPOP("NOOK")  !Don't show OK&QUIT&HELP in upper menu
-call SWGPOP("NOQUIT")
-call SWGPOP("NOHELP")
 CALL swgtit("Select label color")
-CALL SWGWTH(30) !Make the list widget wider than default
 CALL WGINI('VERT',idiswindow)
-call swgatt(idiswindow,"INACTIVE","CLOSE") !Disable close button
-call swgatt(idiswindow,"OFF","MAXI") !Disable maximization button
+call swgatt(idiswindow,"OFF","MENU") !Make close/minimize/maximize buttons invisible
 CALL WGLIS(idiswindow,clrlist,0,idisselclr)
 call wgpbut(idiswindow,"RETURN",idisreturn)
 call SWGCBK(idisselclr,changeatmlabclr)
 call SWGCBK(idisreturn,GUIreturn)
 CALL WGFIN
-CALL SWGWTH(20) !Recover default
 end subroutine
 !Change atomic label color to selected one. atmlabclrR, atmlabclrG, atmlabclrB are global variable
 subroutine changeatmlabclr(id)
@@ -2247,20 +2248,14 @@ use defvar
 integer,intent (in) :: id
 character clrlist*200
 clrlist="Red|Green|Blue|White|Black|Gray|Cyan|Yellow|Orange|Magenta|Crimson|Dark green|Purple|Brown|Dark blue|Pink"
-call SWGPOP("NOOK")  !Don't show OK&QUIT&HELP in upper menu
-call SWGPOP("NOQUIT")
-call SWGPOP("NOHELP")
 CALL swgtit("Select label color")
-CALL SWGWTH(30) !Make the list widget wider than default
 CALL WGINI('VERT',idiswindow)
-call swgatt(idiswindow,"INACTIVE","CLOSE") !Disable close button
-call swgatt(idiswindow,"OFF","MAXI") !Disable maximization button
+call swgatt(idiswindow,"OFF","MENU") !Make close/minimize/maximize buttons invisible
 CALL WGLIS(idiswindow,clrlist,0,idisselclr)
 call wgpbut(idiswindow,"RETURN",idisreturn)
 call SWGCBK(idisselclr,changeCPlabclr)
 call SWGCBK(idisreturn,GUIreturn)
 CALL WGFIN
-CALL SWGWTH(20) !Recover default
 end subroutine
 !Change CP label color to selected one. CPlabclrR, CPlabclrG, CPlabclrB are global variable
 subroutine changeCPlabclr(id)
@@ -2270,6 +2265,40 @@ integer iclr
 call gwglis(id,iclr)
 call clridx2RGB(iclr,CPlabclrR,CPlabclrG,CPlabclrB)
 call drawmol
+end subroutine
+
+
+!Set wavefunction or density of the orbital to be shown
+subroutine setwfndens(id)
+use defvar
+integer,intent (in) :: id
+character contentlist*40
+contentlist="Wavefunction|Density"
+CALL swgtit("Choose the object to plot")
+CALL WGINI('VERT',idiswindow)
+call swgatt(idiswindow,"OFF","MENU") !Make close/minimize/maximize buttons invisible
+CALL WGLIS(idiswindow,contentlist,0,idisselwfndens)
+call SWGLIS(idisselwfndens,iplotwfndens)
+call wgpbut(idiswindow,"RETURN",idisreturn)
+call SWGCBK(idisselwfndens,changewfndens)
+call SWGCBK(idisreturn,GUIreturn)
+CALL WGFIN
+end subroutine
+!Change wavefunction or density to plot
+subroutine changewfndens(id)
+use defvar
+integer,intent (in) :: id
+iold=iplotwfndens
+call gwglis(id,iplotwfndens)
+if (iold==1.and.iplotwfndens==2) then
+	sur_value_orb=0.005D0
+else if (iold==2.and.iplotwfndens==1) then
+	sur_value_orb=0.05D0
+end if
+call swgscl(idisisosurscl,sur_value_orb)
+ishoworbsel_prt=0
+call showorbsel(id,iorbvis)
+ishoworbsel_prt=1
 end subroutine
 
 
@@ -2518,14 +2547,9 @@ end subroutine
 
 subroutine setlight(id)
 integer,intent (in) :: id
-call SWGPOP("NOOK")  !Don't show OK&QUIT&HELP in upper menu
-call SWGPOP("NOQUIT")
-call SWGPOP("NOHELP")
 CALL swgtit("Set lightings")
-call swgwth(20)
 CALL WGINI('VERT',idiswindow)
-call swgatt(idiswindow,"INACTIVE","CLOSE") !Disable close button
-call swgatt(idiswindow,"OFF","MAXI") !Disable maximization button
+call swgatt(idiswindow,"OFF","MENU") !Make close/minimize/maximize buttons invisible
 call wgbut(idiswindow,"Light 1",ienablelight1,idissetlight1)
 call wgbut(idiswindow,"Light 2",ienablelight2,idissetlight2)
 call wgbut(idiswindow,"Light 3",ienablelight3,idissetlight3)
@@ -2715,8 +2739,7 @@ else
     call swgwth(60)
 end if
 CALL WGINI('VERT',idiswindow)
-call swgatt(idiswindow,"INACTIVE","CLOSE") !Disable close button
-call swgatt(idiswindow,"OFF","MAXI") !Disable maximization button
+call swgatt(idiswindow,"OFF","MENU") !Make close/minimize/maximize buttons invisible
 CALL SWGJUS("CENTER","LABEL") !Center the label text
 call WGLAB(idiswindow,"Input 2/3/4 atoms to measure distance/angle/dihedral",itext)
 call WGLAB(idiswindow,"Press ENTER button after inputting",itext)

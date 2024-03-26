@@ -68,6 +68,8 @@ else if (ifunc==24) then
     calcfuncall=IRIfunc(x,y,z)
 else if (ifunc==25) then
     calcfuncall=vdwpotfunc(x,y,z,1)
+else if (ifunc==44) then
+    calcfuncall=forbdens(x,y,z,iorbsel)
 else if (ifunc==100) then
 	calcfuncall=userfunc(x,y,z)
 end if
@@ -826,16 +828,23 @@ end subroutine
 !! istart and iend is the range of the orbitals will be calculated, to calculate all orbitals, use 1,nmo
 !! runtype=1: value  =2: value+dx/y/z  =3: value+dxx/yy/zz(diagonal of hess)  =4: value+dx/y/z+Hessian  
 !!        =5: value+dx/y/z+hess+3-order derivative tensor
-!! k-point is taken into account if kp1crd,kp2crd,kp3crd has been properly defined, but only real part is taken into account, imaginary part is ignored
-subroutine orbderv_PBC(runtype,istart,iend,x,y,z,wfnval,grad,hess,tens3)
+!! k-point is taken into account if kp1crd,kp2crd,kp3crd has been properly defined (default to 0,0,0), in this case, &
+!! itype_in=1: Returns real part  =2: Returns imaginary part (e.g. 4.3i returns 4.3). If not explicitly defined, it is decided by global variable "iorbcomplex"
+subroutine orbderv_PBC(runtype,istart,iend,x,y,z,wfnval,grad,hess,tens3,itype_in)
 real*8 x,y,z,wfnval(nmo),tvec(3)
 real*8,optional :: grad(3,nmo),hess(3,3,nmo),tens3(3,3,3,nmo)
 integer runtype,istart,iend
+integer,optional :: itype_in
 
 wfnval=0D0
 if (present(grad)) grad=0D0
 if (present(hess)) hess=0D0
 if (present(tens3)) tens3=0D0
+if (present(itype_in)) then
+	itype=itype_in
+else
+	itype=iorbcomplex
+end if
 
 iquick=0 !Check for this position if quick code can be used. If this position is out of region covered by reduced grid, the slow conventional code must be used
 if (allocated(neighGTF)) then
@@ -854,7 +863,11 @@ do iloopGTF=1,nloopGTF !Only loop the neighbouring GTFs corresponding to the red
     jcell=neighGTFcell(2,iloopGTF,ix_red,iy_red,iz_red)
     kcell=neighGTFcell(3,iloopGTF,ix_red,iy_red,iz_red)
     call tvec_PBC(icell,jcell,kcell,tvec)
-    facreal=cos(2*pi*(icell*kp1crd+jcell*kp2crd+kcell*kp3crd)) !Real part of exponent term of wavefunction
+    if (itype==1) then !Real part of exponent term of wavefunction
+		fac=cos(2*pi*(icell*kp1crd+jcell*kp2crd+kcell*kp3crd))
+    else !Imaginary part of exponent term of wavefunction
+		fac=sin(2*pi*(icell*kp1crd+jcell*kp2crd+kcell*kp3crd))
+    end if
 	jcen=b(j)%center
 	sftx=x-(a(jcen)%x+tvec(1))
 	sfty=y-(a(jcen)%y+tvec(2))
@@ -866,7 +879,7 @@ do iloopGTF=1,nloopGTF !Only loop the neighbouring GTFs corresponding to the red
 	ep=b(j)%exp
 	tmpval=-ep*rr
 	if (tmpval>expcutoff_PBC.or.expcutoff_PBC>0) then
-		expterm=exp(tmpval)*facreal !!!! Real part of exponent term of wavefunction is merged into exponent term to make it take effect properly without modifying any other codes
+		expterm=exp(tmpval)*fac !!!! Exponent term of orbital wavefunction is merged into GTF exponent term to make it take effect properly without modifying any other codes
     else
 		cycle
     end if
@@ -1051,7 +1064,11 @@ call getpointcell(x,y,z,ic,jc,kc)
 do icell=ic-PBCnx,ic+PBCnx
     do jcell=jc-PBCny,jc+PBCny
         do kcell=kc-PBCnz,kc+PBCnz
-			facreal=cos(2*pi*(icell*kp1crd+jcell*kp2crd+kcell*kp3crd)) !Real part of exponent term of wavefunction
+			if (itype==1) then !Real part of exponent term of wavefunction
+				fac=cos(2*pi*(icell*kp1crd+jcell*kp2crd+kcell*kp3crd))
+			else !Imaginary part of exponent term of wavefunction
+				fac=sin(2*pi*(icell*kp1crd+jcell*kp2crd+kcell*kp3crd))
+			end if
 			lastcen=-1 !Arbitrary value
             call tvec_PBC(icell,jcell,kcell,tvec)
             xmove=tvec(1)
@@ -1074,7 +1091,7 @@ do icell=ic-PBCnx,ic+PBCnx
 					tmpval=-ep*rr
 					lastcen=jcen
 					if (tmpval>expcutoff_PBC.or.expcutoff_PBC>0) then
-                        expterm=exp(tmpval)*facreal !!!! Real part of exponent term of wavefunction is merged into exponent term to make it take effect properly without modifying any other codes
+                        expterm=exp(tmpval)*fac !!!! Exponent term of orbital wavefunction is merged into GTF exponent term to make it take effect properly without modifying any other codes
 					else
 						cycle
 					end if
@@ -2256,6 +2273,23 @@ real*8 x,y,z,orbval(nmo)
 integer id
 call orbderv(1,id,id,x,y,z,orbval)
 fmo=orbval(id)
+end function
+
+
+
+
+!!----------- Calculate probability density of an orbital wavefunction value
+real*8 function forbdens(x,y,z,id)
+real*8 x,y,z,orbval(nmo),orbval_imag(nmo)
+integer id
+if (ifPBC==0) then
+	call orbderv(1,id,id,x,y,z,orbval)
+	forbdens=orbval(id)**2
+else
+	call orbderv_PBC(1,id,id,x,y,z,orbval,itype_in=1)
+	call orbderv_PBC(1,id,id,x,y,z,orbval_imag,itype_in=2)
+	forbdens=orbval(id)**2+orbval_imag(id)**2
+end if
 end function
 
 
@@ -7220,8 +7254,8 @@ subroutine funclist
 use defvar
 write(*,*) "            ----------- Available real space functions -----------"
 if (allocated(b)) then
-	write(*,*) "1 Electron density                 2 Gradient norm of electron density"
-	write(*,*) "3 Laplacian of electron density    4 Value of orbital wavefunction"
+	write(*,*) "1 Electron density (rho)     2 Gradient norm of rho     3 Laplacian of rho"
+	write(*,*) "4 Value of orbital wavefunction         44 Orbital probability density"
 	if (ipolarpara==0) write(*,*) "5 Electron spin density"
 	if (ipolarpara==1) write(*,*) "5 Spin polarization parameter function"
 	write(*,*) "6 Hamiltonian kinetic energy density K(r)"
@@ -7287,11 +7321,11 @@ real*8 wrtstart
 call funclist
 read(*,*) ifunc
 
-if (ifunc==4) then
+if (ifunc==4.or.ifunc==44) then
 	write(*,"(a,i6)") " Input orbital index, e.g. 28"
 	if (allocated(CObasb)) write(*,"(a)") " Note: Positive index and negative index correspond to alpha orbital and beta orbital, respectively"
 	if (wfntype==0.or.wfntype==1) call orblabsel_prompt
-	if (itype==2) write(*,"(a)") " If you want to plot contour map for two orbitals in the same map, input two indices, e.g. 8,10"
+	if (ifunc==4.and.itype==2) write(*,"(a)") " If you want to plot contour map for two orbitals in the same map, input two indices, e.g. 8,10"
     read(*,"(a)") c80tmp
 	if (index(c80tmp,',')/=0) then !Inputted two orbitals
 		read(c80tmp,*) iorbsel,iorbsel2

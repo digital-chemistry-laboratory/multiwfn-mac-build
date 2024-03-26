@@ -392,7 +392,7 @@ real*8 :: IBSclrR=0.1D0,IBSclrG=1D0,IBSclrB=0.1D0 !Interbasin surface color
 real*8 :: atm3Dclr(0:nelesupp,3) !Colors of the atom spheres shown in 3D plots, set in "loadsetting" routine
 
 !Plotting Internal parameter
-integer :: imodlayout=0,plotwinsize3D=90,ishowhydrogen=1,ishoworbsel_prt=1
+integer :: imodlayout=0,plotwinsize3D=90,ishowhydrogen=1,ishoworbsel_prt=1,iplotwfndens=1
 integer :: idrawbasinidx=0 !Draw which basin
 integer :: idrawinternalbasin=0 !=1 Draw internal part of the basin, =0 Only draw boundary grids
 integer :: ifixorbsign=0 !if 1, during generating orbital isosurface by drawmolgui, most part will always be positive (namely if sum(cubmat)<0 or sum(cubmattmp)<0, the data sign will be inverted)

@@ -1491,6 +1491,9 @@ else if (ifuncsel==24) then !IRI
 else if (ifuncsel==25) then !vdW potential
 	drawlowlim=-1D0
 	drawuplim=1D0
+else if (ifuncsel==44) then !Orbital probability density
+	drawlowlim=-1D-3
+	drawuplim=0.05D0
 else if (ifuncsel==111.or.ifuncsel==112) then !Becke/Hirshfeld weight
 	drawlowlim=0D0
 	drawuplim=1D0
@@ -2607,6 +2610,9 @@ else !Calculate grid data
 	else if (ifuncsel==25) then
 		sur_value=1D0
 		outcubfile="vdWpot.cub"
+	else if (ifuncsel==44) then
+		sur_value=0.005D0
+		outcubfile="orbdens.cub"
 	else if (ifuncsel==100) then
 		outcubfile="userfunc.cub"
 	else if (ifuncsel==111) then
