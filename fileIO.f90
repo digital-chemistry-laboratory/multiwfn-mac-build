@@ -5408,6 +5408,8 @@ write(*,"(a)") " If press ENTER button directly,the system will be exported to "
 read(*,"(a)") outname
 if (outname==" ") outname=trim(c200tmp)//".pqr"
 call outpqr(outname,10)
+write(*,*) "Exporting pqr file finished!"
+write(*,"(a)") " This file contains atomic charges that originally recorded in your .chg file. The radius column corresponds to Bondi vdW radii"
 end subroutine
 !!---------- Output current coordinate and atomic charges to pqr file
 subroutine outpqr(outpqrname,ifileid)
@@ -5429,8 +5431,6 @@ do i=1,ncenter
 end do
 write(ifileid,"('END')")
 close(ifileid)
-write(*,*) "Exporting pqr file finished!"
-write(*,"(a)") " This file contains atomic charges that originally recorded in your .chg file. The radius column corresponds to Bondi vdW radii"
 end subroutine
 
 !!-------- Determine "ATOM" or "HETATM" of an atom
@@ -5460,6 +5460,7 @@ write(*,"(a)") " If press ENTER button directly, the system will be exported to 
 read(*,"(a)") outname
 if (outname==" ") outname=trim(c200tmp)//".xyz"
 call outxyz(outname,10)
+write(*,*) "Exporting xyz file finished!"
 end subroutine
 !!---------- Output current coordinate to xyz file
 subroutine outxyz(outxyzname,ifileid)
@@ -5479,7 +5480,6 @@ do i=1,ncenter
 	write(ifileid,"(a,3f16.8)") ind2name(a(i)%index),a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a
 end do
 close(ifileid)
-write(*,*) "Exporting xyz file finished!"
 end subroutine
 
 
@@ -9598,6 +9598,8 @@ call get_option_str(20,'orcapath=',c200tmp)
 if (c200tmp/=" ") read(c200tmp,*) orcapath
 call get_option_str(20,'orca_2mklpath=',c200tmp)
 if (c200tmp/=" ") read(c200tmp,*) orca_2mklpath
+call get_option_str(20,'dftd3path=',c200tmp)
+if (c200tmp/=" ") read(c200tmp,*) dftd3path
 call testarg("-silent",isilent)
 if (isilent==0) then
     call get_option_str(20,'isilent=',c80tmp)

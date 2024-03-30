@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2024-Mar-26"
+write(*,*) "Version 3.8(dev), release date: 2024-Mar-28"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -245,7 +245,7 @@ end if
 
 
 !Special treatment and test new code
-!call gen_carbon_ring
+!call atomdispcontri
 
 
 !!!--------------------- Now everything start ---------------------!!!

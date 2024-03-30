@@ -538,6 +538,7 @@ do while (.true.)
 	write(*,"(a)") " 6 Show isosurface of "//trim(f1name)
 	write(*,"(a)") " 7 Show isosurface of "//trim(f2name)
 	write(*,"(a)") " 8 Output "//trim(f1name)//" to output.txt where "//trim(f2name)//" is within in certain range"
+    if (iwork==4) write(*,"(a)") " 9 Screen out covalent bond regions (set IRI to 100 for regions with sign(lambda2)rho < -0.1 a.u.)"
 	read(*,*) isel
 	if (isel==-4) then
 		cubmattmp=f2orgdata
@@ -660,6 +661,10 @@ do while (.true.)
         write(*,*) "Column 4/5: "//trim(f1name)//" and "//trim(f2name)//" in a.u."
 		write(*,"(' Number of entries:',i10)") num
 		if (num>=2) write(*,"(a,2E16.8)") " Min and Max of "//trim(f1name)//" in this range",rmin,rmax
+	else if (isel==9) then
+        where (scatterx<=-0.1D0) scattery=100
+		where (cubmat<=-0.1D0) cubmattmp=100
+        write(*,*) "Done!"
 	end if
 end do
 end subroutine

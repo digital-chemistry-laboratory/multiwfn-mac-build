@@ -2372,7 +2372,7 @@ do while(.true.)
 		exit
 	end if
 end do
-	
+
 call setgrid(1,igridsel)
 
 if (igridsel==100) then !Calculate value on a set of points loaded from external file, and then write into the last column of the file
