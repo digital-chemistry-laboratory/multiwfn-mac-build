@@ -1015,7 +1015,7 @@ use util
 implicit real*8 (a-h,o-z)
 real*8 init1inp,end1inp,init2inp,end2inp,init1,end1,init2,end2,init3,end3
 real*8 xcoord(ngridnum1),ycoord(ngridnum2),gradd1tmp(ngridnum1,ngridnum2),gradd2tmp(ngridnum1,ngridnum2)
-real*8 dx,dy,pix2usr,n1,n2
+real*8 dx,dy,pix2usr,n1,n2,n1_2,n2_2
 real*8 planetrunc(ngridnum1,ngridnum2),planetrunc2(ngridnum1,ngridnum2) !Store truncated planemat
 integer lengthx !length of x axis
 integer idrawtype,i,j

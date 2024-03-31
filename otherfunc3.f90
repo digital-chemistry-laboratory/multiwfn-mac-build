@@ -1337,7 +1337,6 @@ do while(.true.)
         planestpx=(endx-orgx)*b2a/7
         planestpy=(endy-orgy)*b2a/7
         iclrtrans=6 !Grey transition in color-filled map
-        !ibond_on_plane=1 !Show bond on map
         iatom_on_plane=1 !Show atom label on map
         numdigz=4
         
