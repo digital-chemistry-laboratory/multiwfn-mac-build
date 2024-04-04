@@ -2326,6 +2326,11 @@ character c200tmp*200,c2000tmp*2000,outcubfile*200
 real*8 :: tmpvec(3)
 integer,allocatable :: tmparrint(:)
 real*8,allocatable :: cubmat_bk(:,:,:)
+!Wsed when generate grid data based on external grid data by interpolation
+real*8 gridv1_ext(3),gridv2_ext(3),gridv3_ext(3),orgx_ext,orgy_ext,orgz_ext
+integer nx_ext,ny_ext,nz_ext
+real*8 gridv1_new(3),gridv2_new(3),gridv3_new(3),orgx_new,orgy_new,orgz_new
+integer nx_new,ny_new,nz_new
 
 ncustommap=0 !Clean custom operation setting that possibly defined by other modules
 if (allocated(custommapname)) deallocate(custommapname)
@@ -2372,6 +2377,14 @@ do while(.true.)
 		exit
 	end if
 end do
+
+if (ifuncsel==100.and.(iuserfunc==-1.or.iuserfunc==-3)) then !Special case, interpolation based on grid data, backup grid setting of external grid
+	gridv1_ext(:)=gridv1(:)
+    gridv2_ext(:)=gridv2(:)
+    gridv3_ext(:)=gridv3(:)
+    orgx_ext=orgx;orgy_ext=orgy;orgz_ext=orgz
+    nx_ext=nx;ny_ext=ny;nz_ext=nz
+end if
 
 call setgrid(1,igridsel)
 
@@ -2439,13 +2452,56 @@ if (igridsel==100) then !Calculate value on a set of points loaded from external
 	write(*,"(a)") " Done! In this file the first line is the number of points, Column 1~4 correspond to X,Y,Z coordinates and function values, respectively. All units are in a.u."
 
 else !Calculate grid data
-	if (allocated(cubmat)) deallocate(cubmat)
-	if (allocated(cubmattmp)) deallocate(cubmattmp)
-	allocate(cubmat(nx,ny,nz))
-	if (ncustommap/=0) allocate(cubmattmp(nx,ny,nz)) !!! temp file for difference cube
-	if (ifuncsel/=4) call delvirorb(1) !Delete high-lying virtual orbitals for faster calculation
+	if (ifuncsel==100.and.(iuserfunc==-1.or.iuserfunc==-3)) then !Special case, interpolation based on grid data. To avoid overwrite cubmat during interpolation, we use special treatment
+		!Backup new grid setting
+		gridv1_new(:)=gridv1(:);gridv2_new(:)=gridv2(:);gridv3_new(:)=gridv3(:)
+		orgx_new=orgx;orgy_new=orgy;orgz_new=orgz
+		nx_new=nx;ny_new=ny;nz_new=nz
+        !Restore setting of external grid data, so we can normally use interpolation function
+		gridv1(:)=gridv1_ext(:);gridv2(:)=gridv2_ext(:);gridv3(:)=gridv3_ext(:)
+        orgx=orgx_ext;orgy=orgy_ext;orgz=orgz_ext
+        nx=nx_ext;ny=ny_ext;nz=nz_ext
+        if (allocated(cubmattmp)) deallocate(cubmattmp)
+        allocate(cubmattmp(nx_new,ny_new,nz_new))
+        ifinish=0
+		ntmp=floor(ny_new*nz_new/100D0)
+		!$OMP PARALLEL DO SHARED(cubmattmp,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
+        do k=1,nz_new
+			do j=1,ny_new
+				do i=1,nx_new
+					tmpx = orgx_new + gridv1_new(1)*(i-1) + gridv2_new(1)*(j-1) + gridv3_new(1)*(k-1)
+					tmpy = orgy_new + gridv1_new(2)*(i-1) + gridv2_new(2)*(j-1) + gridv3_new(2)*(k-1)
+					tmpz = orgz_new + gridv1_new(3)*(i-1) + gridv2_new(3)*(j-1) + gridv3_new(3)*(k-1)
+					cubmattmp(i,j,k)=calcfuncall(ifuncsel,tmpx,tmpy,tmpz)
+				end do
+				!$OMP CRITICAL
+				ifinish=ifinish+1
+				ishowprog=mod(ifinish,ntmp)
+				if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny_new*nz_new)),100)
+				!$OMP END CRITICAL
+			end do
+		end do
+		!$OMP END PARALLEL DO
+		if (ishowprog/=0) call showprog(100,100)
+        !Restore setting of new grid data
+		gridv1(:)=gridv1_new(:);gridv2(:)=gridv2_new(:);gridv3(:)=gridv3_new(:)
+		orgx=orgx_new;orgy=orgy_new;orgz=orgz_new
+		nx=nx_new;ny=ny_new;nz=nz_new
+        deallocate(cubmat)
+        allocate(cubmat(nx,ny,nz))
+        cubmat=cubmattmp
+        deallocate(cubmattmp)
+    else !Common case
+		if (allocated(cubmat)) deallocate(cubmat)
+		if (allocated(cubmattmp)) deallocate(cubmattmp)
+		allocate(cubmat(nx,ny,nz))
+		if (ncustommap/=0) allocate(cubmattmp(nx,ny,nz)) !!! temp file for difference cube
+		if (ifuncsel/=4) call delvirorb(1) !Delete high-lying virtual orbitals for faster calculation
+    end if
 	
-	if (ifuncsel==111) then !Becke's weight
+    if (ifuncsel==100.and.(iuserfunc==-1.or.iuserfunc==-3)) then
+		continue
+	else if (ifuncsel==111) then !Becke's weight
 		do k=1,nz
 			do j=1,ny
 				do i=1,nx
@@ -2488,15 +2544,17 @@ else !Calculate grid data
 		call genentrocub(5)
 		ncustommap=0
 	else !Common case
-		cubmat=0D0
 		icustom=0
-		if (ipromol==1) goto 511 !Calculate promolecular property, so skip the first time calculation (namely for the whole system)
+		if (ipromol==1) then
+			cubmat=0D0
+			goto 511 !Calculate promolecular property, so skip the first time calculation (namely for the whole system)
+        end if
 	510	call savecubmat(ifuncsel,0,iorbsel) !Calculate data to cubmat matrix
 	511	if (ncustommap/=0) then !Calculate data for custom cube, cycling stop when all the file have been dealed
 			if (icustom==0) then !first time
 			!Note: For promolecular property, x,y,z has not been saved in cubmat at first time, while after calculation of atoms, cubmat already has %x,%y,%z
 				cubmattmp=cubmat
-			else if (icustom/=0) then !Not first time
+			else !Not first time
 				if (customop(icustom)=='+') cubmattmp=cubmattmp+cubmat
 				if (customop(icustom)=='-') cubmattmp=cubmattmp-cubmat
 				if (customop(icustom)=='x'.or.customop(icustom)=='*') cubmattmp=cubmattmp*cubmat

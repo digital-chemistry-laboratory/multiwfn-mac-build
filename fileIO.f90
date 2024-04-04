@@ -6007,7 +6007,7 @@ do while(.true.)
     write(*,*) "20 sTD-DFT based on RI-wB97X-D3/def2-SV(P) orbitals"
     write(*,*) "21 TDA-DFT RI-PBE0/def2-SV(P) with riints_disk (much faster than 22)"
     write(*,*) "22 TDDFT RI-PBE0/def2-SV(P)"
-    write(*,*) "23 TDDFT RI-RSX-QIDH/def2-TZVP    231 TDDFT RI-DSD-PBEP86/def2-TZVP"
+    write(*,*) "23 TDDFT RI-RSX-QIDH/def2-TZVP     231 TDDFT RI-DSD-PBEP86/def2-TZVP"
     write(*,*) "24 EOM-CCSD/cc-pVTZ                 25 STEOM-DLPNO-CCSD/def2-TZVP"
     read(*,"(a)") c80tmp
     if (c80tmp=="1b") then

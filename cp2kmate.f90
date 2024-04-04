@@ -4408,6 +4408,7 @@ implicit real*8 (a-h,o-z)
 character c200tmp*200
 real*8,allocatable :: eneall(:,:),eneallB(:,:),kpweight(:) !eneall(imo,ikp) is energy of imo at ikp k-point. kpweight is weight of k-point
 real*8,allocatable :: xpos(:),DOS(:)
+integer :: ispin=0 !0=Both, 1=Alpha, 2=Beta
 
 open(10,file=filename,status="old")
 call loclabel(10,"Spin 1",iopsh)
@@ -4575,7 +4576,12 @@ npt=1000
 xlow=-7
 xhigh=5
 eneshift=-E_HOCO
-write(*,*) "Note: Shift of energy levels has been set to -E(HOCO)"
+write(*,*)
+if (iopsh==0) then
+    write(*,*) "Note: Shift of energy levels has been set to -E(HOCO)"
+else
+    write(*,*) "Note: Shift of energy levels has been set to -E(HOCO) of alpha spin"
+end if
 
 do while(.true.)
     write(*,*)
@@ -4586,6 +4592,11 @@ do while(.true.)
     write(*,"(a,f10.4,' to',f10.4,' eV')") " 3 Set energy range, current: ",xlow,xhigh
     write(*,"(a,i6)") " 4 Set number of points, current:",npt
     write(*,"(a,f9.4,' eV')") " 5 Set shift of energy levels, current:",eneshift
+    if (iopsh==1) then
+        if (ispin==0) write(*,*) "6 Choose spin, current: Alpha+Beta"
+        if (ispin==1) write(*,*) "6 Choose spin, current: Alpha"
+        if (ispin==2) write(*,*) "6 Choose spin, current: Beta"
+    end if
     read(*,*) isel
     
     if (isel==0) then
@@ -4601,13 +4612,32 @@ do while(.true.)
         read(*,*) npt
     else if (isel==5) then
         write(*,*) "Input shift of energy levels, e.g. 0.34"
-        write(*,*) "If input ""H"", then shift value will be -E(HOCO)"
+        if (iopsh==0) then
+            write(*,*) "If input ""H"", then shift value will be -E(HOCO)"
+        else
+            if (ispin==0.or.ispin==1) write(*,*) "If input ""H"", then shift value will be -E(HOCO) of Alpha spin"
+            if (ispin==2) write(*,*) "If input ""H"", then shift value will be -E(HOCO) of Beta spin"
+        end if
         read(*,*) c200tmp
         if (c200tmp=='h'.or.c200tmp=='H') then
-            eneshift=-E_HOCO
+            if (iopsh==0) then
+                eneshift=-E_HOCO
+            else
+                if (ispin==0.or.ispin==1) then
+                    eneshift=-E_HOCO
+                else
+                    eneshift=-E_HOCO_B
+                end if
+            end if
         else
             read(c200tmp,*) eneshift
         end if
+    else if (isel==6) then
+        write(*,*) "Choose spin:"
+        write(*,*) "0 Alpha+Beta"
+        write(*,*) "1 Alpha"
+        write(*,*) "2 Beta"
+        read(*,*) ispin
     end if
     if (isel/=1) cycle
     
@@ -4623,13 +4653,24 @@ do while(.true.)
     fac=2*gauss_c**2
     do ikp=1,nkp !Cycle k-point
         gauss_a=kpweight(ikp)/(gauss_c*sqrt(2D0*pi))
-        do imo=1,nallorb !Cycle each orbital
-            ene=eneall(imo,ikp)+eneshift
-	        do ipt=1,npt !Cycle each point of DOS curve
-		        tmp=gauss_a*dexp( -(xpos(ipt)-ene)**2/fac )
-		        DOS(ipt)=DOS(ipt)+tmp
-	        end do
-        end do
+        if (iopsh==0.or.ispin==0.or.ispin==1) then
+            do imo=1,nallorb !Cycle each orbital
+                ene=eneall(imo,ikp)+eneshift
+	            do ipt=1,npt !Cycle each point of DOS curve
+		            tmp=gauss_a*dexp( -(xpos(ipt)-ene)**2/fac )
+		            DOS(ipt)=DOS(ipt)+tmp
+	            end do
+            end do
+        end if
+        if (ispin==0.or.ispin==2) then
+            do imo=1,nallorbB !Cycle each orbital
+                ene=eneallb(imo,ikp)+eneshift
+	            do ipt=1,npt !Cycle each point of DOS curve
+		            tmp=gauss_a*dexp( -(xpos(ipt)-ene)**2/fac )
+		            DOS(ipt)=DOS(ipt)+tmp
+	            end do
+            end do
+        end if
     end do
     open(11,file="DOS.txt",status="replace")
     do ipt=1,npt

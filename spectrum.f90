@@ -25,10 +25,11 @@ integer,allocatable :: indband2idx(:),idx2indband(:) !Used to map individual ban
 character c80tmp*80,c200tmp*200,c200tmp2*200,strfmt*10,selectyn,graphformat_old*4,c2000tmp*2000
 character clegend*2000 !Buffer for showing legends
 integer :: icurveclr=1,ilineclr=5 !Default: Red for curve, black for discrete lines
-integer :: thk_curve=3,thk_weighted=8,thk_Yeq0=2,thk_discrete=1,thk_axis=1,thk_grid=1,thk_PVS=3,thk_OPVS=3 !thickness
+integer :: thk_curve=3,thk_weighted=8,thk_Yeq0=2,thk_discrete=1,thk_axis=1,thk_grid=1,thk_PVS=4,thk_OPVS=4 !thickness
 integer :: ishowlabelleft=1,ishowlabelright=1 !If showing labels on left and right Y-axes
 integer :: ndecimalX=-1,ndecimalYleft=-1,ndecimalYright=-1 !Number of decimal places in axes, use auto by default
 integer :: height_axis=36,ticksize=36,legtextsize=36,labtype_Yleft=1,labtype_Yright=1,ilegendpos=7
+integer :: legendx=400,legendy=160
 integer,parameter :: ncurrclr=15 !At most 15 individual colors. For more curves/lines, always use color of last one (8)
 integer :: currclr(ncurrclr)=(/ 12,3,10,1,14,5,9,13,11,6,7,15,16,2,8 /) !Color index of current curve/line colors
 integer :: iYeq0=1 !If drawing line corresponding to Y=0
@@ -1037,11 +1038,24 @@ do while(.true.)
                 read(*,*) legtextsize
             else if (isel2==11) then
                 write(*,*) "Choose position of legends"
+                write(*,*) "0 Input coordinate of legend"
                 write(*,*) "5 Lower left corner"
                 write(*,*) "6 Lower right corner"
                 write(*,*) "7 Upper right corner"
                 write(*,*) "8 Upper left corner"
                 read(*,*) ilegendpos
+                if (ilegendpos==0) then
+                    write(*,*) "Input X position of the legends with respect to upper left corner, e.g. 400"
+					write(*,*) "The larger the value, the more the position of the legends is right"
+					write(*,"(a,i6,a)") " If directly press ENTER button, current value",legendx," will be kept"
+					read(*,"(a)") c80tmp
+					if (c80tmp/=" ") read(c80tmp,*) legendx
+					write(*,*) "Input Y position of the legends with respect to upper left corner, e.g. 160"
+					write(*,*) "The larger the value, the lower the position of the legends"
+					write(*,"(a,i6,a)") " If directly ENTER button, current value",legendy," will be kept"
+					read(*,"(a)") c80tmp
+					if (c80tmp/=" ") read(c80tmp,*) legendy
+                end if
             else if (isel2==12) then
                 if (iYeq0==1) then
                     iYeq0=0
@@ -1691,7 +1705,7 @@ do while(.true.)
 		            end do
 					icurveclr=5 !Use black for total spectrum
 					ishowline=0 !Do not show lines for clarity
-                    thk_curve=5
+                    thk_curve=4
                 end if
 				exit !Return to spectrum plotting interface
             else if (index(c80tmp,'0')/=0) then
@@ -2698,8 +2712,13 @@ do while(.true.)
 		call box2d !The dashed line of "call grid" overlaied frame of axis, so redraw frame
 		call legopt(2.5D0,0.5D0,1D0) !Decrease the length of legend color line
         call height(legtextsize) !Define legend text size
-		if (nsystem>1.and.ishowweicurve/=2) call legend(clegend,ilegendpos)
-		if (any(PVSnterm/=0)) call legend(clegend,ilegendpos)
+        if (ilegendpos==0) then
+			call legpos(legendx,legendy) !Absolute position of legends
+            call legend(clegend,3)
+        else
+			if (nsystem>1.and.ishowweicurve/=2) call legend(clegend,ilegendpos)
+			if (any(PVSnterm/=0)) call legend(clegend,ilegendpos)
+        end if
         call height(ticksize) !Size of ticks
 		call endgrf
         call labels("FLOAT","Y") !Restore to default
