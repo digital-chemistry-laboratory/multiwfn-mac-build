@@ -9,7 +9,7 @@ do while(.true.)
 	write(*,*) "1 Energy decomposition analysis based on molecular forcefield (EDA-FF)"
 	write(*,*) "2 Shubin Liu's energy decomposition analysis (Gaussian is needed)"
 	write(*,*) "3 sobEDA and sobEDAw energy decomposition analyses (J. Phys. Chem. A, 127, 7023 (2023))"
-    write(*,*) "4 Atomic contributions to dispersion interaction energy"
+    write(*,*) "4 Analysis of atomic contribution to dispersion energy"
 ! 		write(*,*) "2 Mayer energy decomposition analysis"
 ! 		write(*,*) "3 Fuzzy space based energy decomposition analysis"
 	read(*,*) infuncsel2
@@ -704,30 +704,23 @@ end subroutine
 
 
 
-!!=======================================================================
-!!======== Atomic contributions to dispersion interaction energy ========
-!!=======================================================================
+!!======================================================================
+!!======== Analysis of atomic contribution to dispersion energy ========
+!!======================================================================
 subroutine atomdispcontri
 use defvar
 use util
 implicit real*8 (a-h,o-z)
 real*8 dispmat(ncenter,ncenter),atomdisp(ncenter),tmparr(ncenter)
+real*8,allocatable :: dispmattmp(:,:),atomdisptmp(:)
 real*8 :: aparm=0.5D0
 character selectyn,c200tmp*200,c2000tmp*2000
 integer,allocatable :: atmlist(:),atmlist2(:)
 
-if (ifPBC/=0) then
-	write(*,*) "Error: This function does not support periodic system!"
-    write(*,"(a)") " If you really need to study a periodic system, please use supercell model, and only study the central part"
-    write(*,*) "Press ENTER button to exit"
-    read(*,*)
-    return
-end if
-
 write(*,"(/,a)") " Note: All data given in this function comes from DFT-D3(BJ) dispersion correction energy with B3LYP parameters, three-body terms are not taken into account"
 do while(.true.)
     write(*,*)
-    call menutitle("Atomic contributions to dispersion interaction energy",10,2)
+    call menutitle("Analysis of atomic contribution to dispersion energy",10,2)
     write(*,"(a,f7.4)") " -1 Set alpha parameter for calculating dispersion density, current:",aparm
     write(*,*) "0 Return"
     write(*,"(a)") " 1 Calculate atomic contributions to dispersion energy for current system"
@@ -744,10 +737,10 @@ do while(.true.)
         write(*,*) "Input alpha parameter, e.g. 0.5"
         read(*,*) aparm
     else if (isel==1) then
-        call get_atomdispmat(dispmat,"b3-lyp")
+        call get_atomdisp(atomdisp,dispmat,"b3-lyp")
+        write(*,*)
         write(*,*) "Atomic contribution to dispersion energy"
         do iatm=1,ncenter
-            atomdisp(iatm)=sum(dispmat(iatm,:))/2D0
             write(*,"(i6,'(',a,')',f10.3,' kcal/mol')") iatm,a(iatm)%name,atomdisp(iatm)
         end do
         write(*,*)
@@ -763,10 +756,7 @@ do while(.true.)
         end if
         
     else if (isel==2) then
-        call get_atomdispmat(dispmat,"b3-lyp")
-        do iatm=1,ncenter
-            atomdisp(iatm)=sum(dispmat(iatm,:))/2D0
-        end do
+        call get_atomdisp(atomdisp,dispmat,"b3-lyp")
         call setgrid(1,igridsel)
         allocate(cubmat(nx,ny,nz))
         cubmat=0
@@ -783,6 +773,7 @@ do while(.true.)
 	        end do
         end do
         cubmat=cubmat*(pi/aparm)**(-1.5D0)
+        write(*,*)
         write(*,*) "Exporting dispersion density grid data to dispdens.cub in current folder..."
         open(10,file="dispdens.cub",status="replace")
         call outcube(cubmat,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
@@ -790,8 +781,22 @@ do while(.true.)
         write(*,*) "Done!"
         
     else if (isel==3.or.isel==4) then
-        write(*,*) "Input a file containing geometry information of another system, which should have the same number &
-        of atoms and same atom order, e.g. D:\Akiyama\Mio.xyz"
+		write(*,*)
+		write(*,*) "Input indices of the atoms of interest in current system, e.g. 3,8-10,20,29"
+        write(*,*) "Press ENTER button directly will select all atoms"
+        read(*,"(a)") c2000tmp
+        if (c2000tmp==" ") then
+			ntmp=ncenter
+			allocate(atmlist(ntmp))
+            forall(i=1:ncenter) atmlist(i)=i
+        else
+			call str2arr(c2000tmp,ntmp)
+			allocate(atmlist(ntmp))
+			call str2arr(c2000tmp,ntmp,atmlist)
+        end if
+        write(*,"(a,i6)") " Number of selected atoms:",ntmp
+        write(*,*)
+        write(*,*) "Input the file containing geometry information of another system, e.g. D:\Akiyama\Mio.xyz"
         do while(.true.)
 	        read(*,"(a)") c200tmp
 	        inquire(file=c200tmp,exist=alive)
@@ -801,18 +806,42 @@ do while(.true.)
         call dealloall(0)
         write(*,*) "Loading "//trim(c200tmp)//"..."
         call readinfile(c200tmp,1)
-        call get_atomdispmat(dispmat,"b3-lyp")
-        do iatm=1,ncenter
-            tmparr(iatm)=sum(dispmat(iatm,:))/2D0
-        end do
+        write(*,*)
+		write(*,*) "Input indices of the atoms of interest in just loaded system, e.g. 3,8-10,20,29"
+        write(*,*) "Press ENTER button directly will select all atoms"
+        write(*,"(a)") " Note: The number and order of atoms to be selected must be identical to those selected previously"
+        read(*,"(a)") c2000tmp
+        if (c2000tmp==" ") then
+			ntmp2=ncenter
+			allocate(atmlist2(ntmp2))
+            forall(i=1:ncenter) atmlist2(i)=i
+        else
+			call str2arr(c2000tmp,ntmp2)
+			allocate(atmlist2(ntmp2))
+			call str2arr(c2000tmp,ntmp2,atmlist2)
+        end if
+        write(*,"(a,i6)") " Number of selected atoms:",ntmp2
+        if (ntmp2/=ntmp) then
+			write(*,"(' The number of atoms selected this time is',i6,', which is different to that selected previously,',i6)") ntmp2,ntmp
+            write(*,*) "Press ENTER button to return"
+            deallocate(atmlist,atmlist2)
+            cycle
+        end if
+        call get_atomdisp(tmparr,dispmat,"b3-lyp")
         call dealloall(0)
         write(*,*)
         write(*,*) "Reloading "//trim(filename)//"..."
         call readinfile(filename,1)
-        call get_atomdispmat(dispmat,"b3-lyp")
-        do iatm=1,ncenter
-            atomdisp(iatm)=sum(dispmat(iatm,:))/2D0-tmparr(iatm)
+        call get_atomdisp(atomdisp,dispmat,"b3-lyp")
+        atomdisp(atmlist(:))=atomdisp(atmlist(:))-tmparr(atmlist2(:))
+        write(*,"(a)") " Difference in atomic contribution to dispersion energy between the two systems (kcal/mol)"
+        do itmp=1,ntmp
+            write(*,"(i6,'(',a,')',f10.3,' kcal/mol')") atmlist(itmp),a(atmlist(itmp))%name,atomdisp(atmlist(itmp))
         end do
+        do itmp=1,ncenter
+			if (all(atmlist(:)/=itmp)) atomdisp(itmp)=0 !Make value of uninterested atoms zero
+        end do
+        deallocate(atmlist,atmlist2)
         if (isel==3) then
             write(*,*)
             write(*,*) "If outputting diffatomdisp.pqr, in which the ""charge"" property corresponds to &
@@ -850,10 +879,7 @@ do while(.true.)
         end if
         
     else if (isel==5) then
-        call get_atomdispmat(dispmat,"b3-lyp")
-        do iatm=1,ncenter
-            atomdisp(iatm)=sum(dispmat(iatm,:))/2D0
-        end do
+        call get_atomdisp(atomdisp,dispmat,"b3-lyp")
         do while(.true.)
 			write(*,*)
 			write(*,*) "Input indices of the atoms in the fragment, e.g. 3,8-10,20,29"
@@ -872,7 +898,13 @@ do while(.true.)
         end do
         
     else if (isel==6) then
-        call get_atomdispmat(dispmat,"b3-lyp")
+		if (ifPBC/=0) then
+			write(*,*) "Error: This function does not support periodic system!"
+		    write(*,*) "Press ENTER button to return"
+		    read(*,*)
+		    cycle
+		end if
+        call get_atomdisp(atomdisp,dispmat,"b3-lyp")
         do while(.true.)
 			write(*,*)
 			write(*,*) "Input indices of the atoms in fragment 1, e.g. 3,8-10,20,29"
@@ -892,9 +924,9 @@ do while(.true.)
 			allocate(atmlist2(ntmp2))
 			call str2arr(c2000tmp,ntmp2,atmlist2)
             tmpval=0
-            do iatm=1,ntmp
-				do jatm=1,ntmp
-					tmpval=tmpval+dispmat(iatm,jatm)
+            do idx=1,ntmp
+				do jdx=1,ntmp2
+					tmpval=tmpval+dispmat(atmlist(idx),atmlist2(jdx))
 				end do
             end do
 			write(*,"(' Dispersion interaction energy between the fragments:',f12.3,' kcal/mol')") tmpval
@@ -908,13 +940,16 @@ end subroutine
 
 
 !!--------- Generate pairwise dispersion interaction energy matrix between various atoms by invoking dftd3 code
+!atomdisp(i) is dispersion energy contribution by atom i (kcal/mol)
 !dispmat(i,j) is the dispersion energy (kcal/mol) between atoms i and j. Sum of all elements correspond to twice of dispersion correction energy
+!For periodic systems, dispmat(i,j) considers all cells, and hence (i,i) is no longer zero due to interaction between atom i and its image atom
 !If DFTname is empty, user will be asked to input the name
-subroutine get_atomdispmat(dispmat,DFTname)
+subroutine get_atomdisp(atomdisp,dispmat,DFTname)
 use defvar
 use util
 implicit real*8 (a-h,o-z)
-real*8 dispmat(ncenter,ncenter)
+real*8 atomdisp(ncenter),dispmat(ncenter,ncenter)
+integer maplist(ncenter)
 character(len=*) DFTname
 character c200tmp*200
 
@@ -924,7 +959,7 @@ if (.not.alive) then
     now please input its actual path, e.g. D:\study\dftd3_bin\dftd3.exe"
     do while(.true.)
         read(*,"(a)") dftd3path
-	    inquire(file=gaupath,exist=alive)
+	    inquire(file=dftd3path,exist=alive)
 	    if (alive) exit
 	    write(*,*) "Cannot find the file, input again!"
     end do
@@ -938,25 +973,54 @@ if (DFTname==" ") then
     read(*,"(a)") DFTname
 end if
 
-call outxyz("dftd3_tmp.xyz",10)
-c200tmp=trim(dftd3path)//' '//"dftd3_tmp.xyz"//' -func '//trim(DFTname)//' -bj -anal -cutoff 10000 > dftd3_dispmat.txt'
+!Run dftd3 code
+if (ifPBC==0) then
+	forall(i=1:ncenter) maplist(i)=i
+	call outxyz("dftd3_tmp.xyz",10)
+	c200tmp=trim(dftd3path)//' '//"dftd3_tmp.xyz"//' -func '//trim(DFTname)//' -bj -anal > dftd3_dispmat.txt'
+else
+	!POSCAR records atoms in the order of types, so constructing a list for mapping atom in POSCAR to atoms in current system
+	itmp=0
+	do iele=1,nelesupp
+		do iatm=1,ncenter
+			if (a(iatm)%index==iele) then
+				itmp=itmp+1
+                maplist(itmp)=iatm
+			end if
+		end do
+	end do
+	call outPOSCAR("dftd3_POSCAR",10)
+	c200tmp=trim(dftd3path)//' '//"dftd3_POSCAR"//' -pbc -func '//trim(DFTname)//' -bj -anal > dftd3_dispmat.txt'
+end if
 write(*,"(a)") " Running "//trim(c200tmp)
 call system(c200tmp)
 
-dispmat=0
+!Extract interatomic dispersion interaction
 open(10,file="dftd3_dispmat.txt",status="old")
 call loclabel(10,"pair  atoms",ifound)
 read(10,*)
-do iatm=1,ncenter
-    do jatm=iatm+1,ncenter
-        read(10,*) rtmp,rtmp,rtmp,rtmp,rtmp,rtmp,rtmp,rtmp,dispmat(iatm,jatm)
-        dispmat(jatm,iatm)=dispmat(iatm,jatm)
-    end do
+dispmat(:,:)=0
+atomdisp(:)=0
+do while (.true.)
+	read(10,*,iostat=ierror) iatm,jatm,tmpval
+    if (ierror/=0) exit
+    dispmat(maplist(iatm),maplist(jatm))=tmpval
+    dispmat(maplist(jatm),maplist(iatm))=tmpval
+    !write(*,"(2i6,f12.6)") maplist(iatm),maplist(jatm),dispmat(maplist(iatm),maplist(jatm))
+    if (iatm==jatm) then
+		atomdisp(maplist(iatm))=atomdisp(maplist(iatm))+tmpval
+    else
+		atomdisp(maplist(iatm))=atomdisp(maplist(iatm))+tmpval/2
+		atomdisp(maplist(jatm))=atomdisp(maplist(jatm))+tmpval/2
+    end if
 end do
 close(10)
-
-call delfile("dftd3_tmp.xyz dftd3_dispmat.txt .EDISP histo.dat")
+if (ifPBC==0) then
+	call delfile("dftd3_tmp.xyz dftd3_dispmat.txt .EDISP histo.dat")
+else
+	call delfile("dftd3_POSCAR dftd3_dispmat.txt .EDISP histo.dat")
+end if
 
 write(*,*) "Pairwise dispersion interaction energy matrix has been generated"
-write(*,"(' Total dispersion energy:',f12.3,' kcal/mol')") sum(dispmat)/2
+write(*,"(/,' Total dispersion energy:',f12.3,' kcal/mol')") sum(atomdisp)
 end subroutine

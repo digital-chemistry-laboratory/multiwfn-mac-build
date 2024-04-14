@@ -536,6 +536,20 @@ do while(.true.)
             c_gamma=2*VIP-VIP2-VEA
             w_cubic=c_miu**2/(2*c_eta)*(1+c_miu*c_gamma/3/c_eta**2)
             atmwcubic(:)=atmfpos(:)*w_cubic
+            !Calculate terms involved in Said Fernando Figueredo, Int. J. Quantum Chem., 124, e27366 (2024)
+            !c_parm=(VIP2-2*VIP+VEA)/(2*VIP2-VIP-VEA)
+            !b_parm=(VIP-VEA)/2-((VIP+VEA)/2)*c_parm
+            !a_parm=-(VIP+VEA)/2+((VIP-VEA)/2)*c_parm
+            !c_miu=a_parm
+            !c_eta=2*(b_parm-a_parm*c_parm)
+            !c_gamma=-3*c_parm*(b_parm-a_parm*c_parm)
+            !phi=dsqrt(c_eta**2 - 2*c_gamma*c_miu) - c_eta
+            !eps=(-c_miu)*(phi/c_gamma)-(phi/c_gamma)**2*(c_eta/2+phi/6)
+            !write(*,"('c_miu',2f12.6)") c_miu,c_miu*au2ev
+            !write(*,"('c_eta',2f12.6)") c_eta,c_eta*au2ev
+            !write(*,"('c_gamma',2f12.6)") c_gamma,c_gamma*au2ev
+            !write(*,"('phi',f12.6)") phi
+            !write(*,"('eps',2f12.6)") eps,eps*au2ev
         end if
         
         open(10,file="CDFT.txt",status="replace")

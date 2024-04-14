@@ -9020,7 +9020,7 @@ end do
 if (allocated(a_tmp)) deallocate(a_tmp)
 allocate(a_tmp(ncenter_tmp),atmocc(ncenter_tmp))
 atmocc=1
-write(*,"(a,i7)") " Number of symmetrically unique atoms:",ncenter_tmp
+if (infomode==0) write(*,"(a,i7)") " Number of symmetrically unique atoms:",ncenter_tmp
 
 !Locate to "loop_" just before _atom_site_label
 call loclabel(10,"_atom_site_label",ifound)
@@ -9122,7 +9122,7 @@ if (ifound==1) then
             symopstr(nsymopstr)=trim(adjustl(c80tmp(itmp+1:)))
         end if
     end do
-    write(*,"(a,i4)") " Number of symmetry operations:",nsymopstr
+    if (infomode==0) write(*,"(a,i4)") " Number of symmetry operations:",nsymopstr
 
     allocate(a_dup(ncenter_tmp*nsymopstr))
     call initf(3)
@@ -9176,7 +9176,7 @@ if (ifound==1) then
     a=a_dup(1:ncenter_dup)
     
 else !Symmetry operations are not explicitly given
-    write(*,"(a)") " Note: Symmetry operations are not explicitly given in the .cif file, therefore symmetry operations will not be taken into account"
+    if (infomode==0) write(*,"(a)") " Note: Symmetry operations are not explicitly given in the .cif file, therefore symmetry operations will not be taken into account"
     ncenter=ncenter_tmp
     allocate(a(ncenter))
     a=a_tmp
