@@ -3715,7 +3715,7 @@ integer nvir,nvirB !Number of virtual levels
 integer nSP !Number of special points (SP)
 integer,allocatable :: SPkp(:) !The k-point index in the whole path that each SP corresponds to
 integer,allocatable :: SPpath(:) !The path index that each SP belongs to
-character,allocatable :: SPlabel(:)*10,SPlabel_final(:)*10 !SP labels and its plotting form
+character,allocatable :: SPlabel(:)*15,SPlabel_final(:)*15 !SP labels and its plotting form
 real*8,allocatable :: SPxyz(:,:) !SP(1/2/3,i) is X,Y,Z of SP i in reciprocal space
 real*8,allocatable :: SPXpos(:) !Position in X-axis of band structure map of every SP
 real*8,allocatable :: kpXpos(:) !Position in X-axis of band structure map of every k-point
