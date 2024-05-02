@@ -1913,7 +1913,7 @@ use deftype
 use GUI
 use util
 implicit real*8 (a-h,o-z)
-integer fragsel(ncenter),nfragsel,intarr(ncenter),iffrag(ncenter)
+integer fragsel(ncenter),nfragsel,iffrag(ncenter)
 character c200tmp*200,c2000tmp*2000,selectyn
 real*8 mat(3,3),matt1(3,3),matt2(3,3)
 real*8 vec(3),vec2(3),vecr(1,3),vecc(3,1) !vector, row vector, column vector
@@ -1921,8 +1921,10 @@ type(atomtype),allocatable :: a_old(:)
 type(atomtype) atmp
 real*8 inertia(3,3),eigvecmat(3,3),eigvalarr(3)
 real*8 rcoord(3),fcoord(3)
-integer,allocatable :: tmparr(:)
+integer,allocatable :: tmparr(:),intarr(:)
 real*8,allocatable :: fcoordall(:,:)
+
+allocate(intarr(ncenter)) !It should be reallocated when constructing supercell
 
 if (allocated(b)) then
     write(*,"(/,a)") " NOTE: This function only changes geometry, the wavefunction will not be correspondingly affected!"
@@ -2591,7 +2593,7 @@ do while(.true.)
         allocate(a(ncenter))
         ncenter=0
         do iatm=1,size(a_tmp)
-            if (any(intarr==iatm)) cycle
+            if (any(intarr(1:ntmp)==iatm)) cycle
             ncenter=ncenter+1
             a(ncenter)=a_tmp(iatm)
         end do
@@ -2704,8 +2706,8 @@ do while(.true.)
         cellv3=n3*cellv3
         nelec=nelec*n1*n2*n3
         deallocate(a_old)
-        deallocate(fragatm)
-        allocate(fragatm(ncenter))
+        deallocate(fragatm,intarr)
+        allocate(fragatm(ncenter),intarr(ncenter))
         nfragatm=ncenter
         forall (i=1:nfragatm) fragatm(i)=i
         write(*,*) "Done!"

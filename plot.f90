@@ -794,6 +794,8 @@ if (status=="show".and.isys==1) then
 else
 	call height(40) !The text shown in graphic file is strangely larger than window, so slight decrease it
 end if
+CALL NAMDIS(40,'X')
+CALL NAMDIS(50,'Y')
 CALL HWFONT
 call center
 nysize=nint(2300*curvexyratio)
@@ -810,12 +812,18 @@ end if
 if (ilenunit1D==1) CALL NAME('Position (Bohr)','X')
 if (ilenunit1D==2) CALL NAME('Position (Angstrom)','X')
 if (present(axisnamey)) then
-	CALL NAME(trim(axisnamey),'Y')
+	if (axisnamey==" ") then
+		CALL NAME('Value (a.u.)','Y')
+    else
+		CALL NAME(trim(axisnamey),'Y')
+    end if
 else
 	CALL NAME('Value (a.u.)','Y')
 end if
 CALL LABDIG(numdiglinex,"X")
 CALL TICPOS("REVERS","XYZ")
+call height(curve_axistextsize)
+CALL HNAME(curve_axisnamesize)
 call ERRMOD("ALL","OFF")
 shifty=mod(curveymin,steplaby)
 if (ilog10y==0) then
@@ -836,6 +844,7 @@ if (icurve_vertlinex==1) then
 		vertliney(1)=10**(curveymin)
 		vertliney(2)=10**(curveymax)
 	end if
+	CALL LINWID(icurvethick-2)
 	CALL CURVE(vertlinex,vertliney,2)
 end if
 
@@ -853,7 +862,7 @@ if (present(atomr1)) then !Draw position of the two atom selected
 		CALL SETRGB(0.9D0,0D0,0D0)
 		CALL INCMRK(-1)
 		CALL MARKER(21)
-		CALL HSYMBL(20)
+		CALL HSYMBL(25)
 		CALL CURVE(atompointx,atompointy,2)
     end if
 end if

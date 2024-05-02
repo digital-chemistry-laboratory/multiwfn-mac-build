@@ -122,6 +122,7 @@ call wgapp(idisisosur2style,"Use transparent face",idisisosur2tpr)
 call wgapp(idisisosur2style,"Set color for face",idisisosur2solidclr)
 call wgapp(idisisosur2style,"Set color for mesh and points",idisisosur2meshptclr)
 call wgapp(idisisosur2style,"Set opacity for transparent face",idisisosur2opa)
+call wgapp(idisisosur2style,"Exchange positive and negative colors",idisisosur2invclr)
 CALL WGPOP(idiswindow," Isosur. quality",idisisosurquality)
 call wgapp(idisisosurquality,"Set number of grid points",idisisosurnumpt)
 call wgapp(idisisosurquality,"Very poor quality (super fast, 25k points)",idisisosurverypoor)
@@ -264,6 +265,7 @@ call SWGCBK(idisisosur1solidmeshneg,setisosur1solidmeshneg)
 call SWGCBK(idisisosur1tpr,setisosur1tpr)
 call SWGCBK(idisisosur1solidclr,setisosur1solidclr)
 call SWGCBK(idisisosur1invclr,setisosur1invclr)
+call SWGCBK(idisisosur2invclr,setisosur2invclr)
 call SWGCBK(idisisosur1meshptclr,setisosur1meshptclr)
 call SWGCBK(idisisosur1opa,setisosur1opa)
 call SWGCBK(idisisosur2solid,setisosur2solid) !Set style for isosur 2
@@ -2476,6 +2478,30 @@ clrBcub1oppomeshpt=tmp3
 call drawmol
 end subroutine
 
+!Exchange positive and negative colors for isosurface 2
+subroutine setisosur2invclr(id)
+integer,intent (in) :: id
+tmp1=clrRcub2same
+tmp2=clrGcub2same
+tmp3=clrBcub2same
+clrRcub2same=clrRcub2oppo
+clrGcub2same=clrGcub2oppo
+clrBcub2same=clrBcub2oppo
+clrRcub2oppo=tmp1
+clrGcub2oppo=tmp2
+clrBcub2oppo=tmp3
+tmp1=clrRcub2samemeshpt
+tmp2=clrGcub2samemeshpt
+tmp3=clrBcub2samemeshpt
+clrRcub2samemeshpt=clrRcub2oppomeshpt
+clrGcub2samemeshpt=clrGcub2oppomeshpt
+clrBcub2samemeshpt=clrBcub2oppomeshpt
+clrRcub2oppomeshpt=tmp1
+clrGcub2oppomeshpt=tmp2
+clrBcub2oppomeshpt=tmp3
+call drawmol
+end subroutine
+
 !Set color for mesh and points representation of isosurface 1
 subroutine setisosur1meshptclr(id)
 integer,intent (in) :: id
@@ -3115,6 +3141,7 @@ write(10,*) "ZFOC              ",ZFOC
 write(10,*) "VANG3DANG         ",VANG3DANG
 write(10,*) "camrotang         ",camrotang
 write(10,*) "sur_value_orb     ",sur_value_orb
+write(10,*) "iorthoview        ",iorthoview
 close(10)
 end subroutine
 
@@ -3192,6 +3219,7 @@ if (alive1.or.alive2) then
 	read(10,*) c30tmp,VANG3DANG
 	read(10,*) c30tmp,camrotang
     read(10,*) c30tmp,sur_value_orb
+    call readoption_int(10,"iorthoview",' ',iorthoview)
     close(10)
     call drawmol
     if (alive1) then

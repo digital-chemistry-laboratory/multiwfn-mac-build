@@ -31,7 +31,7 @@ integer :: idrawMObar=1,iconnlogi=1,iout=6
 character c80tmp*80,c80tmp2*80,selectyn
 !Some options relating to orbital interaction diagram
 real*8 :: eneplotlow=-20,eneplothigh=5,complabshift=0.5D0
-integer :: ilabelorbidx=1,ilabelcomp=1,labsize=40,ispinplot=1
+integer :: ilabelorbidx=1,ilabelcomp=1,labsize=40,ticknamesize=40,ispinplot=1
 
 write(*,*) "Citation of generalized CDA method used in Multiwfn and original CDA method"
 write(*,"(a)") " GCDA: Meng Xiao, Tian Lu, Generalized Charge Decomposition Analysis (GCDA) Method, J. Adv. Phys. Chem., 4, 111-124 (2015), http://dx.doi.org/10.12677/JAPC.2015.44013"
@@ -911,6 +911,7 @@ do while(.true.)
 			write(*,"(a,f9.4,a)") " 11 Set the criterion for determining degeneration, current:",degencrit," eV"
 			write(*,*) "12 Set orbital energy shifting value"
 			write(*,"(a,f6.2,a)") " 13 Set energy interval in the axis, current:",eneintv," eV"
+            write(*,"(a,i3)") " 14 Set size of ticks and axis names, current:",ticknamesize
 			read(*,*) isel2
 			
 			if (isel2==0) then
@@ -939,11 +940,11 @@ do while(.true.)
 				if (iopshCDA==0.or.(iopshCDA==1.and.ispinplot==1)) call plotintdiag(trim(c80tmp),ifrag,jfrag,nCDAfrag,nmoCDA,&
 				FOcomp,nmo,nmoCDA(ifrag),nmoCDA(jfrag),occCDA(:,0),occCDA(:,ifrag),occCDA(:,jfrag),&
 				eneCDA(:,0)+eneshiftcomp,eneCDA(:,ifrag)+eneshiftA,eneCDA(:,jfrag)+eneshiftB,eneplotlow,eneplothigh,eneintv,conncritleft,conncritright,&
-				idrawMObar,iconnlogi,ilabelorbidx,ilabelcomp,labsize,complabshift,degencrit,eneshiftA,eneshiftB,eneshiftcomp)
+				idrawMObar,iconnlogi,ilabelorbidx,ilabelcomp,labsize,ticknamesize,complabshift,degencrit,eneshiftA,eneshiftB,eneshiftcomp)
 				if (iopshCDA==1.and.ispinplot==2) call plotintdiag(trim(c80tmp),ifrag,jfrag,nCDAfrag,nmoCDA,&
 				FOcompb,nmo,nmoCDA(ifrag),nmoCDA(jfrag),occCDAb(:,0),occCDAb(:,ifrag),occCDAb(:,jfrag),&
 				eneCDAb(:,0)+eneshiftcomp,eneCDAb(:,ifrag)+eneshiftA,eneCDAb(:,jfrag)+eneshiftB,eneplotlow,eneplothigh,eneintv,conncritleft,conncritright,&
-				idrawMObar,iconnlogi,ilabelorbidx,ilabelcomp,labsize,complabshift,degencrit,eneshiftA,eneshiftB,eneshiftcomp)
+				idrawMObar,iconnlogi,ilabelorbidx,ilabelcomp,labsize,ticknamesize,complabshift,degencrit,eneshiftA,eneshiftB,eneshiftcomp)
 				if (isel2==2) then
                     write(*,*) "Done! The graph has been saved to current folder with ""dislin"" prefix"
                     graphformat=c80tmp2
@@ -1052,6 +1053,9 @@ do while(.true.)
 			else if (isel2==13) then
 				write(*,*) "Input energy interval in eV, e.g. 1.5"
 				read(*,*) eneintv
+            else if (isel2==14) then
+				write(*,*) "Input the text size, e.g. 50"
+                read(*,*) ticknamesize
 			end if
 		end do
 			
@@ -1175,12 +1179,12 @@ end subroutine
 !ilabelorbidx=0 means don't label orbital indices, =1 means label them
 !ilabelcomp=0 means don't label orbital composition, =1 means label them
 subroutine plotintdiag(status,ifrag,jfrag,nCDAfrag,nmoCDA,FOcp,nmo0,nmo1,nmo2,occ0,occ1,occ2,ene0,ene1,ene2,&
-eneplotlow,eneplothigh,eneintv,conncritleft,conncritright,idrawMObar,iconnlogi,ilabelorbidx,ilabelcomp,labsize,&
+eneplotlow,eneplothigh,eneintv,conncritleft,conncritright,idrawMObar,iconnlogi,ilabelorbidx,ilabelcomp,labsize,ticknamesize,&
 complabshift,degencrit,eneshiftA,eneshiftB,eneshiftcomp)
 use dislin
 use defvar
 implicit real*8 (a-h,o-z)
-integer nmo0,nmo1,nmo2,labsize,idrawMObar,iconnlogi,ilabelorbidx,ilabelcomp,nmoCDA(0:nCDAfrag)
+integer nmo0,nmo1,nmo2,labsize,ticknamesize,idrawMObar,iconnlogi,ilabelorbidx,ilabelcomp,nmoCDA(0:nCDAfrag)
 real*8 FOcp(nmo0,nmo0),occ0(nmo0),occ1(nmo1),occ2(nmo2),ene0(nmo0),ene1(nmo1),ene2(nmo2)
 real*8 eneplotlow,eneplothigh,conncritleft,conncritright
 real*8 movetextx,movetexty,complabshift,degencrit,eneshiftA,eneshiftB,eneshiftcomp
@@ -1215,13 +1219,13 @@ if (status=="show") call WINTIT("Click right mouse button to close...")
 call hwfont
 call center
 call AXSLEN(1500,2300)
-call height(50)
+call height(ticknamesize)
+call hname(ticknamesize)
 write(c80tmp,"(a,i3)") "Frag.",ifrag
 call messag(c80tmp,870,2600)
 call messag("Complex",1330,2600)
 write(c80tmp,"(a,i3)") "Frag.",jfrag
 call messag(c80tmp,1900,2600)
-call height(40)
 CALL NAME('Orbital energy (eV)','Y')
 CALL LABDIG(2,"Y")
 CALL NAMDIS(60,'Y')

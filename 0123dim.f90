@@ -349,13 +349,14 @@ steplabx=maxval(curvex)/10
 steplaby=exty
 graphformat_old=graphformat
 isel=-1
+curveYname=" "
 
 do while(.true.)
 	if (isilent==0.and.isel==-1) then
 		if (atomr1==atomr2) then !The line was defined by two terminal, so do not plot circles to highlight atoms
-			call drawcurve(curvex,curvey,npointcurve,0D0,maxval(curvex),steplabx,curveymin,curveymax,steplaby,"show")
+			call drawcurve(curvex,curvey,npointcurve,0D0,maxval(curvex),steplabx,curveymin,curveymax,steplaby,"show",axisnamey=curveYname)
 		else !The line was defined by two atoms, plot circles to highlight atoms
-			call drawcurve(curvex,curvey,npointcurve,0D0,maxval(curvex),steplabx,curveymin,curveymax,steplaby,"show",atomr1,atomr2)
+			call drawcurve(curvex,curvey,npointcurve,0D0,maxval(curvex),steplabx,curveymin,curveymax,steplaby,"show",atomr1,atomr2,curveYname)
 		end if
 	end if
     write(*,*)
@@ -379,6 +380,10 @@ do while(.true.)
 	if (ilenunit1D==1) write(*,*) "11 Change length unit of the graph from Bohr to Angstrom"
 	if (ilenunit1D==2) write(*,*) "11 Change length unit of the graph from Angstrom to Bohr"
 	write(*,"(a,i3)") " 12 Set width of curve line, current:",icurvethick
+    write(*,"(a,2i3)") " 13 Set number of digits after decimal point of the labels on X and Y axes, current:",numdiglinex,numdigliney
+    write(*,"(a,i3)") " 14 Set text size of tick labels, current:",curve_axistextsize
+    write(*,"(a,i3)") " 15 Set text size of axis names, current:",curve_axisnamesize
+    write(*,"(a)") " 16 Set name of Y axis"
 
 	read(*,*) isel
     if (isel==-2) then
@@ -390,9 +395,9 @@ do while(.true.)
 		exit
 	else if (isel==1) then
 		if (atomr1==atomr2) then
-			call drawcurve(curvex,curvey,npointcurve,0D0,maxval(curvex),steplabx,curveymin,curveymax,steplaby,"save")
+			call drawcurve(curvex,curvey,npointcurve,0D0,maxval(curvex),steplabx,curveymin,curveymax,steplaby,"save",axisnamey=curveYname)
 		else
-			call drawcurve(curvex,curvey,npointcurve,0D0,maxval(curvex),steplabx,curveymin,curveymax,steplaby,"save",atomr1,atomr2)
+			call drawcurve(curvex,curvey,npointcurve,0D0,maxval(curvex),steplabx,curveymin,curveymax,steplaby,"save",atomr1,atomr2,curveYname)
 		end if
 		write(*,"(a,a,a)") " The graph have been saved to ",trim(graphformat)," format file with ""dislin"" prefix in current directory"
 	else if (isel==2) then
@@ -476,6 +481,20 @@ do while(.true.)
 	else if (isel==12) then
 		write(*,*) "Input line width, e.g. 5"
 		read(*,*) icurvethick
+	else if (isel==13) then
+		write(*,*) "Input number of digits after decimal point of the labels on X and Y axes, e.g. 1,2"
+        read(*,*) numdiglinex,numdigliney
+    else if (isel==14) then
+        write(*,*) "Input text size of ticks on the axes, e.g. 45"
+        write(*,"(' Current value:',i3)") curve_axistextsize
+        read(*,*) curve_axistextsize
+    else if (isel==15) then
+        write(*,*) "Input text size of axis names, e.g. 40"
+        write(*,"(' Current value:',i3)") curve_axisnamesize
+        read(*,*) curve_axisnamesize
+    else if (isel==16) then
+        write(*,*) "Input text of name of Y-axis, e.g. Function value"
+        read(*,"(a)") curveYname
 	end if
 end do
 
@@ -2264,11 +2283,11 @@ do while(.true.)
 		read(*,*) iticks
 		iticks=iticks+1
     else if (isel2==5) then
-        write(*,*) "Input text size in the axes, e.g. 45"
+        write(*,*) "Input text size of ticks on the axes, e.g. 45"
         write(*,"(' Current value:',i3)") plane_axistextsize
         read(*,*) plane_axistextsize
     else if (isel2==6) then
-        write(*,*) "Input text size in the axes, e.g. 40"
+        write(*,*) "Input text size of axis names, e.g. 40"
         write(*,"(' Current value:',i3)") plane_axisnamesize
         read(*,*) plane_axisnamesize
     else if (isel2==7) then

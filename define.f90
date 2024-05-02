@@ -398,13 +398,13 @@ integer :: idrawbasinidx=0 !Draw which basin
 integer :: idrawinternalbasin=0 !=1 Draw internal part of the basin, =0 Only draw boundary grids
 integer :: ifixorbsign=0 !if 1, during generating orbital isosurface by drawmolgui, most part will always be positive (namely if sum(cubmat)<0 or sum(cubmattmp)<0, the data sign will be inverted)
 integer :: iatom_on_plane=0,iatom_on_plane_far=0,ibond_on_plane=0,plesel,IGRAD_ARROW=0,ILABEL_ON_CONTOUR,ncontour
-integer :: ictrlabsize=20,ivdwctrlabsize=0,iwidthvdwctr=10,iwidthposctr=3,iwidthnegctr=3,iwidthgradline=1,iclrindbndlab=14,plane_axistextsize=60,plane_axisnamesize=50,bondthick2D=10
+integer :: ictrlabsize=20,ivdwctrlabsize=0,iwidthvdwctr=10,iwidthposctr=3,iwidthnegctr=3,iwidthgradline=1,iclrindbndlab=14,plane_axistextsize=60,plane_axisnamesize=50,curve_axistextsize=45,curve_axisnamesize=45,bondthick2D=10
 integer :: iclrindctrpos=5,iclrindctrneg=5,ivdwclrindctr=3,iclrindgradline=6,vdwctrstyle(2)=(/1,0/),ctrposstyle(2)=(/1,0/),ctrnegstyle(2)=(/10,15/)
 integer :: isavepic=0,icurve_vertlinex=0,iclrindatmlab=1,imarkrefpos=0,ilog10y=0,iclrcurve=1
 integer :: inucespplot=0,idrawmol=1,idrawisosur=0,isosursec=0,idrawtype=1,idrawcontour=1
 integer :: iinvgradvec=0,icolorvecfield=0,vecclrind=30,idrawplanevdwctr=0,iplaneoutall=0,icurvethick=5,iclrtrans=0,ifillctrline=0,ishowclrfill_bar=0
 integer,allocatable :: highlightatomlist(:)
-character :: stream_intmethod*5="RK2"
+character :: stream_intmethod*5="RK2",curveYname*50=" "
 character :: clrtransname(0:19)*50=(/ character(len=50) :: "Rainbow & white/black for out-of-limit data","Rainbow","Reversed rainbow","Rainbow starting from white","Spectrum","Reversed Spectrum",&
 "Grey","Reversed Grey","Blue-White-Red","Red-White-Blue","Blue-Green-Red","Red-Green-Blue","White-Dark red","Black-Orange-Yellow","White-Dark green","Black-Green","White-Dark blue","Black-Blue-Cyan","Viridis","Yellow-Orange-Black" /)
 real*8 :: drawisosurgui_SWGSTP=0.01D0,drawisosurgui_lowlim=-5,drawisosurgui_highlim=5 !Control isovalue bar setting in drawisosurgui

@@ -654,7 +654,7 @@ do while (.true.)
 		call drawisosurgui(1)
 	else if (isel==5) then
 		write(*,*) "Input range of sign(lambda2)rho, e.g. -0.12,0.08"
-		write(*,"(a)") " delta-g_intra will be set to 0 if sign(lambda2)rho is out of the given range"
+		write(*,"(a)") " delta-g_intra will be set to 0 if sign(lambda2)rho is out of this range"
 		read(*,*) denslow,denshigh
 		do k=1,nz
 			do j=1,ny

@@ -308,7 +308,7 @@ if (idegen==1) write(*,"(a,f6.3,' eV')") " 9 Toggle considering degenerate, curr
 if (idegen==0) write(*,"(a)") " 9 Toggle using line height to show orbital degeneracy, current: No"
 write(*,*) "10 Draw local DOS for a point"
 write(*,*) "11 Draw local DOS along a line"
-write(*,*) "12 Enter interface for plotting photoelectron (PES) spectrum"
+write(*,*) "12 Enter interface for plotting photoelectron spectrum (PES)"
 
 read(*,*) c80tmp
 

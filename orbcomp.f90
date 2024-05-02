@@ -1491,7 +1491,7 @@ write(*,*)
 nfragLOBA=0
 do while(.true.)
 	write(*,*) "Input percentage threshold to determine oxidation state (50 is commonly used)"
-    write(*,"(a)") " Input ""m"" will determine oxidation state by assigning electron(s) in each orbital to the atom of maximal contribution"
+    write(*,"(a)") " Input ""m"" will determine oxidation state by assigning electron(s) in each orbital to the atom of maximal contribution, this is called as modified LOBA (mLOBA)"
 	if (allocated(fragLOBA)) then
         write(*,"(a,i6,a)") " Input -1 can redefine the fragment, current:",nfragLOBA," atoms"
     else
