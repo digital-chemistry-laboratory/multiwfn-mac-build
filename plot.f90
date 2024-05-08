@@ -625,12 +625,11 @@ if (ishowcell==1) then
 	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
     call cellvertex2(4,8,vert1x,vert1y,vert1z,vert2x,vert2y,vert2z)
 	call tube3D(vert1x,vert1y,vert1z,vert2x,vert2y,vert2z,tubethk,30,30)
-	!CALL MATOP3(0.58D0,0.21D0,0.72D0,'diffuse') !Old
 end if
 
 if (isosur1style/=5) CALL ZBFFIN !Ending of Z-buffer
 
-!Draw atom name and index of atoms/CPs/paths/surface extremes/real attractors in 3D plot
+!Draw label of atom name and index of atoms/CPs/paths/surface extremes/real attractors in 3D plot
 if ((ishowatmlab==1.or.ishowCPlab==1.or.ishowpathlab==1.or.ishowlocminlab==1.or.ishowlocmaxlab==1.or.(ishowattlab==1.and.numatt>0)).and.textheigh>0) then
     textheighmod=textheigh+155*plot2abs**1.3D0 !Change text size according to molecule size
 	call height(int(textheighmod))
@@ -687,8 +686,14 @@ if ((ishowatmlab==1.or.ishowCPlab==1.or.ishowpathlab==1.or.ishowlocminlab==1.or.
 			absy=(CPpos(2,i)-(yhigh+ylow)/2) * plot2abs
  			absz=(CPpos(3,i)-(zhigh+zlow)/2) * plot2abs
 			call abs3pt(absx,absy,absz,xplotcoor,yplotcoor) !Convert atomic absolute coordinate to screen coordinate(pixel)
-			screenx=nint(xplotcoor-textheighmod/2.6)
 			screeny=nint(yplotcoor-textheighmod/1.8)
+            if (i<10) then
+				screenx=nint(xplotcoor-textheighmod/2.6)
+            else if (i<100) then
+				screenx=nint(xplotcoor-textheighmod/1.5)
+            else
+				screenx=nint(xplotcoor-textheighmod)
+			end if
 			call messag(trim(ADJUSTL(ctemp)),screenx,screeny)
 		end do
 	end if

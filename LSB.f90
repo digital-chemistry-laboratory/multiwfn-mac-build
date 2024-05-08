@@ -1852,7 +1852,7 @@ do iatm=1,ncenter
     
     if (ienedens==3) call doinitlibreta(2)
     
-    !Calculate value (eval), gradiant (egrad) and Laplacian (elapl) of energy density for present system
+    !Calculate value (eval), gradient (egrad) and Laplacian (elapl) of energy density for present system
 	!$OMP parallel do shared(eval,egrad,elapl) private(ipt,x,y,z,hess) num_threads(nthreads)
 	do ipt=1+iradcut*sphpot,radpot*sphpot
 		x=gridatm(ipt)%x
@@ -1872,7 +1872,7 @@ do iatm=1,ncenter
 		elapl=elapl/eint
     end if
     
-    !Calculate value, gradiant and Laplacian of energy density for reference (promolecule), e0
+    !Calculate value, gradient and Laplacian of energy density for reference (promolecule), e0
     if (ieneinfo==4.or.ieneinfo==5.or.ieneinfo==6) then
 		if (ireftype==1) then
 			deallocate(MOocc,MOtype,MOene,CO)

@@ -5536,6 +5536,7 @@ end subroutine
 !--------------------------------------------------------------------------------
 !------------- Generate natural orbitals of specific excited states -------------
 !--------------------------------------------------------------------------------
+!Also compatible with SF-TDDFT case
 subroutine genexcitNO
 use defvar
 use util
@@ -5621,10 +5622,10 @@ do iexc=1,nexcsel
         end do
         Ptot=Ptot+matmul_blas(tmpmat,CObasa,nbasis,nbasis,0,1)
         
-        write(*,"(a)") " Calculating cross term of density matrix..."
+        write(*,*) "Calculating cross term of density matrix..."
 		!Currently only take below two cases into account (the same as hole-electron analysis):
-		! Calculate |i><j|: add (i->l,j->l) and substract (i<-l,j<-l) to Ptot
-		! Calculate |l><m|: add (i->l,i->m) and substract (i<-l,i<-m) to Ptot
+		! Calculate occupied MO coupling |i><j|, destination virtual MOs are the same (l): add (i->l,j->l) and substract (i<-l,j<-l) to Ptot
+		! Calculate virtual MO coupling  |l><m|, source occupied MOs are the same (i):     add (i->l,i->m) and substract (i<-l,i<-m) to Ptot
 		do iexcitorb=1,excnorb
 			call showprog(iexcitorb,excnorb)
 			if (skippair(iexcitorb)) cycle
@@ -5632,12 +5633,12 @@ do iexc=1,nexcsel
 			ileft=orbleft(iexcitorb)
 			iright=orbright(iexcitorb)
 			do jexcitorb=1,excnorb
-				if (skippair(jexcitorb)) cycle
+				if (skippair(jexcitorb)) cycle !Skip local term
 				jdir=excdir(jexcitorb)
 				if (idir/=jdir) cycle !Two configurations must have the same excitation direction
 				jleft=orbleft(jexcitorb)
 				jright=orbright(jexcitorb)
-				if (ileft==jleft) then !Calculate virtual MO coupling |l><m| contribution to P
+				if (ileft==jleft) then !Source MO is the same, calculate virtual MO coupling |l><m| contribution to P
 					if (iright==jright) cycle
 					tmpmat=exccoeff(iexcitorb)*exccoeff(jexcitorb)*matmul_blas(CObasa(:,iright:iright),CObasa(:,jright:jright),nbasis,nbasis,0,1)
 					if (idir==1) then !->
@@ -5645,7 +5646,7 @@ do iexc=1,nexcsel
 					else !<-
 						Ptot=Ptot-tmpmat
 					end if
-				else if (iright==jright) then !Calculate occupied MO coupling |i><j| contribution to P
+				else if (iright==jright) then !Destination MO is the same, calculate occupied MO coupling |i><j| contribution to P
 					tmpmat=exccoeff(iexcitorb)*exccoeff(jexcitorb)*matmul_blas(CObasa(:,ileft:ileft),CObasa(:,jleft:jleft),nbasis,nbasis,0,1)
 					if (idir==1) then !->
 						Ptot=Ptot-tmpmat
@@ -5672,7 +5673,7 @@ do iexc=1,nexcsel
         end do
         Pbeta=Pbeta+matmul_blas(tmpmat,CObasb,nbasis,nbasis,0,1)
         
-        write(*,"(a)") " Calculating cross term of density matrix..."
+        write(*,*) "Calculating cross term of density matrix..."
 		do iexcitorb=1,excnorb
 			call showprog(iexcitorb,excnorb)
 			if (skippair(iexcitorb)) cycle
@@ -5685,16 +5686,16 @@ do iexc=1,nexcsel
 				if (idir/=jdir) cycle
 				jleft=orbleft(jexcitorb)
 				jright=orbright(jexcitorb)
-				if (ileft==jleft) then !Calculate virtual MO coupling |l><m| contribution to P
-					if (iright==jright) cycle
-                    if (ileft<=nbasis) then !Transition between alpha MOs
+				if (ileft==jleft) then !Source MO is the same, calculate virtual MO coupling |l><m| contribution to P
+					if (iright==jright) cycle !Skip local term
+                    if (iright<=nbasis) then !Transition to an alpha MOs
 						tmpmat=exccoeff(iexcitorb)*exccoeff(jexcitorb)*matmul_blas(CObasa(:,iright:iright),CObasa(:,jright:jright),nbasis,nbasis,0,1)
 						if (idir==1) then !->
 							Palpha=Palpha+tmpmat
 						else !<-
 							Palpha=Palpha-tmpmat
 						end if
-                    else !Transition between beta MOs
+                    else !Transition to a beta MOs
 						tmpmat=exccoeff(iexcitorb)*exccoeff(jexcitorb)*matmul_blas(CObasb(:,iright-nbasis:iright-nbasis),CObasb(:,jright-nbasis:jright-nbasis),nbasis,nbasis,0,1)
 						if (idir==1) then !->
 							Pbeta=Pbeta+tmpmat
@@ -5702,15 +5703,15 @@ do iexc=1,nexcsel
 							Pbeta=Pbeta-tmpmat
 						end if
                     end if
-				else if (iright==jright) then !Calculate occupied MO coupling |i><j| contribution to P
-                    if (iright<=nbasis) then !Transition between alpha MOs
+				else if (iright==jright) then !Destination MO is the same, calculate occupied MO coupling |i><j| contribution to P
+                    if (ileft<=nbasis) then !Transition from an alpha MO
 						tmpmat=exccoeff(iexcitorb)*exccoeff(jexcitorb)*matmul_blas(CObasa(:,ileft:ileft),CObasa(:,jleft:jleft),nbasis,nbasis,0,1)
                         if (idir==1) then !->
 							Palpha=Palpha-tmpmat
 						else !<-
 							Palpha=Palpha+tmpmat
 						end if
-                    else !Transition between beta MOs
+                    else !Transition from a beta MO
 						tmpmat=exccoeff(iexcitorb)*exccoeff(jexcitorb)*matmul_blas(CObasb(:,ileft-nbasis:ileft-nbasis),CObasb(:,jleft-nbasis:jleft-nbasis),nbasis,nbasis,0,1)
                         if (idir==1) then !->
 							Pbeta=Pbeta-tmpmat
@@ -5746,7 +5747,6 @@ deallocate(CObasa_org)
 if (allocated(CObasb_org)) deallocate(CObasb_org)
 write(*,"(/,a)") " Done! .mwfn files containing natural orbitals of selected excited state(s) have been successfully generated!"
 end subroutine
-
 
 
 

@@ -386,7 +386,7 @@ real*8 :: planestpx=1.5D0,planestpy=1.5D0,planestpz=0.1D0
 integer :: fillcoloritpx=5,fillcoloritpy=3,pleatmlabsize=50
 real*8 :: disshowlabel=0.5D0,disshowCP=0.5D0,disshowpath=0.5D0
 real*8 :: bondclrR=0.1D0,bondclrG=1D0,bondclrB=0.1D0,atmlabclrR=0D0,atmlabclrG=0D0,atmlabclrB=0D0
-real*8 :: CPlabclrR=0.3D0,CPlabclrG=0.65D0,CPlabclrB=1D0 !CP label color
+real*8 :: CPlabclrR=0D0,CPlabclrG=0D0,CPlabclrB=1D0 !CP label color
 real*8 :: CP3n3RGB(3)=(/0.72D0,0D0,0.72D0/),CP3n1RGB(3)=(/1D0,0.5D0,0D0/),CP3p1RGB(3)=(/1D0,1D0,0D0/),CP3p3RGB(3)=(/0D0,1D0,0D0/)
 real*8 :: CP3n3RGB_2D(3)=(/0.72D0,0D0,0.72D0/),CP3n1RGB_2D(3)=(/0D0,0D0,1D0/),CP3p1RGB_2D(3)=(/1D0,0.5D0,0D0/),CP3p3RGB_2D(3)=(/0D0,1D0,0D0/)
 real*8 :: IBSclrR=0.1D0,IBSclrG=1D0,IBSclrB=0.1D0 !Interbasin surface color
