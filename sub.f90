@@ -1941,11 +1941,12 @@ end subroutine
 
 
 
-!!------- Generate a promolecular wavefunction by calculating and then combining atomic .wfn files, store to global arrays with _pmol
-!  The basis set for evaluating atoms must be identical to present system  
+!!------- Generate a promolecular wavefunction by calculating and then combining atomic .wfn files, &
+!store to global arrays with _pmol, namely MOocc_pmol, MOene_pmol, MOtype_pmol, CO_pmol, and then recover the original wavefunction
+!  The basis set for evaluating atoms must be identical to present system!
 !  Mainly used to calculate information gain at a batch of points, which needs evaluation of promolecular density frequently
-!  The density calculated by this promolecular .wfn file is exactly identical to superposition of densities corresponding to all atomic .wfn files
-!Since spin density is not interest in this context, spin flip is not taken into account
+!  The density corresponding to this promolecular wavefunction is exactly identical to superposition of densities of all atomic .wfn files
+!  Since spin density is not interest in this context, spin flip is not taken into account
 subroutine generate_promolwfn
 use defvar
 implicit real*8 (a-h,o-z)
@@ -1982,6 +1983,14 @@ do iatm=1,ncustommap
     imo_pmol=imo_pmol+nmo
 end do
 nmo_pmol=imo_pmol-1
+if (iGTF-1/=nprims_org) then
+    write(*,"(/,a)") " Error: The basis set used for calculating atoms must be different to that originally used for calculating molecule!"
+    write(*,"(' Number of GTFs of promolecular wavefunction:',i10)") iGTF-1
+    write(*,"(' Number of GTFs of original wavefunction:    ',i10)") nprims_org
+    write(*,*) "This situation is not supported. Press ENTER button to exit"
+    read(*,*)
+    stop
+end if
 
 write(*,*) "Done! Promolecular wavefunction has been successfully generated!"
 write(*,"(a)") " Reloading "//trim(firstfilename)

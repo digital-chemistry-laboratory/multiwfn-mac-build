@@ -1695,7 +1695,8 @@ end subroutine
 
 
 
-!!--------- The Energetic Information Project    
+!!--------- The Energetic Information Project
+!This routine use atomic grid to perform integration over whole space with Becke partition. Because Becke partition is sharp enough, molecular grid is not needed
 subroutine energy_info_project
 use defvar
 use util
@@ -1705,10 +1706,11 @@ character refsysname*200
 real*8 intval,funcval(radpot*sphpot),beckeweigrid(radpot*sphpot)
 type(content) gridatmorg(radpot*sphpot),gridatm(radpot*sphpot)
 real*8 eval(radpot*sphpot),egrad(3,radpot*sphpot),elapl(radpot*sphpot)
-real*8 e0val(radpot*sphpot),e0grad(3,radpot*sphpot),e0lapl(radpot*sphpot)
+real*8 e0val(radpot*sphpot),e0grad(3,radpot*sphpot)
+real*8,allocatable :: evalcub(:,:,:),egradcub(:,:,:,:),elaplcub(:,:,:),e0valcub(:,:,:),e0gradcub(:,:,:,:),funcvalcub(:,:,:)
 real*8 vectmp(3),hess(3,3)
 
-do while(.true.)
+do while(.true.) !Interface loop
 write(*,*)
 call menutitle("Energetic Information Project",10,1)
 write(*,*) "0 Return"
@@ -1744,6 +1746,7 @@ if (ieneinfo==4.or.ieneinfo==5.or.ieneinfo==6) then
 	end if
 end if
 
+write(*,*)
 write(*,*) "Select type of energy density"
 write(*,"(a)") " 1 Total energy E (electronic energy density)"
 write(*,"(a)") " 2 Total kinetic energy Ts (Hamiltonian kinetic energy density)"
@@ -1755,12 +1758,6 @@ write(*,"(a)") " 6 Pauli energy Tp=Ts-Tw (the form of Ts is determined by ""iKED
 write(*,"(a)") " 7 Fermionic quantum energy Eq=Tp+Exc (evaluating Tp based on Hamiltonian kinetic energy density)"
 write(*,"(a)") " -7 Fermionic quantum energy Eq=Tp+Exc (evaluating Tp based on Lagrangian kinetic energy density)"
 read(*,*) ienedens
-
-write(*,*)
-write(*,*) "Use origin form or scaled (normalized) form of the energy density?"
-write(*,*) "1 Origin form"
-write(*,*) "2 Scaled form"
-read(*,*) iform
 
 if (ienedens==2) then
 	ifunc=6
@@ -1777,6 +1774,22 @@ else
 	if (ienedens==-7) iuserfunc=-69
 end if
 
+write(*,*)
+write(*,*) "Use origin form or scaled (normalized) form of the energy density?"
+write(*,*) "1 Origin form"
+write(*,*) "2 Scaled form"
+read(*,*) iform
+
+write(*,*)
+write(*,*) "Choose task"
+write(*,*) "1 Obtain integral over whole space"
+write(*,*) "2 Calculate grid data and export to ITA.cub in current folder"
+read(*,*) itask
+if (itask==2) then
+	call setgrid(0,igridsel)
+    allocate(evalcub(nx,ny,nz),egradcub(3,nx,ny,nz),elaplcub(nx,ny,nz),e0valcub(nx,ny,nz),e0gradcub(3,nx,ny,nz),funcvalcub(nx,ny,nz))
+end if
+
 call walltime(iwalltime1)
 write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
 call gen1cintgrid(gridatmorg,iradcut)
@@ -1787,8 +1800,8 @@ if (iform==1) then
     e0int=1
 else if (iform==2) then
 	write(*,*) "Calculating integral of energy density over whole space..."
-	eint=0 !Interal of present molecule
-    e0int=0 !Integral of reference state
+	eint=0 !Interal of present molecule to be evaluated
+    e0int=0 !Integral of reference state to be evaluated
 	do iatm=1,ncenter
 		write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
 		gridatm%x=gridatmorg%x+a(iatm)%x
@@ -1843,37 +1856,139 @@ if (iform==2) then
 	write(*,*)
 	write(*,*) "Start formal calculation"
 end if
-intval=0
-do iatm=1,ncenter
-	write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
-	gridatm%x=gridatmorg%x+a(iatm)%x
-	gridatm%y=gridatmorg%y+a(iatm)%y
-	gridatm%z=gridatmorg%z+a(iatm)%z
+
+if (itask==1) then !Obtain integral over whole space
+	intval=0
+	do iatm=1,ncenter
+		write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
+		gridatm%x=gridatmorg%x+a(iatm)%x
+		gridatm%y=gridatmorg%y+a(iatm)%y
+		gridatm%z=gridatmorg%z+a(iatm)%z
     
-    if (ienedens==3) call doinitlibreta(2)
+		if (ienedens==3) call doinitlibreta(2)
     
-    !Calculate value (eval), gradient (egrad) and Laplacian (elapl) of energy density for present system
-	!$OMP parallel do shared(eval,egrad,elapl) private(ipt,x,y,z,hess) num_threads(nthreads)
-	do ipt=1+iradcut*sphpot,radpot*sphpot
-		x=gridatm(ipt)%x
-		y=gridatm(ipt)%y
-		z=gridatm(ipt)%z
-        if (ider==0) then !Only need value
-			eval(ipt)=calcfuncall(ifunc,x,y,z)
-        else !Need 1st or 1st+2nd derivative
-			call gencalchessmat(ider,ifunc,x,y,z,eval(ipt),egrad(:,ipt),hess(:,:),1)
-			elapl(ipt)=hess(1,1)+hess(2,2)+hess(3,3)
-        end if
+		!Calculate value (eval), gradient (egrad) and Laplacian (elapl) of energy density for present system
+		!$OMP parallel do shared(eval,egrad,elapl) private(ipt,x,y,z,hess) num_threads(nthreads)
+		do ipt=1+iradcut*sphpot,radpot*sphpot
+			x=gridatm(ipt)%x
+			y=gridatm(ipt)%y
+			z=gridatm(ipt)%z
+			if (ider==0) then !Only need value
+				eval(ipt)=calcfuncall(ifunc,x,y,z)
+			else !Need 1st or 1st+2nd derivative
+				call gencalchessmat(ider,ifunc,x,y,z,eval(ipt),egrad(:,ipt),hess(:,:),1)
+				elapl(ipt)=hess(1,1)+hess(2,2)+hess(3,3)
+			end if
+		end do
+		!$OMP end parallel do
+		if (iform==2) then
+			eval=eval/eint
+			egrad=egrad/eint
+			elapl=elapl/eint
+		end if
+    
+		!Calculate value, gradient and Laplacian of energy density for reference (promolecule), e0
+		if (ieneinfo==4.or.ieneinfo==5.or.ieneinfo==6) then
+			if (ireftype==1) then
+				deallocate(MOocc,MOtype,MOene,CO)
+				allocate(MOocc(nmo_pmol),MOene(nmo_pmol),MOtype(nmo_pmol),CO(nmo_pmol,nprims))
+				nmo=nmo_pmol
+				MOocc=MOocc_pmol
+				MOene=MOene_pmol
+				MOtype=MOtype_pmol
+				CO=CO_pmol
+			else if (ireftype==2) then
+				call dealloall(0)
+				call readinfile(refsysname,1)
+			end if
+			if (ienedens==3) call doinitlibreta(2)
+			!$OMP parallel do shared(e0val,e0grad) private(ipt,x,y,z,hess) num_threads(nthreads)
+			do ipt=1+iradcut*sphpot,radpot*sphpot
+				x=gridatm(ipt)%x
+				y=gridatm(ipt)%y
+				z=gridatm(ipt)%z
+				if (ider==0) then !Only need value
+					e0val(ipt)=calcfuncall(ifunc,x,y,z)
+				else !Need 1st derivative
+					call gencalchessmat(1,ifunc,x,y,z,e0val(ipt),e0grad(:,ipt),hess(:,:),1)
+				end if
+			end do
+			!$OMP end parallel do
+			call dealloall(0)
+			call readinfile(firstfilename,1) !Retrieve the first loaded file
+		end if
+		if (iform==2) then
+			e0val=e0val/e0int
+			e0grad=e0grad/e0int
+		end if
+    
+		!Calculate function value at every point
+		do ipt=1+iradcut*sphpot,radpot*sphpot
+			if (ieneinfo==1) then
+				funcval(ipt)=-eval(ipt)*log(eval(ipt))
+			else if (ieneinfo==2) then
+				funcval(ipt)=sum(egrad(:,ipt)**2)/eval(ipt)
+			else if (ieneinfo==3) then
+				funcval(ipt)=-elapl(ipt)*log(eval(ipt))
+			else if (ieneinfo==4) then
+				funcval(ipt)=eval(ipt)*log(eval(ipt)/e0val(ipt))
+			else if (ieneinfo==5) then
+				vectmp(:)=egrad(:,ipt)/eval(ipt)-e0grad(:,ipt)/e0val(ipt)
+				funcval(ipt)=eval(ipt)*sum(vectmp(:)**2)
+			else if (ieneinfo==6) then
+				funcval(ipt)=elapl(ipt)*log(eval(ipt)/e0val(ipt))
+			end if
+			!write(15,*) ipt,funcval(ipt),eval(ipt),e0val(ipt),gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z
+		end do
+    
+		call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid,covr_tianlu,3)
+		valthis=0
+		do ipt=1+iradcut*sphpot,radpot*sphpot
+			valthis=valthis+funcval(ipt)*gridatmorg(ipt)%value*beckeweigrid(ipt)
+		end do
+		intval=intval+valthis
+		write(*,"(' Contribution of center',i6,':',1PE20.10)") iatm,valthis
 	end do
-	!$OMP end parallel do
-    if (iform==2) then
-		eval=eval/eint
-		egrad=egrad/eint
-		elapl=elapl/eint
-    end if
+	write(*,*) "Note: The center contributions correspond to Becke partition"
+
+	write(*,"(/,' Result is',1PE20.10)") intval
+
+
+else if (itask==2) then !Calculate grid data and export to ITA.cub in current folder
+	if (ienedens==3) call doinitlibreta(2)
+    write(*,"(a)") " Calculating grid data of energy density and its derivatives for actual system..."
+	ifinish=0
+	ntmp=floor(ny*nz/100D0)
+	!$OMP PARALLEL DO SHARED(evalcub,egradcub,elaplcub,ifinish,ishowprog) PRIVATE(i,j,k,x,y,z,hess) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
+	do k=1,nz
+		do j=1,ny
+			do i=1,nx
+				call getgridxyz(i,j,k,x,y,z)
+				if (ider==0) then !Only need value
+					evalcub(i,j,k)=calcfuncall(ifunc,x,y,z)
+				else !Need 1st or 1st+2nd derivative
+					call gencalchessmat(ider,ifunc,x,y,z,evalcub(i,j,k),egradcub(:,i,j,k),hess(:,:),1)
+					elaplcub(i,j,k)=hess(1,1)+hess(2,2)+hess(3,3)
+				end if
+			end do
+			!$OMP CRITICAL
+			ifinish=ifinish+1
+			ishowprog=mod(ifinish,ntmp)
+			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+			!$OMP END CRITICAL
+		end do
+	end do
+	!$OMP END PARALLEL DO
+	if (ishowprog/=0) call showprog(100,100)
     
-    !Calculate value, gradient and Laplacian of energy density for reference (promolecule), e0
-    if (ieneinfo==4.or.ieneinfo==5.or.ieneinfo==6) then
+	if (iform==2) then
+		evalcub=evalcub/eint
+		egradcub=egradcub/eint
+		elaplcub=elaplcub/eint
+	end if
+    
+    write(*,"(a)") " Calculating grid data of energy density and its derivatives for reference (promolecule) system..."
+	if (ieneinfo==4.or.ieneinfo==5.or.ieneinfo==6) then
 		if (ireftype==1) then
 			deallocate(MOocc,MOtype,MOene,CO)
 			allocate(MOocc(nmo_pmol),MOene(nmo_pmol),MOtype(nmo_pmol),CO(nmo_pmol,nprims))
@@ -1882,65 +1997,75 @@ do iatm=1,ncenter
 			MOene=MOene_pmol
 			MOtype=MOtype_pmol
 			CO=CO_pmol
-        else if (ireftype==2) then
+		else if (ireftype==2) then
 			call dealloall(0)
-            call readinfile(refsysname,1)
-        end if
-        if (ienedens==3) call doinitlibreta(2)
-		!$OMP parallel do shared(e0val,e0grad,e0lapl) private(ipt,x,y,z,hess) num_threads(nthreads)
-		do ipt=1+iradcut*sphpot,radpot*sphpot
-			x=gridatm(ipt)%x
-			y=gridatm(ipt)%y
-			z=gridatm(ipt)%z
-			if (ider==0) then !Only need value
-				e0val(ipt)=calcfuncall(ifunc,x,y,z)
-			else !Need 1st derivative
-				call gencalchessmat(1,ifunc,x,y,z,e0val(ipt),e0grad(:,ipt),hess(:,:),1)
-			end if
+			call readinfile(refsysname,1)
+		end if
+		if (ienedens==3) call doinitlibreta(2)
+		ifinish=0
+		!$OMP PARALLEL DO SHARED(e0valcub,e0gradcub,ifinish,ishowprog) PRIVATE(i,j,k,x,y,z,hess) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
+		do k=1,nz
+			do j=1,ny
+				do i=1,nx
+					call getgridxyz(i,j,k,x,y,z)
+					if (ider==0) then !Only need value
+						e0valcub(i,j,k)=calcfuncall(ifunc,x,y,z)
+					else !Need 1st derivative
+						call gencalchessmat(ider,ifunc,x,y,z,e0valcub(i,j,k),e0gradcub(:,i,j,k),hess(:,:),1)
+					end if
+				end do
+				!$OMP CRITICAL
+				ifinish=ifinish+1
+				ishowprog=mod(ifinish,ntmp)
+				if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+				!$OMP END CRITICAL
+			end do
 		end do
-		!$OMP end parallel do
+		!$OMP END PARALLEL DO
+		if (ishowprog/=0) call showprog(100,100)
 		call dealloall(0)
 		call readinfile(firstfilename,1) !Retrieve the first loaded file
-    end if
-    if (iform==2) then
-		e0val=e0val/e0int
-		e0grad=e0grad/e0int
-    end if
+	end if
+	if (iform==2) then
+		e0valcub=e0valcub/e0int
+		e0gradcub=e0gradcub/e0int
+	end if
     
-    !Calculate function value at every point
-	do ipt=1+iradcut*sphpot,radpot*sphpot
-        if (ieneinfo==1) then
-			funcval(ipt)=-eval(ipt)*log(eval(ipt))
-        else if (ieneinfo==2) then
-			funcval(ipt)=sum(egrad(:,ipt)**2)/eval(ipt)
-        else if (ieneinfo==3) then
-			funcval(ipt)=-elapl(ipt)*log(eval(ipt))
-        else if (ieneinfo==4) then
-			funcval(ipt)=eval(ipt)*log(eval(ipt)/e0val(ipt))
-        else if (ieneinfo==5) then
-			vectmp(:)=egrad(:,ipt)/eval(ipt)-e0grad(:,ipt)/e0val(ipt)
-            funcval(ipt)=eval(ipt)*sum(vectmp(:)**2)
-        else if (ieneinfo==6) then
-			funcval(ipt)=elapl(ipt)*log(eval(ipt)/e0val(ipt))
-        end if
-        !write(15,*) ipt,funcval(ipt),eval(ipt),e0val(ipt),gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z
+    write(*,"(a)") " Calculating grid data of function value..."
+	do k=1,nz
+		do j=1,ny
+			do i=1,nx
+				if (ieneinfo==1) then
+					funcvalcub(i,j,k)=-evalcub(i,j,k)*log(evalcub(i,j,k))
+				else if (ieneinfo==2) then
+					funcvalcub(i,j,k)=sum(egradcub(:,i,j,k)**2)/evalcub(i,j,k)
+				else if (ieneinfo==3) then
+					funcvalcub(i,j,k)=-elaplcub(i,j,k)*log(evalcub(i,j,k))
+				else if (ieneinfo==4) then
+					funcvalcub(i,j,k)=evalcub(i,j,k)*log(evalcub(i,j,k)/e0valcub(i,j,k))
+				else if (ieneinfo==5) then
+					vectmp(:)=egradcub(:,i,j,k)/evalcub(i,j,k)-e0gradcub(:,i,j,k)/e0valcub(i,j,k)
+					funcvalcub(i,j,k)=evalcub(i,j,k)*sum(vectmp(:)**2)
+				else if (ieneinfo==6) then
+					funcvalcub(i,j,k)=elaplcub(i,j,k)*log(evalcub(i,j,k)/e0valcub(i,j,k))
+				end if
+			end do
+		end do
 	end do
     
-	call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid,covr_tianlu,3)
-    valthis=0
-	do ipt=1+iradcut*sphpot,radpot*sphpot
-		valthis=valthis+funcval(ipt)*gridatmorg(ipt)%value*beckeweigrid(ipt)
-	end do
-    intval=intval+valthis
-	write(*,"(' Contribution of center',i6,':',1PE20.10)") iatm,valthis
-end do
+    write(*,*) "Exporting ITA.cub in current folder"
+	open(10,file="ITA.cub",status="replace")
+	call outcube(funcvalcub,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
+    close(10)
+    write(*,*) "Done!"
+	if (itask==2) deallocate(evalcub,egradcub,elaplcub,e0valcub,e0gradcub,funcvalcub)
+end if
+
 call walltime(iwalltime2)
-write(*,"(' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
-write(*,*) "Note: The center contributions correspond to Becke partition"
+write(*,"(/,' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
 
-write(*,"(/,' Result is',1PE20.10)") intval
 
-end do
+end do !End of interface loop
 
 end subroutine
 
