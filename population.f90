@@ -182,7 +182,7 @@ else
         else if (ipopsel==19) then
             call gasteiger
         else if (ipopsel==20) then
-            call MBIS_wrapper_frj
+            call MBIS_wrapper_TianLu
 		end if
 		if (imodwfnold==1.and.(ipopsel==1.or.ipopsel==2.or.ipopsel==6.or.ipopsel==11)) then !1,2,6,11 are the methods need to reload the initial wavefunction
 			write(*,"(a)") " Note: The wavefunction file has been reloaded, your previous modifications on occupation number will be ignored"
@@ -932,8 +932,11 @@ if (chgtype==1.or.chgtype==2.or.chgtype==6.or.chgtype==7.or.chgtype==-7) then
 					dipz=dipz-(gridatm(i)%z-atmz)*tmpv
 				end if
 			end do
-			if (nEDFelec==0) charge(iatm)=a(iatm)%charge+tmpcharge
-			if (nEDFelec>0) charge(iatm)=a(iatm)%index+tmpcharge !EDF is provided
+			if (nEDFelec==0) then
+				charge(iatm)=a(iatm)%charge+tmpcharge
+			else !EDF is provided
+				charge(iatm)=a(iatm)%index+tmpcharge
+            end if
 		else if (chgtype==2) then !VDD charge
             do i=1+iradcut*sphpot,radpot*sphpot !Cycle each grid point of iatm, if the distance between the grid point and other atom is shorter than iatm, weight=0
 				vddwei=1D0
@@ -1063,8 +1066,8 @@ else if (chgtype==5) then
 		end do
 		if (nEDFelec==0) then
 			charge(iatm)=a(iatm)%charge+tmpcharge
-		else if (nEDFelec>0) then
-			charge(iatm)=a(iatm)%index+tmpcharge !EDF is provided
+		else !EDF is provided
+			charge(iatm)=a(iatm)%index+tmpcharge
         end if
 		atmdipx(iatm)=dipx
 		atmdipy(iatm)=dipy
@@ -3385,7 +3388,7 @@ end subroutine
 !!============================ Hirshfeld-I ============================!!
 !!============================ Hirshfeld-I ============================!!
 !Wrapper of Hirshfeld-I module to automatically set radpot and sphpot to proper values
-!itype=1: Normal population analysis =2: Only used to generate proper atomic space (i.e. Don't do unnecessary things), namely fill "atmradrho"
+!itype=1: Normal population analysis =2: Only used to generate proper atomic space (i.e. Don't do unnecessary things), namely fill "atmraddens"
 subroutine Hirshfeld_I_wrapper(itype)
 use defvar
 implicit real*8 (a-h,o-z)
@@ -3405,7 +3408,7 @@ if (iautointgrid==1) then
 end if
 end subroutine
 
-!!--------- Calculate Hirshfeld-I charge and yield final atomic radial density (atmradrho, global array)
+!!--------- Calculate Hirshfeld-I charge (itype=1) and yield final atomic radial density (itype=2. atmraddens(:), a global array)
 !I've compared this module with hipart, this module is faster than hipart, and the accuracy under default setting is at least never lower than hipart
 subroutine Hirshfeld_I(itype)
 use defvar
@@ -3421,7 +3424,6 @@ character sep,c80tmp*80
 character(len=2) :: statname(-4:4)=(/ "-4","-3","-2","-1","_0","+1","+2","+3","+4" /)
 integer :: maxcyc=50,ioutmedchg=0
 real*8 :: crit=0.0002D0
-real*8,external :: fdens_rad
 !Used for mode 2. e.g. atmstatgrid(iatm,igrid,jatm,-1) means density of jatm with -1 charge state at igrid around iatm
 real*8,allocatable :: atmstatgrid(:,:,:,:)
 
@@ -3502,15 +3504,6 @@ call genatmradfile
 !====== Start calculation ======!
 call walltime(iwalltime1)
 
-!Currently all atoms share the same radial points
-nradpt=200
-itmp=0
-do irad=nradpt,1,-1
-	radx=cos(irad*pi/(nradpt+1))
-	itmp=itmp+1
-	atmradpos(itmp)=(1+radx)/(1-radx)
-end do
-
 !Generate single center integration grid
 call gen1cintgrid(gridatmorg,iradcut)
 write(*,"(' Radial grids:',i5,'  Angular grids:',i5,'  Total:',i7,'  After pruning:',i7)") radpot,sphpot,radpot*sphpot,radpot*sphpot-iradcut*sphpot
@@ -3530,8 +3523,8 @@ do iatm=1,ncenter
 end do
 
 if (allocated(atmradnpt)) deallocate(atmradnpt)
-if (allocated(atmradrho)) deallocate(atmradrho)
-allocate(atmradnpt(ncenter),atmradrho(200,ncenter))
+if (allocated(atmraddens)) deallocate(atmraddens)
+allocate(atmradnpt(ncenter),atmraddens(200,ncenter))
 sep='/' !Separation symbol of directory
 if (isys==1) sep='\'
 
@@ -3561,7 +3554,7 @@ if (imode==2) then
 				open(10,file=c80tmp,status="old")
 				read(10,*) atmradnpt(jatm)
 				do ipt=1,atmradnpt(jatm)
-					read(10,*) rnouse,atmradrho(ipt,jatm)
+					read(10,*) rnouse,atmraddens(ipt,jatm)
 				end do
 				close(10)
                 !I have made great effort to try to parallelize this part, however after doing this, the speed is even significantly lowered
@@ -3576,7 +3569,7 @@ if (imode==2) then
 end if
 
 !Set atomic initial radial density as neutral state, which is loaded from corresponding .rad file
-atmradrho=0
+atmraddens=0
 do iatm=1,ncenter
     c80tmp="atmrad"//sep//trim(a(iatm)%name)//"_0.rad"
     inquire(file=c80tmp,exist=alive)
@@ -3590,7 +3583,7 @@ do iatm=1,ncenter
 	open(10,file=c80tmp,status="old")
 	read(10,*) atmradnpt(iatm)
 	do ipt=1,atmradnpt(iatm)
-		read(10,*) rnouse,atmradrho(ipt,iatm)
+		read(10,*) rnouse,atmraddens(ipt,iatm)
 	end do
 	close(10)
 end do
@@ -3646,8 +3639,11 @@ do icyc=1,maxcyc
 		do ipt=1+iradcut*sphpot,ntotpot
 			if (promol(ipt)/=0D0) electmp=electmp+selfdens(ipt)/promol(ipt)*molrho(ipt)*gridatm(ipt)%value
 		end do
-		if (nEDFelec==0) charge(iatm)=a(iatm)%charge-electmp
-		if (nEDFelec>0) charge(iatm)=a(iatm)%index-electmp !Assume EDF information provides inner-core electrons for all atoms using ECP
+		if (nEDFelec==0) then
+			charge(iatm)=a(iatm)%charge-electmp
+		else !Assume EDF information provides inner-core electrons for all atoms using ECP
+			charge(iatm)=a(iatm)%index-electmp
+        end if
 		if (ioutmedchg==1) write(*,"(' Charge of atom',i5,'(',a2,')',': ',f12.6,'  Delta:',f12.6)") &
 		iatm,a(iatm)%name,charge(iatm),charge(iatm)-lastcharge(iatm)
 	end do
@@ -3710,7 +3706,7 @@ do icyc=1,maxcyc
 		end do
 		close(10)
 		!Update current radial density
-		atmradrho(:,iatm)=(charge(iatm)-ichglow)*radrhohigh(:) + (ichghigh-charge(iatm))*radrholow(:)
+		atmraddens(:,iatm)=(charge(iatm)-ichglow)*radrhohigh(:) + (ichghigh-charge(iatm))*radrholow(:)
 		atmradnpt(iatm)=max(npthigh,nptlow)
 	end do
 	
@@ -4056,16 +4052,323 @@ close(10)
 end subroutine
 
 
-!!---- Calculate density at a point for iatm based on loaded atomic radial density or that generated by e.g. Hirshfeld-I procedure
-real*8 function fdens_rad(iatm,x,y,z)
+
+
+
+
+
+
+!!============================ MBIS (Tian Lu) ============================!!
+!!============================ MBIS (Tian Lu) ============================!!
+!!============================ MBIS (Tian Lu) ============================!!
+!!============================ MBIS (Tian Lu) ============================!!
+!!============================ MBIS (Tian Lu) ============================!!
+subroutine mbis_wrapper_TianLu
 use defvar
+implicit real*8 (a-h,o-z)
+nradpotold=radpot
+nsphpotold=sphpot
+!if (iautointgrid==1) then
+!  	radpot=30
+!  	sphpot=170
+! 	if (any(a%index>18)) radpot=40
+! 	if (any(a%index>36)) radpot=50
+! 	if (any(a%index>54)) radpot=60
+!end if
+call mbis_TianLu(1)
+if (iautointgrid==1) then
+	radpot=nradpotold
+	sphpot=nsphpotold
+end if
+end subroutine
+
+!!--------- Calculate MBIS charge (itype=1) and yield final atomic radial density (itype=2, atmraddens(:,:), a global array)
+subroutine mbis_TianLu(itype)
+use defvar
+use functions
 use util
-integer iatm,npt
-real*8 x,y,z,r,rnouse
-npt=atmradnpt(iatm)
-r=dsqrt((a(iatm)%x-x)**2+(a(iatm)%y-y)**2+(a(iatm)%z-z)**2)
-call lagintpol(atmradpos(1:npt),atmradrho(1:npt,iatm),npt,r,fdens_rad,rnouse,rnouse,1)
-end function
+implicit real*8 (a-h,o-z)
+integer itype
+type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
+real*8 charge(ncenter),lastcharge(ncenter) !Atomic charges of current iter. and last iter.
+real*8 beckeweigrid(radpot*sphpot)
+integer,parameter :: maxshell=6
+real*8 shellpop(maxshell,ncenter),zeff(maxshell,ncenter) !Shell populations and shell effective nuclear charges (reciprocal of {sigma_Ai} in MBIS paper)
+real*8 shelltmp(maxshell,ncenter),ztmp(maxshell,ncenter) !New shell populations and shell effective nuclear charges during iteration
+real*8 wtatm(maxshell,ncenter) !Shell weights
+real*8 tmpdens(radpot*sphpot,ncenter) !tmpdens(ipt,iatm) corresponds to contribution of iatm to molecular density at grid ipt, and meantime multiplied by single-center integration weight at that point
+integer mshell(ncenter) !Actual number of shells of atoms
+integer :: maxcyc=300,ioutmedchg=0,ioutshell=0
+real*8 :: crit=0.0001D0,eps=1D-14,dencut=1D-10
+real*8 posarr(200),rhoarr(200)
+
+if (any(a%index>86)) then
+    write(*,*) "Error: MBIS for atoms beyond Rn is not supported"
+    write(*,*) "Press ENTER button to exit"
+    read(*,*)
+    return
+end if
+
+ntotpot=radpot*sphpot
+
+do while(.true.)
+    write(*,*)
+    call menutitle("MBIS (Tian Lu implementation)",15,2)
+    write(*,*) "-3 Enter frj implementation of MBIS code"
+    if (ioutshell==1) write(*,*) "-2 Toggle if outputting population and width of shells (Slater functions), current: Yes"
+    if (ioutshell==0) write(*,*) "-2 Toggle if outputting population and width of shells (Slater functions), current: No"
+    if (ioutmedchg==1) write(*,*) "-1 Toggle if outputting atomic charges during iterations, current: Yes"
+    if (ioutmedchg==0) write(*,*) "-1 Toggle if outputting atomic charges during iterations, current: No"
+    write(*,*) "0 Return"
+	write(*,*) "1 Start calculation!"
+	write(*,"(a,i4)") " 2 Set the maximum number of iterations, current:",maxcyc
+	write(*,"(a,f10.6)") " 3 Set convergence criterion of atomic charges, current:",crit
+	read(*,*) isel
+    if (isel==0) then
+        return
+    else if (isel==-3) then
+        call mbis_frj
+	else if (isel==-2) then
+		if (ioutshell==1) then
+			ioutshell=0
+		else
+			ioutshell=1
+		end if
+	else if (isel==-1) then
+		if (ioutmedchg==1) then
+			ioutmedchg=0
+		else
+			ioutmedchg=1
+		end if
+	else if (isel==0) then
+		return
+	else if (isel==1) then
+		exit
+	else if (isel==2) then
+		write(*,*) "Input maximum number of iterations, e.g. 30"
+		read(*,*) maxcyc
+	else if (isel==3) then
+		write(*,*) "Input convergence criterion of atomic charges, e.g. 0.001"
+		read(*,*) crit
+	end if
+end do
+
+call walltime(iwalltime1)
+call gen1cintgrid(gridatmorg,iradcut)
+write(*,"(' Radial grids:',i4,'  Angular grids:',i5,'  Total:',i7,'  After pruning:',i7)") radpot,sphpot,radpot*sphpot,radpot*sphpot-iradcut*sphpot
+
+!Precalculate atomic contribution to molecular density at each grid point
+write(*,"(a)") " Calculating atomic contribution to electron density of present system on grid points..."
+!$OMP PARALLEL DO SHARED(tmpdens) PRIVATE(iatm,gridatm,beckeweigrid,dtmp) schedule(dynamic) NUM_THREADS(nthreads)
+do iatm=1,ncenter
+	gridatm%value=gridatmorg%value
+    gridatm%x=gridatmorg%x+a(iatm)%x
+    gridatm%y=gridatmorg%y+a(iatm)%y
+    gridatm%z=gridatmorg%z+a(iatm)%z
+    call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid,covr_tianlu,3)
+	do ipt=1+iradcut*sphpot,ntotpot
+		dtmp = fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
+        tmpdens(ipt,iatm) = dtmp*gridatm(ipt)%value*beckeweigrid(ipt)
+    end do
+end do
+!$OMP END PARALLEL DO
+
+!Set initial Zeff and population of various shells
+do iatm=1,ncenter
+    iele = a(iatm)%index
+    if (iele==0) then !Ghost atom, initialize as Zeff=1 and with a tiny population. This scheme is defined by frj
+        mshell=0
+        zeff(1,iatm) = 1
+        shellpop(1,iatm)=1D-3
+    else if (iele<=2) then
+        mshell(iatm) = 1
+        zeff(1,iatm) = 2*iele
+        shellpop(1,iatm)=iele
+    else if (iele<=10) then
+        mshell(iatm) = 2
+        zeff(1,iatm) = 2*iele
+        zeff(2,iatm) = 2
+        shellpop(1,iatm)=2
+        shellpop(2,iatm)=iele-2
+    else if (iele<=18) then
+        mshell(iatm) = 3
+        zeff(1,iatm) = 2*iele
+        zeff(2,iatm) = 2*sqrt(dfloat(iele))
+        zeff(3,iatm) = 2
+        shellpop(1,iatm)=2
+        shellpop(2,iatm)=8
+        shellpop(3,iatm)=iele-10
+    else if (iele<=36) then
+        mshell(iatm) = 4
+        zeff(1,iatm) = 2*iele
+        do ishell=2,3
+            zeff(ishell,iatm) = 2*iele**(1-dfloat(ishell-1)/(mshell(iatm)-1))
+        end do
+        zeff(4,iatm) = 2
+        shellpop(1,iatm)=2
+        shellpop(2,iatm)=8
+        shellpop(3,iatm)=8
+        shellpop(4,iatm)=iele-18
+    else if (iele<=54) then
+        mshell(iatm) = 5
+        zeff(1,iatm) = 2*iele
+        do ishell=2,4
+            zeff(ishell,iatm) = 2*iele**(1-dfloat(ishell-1)/(mshell(iatm)-1))
+        end do
+        zeff(5,iatm) = 2
+        shellpop(1,iatm)=2
+        shellpop(2,iatm)=8
+        shellpop(3,iatm)=8
+        shellpop(4,iatm)=18
+        shellpop(5,iatm)=iele-36
+    else if (iele<=86) then
+        mshell(iatm) = 6
+        zeff(1,iatm) = 2*iele
+        do ishell=2,5
+            zeff(ishell,iatm) = 2*iele**(1-dfloat(ishell-1)/(mshell(iatm)-1))
+        end do
+        zeff(6,iatm) = 2
+        shellpop(1,iatm)=2
+        shellpop(2,iatm)=8
+        shellpop(3,iatm)=8
+        shellpop(4,iatm)=18
+        shellpop(5,iatm)=18
+        shellpop(6,iatm)=iele-54
+    end if
+end do
+
+!write(*,*) "Initial effective nuclear charge (Zeff) of each shell"
+!do iatm=1,ncenter
+!   write(*,"(i5,5f12.4)") iatm,(zeff(j,iatm),j=1,mshell(iatm))
+!end do
+!write(*,*) "Initial population of each shell"
+!do iatm=1,ncenter
+!   write(*,"(i5,5f12.4)") iatm,(shellpop(j,iatm),j=1,mshell(iatm))
+!end do
+
+write(*,*)
+write(*,*) "Performing MBIS iterations to refine atomic spaces..."
+lastcharge=0
+
+do icyc=1,maxcyc
+	if (ioutmedchg==1) write(*,*)
+	if (icyc==1) then
+		write(*,"(' Cycle',i5)") icyc
+	else
+		write(*,"(' Cycle',i5,'   Maximum change:',f12.8)") icyc,varmax
+	end if
+	
+    !Using multicenter integration to evaluate population of various shells of various atoms based on present Zeff (Eq. 18 of MBIS paper)
+    shelltmp(:,:)=0
+    ztmp(:,:)=0
+    do iatm=1,ncenter
+        gridatm%x=gridatmorg%x+a(iatm)%x
+        gridatm%y=gridatmorg%y+a(iatm)%y
+        gridatm%z=gridatmorg%z+a(iatm)%z
+        do ipt=1+iradcut*sphpot,ntotpot
+            wtatm(:,:)=0 !Record {rho_0_Ai} at present grid, namely density of shell i of atom A at this integration point, constructed by Eq. 7 of MBIS paper
+            wtot=0 !rho_0, namely reference density at this integration point, constructed by Eq. 6 of MBIS paper
+            do jatm=1,ncenter
+                dx = gridatm(ipt)%x - a(jatm)%x
+                dy = gridatm(ipt)%y - a(jatm)%y
+                dz = gridatm(ipt)%z - a(jatm)%z
+                dis = dsqrt(dx*dx + dy*dy + dz*dz)
+                do kshell=1,mshell(jatm)
+                    znuc = zeff(kshell,jatm)
+                    znorm = (znuc**3)/(8*pi)
+                    qshell = shellpop(kshell,jatm)
+                    tmp = qshell*znorm*exp(-znuc*dis) !Eq. 7
+                    if (tmp<dencut) tmp = 0 !I don't know why frj introduced this criterion. Seems that this can make insignificant grid ignored and reduce cost (because of wtot>0)?
+                    wtatm(kshell,jatm) = tmp
+                    wtot = wtot + tmp
+                end do
+            end do
+            !Accumulate contribution of this integration grid to new population of Zeff of shells
+            tmpden = tmpdens(ipt,iatm)
+            if (wtot>0.and.tmpden>eps) then
+                do jatm=1,ncenter
+                    dx = gridatm(ipt)%x - a(jatm)%x
+                    dy = gridatm(ipt)%y - a(jatm)%y
+                    dz = gridatm(ipt)%z - a(jatm)%z
+                    dis = dsqrt(dx*dx + dy*dy + dz*dz)
+                    do kshell=1,mshell(jatm)
+                        shelltmp(kshell,jatm) = shelltmp(kshell,jatm) + tmpden*wtatm(kshell,jatm)/wtot !Eq. 18 of MBIS paper
+                        ztmp(kshell,jatm) = ztmp(kshell,jatm) + tmpden*wtatm(kshell,jatm)/wtot*dis !Integral part of Eq. 19 of MBIS paper
+                    end do
+                end do
+            end if
+        end do
+    end do
+    ztmp(:,:)=3*shelltmp(:,:)/ztmp(:,:) !Include prefix part of Eq. 19 of MBIS paper to obtain final Zeff (1/sigma)
+    
+    !Summing up shell populations to atomic population and get atomic charge
+    do iatm=1,ncenter
+        if (nEDFelec==0) then
+            charge(iatm) = a(iatm)%charge - sum(shelltmp(1:mshell(iatm),iatm))
+        else !EDF is provided
+            charge(iatm) = a(iatm)%index - sum(shelltmp(1:mshell(iatm),iatm))
+        end if
+        if (ioutmedchg==1) write(*,"(i5,'(',a,')   charge:',f12.6)") iatm,a(iatm)%name,charge(iatm)
+    end do
+
+    !Determine convergence
+    varmax=maxval(abs(charge(:)-lastcharge(:)))
+	if (varmax<crit.or.icyc==maxcyc) then
+        if (varmax<crit) write(*,"(/,a,f10.6)") " All atomic charges have converged to criterion of",crit
+        if (icyc==maxcyc) write(*,"(/,' Convergence failed within',i4,' cycles!')") maxcyc
+		write(*,"(' Sum of all charges:',f14.8)") sum(charge(:))
+		if (itype==1) call normalizecharge(charge(:)) !Calculate and print normalized charge
+		exit
+	end if
+    
+    !Update charge, shell population and zeff
+	lastcharge(:)=charge(:)
+    shellpop(:,:)=shelltmp(:,:)
+    zeff(:,:)=ztmp(:,:)
+end do
+
+call walltime(iwalltime2)
+write(*,"(' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
+
+if (ioutshell==1) then
+    write(*,*)
+    write(*,*) "Population of each shell"
+    do iatm=1,ncenter
+       write(*,"(i5,'(',a,'):',6f11.6)") iatm,a(iatm)%name,(shellpop(j,iatm),j=1,mshell(iatm))
+    end do
+    write(*,*)
+    write(*,*) "Width (sigma) of each shell in Bohr"
+    do iatm=1,ncenter
+       write(*,"(i5,'(',a,'):',6f11.6)") iatm,a(iatm)%name,(1/zeff(j,iatm),j=1,mshell(iatm))
+    end do
+end if
+
+if (itype==1) then !Output charges
+    write(*,*)
+    call outatmchg(10,charge(:))
+else if (itype==2) then !Generate radial density of every atom
+    if (allocated(atmradnpt)) deallocate(atmradnpt)
+    if (allocated(atmraddens)) deallocate(atmraddens)
+    allocate(atmradnpt(ncenter),atmraddens(200,ncenter))
+    do iatm=1,ncenter
+        do ipt=1,200
+            tmprho=0
+            do ishell=1,mshell(iatm)
+                znuc = zeff(ishell,iatm)
+                tmprho = tmprho + shellpop(ishell,iatm)*(znuc**3)/(8*pi)*exp(-znuc*atmradpos(ipt))
+            end do
+            atmraddens(ipt,iatm)=tmprho
+            !write(*,"(i5,i5,f16.6,f20.10)") iatm,ipt,posarr(ipt),tmprho
+            if (tmprho<1D-8) then
+                atmradnpt(iatm)=ipt
+                exit
+            end if
+        end do
+    end do
+    write(*,*) "Construction of MBIS atomic spaces has been finished!"
+end if
+
+end subroutine
 
 
 
@@ -4398,9 +4701,11 @@ do iatm=1,ncenter
 			tmpcharge=tmpcharge-tmpv
 		end if
 	end do
-	if (nEDFelec==0) charge(iatm)=a(iatm)%charge+tmpcharge
-	if (nEDFelec>0) charge(iatm)=a(iatm)%index+tmpcharge !EDF is provided
-    
+	if (nEDFelec==0) then
+		charge(iatm)=a(iatm)%charge+tmpcharge
+	else !EDF is provided
+		charge(iatm)=a(iatm)%index+tmpcharge
+    end if
     call showprog(iatm,ncenter)
 end do
 end subroutine

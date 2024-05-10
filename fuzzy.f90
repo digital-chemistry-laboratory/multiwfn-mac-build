@@ -52,7 +52,6 @@ integer :: cenind(10) !Record atom index for multicenter DI
 real*8 hess(3,3),rhogradw(3)
 character :: radfilename*200,selectyn,c80inp*80,specatmfilename*80,c200tmp*200,c2000tmp*2000
 character(len=200) :: atmvolwfn(nelesupp)=" " !Record the wavefunction file path of each element for evaluating atomic volume
-real*8,external :: fdens_rad
 integer,allocatable :: aromatatm(:)
 real*8 atmpol(ncenter) !Atomic polarizability estimated by TS method
 real*8 quadmom(3,3),tmpvec(3),tmpmat(3,3)
@@ -133,6 +132,7 @@ if (iwork==0) then
 	if (ipartition==2) write(*,*) "-1 Select method for partitioning atomic space, current: Hirshfeld"
 	if (ipartition==3) write(*,*) "-1 Select method for partitioning atomic space, current: Hirshfeld*"
 	if (ipartition==4) write(*,*) "-1 Select method for partitioning atomic space, current: Hirshfeld-I"
+	if (ipartition==5) write(*,*) "-1 Select method for partitioning atomic space, current: MBIS"
 	write(*,*) "0 Return"
 	write(*,*) "1 Perform integration in fuzzy atomic spaces for a real space function"
 	write(*,*) "2 Calculate atomic and molecular multipole moments and <r^2>"
@@ -149,7 +149,7 @@ if (iwork==0) then
     write(*,*) "13 Calculate atomic effective volume, free volume and polarizability"
     !!If orbital occupancy has been modified before entering fuzzy analysis module, Hirshfeld-I cannot be chosen. &
     !This option makes orbital occupancy can be changed after generating H-I information, so that H-I partition can be used to integrate functions contributed by specific orbitals
-    if (ipartition==4) write(*,*) "26 Set occupation of some orbitals"
+    if (ipartition==4.or.ipartition==5) write(*,*) "26 Set occupation of some orbitals"
   	!write(*,*) "101 Integrate a function in Hirshfeld atomic space with molecular grid"
 	if (ispecial==2) then
 		write(*,*) "99 Calculate relative Shannon and Fisher entropy and 2nd-order term"
@@ -341,8 +341,9 @@ else if (isel==-1) then
 	write(*,*) "Select atomic space partition method"
 	write(*,*) "1 Becke"
 	write(*,*) "2 Hirshfeld"
-	write(*,*) "3 Hirshfeld* (preferred over 2)"
+	write(*,*) "3 Hirshfeld (preferred over 2)"
 	write(*,*) "4 Hirshfeld-I"
+	write(*,*) "5 MBIS"
 	write(*,"(a)") " Note: (2) uses atomic .wfn files to calculate Hirshfeld weights, they must be provided by yourself or let Multiwfn automatically &
 	invoke Gaussian to generate them. (3) evaluates the weights based on built-in radial atomic densities, thus is more convenient than (2)"
 	read(*,*) ipartition
@@ -360,6 +361,8 @@ else if (isel==-1) then
 	end if
 	if (ipartition==4) then !Generate radial density of all atoms by Hirshfeld-I
 		call Hirshfeld_I(2)
+    else if (ipartition==5) then !Generate radial density of all atoms by MBIS
+		call mbis_TianLu(2)
 	end if
 end if
 if (isel==26.or.isel==101.or.isel<0) cycle
@@ -667,7 +670,7 @@ do iatm=1,ncenter
 			ovlpintneg=ovlpintneg+ovlpintnegtmp
 		!$OMP end CRITICAL
 		!$OMP end parallel
-	else if (ipartition==2.or.ipartition==3.or.ipartition==4) then !Hirshfeld(-/I)
+	else if (ipartition==2.or.ipartition==3.or.ipartition==4.or.ipartition==5) then !Hirshfeld(-/I), MBIS
 		promol=0D0
 		do jatm=1,ncenter_org !Calculate free atomic density of each atom and promolecular density
 			if (ipartition==2) then !!Hirshfeld partition based on atomic .wfn files
@@ -692,15 +695,15 @@ do iatm=1,ncenter
 					atomdens(ipt)=calcatmdens(jatm,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,0)
 				end do
 				!$OMP end parallel do
-			else !Hirshfeld-I based on refined atomic radial density
+			else !Hirshfeld-I or MBIS based on refined atomic radial density
 				!$OMP parallel do shared(atomdens) private(ipt) num_threads(nthreads)
 				do ipt=1+iradcut*sphpot,radpot*sphpot
 					atomdens(ipt)=fdens_rad(jatm,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
 				end do
 				!$OMP end parallel do
             end if
-			promol=promol+atomdens
-			if (jatm==iatm) selfdens=atomdens
+			promol(:)=promol(:)+atomdens(:)
+			if (jatm==iatm) selfdens(:)=atomdens(:)
             if (iintgrid==2.or.iAOMgrid==2) alldens(jatm,:)=atomdens(:)
 		end do
         !Note: Overlap between Rydberg orbitals can extend to extremely distant region, where promol is zero if interpolated density is used, &

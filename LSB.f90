@@ -1502,7 +1502,7 @@ real*8 intval,intvalold,intvalneg,intvaloldneg,funcval1(radpot*sphpot),funcval2(
 type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
 character c80tmp*80,filename2*200,sep
 character(len=2) :: statname(-4:4)=(/ "-4","-3","-2","-1","_0","+1","+2","+3","+4" /)
-real*8 atmradrho_Np1(ncenter,200),atmradrho_N(ncenter,200),atmradrho_Nn1(ncenter,200) !Radial density of each atom in N+1, N, N-1 states
+real*8 atmraddens_Np1(ncenter,200),atmraddens_N(ncenter,200),atmraddens_Nn1(ncenter,200) !Radial density of each atom in N+1, N, N-1 states
 integer atmradnpt_Np1(ncenter),atmradnpt_N(ncenter),atmradnpt_Nn1(ncenter) !Number of radial density points of each atom in N+1, N, N-1 states
 
 write(*,"(a)") " The first wavefunction file is that you loaded after booting up Multiwfn, now input the path of the second wavefunction file, e.g. C:\yuri.wfn"
@@ -1555,7 +1555,7 @@ if (itype==2) then
 		open(10,file=c80tmp,status="old")
 		read(10,*) atmradnpt_N(iatm)
 		do ipt=1,atmradnpt_N(iatm)
-			read(10,*) rnouse,atmradrho_N(iatm,ipt)
+			read(10,*) rnouse,atmraddens_N(iatm,ipt)
 		end do
 		close(10)
 	end do
@@ -1565,14 +1565,14 @@ if (itype==2) then
 			open(10,file=c80tmp,status="old")
 			read(10,*) atmradnpt_Np1(iatm)
 			do ipt=1,atmradnpt_Np1(iatm)
-				read(10,*) rnouse,atmradrho_Np1(iatm,ipt)
+				read(10,*) rnouse,atmraddens_Np1(iatm,ipt)
 			end do
 		else if (if0==2) then !Load radial density and points for each atom of N-1 state
 			c80tmp="atmrad_spec"//sep//trim(a_org(iatm)%name)//"+1.rad"
 			open(10,file=c80tmp,status="old")
 			read(10,*) atmradnpt_Nn1(iatm)
 			do ipt=1,atmradnpt_Nn1(iatm)
-				read(10,*) rnouse,atmradrho_Nn1(iatm,ipt)
+				read(10,*) rnouse,atmraddens_Nn1(iatm,ipt)
 			end do
 		end if
         close(10)

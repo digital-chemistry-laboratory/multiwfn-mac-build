@@ -1860,6 +1860,9 @@ do while(.true.)
         end do
     end if
     if (index(c200tmp,'&END')/=0) exit
+	itmp=index(c200tmp,'[') !There may be [angstrom], remove it
+	jtmp=index(c200tmp,']')
+    if (itmp/=0) c200tmp(itmp:jtmp)=" "
     if (index(trim(c200tmp),'A ')/=0) read(c200tmp,*) c40tmp,cellv1
     if (index(trim(c200tmp),'B ')/=0) read(c200tmp,*) c40tmp,cellv2
     if (index(trim(c200tmp),'C ')/=0.and.index(c200tmp,'PERIODIC')==0) read(c200tmp,*) c40tmp,cellv3

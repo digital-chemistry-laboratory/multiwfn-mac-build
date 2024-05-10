@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2024-May-9"
+write(*,*) "Version 3.8(dev), release date: 2024-May-10"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -169,6 +169,8 @@ forall (i=1:nfragatm_org) fragatm_org(i)=i
 
 
 !!-------- Call some routines only once
+!Generate coordinate of atomic radial positions, which corresponds to atmraddens(:)
+call genatmradpos(atmradpos(:))
 !Convert prebuilt radii from Angstrom to Bohr. But some radii such as radii_hugo will remain unchanged since it is recorded as Bohr
 if (ifirstMultiwfn==1) then
 	vdwr=vdwr/b2a
@@ -245,7 +247,7 @@ end if
 
 
 !Special treatment and test new code
-!call atomdispcontri
+!call mbis_wrapper_TianLu
 
 
 !!!--------------------- Now everything start ---------------------!!!

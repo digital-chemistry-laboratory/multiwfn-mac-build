@@ -665,7 +665,6 @@ real*8 tmpdens(radpot*sphpot),selfdens(radpot*sphpot),promol(radpot*sphpot),orbv
 real*8 atmcomp(ncenter)
 integer,allocatable :: idxarr(:)
 character c80tmp*80,c2000tmp*2000
-real*8,external :: fdens_rad
 
 if (iautointgrid==1) then
 	nradpotold=radpot

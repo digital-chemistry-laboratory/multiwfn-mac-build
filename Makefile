@@ -150,11 +150,11 @@ Multiwfn.o : Multiwfn.f90 $(modules)
 LSB.o : LSB.f90 $(modules)
 	$(FC) $(OPT) -c LSB.f90
 
-population.o : population.f90 $(modules)
-	$(FC) $(OPT) -c population.f90
-
 frj.o : ext/frj.f90 $(modules)
 	$(FC) $(OPT) -c ext/frj.f90 -o frj.o
+
+population.o : population.f90 $(modules)
+	$(FC) $(OPT) -c population.f90
 
 orbcomp.o : orbcomp.f90 $(modules)
 	$(FC) $(OPT) -c orbcomp.f90
