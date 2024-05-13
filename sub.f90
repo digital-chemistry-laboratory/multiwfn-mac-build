@@ -4408,7 +4408,7 @@ end subroutine
 
 
 
-!!--------- Initialize LIBRETA for present wavefunction if haven't
+!!--------- Initialize LIBRETA for present wavefunction if haven't (i.e. if if_initlibreta=0)
 !info=1: Show some notices
 !info=2: Silent
 !Usually according to "function ifdoESP" to determine if LIBRETA is needed to be initialized for a real space function

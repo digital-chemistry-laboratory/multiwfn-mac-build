@@ -24,6 +24,7 @@ real*8 atmfneg(ncenter),atmfpos(ncenter),atmf0(ncenter),atmCDD(ncenter)
 real*8 atmsneg(ncenter),atmspos(ncenter),atms0(ncenter),atms2(ncenter),atmelectphi(ncenter),atmnucleophi(ncenter),atmwcubic(ncenter)
 real*8 nucleophi,expterm(nmo)
 real*8,allocatable :: rhoN(:,:,:),rhoNp(:,:,:),rhoNq(:,:,:) !Electron density of N, N+p, N-q states
+real*8,allocatable :: ESPN(:,:,:),ESPNp(:,:,:),ESPNq(:,:,:) !ESP of N, N+p, N-q states
 real*8,allocatable :: OW_fpos(:,:,:),OW_fneg(:,:,:)
 real*8 OWfposgrid(radpot*sphpot),OWfneggrid(radpot*sphpot),promol(radpot*sphpot),tmpdens(radpot*sphpot),selfdens(radpot*sphpot),wfnval(nmo)
 real*8,allocatable :: atmcomp(:,:),atmref(:,:)
@@ -71,6 +72,7 @@ do while(.true.)
     write(*,*) "6 Calculate condensed OW Fukui function and OW dual descriptor"
     write(*,*) "7 Calculate grid data of OW Fukui function and OW dual descriptor"
     write(*,*) "8 Calculate nucleophilic and electrophilic superdelocalizabilities"
+    write(*,*) "9 Calculate grid data of Fukui potential and dual descriptor potential"
     read(*,*) isel
     
     if (isel==-3) then
@@ -161,7 +163,7 @@ do while(.true.)
         else
             iwcubic=1
         end if
-    else if (isel==2.or.isel==3) then !Check wavefunction files
+    else if (isel==2.or.isel==3.or.isel==9) then !Check wavefunction files
         wfnfile(1)="N.wfn"
         inquire(file=wfnfile(1),exist=alive)
         if (.not.alive) then
@@ -242,9 +244,6 @@ do while(.true.)
                     exit
                 end if
             end if
-            !"nosymm" is not absolutely needed, however, because Gaussian may move the coordinate, the final coordinate in the resulting .wfn
-            !may be different to the coordinate in the firstly loaded file, therefore add nosymm to guarantee the coordinate consistency
-            !But this is commented because it increases computational cost for many cases significantly
             keywords="#P "//trim(c200tmp)//" out=wfn"
         else if (iQCprog==2) then !ORCA
             write(*,*) "Input ORCA keywords used single point task, e.g. PBE0 def2-TZVP"
@@ -679,8 +678,10 @@ do while(.true.)
         rhoNq=cubmat
         call dealloall(0)
         deallocate(atmref)
-        write(*,*) "Loading the file initially loaded after booting up Multiwfn..."
-        call readinfile(firstfilename,1)
+        !The geometry in the input file may be not identical to the standard orientation of Gaussian calculation, in order to make &
+        !isosurface coincide with geometry, we simply use N electrons state to replace present system information
+        write(*,"(/,a)") " Reloading N electrons state wavefunction file..."
+        call readinfile(wfnfile(1),1)
         
 	 	sur_value=0.01D0
         do while(.true.)
@@ -963,7 +964,116 @@ do while(.true.)
         write(*,"(' Sum of D_E:  ',f16.5,' /Hartree')") sumD_E
         write(*,"(' Sum of D_N_0:',f16.5,' /Hartree')") sumD_N_0
         write(*,"(' Sum of D_E_0:',f16.5,' /Hartree')") sumD_E_0
+    
+    else if (isel==9) then !Fukui potential and dual descriptor potential
+        if (allocated(cubmat)) deallocate(cubmat)
+        aug3D=6 !Commonly 6 Bohr extension distance is adequate
+        write(*,*)
+        call setgrid(1,inouse)
+        allocate(ESPN(nx,ny,nz),ESPNp(nx,ny,nz),ESPNq(nx,ny,nz),cubmat(nx,ny,nz))
+        call dealloall(0)
+        !N electrons
+        call readinfile(wfnfile(1),1)
+        allocate(atmref(3,ncenter)) !Used to check consistency of coordinate between different wavefunction files
+        atmref(1,:)=a%x;atmref(2,:)=a%y;atmref(3,:)=a%z
+        write(*,*)
+        write(*,*) "Calculating ESP grid data for N electrons state..."
+        call savecubmat(12,0,0)
+        ESPN=cubmat
+        call dealloall(0)
+        !N+p electrons
+        call readinfile(wfnfile(2),1)
+        do iatm=1,ncenter
+            devdist=dsqrt((atmref(1,iatm)-a(iatm)%x)**2+(atmref(2,iatm)-a(iatm)%y)**2+(atmref(3,iatm)-a(iatm)%z)**2)*b2a
+            if (devdist>0.05D0) then
+                write(*,"(' Warning: Coodinate of atom',i5,' in "//c3p//" state file is different to that in N state file!')") iatm
+                write(*,"(' X,Y,Z of the atom in N state file:  ',3f11.5,' Angstrom')") atmref(:,iatm)*b2a
+                write(*,"(' X,Y,Z of the atom in "//c3p//" state file:',3f11.5,' Angstrom')") a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%x*b2a
+                write(*,"(a)") " You need to carefully check input files of quantum chemistry program for generating the wavefunction files so that all &
+                atomic coordinates in these files are completely identical, otherwise the resulting density difference will be fully meaningless!"
+                write(*,*) "Press ENTER button to continue"
+                read(*,*)
+                exit
+            end if
+        end do
+        write(*,*)
+        write(*,*) "Calculating ESP grid data for "//c3p//" electrons state..."
+        call savecubmat(12,0,0)
+        ESPNp=cubmat
+        call dealloall(0)
+        !N-q electrons
+        call readinfile(wfnfile(3),1)
+        do iatm=1,ncenter
+            devdist=dsqrt((atmref(1,iatm)-a(iatm)%x)**2+(atmref(2,iatm)-a(iatm)%y)**2+(atmref(3,iatm)-a(iatm)%z)**2)*b2a
+            if (devdist>0.05D0) then
+                write(*,"(' Warning: Coodinate of atom',i5,' in "//c3q//" state file is different to that in N state file!')") iatm
+                write(*,"(' X,Y,Z of the atom in N state file:  ',3f11.5,' Angstrom')") atmref(:,iatm)*b2a
+                write(*,"(' X,Y,Z of the atom in "//c3q//" state file:',3f11.5,' Angstrom')") a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%x*b2a
+                write(*,"(a)") " You need to carefully check input files of quantum chemistry program for generating the wavefunction files so that all &
+                atomic coordinates in these files are completely identical, otherwise the resulting density difference will be fully meaningless!"
+                write(*,*) "Press ENTER button to continue"
+                read(*,*)
+                exit
+            end if
+        end do
+        write(*,*)
+        write(*,*) "Calculating ESP grid data for "//c3q//" electrons state..."
+        call savecubmat(12,0,0)
+        ESPNq=cubmat
+        call dealloall(0)
+        deallocate(atmref)
+        write(*,*)
+        !The geometry in the input file may be not identical to the standard orientation of Gaussian calculation, in order to make &
+        !isosurface coincide with geometry, we simply use N electrons state to replace present system information
+        write(*,"(a)") " Reloading N electrons state wavefunction file..."
+        call readinfile(wfnfile(1),1)
         
+        do while(.true.)
+            c10tmp=" "
+            if (cubfac/=1D0) c10tmp=" scaled"
+            write(*,*)
+            write(*,"(' -1 Set the scale factor to various grid data, current:',f12.6)") cubfac
+            write(*,*) "0 Return"
+            write(*,*) "1 Visualize isosurface of"//trim(c10tmp)//" f+ potential"
+            write(*,*) "2 Visualize isosurface of"//trim(c10tmp)//" f- potential"
+            write(*,*) "3 Visualize isosurface of"//trim(c10tmp)//" f0 potential"
+            write(*,*) "4 Visualize isosurface of"//trim(c10tmp)//" dual descriptor potential"
+            write(*,*) "5 Export grid data of"//trim(c10tmp)//" f+ potential as f+P.cub in current folder"
+            write(*,*) "6 Export grid data of"//trim(c10tmp)//" f- potential as f-P.cub in current folder"
+            write(*,*) "7 Export grid data of"//trim(c10tmp)//" f0 potential as f0P.cub in current folder"
+            write(*,*) "8 Export grid data of"//trim(c10tmp)//" dual descriptor potential as DDP.cub in current folder"
+            read(*,*) isel2
+            if (isel2==1.or.isel2==2.or.isel2==3) then
+	 	        sur_value=0.25D0
+            else if (isel2==4) then
+	 	        sur_value=0.025D0
+            end if
+            if (isel2==-1) then
+                write(*,*) "Input the scale factor, e.g. 0.325"
+                read(*,*) cubfac
+            else if (isel2==0) then
+                deallocate(ESPN,ESPNp,ESPNq)
+                exit
+            else
+                if (isel2==1.or.isel2==5) cubmat=(ESPN-ESPNp)/np !f+D
+                if (isel2==2.or.isel2==6) cubmat=(ESPNq-ESPN)/nq !f-D
+                if (isel2==3.or.isel2==7) cubmat=((ESPN-ESPNp)/np+(ESPNq-ESPN)/nq)/2 !(f+D + f-D)/2
+                if (isel2==4.or.isel2==8) cubmat=(ESPN-ESPNp)/np - (ESPNq-ESPN)/nq !f+D - f-D
+                cubmat=cubmat*cubfac
+                if (isel2<=4) then
+		            call drawisosurgui(1)
+                else
+                    if (isel2==5) open(10,file="f+P.cub",status="replace")
+                    if (isel2==6) open(10,file="f-P.cub",status="replace")
+                    if (isel2==7) open(10,file="f0P.cub",status="replace")
+                    if (isel2==8) open(10,file="DDP.cub",status="replace")
+                    call outcube(cubmat,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
+                    close(10)
+                    write(*,*) "Exporting finished!"
+                end if
+            end if
+        end do
+    
     end if
 end do
     
