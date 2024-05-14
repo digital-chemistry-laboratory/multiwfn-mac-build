@@ -128,7 +128,6 @@ iramantype=1 !1=Raman activities  2=Raman intensities
 iROAtype=2   !1=Raman SCP(180)  2=ROA SCP(180)  3=Raman SCP(90)  4=ROA SCP(90)  5=Raman DCP(180)  6=ROA DCP(180)
 graphformat_old=graphformat  !User may change format, backup the old
 PVSnterm(:)=0
-iUVdir=0
 
 write(*,*) "Select type of the spectrum to plot"
 write(*,*) " 1:IR  2:Raman (or pre-resonance Raman)  3:UV-Vis  4:ECD  5:VCD  6:ROA  7:NMR"
@@ -138,14 +137,20 @@ read(*,*) ispectrum
 if (ispectrum==-3) then
 	ispectrum=3
     write(*,*) "Take which direction(s) into account?"
-    write(*,*) "0 XYZ (standard UV-Vis spectrum)"
+    write(*,*) "0 X+Y+Z (standard UV-Vis spectrum)"
     write(*,*) "1 X"
     write(*,*) "2 Y"
     write(*,*) "3 Z"
-    write(*,*) "4 XY"
-    write(*,*) "5 XZ"
-    write(*,*) "6 YZ"
+    write(*,*) "4 X+Y"
+    write(*,*) "5 X+Z"
+    write(*,*) "6 Y+Z"
+    write(*,*) "7 Along specific direction by inputting a vector"
     read(*,*) iUVdir
+    if (iUVdir==7) then
+		write(*,*) "Input vector of oscillating electric field of incident light, e.g. 1,0,0.333"
+        write(*,*) "Note: The vector will be automatically normalized"
+        read(*,*) UVdirvec(:)
+    end if
 end if
 if (ispectrum==7) then
     call NMRplot
@@ -205,7 +210,7 @@ if (index(filename,"multiple.txt")/=0) then !Multiple file list with weights is 
 			read(*,*)
 			stop
         else !Obtain number of data
-    			call loadtransdata(1,ispectrum,c200tmp2,numdata)
+            call loadtransdata(1,ispectrum,c200tmp2,numdata)
             if (numdata>maxdata) maxdata=numdata
 		end if
 	end do
@@ -2953,6 +2958,7 @@ character(len=*) loadspecname
 character ctest,ctest2,ctest3,c3tmp*3,c80tmp*80,c200tmp*200
 integer ispectrum,imode
 integer :: nrdfreq=0 ! >0 means pre-resonance raman, which loads external field frequency
+real*8 tmpvec(3)
 real*8,allocatable :: rdfreq(:),tmparr(:)
 
 if (allocated(datax)) deallocate(datax,str,FWHM)
@@ -3342,19 +3348,7 @@ if (igauout==1) then
 			read(10,*)
             do i=1,numdata
 				read(10,*) itmp,xdip,ydip,zdip
-                if (iUVdir==1) then
-					tmp=xdip**2
-                else if (iUVdir==2) then
-					tmp=ydip**2
-                else if (iUVdir==3) then
-					tmp=zdip**2
-                else if (iUVdir==4) then
-					tmp=xdip**2+ydip**2
-                else if (iUVdir==5) then
-					tmp=xdip**2+zdip**2
-                else if (iUVdir==6) then
-					tmp=ydip**2+zdip**2
-                end if
+                call calc_trdipsqr(xdip,ydip,zdip,tmp)
                 str(i)=2D0/3D0*tmp*datax(i)/au2eV
             end do
         end if
@@ -3466,19 +3460,6 @@ if (iORCAout==1) then
                     datax(itmp)=t1
                     str(itmp)=t2
                     if (iUVdir/=0.and.ispectrum==3) then
-						if (iUVdir==1) then
-							tmp=xdip**2
-						else if (iUVdir==2) then
-							tmp=ydip**2
-						else if (iUVdir==3) then
-							tmp=zdip**2
-						else if (iUVdir==4) then
-							tmp=xdip**2+ydip**2
-						else if (iUVdir==5) then
-							tmp=xdip**2+zdip**2
-						else if (iUVdir==6) then
-							tmp=ydip**2+zdip**2
-						end if
 						str(itmp)=2D0/3D0*tmp*datax(itmp)/219474.6363D0
                     end if
 				end do
@@ -3529,6 +3510,9 @@ if (iORCAout==1) then
 									tmp=xdipsq+zdipsq
 								else if (iUVdir==6) then
 									tmp=ydipsq+zdipsq
+								else if (iUVdir==7) then
+									tmpvec=UVdirvec/dsqrt(sum(UVdirvec**2))
+									tmp=tmpvec(1)**2*xdipsq+tmpvec(2)**2*ydipsq+tmpvec(3)**2*zdipsq
 								end if
 								str(i)=2D0/3D0*tmp*datax(i)/219474.6363D0
 							end if
@@ -3561,19 +3545,7 @@ if (iORCAout==1) then
                         tmpval=ttt
                     end if
                     if (iUVdir/=0.and.ispectrum==3) then
-						if (iUVdir==1) then
-							tmp=xdip**2
-						else if (iUVdir==2) then
-							tmp=ydip**2
-						else if (iUVdir==3) then
-							tmp=zdip**2
-						else if (iUVdir==4) then
-							tmp=xdip**2+ydip**2
-						else if (iUVdir==5) then
-							tmp=xdip**2+zdip**2
-						else if (iUVdir==6) then
-							tmp=ydip**2+zdip**2
-						end if
+						call calc_trdipsqr(xdip,ydip,zdip,tmp)
 						str(i)=2D0/3D0*tmp*datax(i)/219474.6363D0
                     end if
 				end do
@@ -3624,19 +3596,7 @@ if (iORCAout==1) then
 			call skiplines(10,5)
 			do i=1,numdata
 				read(10,*) rnouse,tmpene,tmpval,tmpval,tmpval,xdip,ydip,zdip
-				if (iUVdir==1) then
-					tmp=xdip**2
-				else if (iUVdir==2) then
-					tmp=ydip**2
-				else if (iUVdir==3) then
-					tmp=zdip**2
-				else if (iUVdir==4) then
-					tmp=xdip**2+ydip**2
-				else if (iUVdir==5) then
-					tmp=xdip**2+zdip**2
-				else if (iUVdir==6) then
-					tmp=ydip**2+zdip**2
-				end if
+                call calc_trdipsqr(xdip,ydip,zdip,tmp)
 				str(i)=2D0/3D0*tmp*tmpene/219474.6363D0
 			end do
         end if
@@ -3726,19 +3686,7 @@ if (iCP2K==1) then
             if (iSOC==0.or.(iSOC==1.and.ctest=='n')) then
 				read(10,*) c80tmp,c80tmp,datax(i),xdip,ydip,zdip,str(i)
 				if (iUVdir/=0) then
-					if (iUVdir==1) then
-						tmp=xdip**2
-					else if (iUVdir==2) then
-						tmp=ydip**2
-					else if (iUVdir==3) then
-						tmp=zdip**2
-					else if (iUVdir==4) then
-						tmp=xdip**2+ydip**2
-					else if (iUVdir==5) then
-						tmp=xdip**2+zdip**2
-					else if (iUVdir==6) then
-						tmp=ydip**2+zdip**2
-					end if
+					call calc_trdipsqr(xdip,ydip,zdip,tmp)
 					str(i)=2D0/3D0*tmp*datax(i)/au2eV
 				end if
             else
@@ -3878,19 +3826,7 @@ if (iBDFout==1) then
             !write(*,*) "TAG iUVdir: ", iUVdir
             do iec=1,numdata
                 read(10,*) istate,xdip,ydip,zdip
-                if (iUVdir==1) then
-                    tmp=xdip**2
-                else if (iUVdir==2) then
-                    tmp=ydip**2
-                else if (iUVdir==3) then
-                    tmp=zdip**2
-                else if (iUVdir==4) then
-                    tmp=xdip**2+ydip**2
-                else if (iUVdir==5) then
-                    tmp=xdip**2+zdip**2
-                else if (iUVdir==6) then
-                    tmp=ydip**2+zdip**2
-                end if
+                call calc_trdipsqr(xdip,ydip,zdip,tmp)
                 str(iec)=2D0/3D0*tmp*datax(iec)/au2eV
             end do
         end if
@@ -3898,7 +3834,7 @@ if (iBDFout==1) then
         call loclabel(10,"List of SOC-SI results",ifound,0)
         if (ifound==1) then
             write(*,"(a)") " Spin-orbit coupling corrected spectra information was found, &
-                would you like to plot this kind of spectrum instead of the one without correction? (y/n)"
+            would you like to plot this kind of spectrum instead of the one without correction? (y/n)"
             read(*,*) ctest
             if (ctest=='y'.or.ctest=='Y') then
                 numdata=4*numdata !If root=n, then there will be n singlet states and 3n triplet sublevels
@@ -3911,20 +3847,8 @@ if (iBDFout==1) then
                     if (iUVdir/=0.and.ispectrum==3) then
                         call loclabel(10,"Norm=",ifound,0)
                         read(10,"(a)") c200tmp
-                        read(c200tmp(index(c200tmp,"=")+1:),*) xdipr,ydipr,zdipr
-                        if (iUVdir==1) then
-                            tmp=xdipr**2
-                        else if (iUVdir==2) then
-                            tmp=ydipr**2
-                        else if (iUVdir==3) then
-                            tmp=zdipr**2
-                        else if (iUVdir==4) then
-                            tmp=xdipr**2+ydipr**2
-                        else if (iUVdir==5) then
-                            tmp=xdipr**2+zdipr**2
-                        else if (iUVdir==6) then
-                            tmp=ydipr**2+zdipr**2
-                        end if
+                        read(c200tmp(index(c200tmp,"=")+1:),*) xdip,ydip,zdip
+						call calc_trdipsqr(xdip,ydip,zdip,tmp)
                         str(isoc)=2D0/3D0*tmp*datax(isoc)/au2eV
                     end if
                 end do
@@ -4002,6 +3926,32 @@ close(10)
 end subroutine
 
 
+
+
+!!-------- Calculate finally used square of transition electric dipole moment
+!Global variables: iUVdir=Type of direction(s) to consider, UVdirvec=The only direction to consider when iUVdir=7
+!xdip,ydip,zdip: X/Y/Z component of transition electric dipole moment
+!trdipsqr: Final result
+subroutine calc_trdipsqr(xdip,ydip,zdip,trdipsqr)
+use defvar
+real*8 xdip,ydip,zdip,trdipsqr,UVdirvectmp(3)
+if (iUVdir==1) then
+	trdipsqr=xdip**2
+else if (iUVdir==2) then
+	trdipsqr=ydip**2
+else if (iUVdir==3) then
+	trdipsqr=zdip**2
+else if (iUVdir==4) then
+	trdipsqr=xdip**2+ydip**2
+else if (iUVdir==5) then
+	trdipsqr=xdip**2+zdip**2
+else if (iUVdir==6) then
+	trdipsqr=ydip**2+zdip**2
+else if (iUVdir==7) then
+    UVdirvectmp=UVdirvec/dsqrt(sum(UVdirvec**2))
+    trdipsqr=(UVdirvectmp(1)*xdip)**2+(UVdirvectmp(2)*ydip)**2+(UVdirvectmp(3)*zdip)**2
+end if
+end subroutine
 
 
 

@@ -354,7 +354,8 @@ real*8,allocatable :: atmraddens(:,:) !(j,iatm) corresponds to density value at 
 !---------- Used for passing data of spectrum plotting, as well as used by DOS
 real*8,allocatable :: datax(:),str(:),FWHM(:) !Transition energy, strength and FWHM loaded from only one file
 integer iROAtype !Type of ROA spectrum
-integer iUVdir !Direction of UV-Vis
+integer iUVdir !Type of Directions of UV-Vis
+real*8 UVdirvec(3) !Direction of oscillating electric field when iUVdir=7
 integer :: istrtype=0 !Strength type. Avoid selecting the type every time when loading multiple files
 
 
