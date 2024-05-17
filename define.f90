@@ -271,10 +271,11 @@ real*8,allocatable :: COtr(:,:) !Transposed CO matrix, which is used in some rou
 integer :: nprims_uniq=0 !0 means uninitialized
 type(primtype),allocatable,target :: b_uniq(:) !b of unique GTFs
 real*8,allocatable,target :: CO_uniq(:,:) !CO of b_uniq. The coefficients of duplicated GTFs are summed together
-!-------- Describe inner electron density in EDF section
+!-------- Describe core electron density in EDF section
 type(primtype),allocatable :: b_EDF(:)
 real*8,allocatable :: CO_EDF(:)
-integer :: nEDFprims=0,nEDFelec=0 !Electrons represented by EDF
+integer :: nEDFprims=0,nEDFelec=0 !Number of EDFs, number of electrons represented by EDFs
+integer,allocatable :: nEDFelecatm(:) !Number of electrons represented by EDF of each atom
 !-------- Promolecular wavefunction. Share same "a" and "b"
 real*8,allocatable,target :: CO_pmol(:,:)
 real*8,allocatable :: MOocc_pmol(:),MOene_pmol(:)

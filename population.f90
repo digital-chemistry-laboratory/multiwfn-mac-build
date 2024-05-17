@@ -934,8 +934,8 @@ if (chgtype==1.or.chgtype==2.or.chgtype==6.or.chgtype==7.or.chgtype==-7) then
 			end do
 			if (nEDFelec==0) then
 				charge(iatm)=a(iatm)%charge+tmpcharge
-			else !EDF is provided
-				charge(iatm)=a(iatm)%index+tmpcharge
+			else !EDF is used for some atoms. Core electron density represented by EDF has been integrated, so nuclear charge should be augmented by nEDFelecatm
+				charge(iatm)=a(iatm)%charge+nEDFelecatm(iatm)+tmpcharge
             end if
 		else if (chgtype==2) then !VDD charge
             do i=1+iradcut*sphpot,radpot*sphpot !Cycle each grid point of iatm, if the distance between the grid point and other atom is shorter than iatm, weight=0
@@ -1066,8 +1066,8 @@ else if (chgtype==5) then
 		end do
 		if (nEDFelec==0) then
 			charge(iatm)=a(iatm)%charge+tmpcharge
-		else !EDF is provided
-			charge(iatm)=a(iatm)%index+tmpcharge
+		else !EDF is used for some atoms. Core electron density represented by EDF has been integrated, so nuclear charge should be augmented by nEDFelecatm
+			charge(iatm)=a(iatm)%charge+nEDFelecatm(iatm)+tmpcharge
         end if
 		atmdipx(iatm)=dipx
 		atmdipy(iatm)=dipy
@@ -3641,8 +3641,8 @@ do icyc=1,maxcyc
 		end do
 		if (nEDFelec==0) then
 			charge(iatm)=a(iatm)%charge-electmp
-		else !Assume EDF information provides inner-core electrons for all atoms using ECP
-			charge(iatm)=a(iatm)%index-electmp
+		else !EDF is used for some atoms. Core electron density represented by EDF has been integrated, so nuclear charge should be augmented by nEDFelecatm
+			charge(iatm)=a(iatm)%charge+nEDFelecatm(iatm)-electmp
         end if
 		if (ioutmedchg==1) write(*,"(' Charge of atom',i5,'(',a2,')',': ',f12.6,'  Delta:',f12.6)") &
 		iatm,a(iatm)%name,charge(iatm),charge(iatm)-lastcharge(iatm)
@@ -4305,8 +4305,8 @@ do icyc=1,maxcyc
     do iatm=1,ncenter
         if (nEDFelec==0) then
             charge(iatm) = a(iatm)%charge - sum(shelltmp(1:mshell(iatm),iatm))
-        else !EDF is provided
-            charge(iatm) = a(iatm)%index - sum(shelltmp(1:mshell(iatm),iatm))
+        else !EDF is used for some atoms. Core electron density represented by EDF has been integrated, so nuclear charge should be augmented by nEDFelecatm
+            charge(iatm) = a(iatm)%charge+nEDFelecatm(iatm) - sum(shelltmp(1:mshell(iatm),iatm))
         end if
         if (ioutmedchg==1) write(*,"(i5,'(',a,')   charge:',f12.6)") iatm,a(iatm)%name,charge(iatm)
     end do
@@ -4703,8 +4703,8 @@ do iatm=1,ncenter
 	end do
 	if (nEDFelec==0) then
 		charge(iatm)=a(iatm)%charge+tmpcharge
-	else !EDF is provided
-		charge(iatm)=a(iatm)%index+tmpcharge
+	else !EDF is used for some atoms. Core electron density represented by EDF has been integrated, so nuclear charge should be augmented by nEDFelecatm
+		charge(iatm)=a(iatm)%charge+nEDFelecatm(iatm)+tmpcharge
     end if
     call showprog(iatm,ncenter)
 end do

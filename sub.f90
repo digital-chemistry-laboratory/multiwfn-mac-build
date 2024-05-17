@@ -1002,7 +1002,7 @@ do while(.true.)
 			write(*,*) "Done!"
 			write(*,"(a,f12.6)") " Sum of occupation numbers of selected orbitals:",oddnum
 			if (allocated(b_EDF)) then
-				deallocate(b_EDF,CO_EDF)
+				deallocate(b_EDF,CO_EDF,nEDFelecatm)
 				nEDFprims=0
 				nEDFelec=0
 				write(*,"(/,a)") " NOTE: EDF information has been removed to avoid their unexpected influence on subsequent calculation of electron density (corresponding to odd electron density in the present context)"
@@ -2768,7 +2768,7 @@ end subroutine
 subroutine dealloEDF
 use defvar
 if (allocated(b_EDF)) then
-	deallocate(CO_EDF,b_EDF)
+	deallocate(CO_EDF,b_EDF,nEDFelecatm)
 	nEDFprims=0
 	nEDFelec=0
 end if

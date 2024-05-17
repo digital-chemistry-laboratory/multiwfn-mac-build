@@ -53,7 +53,7 @@ real*8 hess(3,3),rhogradw(3)
 character :: radfilename*200,selectyn,c80inp*80,specatmfilename*80,c200tmp*200,c2000tmp*2000
 character(len=200) :: atmvolwfn(nelesupp)=" " !Record the wavefunction file path of each element for evaluating atomic volume
 integer,allocatable :: aromatatm(:)
-real*8 atmpol(ncenter) !Atomic polarizability estimated by TS method
+real*8 atmpol(ncenter),atmC6(ncenter) !Atomic polarizability and C6 estimated by TS method
 real*8 quadmom(3,3),tmpvec(3),tmpmat(3,3)
 
 !Atomic polarizability table, 2020 version https://ctcp.massey.ac.nz/index.php?group=&page=dipole&menu=dipole
@@ -66,6 +66,14 @@ real*8 :: atmpol_free(1:nelesupp)=(/ &
 103D0,74D0,68D0,62D0,57D0,54D0,48D0,36D0,33.91D0,50D0,47D0,48D0,44D0,42D0,35D0,& !& !Hf~Rn
 317.8D0,246D0,203D0,217D0,154D0,129D0,151D0,132D0,131D0,144D0,125D0,122D0,118D0,113D0,109D0,110D0,320D0,& !Fr~Lr
 112D0,42D0,40D0,38D0,36D0,34D0,32D0,32D0,28D0,29D0,31D0,70D0,67D0,62D0,58D0,169D0,159D0,(0D0,i=121,nelesupp)/) !Rf~Ubn (120)
+!Free atomic C6 dispersion coefficient, from X. Chu and A. Dalgarno, JCP, 121, 4083 (2004), and H from TABLE I of PRL 102, 073005 (2009)
+real*8 :: atmC6_free(1:nelesupp)=(/ &
+6.5D0,1.42D0, 1392D0,227D0,99.5D0,46.6D0,24.2D0,15.6D0,9.52D0,6.20D0,& !H~Ne
+1518D0,626D0, 528D0,305D0,185D0,134D0,94.6D0,64.2D0,& !Na~Ar
+3923D0,2163D0, 1383D0,1044D0,832D0,602D0,552D0,482D0,408D0,373D0,253D0,284D0, 498D0,354D0,246D0,210D0,162D0,130D0,&  !K~Kr
+4769D0,3175D0, (0D0,i=39,48),779D0,659D0,492D0,445D0,385D0,& !Ca,Sr...In-I
+(0D0,i=54,nelesupp)/)
+
 
 if (ispecial==2) then
 	ipartition=2 !Use Hirshfeld for Shubin's 2nd project
@@ -128,11 +136,11 @@ if (iwork==0) then
 		if (iraddefine==3) write(*,*) "-2 Select radius definition for Becke partition, current: Suresh"
 		if (iraddefine==4) write(*,*) "-2 Select radius definition for Becke partition, current: Hugo"
 	end if
-	if (ipartition==1) write(*,*) "-1 Select method for partitioning atomic space, current: Becke"
-	if (ipartition==2) write(*,*) "-1 Select method for partitioning atomic space, current: Hirshfeld"
-	if (ipartition==3) write(*,*) "-1 Select method for partitioning atomic space, current: Hirshfeld*"
-	if (ipartition==4) write(*,*) "-1 Select method for partitioning atomic space, current: Hirshfeld-I"
-	if (ipartition==5) write(*,*) "-1 Select method for partitioning atomic space, current: MBIS"
+	if (ipartition==1) write(*,*) "-1 Select method for partitioning atomic spaces, current: Becke"
+	if (ipartition==2) write(*,*) "-1 Select method for partitioning atomic spaces, current: Hirshfeld"
+	if (ipartition==3) write(*,*) "-1 Select method for partitioning atomic spaces, current: Hirshfeld*"
+	if (ipartition==4) write(*,*) "-1 Select method for partitioning atomic spaces, current: Hirshfeld-I"
+	if (ipartition==5) write(*,*) "-1 Select method for partitioning atomic spaces, current: MBIS"
 	write(*,*) "0 Return"
 	write(*,*) "1 Perform integration in fuzzy atomic spaces for a real space function"
 	write(*,*) "2 Calculate atomic and molecular multipole moments and <r^2>"
@@ -146,7 +154,7 @@ if (iwork==0) then
 	if (allocated(CObasa)) write(*,*) "10 Calculate PLR (Para linear response index)" !Need virtual orbital informations
 	write(*,*) "11 Calculate multi-center delocalization index" !Only can be used for HF/DFT closed-shell wavefunction
     write(*,*) "12 Calculate information-theoretic aromaticity index (ACS Omega, 3, 18370)"
-    write(*,*) "13 Calculate atomic effective volume, free volume and polarizability"
+    write(*,"(a)") " 13 Calculate atomic effective volume, free volume, polarizability and C6 coefficient"
     !!If orbital occupancy has been modified before entering fuzzy analysis module, Hirshfeld-I cannot be chosen. &
     !This option makes orbital occupancy can be changed after generating H-I information, so that H-I partition can be used to integrate functions contributed by specific orbitals
     if (ipartition==4.or.ipartition==5) write(*,*) "26 Set occupation of some orbitals"
@@ -510,7 +518,7 @@ else if (isel==13) then !Calculating atomic volume needs electron density
 		if (any(a(atmcalclist(1:natmcalclist))%index==iele)) then
 			if (atmvolwfn(iele)==" ") then
 				write(*,"(/,a)") " Input path of the file containing free-state wavefunction of element "//trim(ind2name(iele))
-                write(*,*) "For example, D:\atmvol\"//trim(ind2name(iele))//".wfn"
+                write(*,*) "For example, D:\atmvol\"//trim(ind2name(iele))//".wfn (.fch, .mwfn, .molden... are also acceptable)"
                 do while(.true.)
 					read(*,"(a)") c200tmp
 					inquire(file=c200tmp,exist=alive)
@@ -518,7 +526,7 @@ else if (isel==13) then !Calculating atomic volume needs electron density
 						atmvolwfn(iele)=c200tmp
 						exit
                     end if
-					write(*,*) "Cannot find the file, input again!"
+					write(*,*) "Error: Cannot find the file, input again!"
                 end do
             else
 				write(*,"(1x,a)") trim(atmvolwfn(iele))//" will be used for element "//trim(ind2name(iele))
@@ -896,8 +904,8 @@ do iatm=1,ncenter
 		rrzint=xxzint+yyzint+zzzint
 		if (nEDFelec==0) then !Normal case, all electron basis or using pseudopotential but not accompanied by EDF
 			atmchgtmp=a(iatm)%charge+eleint
-		else !EDF is used, so using a(iatm)%index instead of a(iatm)%charge
-			atmchgtmp=a(iatm)%index+eleint
+		else !EDF is used for some atoms. Core electron density represented by EDF has been integrated, so nuclear charge should be augmented by nEDFelecatm
+			atmchgtmp=a(iatm)%charge+nEDFelecatm(iatm)+eleint
 		end if
 		atmmono(iatm)=eleint
 		write(iout,"('                           *****  Atom',i6,'(',a2,')  *****')") iatm,a(iatm)%name
@@ -972,7 +980,7 @@ do iatm=1,ncenter
 			write(21,*)
         end if
     
-	else if (isel==13) then !Calculate atomic volume
+	else if (isel==13) then !Calculate atomic volume and related quantities
         !Calculate effective volume
 		effV=0
 		do i=1+iradcut*sphpot,radpot*sphpot
@@ -1006,6 +1014,7 @@ do iatm=1,ncenter
         write(*,"(' Atom',i5,'(',a,')  Effective V:',f10.3,'  Free V:',f10.3,' a.u.  Ratio:',f6.3)") &
         iatm,a(iatm)%name,effV,freeV,effV/freeV
         atmpol(iatm)=atmpol_free(a(iatm)%index)*effV/freeV
+        atmC6(iatm)=atmC6_free(a(iatm)%index)*(effV/freeV)**2
 	
 	!Calculate atomic overlap matrix (AOM) for all tasks that require it
 	else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.or.isel==11) then
@@ -2099,6 +2108,25 @@ else if (isel==13) then !Atomic polarizability
         iatm,a(iatm)%name,atmpol(iatm),atmpol(iatm)/totpol*100,atmpol_free(a(iatm)%index)
     end do
     write(*,"(' Sum of atomic polarizabilities:',f10.3,' a.u.')") totpol
+	write(*,*)
+    write(*,*) "Atomic C6 coefficients estimated using Tkatchenko-Scheffler method:"
+	do iatm=1,ncenter
+		if (all(atmcalclist(1:natmcalclist)/=iatm)) cycle
+        write(*,"(i5,'(',a,'):',f8.2,' a.u. (Ref. data:',f8.1,' a.u.)')") &
+        iatm,a(iatm)%name,atmC6(iatm),atmC6_free(a(iatm)%index)
+    end do
+    write(*,*)
+    write(*,*) "Note: Reference data denotes the built-in value of free-state atom"
+    C6mol=0
+    do iatm=1,ncenter
+		C6mol=C6mol+atmC6(iatm)
+		do jatm=iatm+1,ncenter
+			C6AB=2*atmC6(iatm)*atmC6(jatm)/(atmpol(jatm)/atmpol(iatm)*atmC6(iatm) + atmpol(iatm)/atmpol(jatm)*atmC6(jatm))
+			!write(*,"(i5,'(',a,') --',i5,'(',a,'):',f8.2,' a.u.')") iatm,a(iatm)%name,jatm,a(jatm)%name,C6AB
+            C6mol=C6mol+2*C6AB
+        end do
+    end do
+    write(*,"(a,f10.2,' a.u.')") " Homomolecular C6 coefficient:",C6mol
 end if
 	
 end do !End interface loop

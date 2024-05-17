@@ -3752,6 +3752,8 @@ if (ifound==1.and.readEDF==1) then
 	call loclabel(10,"<Number of Core Electrons>")
 	read(10,*)
 	read(10,*) nEDFelec
+    allocate(nEDFelecatm(ncenter))
+    nEDFelecatm(:)=a(:)%index-a(:)%charge
 	if (infomode==0) write(*,"(a,i6,a)") " Note: EDF information represents",nEDFelec," inner-core electrons"
 end if
 call loclabel(10,"<Molecular Orbital Occupation Numbers>")
@@ -3840,6 +3842,8 @@ integer atmsel(nelesupp,ncenter),natmsel(nelesupp)
 iwfxtime=1
 nEDFprims=0
 nEDFelec=0
+allocate(nEDFelecatm(ncenter))
+nEDFelecatm=0
 do while(.true.)
 	write(*,*) "Load the inner-core density (EDF information) for which element? e.g. Fe"
 	write(*,*) "You can also input atomic indices, e.g. 5,8-10,31 means selecting 5,8,9,10,31"
@@ -3890,6 +3894,7 @@ do while(.true.)
 		write(*,"(' The number of EDF primitives in this file is',i5,/)") nEDFtmp
 		nEDFprims=nEDFprims+nEDFtmp*natmsel(iwfxtime)
 		nEDFelec=nEDFelec+nEDFelectmp*natmsel(iwfxtime)
+        nEDFelecatm(atmsel(iwfxtime,1:natmsel(iwfxtime)))=nEDFelectmp
 		iwfxtime=iwfxtime+1
 	end if
 end do
@@ -3940,21 +3945,23 @@ if (infomode==0) then
 end if
 nEDFprims=0
 nEDFelec=0
+allocate(nEDFelecatm(ncenter))
+nEDFelecatm=0
 !First time, find total number of EDF GTFs so that b_EDF and CO_EDF can be allocated
 do iatm=1,ncenter
 	natmcore=a(iatm)%index-nint(a(iatm)%charge)
-	if (natmcore==0) cycle
+	if (natmcore==0) cycle !Full electron
 	if (a(iatm)%index==0.or.a(iatm)%charge==0) cycle !Skip Bq
-	nEDFelec=nEDFelec+natmcore
 	call EDFLIB(a(iatm)%index,natmcore,nfun,EDFexp,EDFcoeff)
 	if (infomode==0) write(*,"(1x,a,'(',i5,')      Core electrons:',i3,'     EDF primitive GTFs:',i3)") a(iatm)%name,iatm,natmcore,nfun
-	if (nfun==0.and.infomode==0) then
-		write(*,*) "Warning: Unable to find proper EDF information for this atom!"
-		!write(*,*) "Pressing ENTER button to skip loading EDF information for this atom"
-		!read(*,*)
-	end if
+	if (nfun==0) then
+		if (infomode==0) write(*,*) "Warning: Unable to find proper EDF information for this atom!"
+    else
+	    nEDFelecatm(iatm)=natmcore
+    end if
 	nEDFprims=nEDFprims+nfun
 end do
+nEDFelec=sum(nEDFelecatm(:))
 if (infomode==0) then
     write(*,"(' The number of total inner-core electrons:',i6)") nEDFelec
     write(*,"(' The number of total EDF primitive GTFs:',i6)") nEDFprims

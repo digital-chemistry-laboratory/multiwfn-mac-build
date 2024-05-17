@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2024-May-14"
+write(*,*) "Version 3.8(dev), release date: 2024-May-17"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -848,7 +848,7 @@ do while(.true.) !Main loop
 			    if (.not.allocated(b_EDF)) then
 				    write(*,*) "EDF field was not loaded"
 			    else
-				    write(*,"( ' The number of inner-core electrons represented by EDF:',i6)") nEDFelec
+				    write(*,"( ' The number of inner-core electrons represented by EDFs:',i6)") nEDFelec
 				    write(*,*) "Information of EDF primitives:"
 				    write(*,*) "Column 1: Index"
 				    write(*,*) "Column 2: Atom"
