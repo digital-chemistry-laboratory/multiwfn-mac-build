@@ -1,8 +1,11 @@
 !######## This file contains various routines for dealing with grid data
 
 
-!!!------ Define property/origin/spacing/grid number and then save to a 3D matrix, infomode=1 means silent
-!iorb is used to choose the orbital for whose wavefunction will be calculated. This can be an arbitrary value if functype/=4
+!!!------ Calculate grid data and store to cubmat (cubmattmp is also involved for special functype)
+!functype: Index of the real space function to calculate
+!infomode=1 means silent
+!iorb: used to choose the orbital for whose wavefunction will be calculated. This can be an arbitrary value if functype/=4
+!cubmat must has been defined!
 subroutine savecubmat(functype,infomode,iorb)
 use defvar
 use util
@@ -395,7 +398,7 @@ else
 			end if
 		end do
 	else if (igridsel==9) then
-		call setgrid_for_PBC(0.25D0)
+		call setgrid_for_PBC(0.25D0,0)
 	else if (igridsel==10) then
 		call setboxGUI
 	else if (igridsel==11) then
@@ -452,16 +455,21 @@ end subroutine
 !Note that after employing the following rule, then in e.g. X direction, &
 !the first grid not only differs from last grid by translation vector, but also by a grid spacing. See Section 3.6 for illustration
 !defspc: Default grid spacing if user directly pressing ENTER button
-subroutine setgrid_for_PBC(defspc)
+!iskip: If =1, then only asks user to set grid spacing, the grids will cover the entire cell. If =2, directly use grid spacing of defspc
+subroutine setgrid_for_PBC(defspc,iskip)
 use defvar
 implicit real*8 (a-h,o-z)
 character c80tmp*80
 real*8 defspc
 
-write(*,*) "Now input X,Y,Z of origin in Bohr, e.g. 0.2,0,-5.5"
-write(*,*) "You can also input in Angstrom by adding ""A"" suffix, e.g. 0.2,0,-5.5 A"
-write(*,*) "If press ENTER button directly, (0,0,0) will be used"
-read(*,"(a)") c80tmp
+if (iskip==0) then
+	write(*,*) "Now input X,Y,Z of origin in Bohr, e.g. 0.2,0,-5.5"
+	write(*,*) "You can also input in Angstrom by adding ""A"" suffix, e.g. 0.2,0,-5.5 A"
+	write(*,*) "If press ENTER button directly, (0,0,0) will be used"
+	read(*,"(a)") c80tmp
+else
+	c80tmp=" "
+end if
 if (c80tmp==" ") then
     orgx=0;orgy=0;orgz=0
 else
@@ -473,11 +481,15 @@ else
     end if
 end if
 
-write(*,*) "Now input lengths of three dimensions of the box in Bohr, e.g. 8.7,9.1,6.55"
-write(*,*) "You can also input in Angstrom by adding ""A"" suffix, e.g. 8.7,9.1,6.55 A"
-write(*,"(a)") " If length of a dimension is set to be 0, then box length of that dimension will be equal to cell length"
-write(*,*) "Pressing ENTER button directly corresponds to inputting 0,0,0"
-read(*,"(a)") c80tmp
+if (iskip==0) then
+	write(*,*) "Now input lengths of three dimensions of the box in Bohr, e.g. 8.7,9.1,6.55"
+	write(*,*) "You can also input in Angstrom by adding ""A"" suffix, e.g. 8.7,9.1,6.55 A"
+	write(*,"(a)") " If length of a dimension is set to be 0, then box length of that dimension will be equal to cell length"
+	write(*,*) "Pressing ENTER button directly corresponds to inputting 0,0,0"
+	read(*,"(a)") c80tmp
+else
+	c80tmp=" "
+end if
 v1len=dsqrt(sum(cellv1**2))
 v2len=dsqrt(sum(cellv2**2))
 v3len=dsqrt(sum(cellv3**2))
@@ -493,15 +505,20 @@ if (c80tmp/=" ") then
     if (ctmp/=0) v3len=ctmp
 end if
 
-write(*,*) "Now input grid spacing in Bohr, e.g. 0.25"
-!write(*,*) "Hint about grid quality: 0.2 is fine, 0.3 is coarse, 0.4 is very poor"
-write(*,"(a)") " Note: The grid spacing will be automatically slightly altered so that number of grids in each direction is integer"
-write(*,"(a,f6.3,a)") " If directly pressing ENTER button,",defspc," Bohr will be used"
-read(*,"(a)") c80tmp
-if (c80tmp==" ") then
+if (iskip==2) then
 	grdspc=defspc
 else
-	read(c80tmp,*) grdspc
+	write(*,*) "Now input grid spacing in Bohr, e.g. 0.25"
+	!write(*,*) "Hint about grid quality: 0.2 is fine, 0.3 is coarse, 0.4 is very poor"1
+	write(*,"(a)") " The smaller the spacing, the better the result, the more expensive the calculation"
+	write(*,"(a,f6.3,a)") " If directly pressing ENTER button,",defspc," Bohr will be used"
+	write(*,"(a)") " Note: The grid spacing will be automatically slightly altered so that number of grids in each direction is integer"
+	read(*,"(a)") c80tmp
+	if (c80tmp==" ") then
+		grdspc=defspc
+	else
+		read(c80tmp,*) grdspc
+	end if
 end if
 nx=nint(v1len/grdspc)
 grdspcv1=v1len/nx
@@ -649,7 +666,7 @@ else if (igridsel==9) then
 		end if
 	end do
 else if (igridsel==11) then
-	call setgrid_for_PBC(0.25D0)
+	call setgrid_for_PBC(0.25D0,0)
 end if
 
 if (igridsel==10) call setboxGUI
@@ -960,12 +977,12 @@ ifPBC=3
 cellv1=gridv1*nx
 cellv2=gridv2*ny
 cellv3=gridv3*nz
-ifdoPBCx=1
-ifdoPBCy=1
-ifdoPBCz=1
-PBCnx=1
-PBCny=1
-PBCnz=1
+ifdoPBCx=ifdoPBCx_in
+ifdoPBCy=ifdoPBCy_in
+ifdoPBCz=ifdoPBCz_in
+PBCnx=PBCnx_in
+PBCny=PBCny_in
+PBCnz=PBCnz_in
 end subroutine
 
 

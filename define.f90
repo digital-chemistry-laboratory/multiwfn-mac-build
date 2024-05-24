@@ -183,6 +183,7 @@ real*8 :: atmrhocut(1:nelesupp)=(/7.80D0,5.89D0,14.37D0,11.30D0,10.10D0,8.20D0,7
 16.38D0,15.33D0,15.33D0,15.33D0,15.33D0,15.33D0,15.33D0,15.33D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,11.97D0,11.97D0,&
 11.97D0,11.97D0,12.70D0,11.97D0,11.30D0,11.30D0,11.30D0,14.37D0,12.70D0,11.30D0,11.30D0,10.68D0,10.10D0,17.53D0,15.33D0,14.37D0,14.37D0,14.37D0,&
 15.33D0,15.33D0,14.37D0,14.37D0,13.50D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,12.70D0,(14D0,i=104,nelesupp) /)
+real*8 atmrhocut2(1:nelesupp) !Square of atmrhocut, generate when Multiwfn boots up
 
 !Standard atomic weight. Computed from abundance and isotope masses, the data was obtained from https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl?ele=&ascii=ascii2&isotype=all
 !For radioactive elements, the mass corresponds to longest-living isotope
@@ -271,7 +272,7 @@ real*8,allocatable :: COtr(:,:) !Transposed CO matrix, which is used in some rou
 integer :: nprims_uniq=0 !0 means uninitialized
 type(primtype),allocatable,target :: b_uniq(:) !b of unique GTFs
 real*8,allocatable,target :: CO_uniq(:,:) !CO of b_uniq. The coefficients of duplicated GTFs are summed together
-!-------- Describe core electron density in EDF section
+!-------- Describe core electron density in EDF section. If nEDFprims=0, then EDF will not be considered in calculation
 type(primtype),allocatable :: b_EDF(:)
 real*8,allocatable :: CO_EDF(:)
 integer :: nEDFprims=0,nEDFelec=0 !Number of EDFs, number of electrons represented by EDFs

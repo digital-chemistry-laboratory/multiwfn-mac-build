@@ -74,6 +74,12 @@ real*8 :: atmC6_free(1:nelesupp)=(/ &
 4769D0,3175D0, (0D0,i=39,48),779D0,659D0,492D0,445D0,385D0,& !Ca,Sr...In-I
 (0D0,i=54,nelesupp)/)
 
+if (ifPBC/=0) then
+	write(*,*) "Error: This module does not support periodic systems yet!"
+    write(*,*) "Press ENTER button to return"
+    read(*,*)
+    return
+end if
 
 if (ispecial==2) then
 	ipartition=2 !Use Hirshfeld for Shubin's 2nd project
@@ -370,7 +376,7 @@ else if (isel==-1) then
 	if (ipartition==4) then !Generate radial density of all atoms by Hirshfeld-I
 		call Hirshfeld_I(2)
     else if (ipartition==5) then !Generate radial density of all atoms by MBIS
-		call mbis_TianLu(2)
+		call MBIS(2,0)
 	end if
 end if
 if (isel==26.or.isel==101.or.isel<0) cycle

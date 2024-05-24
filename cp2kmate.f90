@@ -761,7 +761,7 @@ do while(.true.)
         write(*,*) "1 Mulliken"
         write(*,*) "2 Lowdin"
         write(*,*) "3 Hirshfeld"
-        write(*,*) "4 Hirshfeld-I"
+        write(*,*) "4 Hirshfeld-I (its implementation in CP2K is not rigorous)"
         write(*,*) "5 Voronoi"
         write(*,*) "6 RESP"
         write(*,*) "7 REPEAT"

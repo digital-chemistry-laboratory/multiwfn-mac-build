@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2024-May-17"
+write(*,*) "Version 3.8(dev), release date: 2024-May-23"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -169,6 +169,7 @@ forall (i=1:nfragatm_org) fragatm_org(i)=i
 
 
 !!-------- Call some routines only once
+atmrhocut2(:)=atmrhocut(:)**2
 !Generate coordinate of atomic radial positions, which corresponds to atmraddens(:)
 call genatmradpos(atmradpos(:))
 !Convert prebuilt radii from Angstrom to Bohr. But some radii such as radii_hugo will remain unchanged since it is recorded as Bohr
@@ -198,13 +199,14 @@ end if
 !!-------- Show cell information
 call showcellinfo
 call getcellabc(asize,bsize,csize,alpha,beta,gamma)
-if (allocated(b)) then
-	if (asize<7D0/b2a.and.PBCnx==1) write(*,"(/,a)") " Warning: Because size of a axis of the cell is relatively small, &
-	in order to guarantee analysis accuracy, it is suggested to increase the first index of ""PBCnxnynz"" in settings.ini to 2"
-	if (bsize<7D0/b2a.and.PBCny==1) write(*,"(/,a)") " Warning: Because size of b axis of the cell is relatively small, &
-	in order to guarantee analysis accuracy, it is suggested to increase the second index of ""PBCnxnynz"" in settings.ini to 2"
-	if (csize<7D0/b2a.and.PBCnz==1) write(*,"(/,a)") " Warning: Because size of c axis of the cell is relatively small, &
-	in order to guarantee analysis accuracy, it is suggested to increase the third index of ""PBCnxnynz"" in settings.ini to 2"
+crit=7D0/b2a
+if (allocated(b)) then !Warning user if any direction is less than 7 Angstrom
+	if (asize<crit.and.PBCnx==1) write(*,"(/,a,i3)") " Warning: Because size of a axis of the cell is relatively small, &
+	in order to guarantee analysis accuracy, it is suggested to increase the first index of ""PBCnxnynz"" in settings.ini to",ceiling(crit/asize)
+	if (bsize<crit.and.PBCny==1) write(*,"(/,a,i3)") " Warning: Because size of b axis of the cell is relatively small, &
+	in order to guarantee analysis accuracy, it is suggested to increase the second index of ""PBCnxnynz"" in settings.ini to",ceiling(crit/bsize)
+	if (csize<crit.and.PBCnz==1) write(*,"(/,a,i3)") " Warning: Because size of c axis of the cell is relatively small, &
+	in order to guarantee analysis accuracy, it is suggested to increase the third index of ""PBCnxnynz"" in settings.ini to",ceiling(crit/csize)
 end if
 
 
@@ -247,7 +249,7 @@ end if
 
 
 !Special treatment and test new code
-!call mbis_wrapper_TianLu
+!call MBIS(1,2)
 
 
 !!!--------------------- Now everything start ---------------------!!!
@@ -845,7 +847,7 @@ do while(.true.) !Main loop
 		    else if (i==97) then
 			    call MRCC_gennatorb
 		    else if (i==99) then
-			    if (.not.allocated(b_EDF)) then
+			    if (nEDFprims==0) then
 				    write(*,*) "EDF field was not loaded"
 			    else
 				    write(*,"( ' The number of inner-core electrons represented by EDFs:',i6)") nEDFelec

@@ -489,10 +489,17 @@ CALL wgapp(idisotherset,"Use line style",idisuseline)
 CALL wgapp(idisotherset,"Toggle showing hydrogens",idisshowhydrogen)
 CALL wgapp(idisotherset,"Toggle showing all boundary atoms",idisshowboundaryatom)
 if (ifPBC==0) call swgatt(idisshowboundaryatom,"INACTIVE","STATUS")
+CALL wgapp(idisotherset,"Set atom highlighting",idishighlightatom)
 CALL wgapp(idisotherset,"Load bonding connectivity from mol/mol2 file",idisloadconn)
 CALL wgapp(idisotherset,"Write settings to isosur.ini",idiswriteisosursetting)
 CALL wgapp(idisotherset,"Load settings from isosur.ini",idisloadisosursetting)
-
+CALL WGPOP(idiswindow,"Tools",idistools)
+CALL wgapp(idistools,"Measure geometry",idismeasure)
+CALL wgapp(idistools,"Select fragment",idisselfrag)
+CALL wgapp(idistools,"Get atom indices of a given element",idisgetatmidx_by_ele)
+CALL wgapp(idistools,"Print XYZ coordinates in Angstrom",idisshowcoordA)
+CALL wgapp(idistools,"Print XYZ coordinates in Bohr",idisshowcoordB)
+CALL wgapp(idistools,"Export all internal coordinates",idisexpintcoord)
 CALL WGDRAW(idiswindow,idisgraph) !Draw-widget to display molecular structure
 CALL SWGWTH(20) !Set parent widget width
 CALL WGBAS(idiswindow,"VERT",idisright)
@@ -585,6 +592,7 @@ call SWGCBK(idisreset,resetview)
 call SWGCBK(idisisosurscl,setisosurscl)
 call SWGCBK(idisscrval,setscrval)
 call SWGCBK(idisshowhydrogen,setshowhydrogen)
+call SWGCBK(idishighlightatom,sethighlightatom)
 call SWGCBK(idisloadconn,loadconn)
 call SWGCBK(idiswriteisosursetting,write_isosur_setting)
 call SWGCBK(idisloadisosursetting,load_isosur_setting)
@@ -603,6 +611,12 @@ if (imodlayout<=1) then
 end if
 call SWGCBK(idislabelsize,setlabelsize)
 call SWGCBK(idisatmsize,setatmsize)
+call SWGCBK(idismeasure,measuregeom)
+call SWGCBK(idisselfrag,GUIselfrag)
+call SWGCBK(idisgetatmidx_by_ele,getatmidx_by_ele)
+call SWGCBK(idisshowcoordA,showcoordA)
+call SWGCBK(idisshowcoordB,showcoordB)
+call SWGCBK(idisexpintcoord,export_intcoord)
 if (isys==1) call drawmol
 CALL WGFIN
 idrawisosur=0

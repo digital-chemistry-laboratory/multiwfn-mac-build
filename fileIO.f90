@@ -180,7 +180,7 @@ if (allocated(b)) then
             exit
         end if
     end do
-	if (ifEDF==1 .and. .not.allocated(b_EDF)) then
+	if (ifEDF==1.and.nEDFprims==0) then
 		if (isupplyEDF==0) then !Do nothing
 			continue
 		else if (isupplyEDF==1) then !Supply EDF from .wfx file
@@ -2955,12 +2955,15 @@ end subroutine
 !ionlygrid=1 means only read grid data, but do not perturb atom information, =0 means do all
 subroutine readcube(cubname,infomode,ionlygrid)
 use defvar
+use util
 implicit real*8 (a-h,o-z)
 character(len=*) cubname
-character titleline1*79,titleline2*79
+character titleline1*79,titleline2*79,selectyn,c200tmp*200
 integer infomode,ionlygrid
 integer,allocatable :: mo_serial(:)
-real*8,allocatable :: temp_readdata(:),tmpreadcub(:,:,:)
+real*8,allocatable :: temp_readdata(:),tmpreadcub(:,:,:),tmpeffchg(:)
+character,allocatable :: tmpelestr(:)*2
+
 if (ionlygrid==0) ifiletype=7
 open(10,file=cubname,status="old")
 read(10,"(a)") titleline1
@@ -3051,6 +3054,33 @@ else !Load specified of many orbitals
         if (infomode<2) call showprog(i,nx)
 	end do
 end if
+
+if (all(a%charge==0)) then
+	write(*,"(/,a)") " Warning: Effective nuclear charges recorded in this file are all zero. If this file was produced by CP2K, it is a bug. &
+    Do you want to let Multiwfn load effective nuclear charge of each element from the first line of this file? (y/n)"
+    write(*,"(a)") " Note: If you choose ""y"", the effctive nuclear charges should be provided in the first line such as ""B 3 N 5 Cl 7"""
+    read(*,*) selectyn
+    if (selectyn=='y'.or.selectyn=='Y') then
+		rewind(10)
+        read(10,"(a)") c200tmp
+        call numdatastr(c200tmp,ndata)
+        nread=ndata/2
+        allocate(tmpeffchg(nread),tmpelestr(nread))
+        read(c200tmp,*) ((tmpelestr(i),tmpeffchg(i)),i=1,nread)
+        if (nread>0) then
+			write(*,*) "Loaded effctive nuclear charges"
+			do i=1,nread
+				write(*,"(1x,a,f12.6)") tmpelestr(i),tmpeffchg(i)
+                call lc2uc(tmpelestr(i)(1:1))
+                call uc2lc(tmpelestr(i)(2:2))
+                do iatm=1,ncenter
+					if (a(iatm)%name==tmpelestr(i)) a(iatm)%charge=tmpeffchg(i)
+                end do
+			end do
+        end if
+    end if
+end if
+
 close(10)
 
 if (infomode==0) call showgridinfo(2) !Calculate statistical information
@@ -7626,7 +7656,7 @@ write(ifileid,"(a)") "</Primitive Types>"
 write(ifileid,"(a)") "<Primitive Exponents>"
 write(ifileid,"(5E20.12)") b%exp
 write(ifileid,"(a)") "</Primitive Exponents>"
-if (allocated(b_EDF)) then
+if (nEDFprims/=0) then
 	write(ifileid,"(a)") "<Additional Electron Density Function (EDF)>"
 	write(ifileid,"(a)") "<Number of EDF Primitives>"
 	write(ifileid,"(i6)") nEDFprims

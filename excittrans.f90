@@ -2569,56 +2569,105 @@ use excitinfo
 implicit real*8 (a-h,o-z)
 real*8 atmhole(ncenter),atmele(ncenter)
 real*8 hole(radpot*sphpot),ele(radpot*sphpot),promol(radpot*sphpot),tmpdens(radpot*sphpot),selfdens(radpot*sphpot)
+real*8 atmrho(ncenter),tvec(3),atmhole_tmp(ncenter),atmele_tmp(ncenter)
 type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
-
-if (ifPBC/=0) then
-	write(*,*) "Error: Periodic system is unsupported in this case! Press ENTER button to exit"
-    read(*,*)
-    stop
-end if
 
 atmhole=0
 atmele=0
-if (ioutinfo==1) then
-    call walltime(iwalltime1)
-    write(*,"(' Radial grids:',i5,'    Angular grids:',i5,'   Total:',i10)") radpot,sphpot,radpot*sphpot
-    write(*,*) "Evaluating atomic contributions..."
-end if
+call walltime(iwalltime1)
+write(*,*) "Evaluating atomic contributions..."
 
-!Generate quadrature point and weighs by combination of Gauss-Chebyshev and Lebedev grids
-call gen1cintgrid(gridatmorg,iradcut)
+if (ifPBC==0) then !Atomic-center grids
+	if (ioutinfo==1) write(*,"(' Radial grids:',i5,'    Angular grids:',i5,'   Total:',i10)") radpot,sphpot,radpot*sphpot
 
-do iatm=1,ncenter
-	call showprog(iatm,ncenter)
-	gridatm%value=gridatmorg%value !Weight in this grid point
-	gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
-	gridatm%y=gridatmorg%y+a(iatm)%y
-	gridatm%z=gridatmorg%z+a(iatm)%z
-	!Calculate hole and electron at all atom grids
-	!$OMP parallel do shared(hole,ele) private(i) num_threads(nthreads)
-    do i=1+iradcut*sphpot,radpot*sphpot
-        call calc_holeele(gridatm(i)%x,gridatm(i)%y,gridatm(i)%z,0.01D0,hole(i),ele(i))
-	end do
-	!$OMP end parallel do
-	!Calculate free atomic density to obtain promolecule density
-	promol=0D0
-	do jatm=1,ncenter
-		!$OMP parallel do shared(tmpdens) private(ipt) num_threads(nthreads)
-        do ipt=1+iradcut*sphpot,radpot*sphpot
-			tmpdens(ipt)=calcatmdens(jatm,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,0)
+	!Generate quadrature point and weights by combination of Gauss-Chebyshev and Lebedev grids
+	call gen1cintgrid(gridatmorg,iradcut)
+
+	do iatm=1,ncenter
+		call showprog(iatm,ncenter)
+		gridatm%value=gridatmorg%value !Weight in this grid point
+		gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
+		gridatm%y=gridatmorg%y+a(iatm)%y
+		gridatm%z=gridatmorg%z+a(iatm)%z
+		!Calculate hole and electron at all atom grids
+		!$OMP parallel do shared(hole,ele) private(i) num_threads(nthreads)
+		do i=1+iradcut*sphpot,radpot*sphpot
+			call calc_holeele(gridatm(i)%x,gridatm(i)%y,gridatm(i)%z,0.01D0,hole(i),ele(i))
 		end do
 		!$OMP end parallel do
-		promol=promol+tmpdens
-		if (jatm==iatm) selfdens=tmpdens
+		!Calculate free atomic density to obtain promolecule density
+		promol=0D0
+		do jatm=1,ncenter
+			!$OMP parallel do shared(tmpdens) private(ipt) num_threads(nthreads)
+			do ipt=1+iradcut*sphpot,radpot*sphpot
+				tmpdens(ipt)=calcatmdens(jatm,gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z,0)
+			end do
+			!$OMP end parallel do
+			promol=promol+tmpdens
+			if (jatm==iatm) selfdens=tmpdens
+		end do
+		do i=1+iradcut*sphpot,radpot*sphpot
+			if (promol(i)/=0D0) then
+				tmpv=selfdens(i)/promol(i)*gridatm(i)%value
+				atmhole(iatm)=atmhole(iatm)+tmpv*hole(i)
+				atmele(iatm)=atmele(iatm)+tmpv*ele(i)
+			end if
+		end do
 	end do
-    do i=1+iradcut*sphpot,radpot*sphpot
-		if (promol(i)/=0D0) then
-			tmpv=selfdens(i)/promol(i)*gridatm(i)%value
-			atmhole(iatm)=atmhole(iatm)+tmpv*hole(i)
-			atmele(iatm)=atmele(iatm)+tmpv*ele(i)
-		end if
+    
+else !PBC case, use evenly distributed integration grids
+    write(*,"(' Grid spacing of',f6.3,' Bohr is used in integration')") 0.35D0
+	call setgrid_for_PBC(0.35D0,2) !This is fully adequate for crude estimation
+	call calc_dvol(dvol)
+	ifinish=0
+	ntmp=floor(ny*nz/100D0)
+	!$OMP PARALLEL SHARED(atmhole,atmele,ifinish,ishowprog) PRIVATE(atmhole_tmp,atmele_tmp,i,j,k,tmpx,tmpy,tmpz,&
+    !$OMP icell,jcell,kcell,tvec,iatm,dist2,atmrho,prorho,holeval,eleval) NUM_THREADS(nthreads)
+	atmhole_tmp(:)=0
+    atmele_tmp(:)=0
+	!$OMP DO schedule(dynamic) collapse(2)
+    do k=1,nz
+		do j=1,ny
+			do i=1,nx
+				call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
+				atmrho(:)=0
+				do icell=-PBCnx,PBCnx
+					do jcell=-PBCny,PBCny
+						do kcell=-PBCnz,PBCnz
+							call tvec_PBC(icell,jcell,kcell,tvec)
+							do iatm=1,ncenter
+								dist2=(a(iatm)%x+tvec(1)-tmpx)**2+(a(iatm)%y+tvec(2)-tmpy)**2+(a(iatm)%z+tvec(3)-tmpz)**2
+								if (dist2>atmrhocut2(a(iatm)%index)) then
+									cycle
+								else
+									atmrho(iatm)=atmrho(iatm)+eleraddens(a(iatm)%index,dsqrt(dist2),0)
+								end if
+							end do
+						end do
+					end do
+				end do
+				prorho=sum(atmrho(:))
+                if (prorho>0) then
+					call calc_holeele(tmpx,tmpy,tmpz,0.01D0,holeval,eleval)
+                    atmhole_tmp(:)=atmhole_tmp(:)+atmrho(:)/prorho*holeval
+                    atmele_tmp(:)=atmele_tmp(:)+atmrho(:)/prorho*eleval
+                end if
+			end do
+			!$OMP CRITICAL
+			ifinish=ifinish+1
+			ishowprog=mod(ifinish,ntmp)
+			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+			!$OMP END CRITICAL
+		end do
 	end do
-end do
+	!$OMP END DO
+	!$OMP CRITICAL
+    atmhole(:)=atmhole(:)+atmhole_tmp(:)*dvol
+    atmele(:)=atmele(:)+atmele_tmp(:)*dvol
+	!$OMP END CRITICAL
+	!$OMP END PARALLEL
+	if (ishowprog/=0) call showprog(100,100)
+end if
 
 !Normalize the data, because minor terms have been ignored, the sum of all data is not exactly 100%
 if (ioutinfo==1) write(*,"(' Sum of hole:',f10.7, '   Sum of electron:',f10.7)") sum(atmhole),sum(atmele)

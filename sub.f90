@@ -1001,7 +1001,7 @@ do while(.true.)
 			end do
 			write(*,*) "Done!"
 			write(*,"(a,f12.6)") " Sum of occupation numbers of selected orbitals:",oddnum
-			if (allocated(b_EDF)) then
+			if (nEDFprims/=0) then
 				deallocate(b_EDF,CO_EDF,nEDFelecatm)
 				nEDFprims=0
 				nEDFelec=0
@@ -1208,7 +1208,7 @@ end subroutine
 
 !!-------- Generate nelec, naelec, nbelec by guessing when wavefunction information is not available
 !Commonly invoked when reading file only contains geometry information
-!The system is always regarded as neutral. If number of electrons is even, then naelec=nbelec=nelec/2. Else odd, naelec=nbelec+1
+!The system is always regarded as neutral!!! If number of electrons is even, then naelec=nbelec=nelec/2. Else odd, naelec=nbelec+1
 subroutine guessnelec
 use defvar
 nelec=sum(a%charge)
@@ -2445,7 +2445,7 @@ end subroutine
 
 
 
-!!!------------------- Recover status prior to calling delvirorb
+!!!------------------- Recover the status of wavefunction before calling delvirorb
 !infomode=1 means show prompt, =0 means do not show
 subroutine delvirorb_back(infomode)
 use defvar
@@ -2476,7 +2476,7 @@ real*8 tvec(3)
 
 if (.not.allocated(b)) return
 
-spcred=1.5D0/b2a !Spacing of reduced grid, this is fund to be optimal value
+spcred=1.5D0/b2a !Spacing of reduced grid, this is found to be optimal value
 !Define a orthogonal box for reduced grid
 call cellmaxxyz(xmax,ymax,zmax)
 call cellminxyz(orgx_neigh,orgy_neigh,orgz_neigh)
@@ -2669,7 +2669,7 @@ integer imode
 
 call delvirorb_back(0) !If delvirorb has taken effect, use this routine to deallocate relevant arrays
 call del_GTFuniq
-call dealloEDF
+call dealloEDF !Deallocate EDF information
 if (allocated(a)) deallocate(a)
 if (allocated(b)) deallocate(b)
 if (allocated(CO)) deallocate(CO)
@@ -2767,7 +2767,7 @@ end subroutine
 !!-------- Deallocate EDF related information
 subroutine dealloEDF
 use defvar
-if (allocated(b_EDF)) then
+if (nEDFprims/=0) then
 	deallocate(CO_EDF,b_EDF,nEDFelecatm)
 	nEDFprims=0
 	nEDFelec=0
@@ -4584,7 +4584,6 @@ do iatm=1,ncenter
 			  !  AOMtmp(ibas,jbas)=AOMtmp(ibas,jbas)+basval(jbas)*weitmp2
 		   ! end do
 	    !end do
-        
 		do jbas=1,nbasis
             AOMtmp(jbas:nbasis,jbas)=AOMtmp(jbas:nbasis,jbas)+basval(jbas:nbasis)*basval(jbas)*weitmp
 	    end do

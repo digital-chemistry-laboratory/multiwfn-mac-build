@@ -43,8 +43,6 @@ if (.not.allocated(CObasa)) then
 	return
 end if
 
-if (ifPBC>0) icompmethod=1 !For PBC case, using Mulliken+SCPA as default method to calculate orbital composition
-
 do while(.true.)
 	write(*,*)
 	write(*,*) "                ======== Orbital localization analysis ========"
@@ -128,8 +126,10 @@ do while(.true.)
         with diffuse functions. Only 10 is unable to give sigma-pi separated LMOs"
 		write(*,*) "1 Pipek-Mezey based on Mulliken type of population"
 		write(*,*) "2 Pipek-Mezey based on Lowdin type of population"
-		write(*,*) "3 Pipek-Mezey based on Becke population"
-		write(*,*) "10 Foster-Boys"
+        if (ifPBC==0) then
+			write(*,*) "3 Pipek-Mezey based on Becke population"
+			write(*,*) "10 Foster-Boys"
+        end if
 		read(*,*) imethod
 	else if (isel==-7) then
 		write(*,*) "Input exponent of Pipek-Mezey method. 2 or 4 is allowed"
@@ -297,7 +297,6 @@ do itime=1,4
             imo=orblist(idx)
 			do jdx=idx+1,norblist
                 jmo=orblist(jdx)
-                
                 !PM-Mulliken and PM-Lowdin. Working equation is Journal of Computational Chemistry, 14, 6, 736 (1993)
 				if (imethod==1.or.imethod==2) then
 				    Aval=0;Bval=0
@@ -322,6 +321,27 @@ do itime=1,4
 							Bval=Bval+4*Qij*(Qii**3-Qjj**3)
 						end if
 					end do
+                    !The following parallization makes calculation evidently slower perhaps due to additional overhead due to create threads
+     !               !$OMP parallel private(iatm,Avaltmp,Bvaltmp,is,ie,Qij,Qii,Qjj) num_threads(nthreads)
+					!Avaltmp=0
+					!Bvaltmp=0
+     !               !$OMP do schedule(dynamic)
+					!do iatm=1,ncenter
+					!	is=basstart(iatm)
+     !                   if (is==0) cycle
+					!	ie=basend(iatm)
+					!	Qij=0.5D0*sum(Cmat(is:ie,jmo)*SC(is:ie,imo)+Cmat(is:ie,imo)*SC(is:ie,jmo))
+					!	Qii=sum(Cmat(is:ie,imo)*SC(is:ie,imo))
+					!	Qjj=sum(Cmat(is:ie,jmo)*SC(is:ie,jmo))
+					!	Avaltmp=Avaltmp+( Qij**2-(Qii-Qjj)**2/4D0 )
+					!	Bvaltmp=Bvaltmp+( Qij*(Qii-Qjj) )
+					!end do
+     !               !$OMP end do
+     !               !$OMP CRITICAL
+	    !            Aval=Aval+Avaltmp
+	    !            Bval=Bval+Bvaltmp
+     !               !$OMP end CRITICAL
+     !               !$OMP end parallel
                 !PM-Becke. See Eqs. 14 and 17 in J. Chem. Theory Comput., 10, 642 (2014)
                 else if (imethod==3) then
 				    Aval=0;Bval=0
@@ -546,6 +566,7 @@ if (icompmethod>0) then
         end if
 		
 		!Calculate orbital composition and then sort from large to small. Size: orbcomp(1:ncenter,1:nbasis)
+        write(*,*) "Calculating orbital compositions..."
         if (icompmethod==1) then !Mulliken+SCPA
 			orbcomp=0
 		    do idx=1,norblist
@@ -579,7 +600,7 @@ if (icompmethod>0) then
             CO_tmp=CO
             if (itime==1.or.itime==2) then !Alpha
                 call CObas2CO(1) !Convert current CObasa to CO, which is needed by Hirshfeld/Becke method
-                call gen_orbatmcomp_space(itmp,orbcomp(:,ibeg:iend),ibeg,iend,0,0) !Use cheap grid
+                call gen_orbatmcomp_space(itmp,orbcomp(:,ibeg:iend),ibeg,iend,0,0)
             else if (itime==3.or.itime==4) then !Beta
                 call CObas2CO(2) !Convert current CObasb to CO, which is needed by Hirshfeld/Becke method
                 call gen_orbatmcomp_space(itmp,orbcomp(:,ibeg:iend),ibeg+nbasis,iend+nbasis,0,0) !Use cheap grid

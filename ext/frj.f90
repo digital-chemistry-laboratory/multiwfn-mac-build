@@ -78,13 +78,13 @@ ldumpgrids=.false.
 ntotpot=radpot*sphpot
 
 do while(.true.)
-    write(*,*) "     =============== Iterative MBIS ==============="
+    write(*,*) "     =============== Iterative MBIS (frj) ==============="
     if (iaddinfo==0) write(*,*) "-4 Switch if outputting more information, current: No"
     if (iaddinfo==1) write(*,*) "-4 Switch if outputting more information, current: Yes"
-	if (ignorefar==1) write(*,"(a,f6.3)") " -3 Switch if speeding up calculation using distance cutoff, current: Yes, ratio factor is",vdwsumcut
-	if (ignorefar==0) write(*,*) "-3 Switch if speeding up calculation using distance cutoff, current: No"
-	if (imode==1) write(*,*) "-2 Switch algorithm, current: Slow & low memory requirement"
-	if (imode==2) write(*,*) "-2 Switch algorithm, current: Fast & large memory requirement"
+	!if (ignorefar==1) write(*,"(a,f6.3)") " -3 Switch if speeding up calculation using distance cutoff, current: Yes, ratio factor is",vdwsumcut
+	!if (ignorefar==0) write(*,*) "-3 Switch if speeding up calculation using distance cutoff, current: No"
+	!if (imode==1) write(*,*) "-2 Switch algorithm, current: Slow & low memory requirement"
+	!if (imode==2) write(*,*) "-2 Switch algorithm, current: Fast & large memory requirement"
 	write(*,*) "1 Start calculation!"
 	write(*,"(a,i4)") " 2 Set the maximum number of iterations, current:",maxcyc
 	write(*,"(a,f10.6)") " 3 Set convergence criterion of atomic charges, current:",crit
@@ -446,7 +446,8 @@ do icyc=1,maxcyc
 	if (varmax<crit) then
 		write(*,"(a,f10.6)") " All atomic charges have converged to criterion of",crit
 		write(*,"(' Sum of all charges:',f14.8)") sum(charge)
-		call normalizecharge(charge) !Calculate and print normalized charge
+		call normalize_atmchg(charge(:))
+        call printatmchg(charge(:))
 		exit
 	else
 		if (icyc==maxcyc) then

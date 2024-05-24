@@ -4,10 +4,10 @@
 !orbfragcomp_MMPA: Interface for calculating fragment contribution via Mulliken, Stout-Politzer, SCPA
 !orbatmcomp_space: Interface for calculating atom contribution via fuzzy partition methods
 !orballcomp_NAO: Interface for calculating atom contribution via NAOMO method
-!gen_orbatmcomp_MMPA: Returning all atom contributions to one orbitals via Mulliken and SCPA
+!gen_orbatmcomp_space: Returning atomic contributions to specific range of orbitals by Hirshfeld (built-in density) or Becke method
+!gen_orbatmcomp_MMPA: Returning all atom contributions to one orbital via Mulliken and SCPA
 !gen_allorbbascomp_SCPA: Returning all basis function contributions to all orbitals via SCPA
 !gen_allorbatmcomp_SCPA: Returning all atom contributions to all orbitals via SCPA
-    
     
     
     
@@ -39,9 +39,16 @@ do while(.true.)
 	if (allocated(b)) write(*,*) "9 Calculate atom and fragment contributions by Becke method"
 	if (allocated(b)) write(*,*) "10 Calculate atom and fragment contributions by Hirshfeld-I method"
 	if (allocated(b)) write(*,*) "11 Calculate atom and fragment contributions by AIM method"
-	if (allocated(CObasa)) write(*,*) "100 Evaluate oxidation state by LOBA method"
+	if (allocated(CObasa)) write(*,*) "100 Evaluate oxidation state by LOBA/mLOBA method"
 	read(*,*) icompana
 
+    if (ifPBC/=0.and.(icompana==9.or.icompana==10)) then
+		write(*,*) "Error: This analysis does not support periodic wavefunctions!"
+        write(*,*) "Press ENTER button to return"
+        read(*,*)
+        cycle
+    end if
+    
 	if (icompana==-10) then
 		if (allocated(frag1)) deallocate(frag1)
 		if (allocated(frag2)) deallocate(frag2)
@@ -71,7 +78,7 @@ do while(.true.)
 	else if (icompana==7) then
 		call orballcomp_NAO
 	else if (icompana==8) then
-		call orbatmcomp_space(1)
+        call orbatmcomp_space(1)
 	else if (icompana==9) then
 		call orbatmcomp_space(2)
 	else if (icompana==10) then
@@ -652,7 +659,8 @@ end subroutine
 
 
 !!!-------- Partition orbital to atomic contributions by space partition methods
-!itype=1: Hirshfeld, itype=2: Becke, itype=3: Hirshfeld-I (must have "call Hirshfeld-I")
+!Periodic wavefunction is supported based on evenly distributed grids. Only Hirshfeld is supported currently
+!itype: 1=Hirshfeld, 2=Becke, 3=Hirshfeld-I (must have used "call Hirshfeld_I(2)", which generates atomic radial density)
 subroutine orbatmcomp_space(itype)
 use defvar
 use util
@@ -661,125 +669,136 @@ implicit real*8 (a-h,o-z)
 type(content) gridorg(radpot*sphpot),gridatm(radpot*sphpot)
 real*8 resultvec(ncenter)
 real*8 allpotx(ncenter,radpot*sphpot),allpoty(ncenter,radpot*sphpot),allpotz(ncenter,radpot*sphpot),allpotw(ncenter,radpot*sphpot)
-real*8 tmpdens(radpot*sphpot),selfdens(radpot*sphpot),promol(radpot*sphpot),orbval(nmo),orbcomp(ncenter,nmo)
-real*8 atmcomp(ncenter)
+real*8 tmpdens(radpot*sphpot),selfdens(radpot*sphpot),promol(radpot*sphpot),orbval(nmo)
+real*8 atmcomp(ncenter),orbcomp(ncenter,nmo)
 integer,allocatable :: idxarr(:)
 character c80tmp*80,c2000tmp*2000
 
-if (iautointgrid==1) then
-	nradpotold=radpot
-	nsphpotold=sphpot
-	radcutold=radcut
-	radpot=30
-	sphpot=302
-    radcut=15
-end if
-
-!Generate allpotx/y/z/w
-!allpotx(iatm,j) is x coordinate of the jth point for integrating center iatm
-call gen1cintgrid(gridorg,iradcut)
-do iatm=1,ncenter
-	allpotx(iatm,:)=gridorg(:)%x+a(iatm)%x
-	allpoty(iatm,:)=gridorg(:)%y+a(iatm)%y
-	allpotz(iatm,:)=gridorg(:)%z+a(iatm)%z
-end do
-
-!allpotw combines Becke multi-center integration weight with Becke/Hirshfeld/Hirshfeld-I weight
-allpotw=0D0
-write(*,"(i6,' quadrature points are used for each atom to compute orbital compositions')") radpot*sphpot
-write(*,"(a)") " Note: You can manually define the number of radial and angular points by &
-setting ""iautointgrid"" in settings.ini to 0 and setting ""radpot"" and ""sphpot"""
-call walltime(iwalltime1)
-
-if (itype==1.or.itype==3) then !Hirshfeld or Hirshfeld-I partition
-	write(*,*)
-	if (itype==1) then
-		write(*,*) "Hirshfeld analysis requests atomic densities, please select how to obtain them"
-		write(*,*) "1 Use build-in sphericalized atomic densities in free-states (recommended)"
-		write(*,"(a)") " 2 Provide wavefunction file of involved elements by yourself or invoke Gaussian to automatically calculate them"
-		read(*,*) ihirshmode
-	end if
-    
-	if ((itype==1.and.ihirshmode==1).or.itype==3) then !Hirshfeld or Hirshfeld-I based on interpolation density
-		if (itype==1.and.ihirshmode==1) write(*,*) "Generating Hirshfeld atomic weighting functions at all grids..."
-		if (itype==3) write(*,*) "Generating Hirshfeld-I atomic weighting functions at all grids..."
-		do iatm=1,ncenter
-			promol=0D0
-			do jatm=1,ncenter
-				if (itype==1.and.ihirshmode==1) then !Hirshfeld based on interpolation of built-in atomic radius density
-					!$OMP parallel do shared(tmpdens) private(ipt) num_threads(nthreads)
-					do ipt=1+iradcut*sphpot,radpot*sphpot
-						tmpdens(ipt)=calcatmdens(jatm,allpotx(iatm,ipt),allpoty(iatm,ipt),allpotz(iatm,ipt),0)
-					end do
-					!$OMP end parallel do
-				else if (itype==3) then !Hirshfeld-I based on refined atomic radial density
-					!$OMP parallel do shared(tmpdens) private(ipt) num_threads(nthreads)
-					do ipt=1+iradcut*sphpot,radpot*sphpot
-						tmpdens(ipt)=fdens_rad(jatm,allpotx(iatm,ipt),allpoty(iatm,ipt),allpotz(iatm,ipt))
-					end do
-					!$OMP end parallel do
-				end if
-				promol=promol+tmpdens
-				if (jatm==iatm) selfdens=tmpdens
-			end do
-			do i=1+iradcut*sphpot,radpot*sphpot !Get Hirshfeld weight of present atom
-				if (promol(i)/=0D0) then
-					allpotw(iatm,i)=selfdens(i)/promol(i)
-				else
-					allpotw(iatm,i)=0D0
-				end if
-			end do
-			allpotw(iatm,:)=allpotw(iatm,:)*gridorg(:)%value !Combine Hirshfeld weight with single-center integration weight
-            
-            call showprog(iatm,ncenter)
-		end do
-		
-	else if (itype==1.and.ihirshmode==2) then !Hirshfeld based on atomic .wfn file
-		call setpromol
-        write(*,*) "Generating Hirshfeld atomic weighting functions at all grids..."
-		do iatm=1,ncenter_org
-			promol=0D0
-			do jatm=1,ncenter_org
-				call dealloall(0)
-				call readwfn(custommapname(jatm),1)
-				!$OMP parallel do shared(tmpdens) private(ipt) num_threads(nthreads)
-				do ipt=1+iradcut*sphpot,radpot*sphpot
-					tmpdens(ipt)=fdens(allpotx(iatm,ipt),allpoty(iatm,ipt),allpotz(iatm,ipt))
-				end do
-				!$OMP end parallel do
-				promol=promol+tmpdens
-				if (jatm==iatm) selfdens=tmpdens
-			end do
-			do i=1+iradcut*sphpot,radpot*sphpot !Get Hirshfeld weight of present atom
-				if (promol(i)/=0D0) then
-					allpotw(iatm,i)=selfdens(i)/promol(i)
-				else
-					allpotw(iatm,i)=0D0
-				end if
-			end do
-			allpotw(iatm,:)=allpotw(iatm,:)*gridorg(:)%value !Combine Hirshfeld weight with single-center integration weight
-            
-            call showprog(iatm,ncenter_org)
-		end do
-		call dealloall(0)
-		call readinfile(firstfilename,1) !Retrieve the firstly loaded file(whole molecule) in order to calculate real rho later
+if (ifPBC==0) then !Using atomic-center grids to calculate intermediate array
+	if (iautointgrid==1) then
+		nradpotold=radpot
+		nsphpotold=sphpot
+		radcutold=radcut
+		radpot=30
+		sphpot=302
+		radcut=15
 	end if
 
-else if (itype==2) then !Becke partition
-	write(*,*) "Generating Becke atomic weighting functions at all grids..."
-	do iatm=1,ncenter !Cycle points of each atom
-		gridatm%x=gridorg%x+a(iatm)%x
-		gridatm%y=gridorg%y+a(iatm)%y
-		gridatm%z=gridorg%z+a(iatm)%z
-		call gen1cbeckewei(iatm,iradcut,gridatm,allpotw(iatm,:),covr_tianlu,3)
-		allpotw(iatm,:)=allpotw(iatm,:)*gridorg%value !Combine Becke weight with single-center integration weight
-        call showprog(iatm,ncenter)
+	!Generate allpotx/y/z/w
+	!allpotx(iatm,j) is x coordinate of the jth point for integrating center iatm
+	call gen1cintgrid(gridorg,iradcut)
+	do iatm=1,ncenter
+		allpotx(iatm,:)=gridorg(:)%x+a(iatm)%x
+		allpoty(iatm,:)=gridorg(:)%y+a(iatm)%y
+		allpotz(iatm,:)=gridorg(:)%z+a(iatm)%z
 	end do
+
+	!allpotw combines Becke multi-center integration weight with Becke/Hirshfeld/Hirshfeld-I weight
+	allpotw=0D0
+	write(*,"(i6,' quadrature points are used for each atom to compute orbital compositions')") radpot*sphpot
+	write(*,"(a)") " Note: You can manually define the number of radial and angular points by &
+	setting ""iautointgrid"" in settings.ini to 0 and setting ""radpot"" and ""sphpot"""
+	call walltime(iwalltime1)
+
+	if (itype==1.or.itype==3) then !Hirshfeld or Hirshfeld-I partition
+		write(*,*)
+		if (itype==1) then
+			write(*,*) "Hirshfeld analysis requests atomic densities, please select how to obtain them"
+			write(*,*) "1 Use build-in sphericalized atomic densities in free-states (recommended)"
+			write(*,"(a)") " 2 Provide wavefunction file of involved elements by yourself or invoke Gaussian to automatically calculate them"
+			read(*,*) ihirshmode
+		end if
+    
+		if ((itype==1.and.ihirshmode==1).or.itype==3) then !Hirshfeld or Hirshfeld-I based on interpolation density
+			if (itype==1.and.ihirshmode==1) write(*,*) "Generating Hirshfeld atomic weighting functions at all grids..."
+			if (itype==3) write(*,*) "Generating Hirshfeld-I atomic weighting functions at all grids..."
+			do iatm=1,ncenter
+				promol=0D0
+				do jatm=1,ncenter
+					if (itype==1.and.ihirshmode==1) then !Hirshfeld based on interpolation of built-in atomic radius density
+						!$OMP parallel do shared(tmpdens) private(ipt) num_threads(nthreads)
+						do ipt=1+iradcut*sphpot,radpot*sphpot
+							tmpdens(ipt)=calcatmdens(jatm,allpotx(iatm,ipt),allpoty(iatm,ipt),allpotz(iatm,ipt),0)
+						end do
+						!$OMP end parallel do
+					else if (itype==3) then !Hirshfeld-I based on refined atomic radial density
+						!$OMP parallel do shared(tmpdens) private(ipt) num_threads(nthreads)
+						do ipt=1+iradcut*sphpot,radpot*sphpot
+							tmpdens(ipt)=fdens_rad(jatm,allpotx(iatm,ipt),allpoty(iatm,ipt),allpotz(iatm,ipt))
+						end do
+						!$OMP end parallel do
+					end if
+					promol=promol+tmpdens
+					if (jatm==iatm) selfdens=tmpdens
+				end do
+				do i=1+iradcut*sphpot,radpot*sphpot !Get Hirshfeld weight of present atom
+					if (promol(i)/=0D0) then
+						allpotw(iatm,i)=selfdens(i)/promol(i)
+					else
+						allpotw(iatm,i)=0D0
+					end if
+				end do
+				allpotw(iatm,:)=allpotw(iatm,:)*gridorg(:)%value !Combine Hirshfeld weight with single-center integration weight
+            
+				call showprog(iatm,ncenter)
+			end do
+		
+		else if (itype==1.and.ihirshmode==2) then !Hirshfeld based on atomic .wfn file
+			call setpromol
+			write(*,*) "Generating Hirshfeld atomic weighting functions at all grids..."
+			do iatm=1,ncenter_org
+				promol=0D0
+				do jatm=1,ncenter_org
+					call dealloall(0)
+					call readwfn(custommapname(jatm),1)
+					!$OMP parallel do shared(tmpdens) private(ipt) num_threads(nthreads)
+					do ipt=1+iradcut*sphpot,radpot*sphpot
+						tmpdens(ipt)=fdens(allpotx(iatm,ipt),allpoty(iatm,ipt),allpotz(iatm,ipt))
+					end do
+					!$OMP end parallel do
+					promol=promol+tmpdens
+					if (jatm==iatm) selfdens=tmpdens
+				end do
+				do i=1+iradcut*sphpot,radpot*sphpot !Get Hirshfeld weight of present atom
+					if (promol(i)/=0D0) then
+						allpotw(iatm,i)=selfdens(i)/promol(i)
+					else
+						allpotw(iatm,i)=0D0
+					end if
+				end do
+				allpotw(iatm,:)=allpotw(iatm,:)*gridorg(:)%value !Combine Hirshfeld weight with single-center integration weight
+            
+				call showprog(iatm,ncenter_org)
+			end do
+			call dealloall(0)
+			call readinfile(firstfilename,1) !Retrieve the firstly loaded file(whole molecule) in order to calculate real rho later
+		end if
+
+	else if (itype==2) then !Becke partition
+		write(*,*) "Generating Becke atomic weighting functions at all grids..."
+		do iatm=1,ncenter !Cycle points of each atom
+			gridatm%x=gridorg%x+a(iatm)%x
+			gridatm%y=gridorg%y+a(iatm)%y
+			gridatm%z=gridorg%z+a(iatm)%z
+			call gen1cbeckewei(iatm,iradcut,gridatm,allpotw(iatm,:),covr_tianlu,3)
+			allpotw(iatm,:)=allpotw(iatm,:)*gridorg%value !Combine Becke weight with single-center integration weight
+			call showprog(iatm,ncenter)
+		end do
+	end if
+
+else !Using evenly distributed grids to calculate composition of all orbitals
+	if (itype==1) then
+		call gen_orbatmcomp_space(1,orbcomp,1,nmo,1,0)
+    else
+		write(*,*) "Error: This method is not supported for periodic wavefunctions"
+        write(*,*) "Press ENTER button to return"
+        read(*,*)
+        return
+    end if
 end if
 
 call walltime(iwalltime2)
-write(*,"(' Done! Initialization step took up wall clock time',i10,' s')") iwalltime2-iwalltime1
-write(*,*)
+write(*,"(' Done! Initialization took up wall clock time',i10,' s')") iwalltime2-iwalltime1
 
 if (allocated(frag1)) deallocate(frag1)
 do while(.true.)
@@ -820,7 +839,7 @@ do while(.true.)
 		write(*,"(' Error: Orbital index should between 1 and',i6,/)") nmo
 		cycle
 	else if (ishowmo==0) then
-        if (iautointgrid==1) then
+        if (ifPBC==0.and.iautointgrid==1) then
 	        radpot=nradpotold
 	        sphpot=nsphpotold
             radcut=radcutold
@@ -861,24 +880,8 @@ do while(.true.)
 		do idx=1,ntmp
             imo=idxarr(idx)
 			if (ishowmo==-2) then !Calculate only one atom
-				tmp=0D0
-				!$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads(nthreads)
-				tmpprivate=0D0
-				!$OMP do schedule(dynamic)
-				do ipot=1+iradcut*sphpot,radpot*sphpot
-					if (allpotw(iatm,ipot)<1D-8) cycle !May lose 0.001% accuracy
-					value=fmo(allpotx(iatm,ipot),allpoty(iatm,ipot),allpotz(iatm,ipot),imo)**2
-					tmpprivate=tmpprivate+value*allpotw(iatm,ipot)
-				end do
-				!$OMP end do
-				!$OMP CRITICAL
-				tmp=tmp+tmpprivate
-				!$OMP end CRITICAL
-				!$OMP end parallel
-			else if (ishowmo==-3) then !Calculate fragment
-				tmp=0D0
-				do itmp=1,nfrag1
-					iatm=frag1(itmp)
+				if (ifPBC==0) then
+					tmp=0D0
 					!$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads(nthreads)
 					tmpprivate=0D0
 					!$OMP do schedule(dynamic)
@@ -892,7 +895,31 @@ do while(.true.)
 					tmp=tmp+tmpprivate
 					!$OMP end CRITICAL
 					!$OMP end parallel
-				end do
+                else
+					tmp=orbcomp(iatm,imo)
+                end if
+			else if (ishowmo==-3) then !Calculate fragment
+				if (ifPBC==0) then
+					tmp=0D0
+					do itmp=1,nfrag1
+						iatm=frag1(itmp)
+						!$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads(nthreads)
+						tmpprivate=0D0
+						!$OMP do schedule(dynamic)
+						do ipot=1+iradcut*sphpot,radpot*sphpot
+							if (allpotw(iatm,ipot)<1D-8) cycle !May lose 0.001% accuracy
+							value=fmo(allpotx(iatm,ipot),allpoty(iatm,ipot),allpotz(iatm,ipot),imo)**2
+							tmpprivate=tmpprivate+value*allpotw(iatm,ipot)
+						end do
+						!$OMP end do
+						!$OMP CRITICAL
+						tmp=tmp+tmpprivate
+						!$OMP end CRITICAL
+						!$OMP end parallel
+					end do
+                else
+					tmp=sum(orbcomp(frag1(1:nfrag1),imo))
+                end if
 			end if
 			write(*,"(i5,1x,a,f13.4,f9.3,f11.3,' %',f15.6)") imo,orbtypename(MOtype(imo)),MOene(imo),MOocc(imo),tmp*100,MOocc(imo)*tmp
 			pop=pop+MOocc(imo)*tmp
@@ -901,24 +928,28 @@ do while(.true.)
 		if (ishowmo==-3) write(*,"(a,f12.6)") " Population of this fragment in these orbitals:",pop
 		
 	else if (ishowmo==-4) then !Export composition of every atom in every orbital to orbcomp.txt in current folder
-		write(*,*) "Calculating, please wait..."
-		orbcomp=0
-		!$OMP parallel do shared(orbcomp) private(iatm,ipot,orbval) num_threads(nthreads) schedule(dynamic)
-		do iatm=1,ncenter
-			do ipot=1+iradcut*sphpot,radpot*sphpot
-				if (allpotw(iatm,ipot)<1D-9) cycle !May lose 0.001% accuracy
-				call orbderv(1,1,nmo,allpotx(iatm,ipot),allpoty(iatm,ipot),allpotz(iatm,ipot),orbval)
-				orbcomp(iatm,:)=orbcomp(iatm,:)+orbval(:)**2*allpotw(iatm,ipot)
+		if (ifPBC==0) then
+			write(*,*) "Calculating, please wait..."
+			orbcomp=0
+			!$OMP parallel do shared(orbcomp) private(iatm,ipot,orbval) num_threads(nthreads) schedule(dynamic)
+			do iatm=1,ncenter
+				do ipot=1+iradcut*sphpot,radpot*sphpot
+					if (allpotw(iatm,ipot)<1D-9) cycle !May lose 0.001% accuracy
+					call orbderv(1,1,nmo,allpotx(iatm,ipot),allpoty(iatm,ipot),allpotz(iatm,ipot),orbval)
+					orbcomp(iatm,:)=orbcomp(iatm,:)+orbval(:)**2*allpotw(iatm,ipot)
+				end do
 			end do
-		end do
-		!$OMP end parallel do
+			!$OMP end parallel do
+        end if
 		open(10,file="orbcomp.txt",status="replace")
 		do imo=1,nmo
 			write(10,"(' Orbital',i6)") imo
             valnorm=sum(orbcomp(:,imo))
-			do iatm=1,ncenter
-				write(10,"(i6,f11.3,' %')") iatm,orbcomp(iatm,imo)/valnorm*100
-			end do
+            if (valnorm/=0) then !Some orbitals may have all-zero coefficients, composition is thus all-zero
+				do iatm=1,ncenter
+					write(10,"(i6,f11.3,' %')") iatm,orbcomp(iatm,imo)/valnorm*100
+				end do
+            end if
 		end do
 		close(10)
 		write(*,*) "Done! orbcomp.txt has been exported to current folder"
@@ -936,19 +967,21 @@ do while(.true.)
             read(*,*)
             cycle
         end if
-        write(*,*) "Please wait..."
-		orbcomp=0
-        imax=maxval(idxarr)
-        imin=minval(idxarr)
-		!$OMP parallel do shared(orbcomp) private(iatm,ipot,orbval) num_threads(nthreads) schedule(dynamic)
-		do iatm=1,ncenter
-			do ipot=1+iradcut*sphpot,radpot*sphpot
-				if (allpotw(iatm,ipot)<1D-8) cycle !May lose 0.001% accuracy
-				call orbderv(1,imin,imax,allpotx(iatm,ipot),allpoty(iatm,ipot),allpotz(iatm,ipot),orbval)
-				orbcomp(iatm,imin:imax)=orbcomp(iatm,imin:imax)+orbval(imin:imax)**2*allpotw(iatm,ipot)
+        if (ifPBC==0) then
+			write(*,*) "Please wait..."
+			orbcomp=0
+			imax=maxval(idxarr)
+			imin=minval(idxarr)
+			!$OMP parallel do shared(orbcomp) private(iatm,ipot,orbval) num_threads(nthreads) schedule(dynamic)
+			do iatm=1,ncenter
+				do ipot=1+iradcut*sphpot,radpot*sphpot
+					if (allpotw(iatm,ipot)<1D-8) cycle !May lose 0.001% accuracy
+					call orbderv(1,imin,imax,allpotx(iatm,ipot),allpoty(iatm,ipot),allpotz(iatm,ipot),orbval)
+					orbcomp(iatm,imin:imax)=orbcomp(iatm,imin:imax)+orbval(imin:imax)**2*allpotw(iatm,ipot)
+				end do
 			end do
-		end do
-		!$OMP end parallel do
+			!$OMP end parallel do
+        end if
         if (allocated(frag1)) write(*,*) "ODI of the whole system:"
         do idx=1,ntmp
             imo=idxarr(idx)
@@ -974,30 +1007,36 @@ do while(.true.)
 	    
 	else !Print composition for an orbital
 		write(*,"(' Orbital:',i5,'  Energy(a.u.):',f14.6,'  Occ:',f10.5,'  Type: ',a)") ishowmo,MOene(ishowmo),MOocc(ishowmo),orbtypename(MOtype(ishowmo))
-		write(*,*) "Please wait..."
-		accum=0D0
-		do iatm=1,ncenter
-			tmp=0D0
-			!$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads(nthreads)
-			tmpprivate=0
-			!$OMP do schedule(dynamic)
-			do ipot=1+iradcut*sphpot,radpot*sphpot
-				if (allpotw(iatm,ipot)<1D-8) cycle !May lose 0.001% accuracy
-				value=fmo(allpotx(iatm,ipot),allpoty(iatm,ipot),allpotz(iatm,ipot),ishowmo)**2
-				tmpprivate=tmpprivate+value*allpotw(iatm,ipot)
+        if (ifPBC==0) then
+			write(*,*) "Please wait..."
+			accum=0D0
+			do iatm=1,ncenter
+				tmp=0D0
+				!$OMP parallel shared(tmp) private(ipot,value,tmpprivate) num_threads(nthreads)
+				tmpprivate=0
+				!$OMP do schedule(dynamic)
+				do ipot=1+iradcut*sphpot,radpot*sphpot
+					if (allpotw(iatm,ipot)<1D-8) cycle !May lose 0.001% accuracy
+					value=fmo(allpotx(iatm,ipot),allpoty(iatm,ipot),allpotz(iatm,ipot),ishowmo)**2
+					tmpprivate=tmpprivate+value*allpotw(iatm,ipot)
+				end do
+				!$OMP end do
+				!$OMP CRITICAL
+				tmp=tmp+tmpprivate
+				!$OMP end CRITICAL
+				!$OMP end parallel
+				accum=accum+tmp
+				resultvec(iatm)=tmp
 			end do
-			!$OMP end do
-			!$OMP CRITICAL
-            tmp=tmp+tmpprivate
-			!$OMP end CRITICAL
-			!$OMP end parallel
-			accum=accum+tmp
-			resultvec(iatm)=tmp
-		end do
-		write(*,"(' The sum of contributions before normalization',11x,f12.6,' %',/)") accum*100
+			write(*,"(' The sum of contributions before normalization',11x,f12.6,' %',/)") accum*100
+        end if
 		write(*,*) "Contributions after normalization:"
 		do iatm=1,ncenter
-            atmcomp(iatm)=resultvec(iatm)/accum*100
+			if (ifPBC==0) then
+	            atmcomp(iatm)=resultvec(iatm)/accum*100
+            else
+				atmcomp(iatm)=orbcomp(iatm,ishowmo)*100
+            end if
 			write(*,"(' Atom',i6,'(',a,') :',f11.3,' %')") iatm,a(iatm)%name,atmcomp(iatm)
 		end do
         orbdeloc=sum(atmcomp**2)/100
@@ -1016,9 +1055,9 @@ end subroutine
 
 
 
-!!!-------- Calculate atomic contributions to specific range of orbitals by Hirshfeld (built-in density) or Becke methods
-!In fact this is a simplified version of orbatmcomp_space
-!itype=1: Hirshfeld, itype=2: Becke
+!!!-------- Calculate atomic contributions to specific range of orbitals by Hirshfeld (built-in density) or Becke method
+!In fact this is a simplified version of subroutine orbatmcomp_space
+!itype=1: Hirshfeld (supports PBC), itype=2: Becke (only isolated systems)
 !atmcomp: The array returned, atmcomp(A,i) is contribution of atom A to orbital ibeg+i-1. The second index has length of iend-ibeg+1
 !ibeg,iend: The beginning and ending index of the orbitals to be computed, ranging from 1 to nmo
 !info=0: silent mode, info=1: print intermediate prompts
@@ -1028,94 +1067,169 @@ use defvar
 use util
 use functions
 implicit real*8 (a-h,o-z)
-real*8 atmcomp(ncenter,iend-ibeg+1),comptmp(iend-ibeg+1)
+real*8 atmcomp(ncenter,iend-ibeg+1),atmcomp_tmp(iend-ibeg+1,ncenter),atmcomp_tmpsum(iend-ibeg+1,ncenter),comptmp(iend-ibeg+1)
 type(content) gridorg(radpot*sphpot),gridatm(radpot*sphpot)
-real*8 allpotx(ncenter,radpot*sphpot),allpoty(ncenter,radpot*sphpot),allpotz(ncenter,radpot*sphpot),allpotw(ncenter,radpot*sphpot)
+real*8 allpotx(radpot*sphpot,ncenter),allpoty(radpot*sphpot,ncenter),allpotz(radpot*sphpot,ncenter),allpotw(radpot*sphpot,ncenter)
 real*8 tmpdens(radpot*sphpot),selfdens(radpot*sphpot),promol(radpot*sphpot),orbval(nmo)
+real*8 atmrho(ncenter),tvec(3)
 
-if (iautointgrid==1) then
-	nradpotold=radpot
-	nsphpotold=sphpot
-	radcutold=radcut
-    if (igrid==0) then
-	    radpot=25
-	    sphpot=170
-    else if (igrid==1) then
-	    radpot=30
-	    sphpot=302
-    end if
-    radcut=15
+if (ifPBC/=0.and.itype==2) then
+	write(*,*) "Error: Becke method was not implemented for periodic case!"
+    write(*,*) "Press ENTER button to exit"
+    read(*,*)
+    stop
 end if
 
 if (itype==1) write(*,*) "Calculating atomic contributions to orbitals by Hirshfeld method..."
 if (itype==2) write(*,*) "Calculating atomic contributions to orbitals by Becke method..."
-
-if (info==1) then
-    write(*,"(i7,' quadrature points are used for each atom')") radpot*sphpot
-    write(*,"(a)") " Note: You can manually define the number of radial and angular points by &
-    setting ""iautointgrid"" in settings.ini to 0 and setting ""radpot"" and ""sphpot"""
-end if
-
-call gen1cintgrid(gridorg,iradcut)
-do iatm=1,ncenter
-	allpotx(iatm,:)=gridorg(:)%x+a(iatm)%x
-	allpoty(iatm,:)=gridorg(:)%y+a(iatm)%y
-	allpotz(iatm,:)=gridorg(:)%z+a(iatm)%z
-end do
-
-!allpotw combines Becke multi-center integration weight with Becke/Hirshfeld weight
-allpotw=0D0
-if (itype==1) then !Hirshfeld based on built-in atomic density
-	if (info==1) write(*,*) "Generating Hirshfeld atomic weighting functions at all grids..."
-	do iatm=1,ncenter
-		promol=0D0
-		do jatm=1,ncenter
-			!$OMP parallel do shared(tmpdens) private(ipt) num_threads(nthreads)
-			do ipt=1+iradcut*sphpot,radpot*sphpot
-				tmpdens(ipt)=calcatmdens(jatm,allpotx(iatm,ipt),allpoty(iatm,ipt),allpotz(iatm,ipt),0)
-			end do
-			!$OMP end parallel do
-			promol=promol+tmpdens
-			if (jatm==iatm) selfdens=tmpdens
-		end do
-		do i=1+iradcut*sphpot,radpot*sphpot !Get Hirshfeld weight of present atom
-			if (promol(i)/=0D0) then
-				allpotw(iatm,i)=selfdens(i)/promol(i)
-			else
-				allpotw(iatm,i)=0D0
-			end if
-		end do
-		allpotw(iatm,:)=allpotw(iatm,:)*gridorg(:)%value !Combine Hirshfeld weight with single-center integration weight
-	end do
-else if (itype==2) then !Becke partition
-	if (info==1) write(*,*) "Generating Becke weights..."
-	do iatm=1,ncenter !Cycle points of each atom
-		gridatm%x=gridorg%x+a(iatm)%x
-		gridatm%y=gridorg%y+a(iatm)%y
-		gridatm%z=gridorg%z+a(iatm)%z
-		call gen1cbeckewei(iatm,iradcut,gridatm,allpotw(iatm,:),covr_tianlu,3)
-		allpotw(iatm,:)=allpotw(iatm,:)*gridorg%value !Combine Becke weight with single-center integration weight
-	end do
-end if
-
-if (info==1) write(*,*) "Calculating orbital compositions, please wait..."
 atmcomp=0
-do iatm=1,ncenter
-    !$OMP parallel shared(atmcomp) private(ipot,orbval,comptmp) num_threads(nthreads)
-    comptmp=0
-    !$OMP do schedule(dynamic)
-	do ipot=1+iradcut*sphpot,radpot*sphpot
-		if (allpotw(iatm,ipot)<1D-9) cycle !May lose 0.001% accuracy
-		call orbderv(1,ibeg,iend,allpotx(iatm,ipot),allpoty(iatm,ipot),allpotz(iatm,ipot),orbval)
-		comptmp(:)=comptmp(:)+orbval(ibeg:iend)**2*allpotw(iatm,ipot)
+
+if (ifPBC==0) then !Using atomic-center grids
+	if (iautointgrid==1) then
+		nradpotold=radpot
+		nsphpotold=sphpot
+		radcutold=radcut
+		if (igrid==0) then
+			radpot=25
+			sphpot=170
+		else if (igrid==1) then
+			radpot=30
+			sphpot=302
+		end if
+		radcut=15
+	end if
+	if (info==1) then
+		write(*,"(i7,' integration points are used for each atom')") radpot*sphpot
+		write(*,"(a)") " Note: You can manually define the number of radial and angular points by &
+		setting ""iautointgrid"" in settings.ini to 0 and setting ""radpot"" and ""sphpot"""
+	end if
+
+	call gen1cintgrid(gridorg,iradcut)
+	do iatm=1,ncenter
+		allpotx(:,iatm)=gridorg(:)%x+a(iatm)%x
+		allpoty(:,iatm)=gridorg(:)%y+a(iatm)%y
+		allpotz(:,iatm)=gridorg(:)%z+a(iatm)%z
 	end do
-    !$OMP END DO
-    !$OMP CRITICAL
-    atmcomp(iatm,:)=atmcomp(iatm,:)+comptmp(:)
-    !$OMP END CRITICAL
-    !$OMP end parallel
-    call showprog(iatm,ncenter)
-end do
+
+	!allpotw combines Becke multi-center integration weight with Becke/Hirshfeld weight
+	allpotw=0D0
+	if (itype==1) then !Hirshfeld based on built-in atomic density
+		if (info==1) write(*,*) "Generating Hirshfeld atomic weighting functions at all grids..."
+		do iatm=1,ncenter
+			promol=0D0
+			do jatm=1,ncenter
+				!$OMP parallel do shared(tmpdens) private(ipt) num_threads(nthreads)
+				do ipt=1+iradcut*sphpot,radpot*sphpot
+					tmpdens(ipt)=calcatmdens(jatm,allpotx(ipt,iatm),allpoty(ipt,iatm),allpotz(ipt,iatm),0)
+				end do
+				!$OMP end parallel do
+				promol=promol+tmpdens
+				if (jatm==iatm) selfdens=tmpdens
+			end do
+			do i=1+iradcut*sphpot,radpot*sphpot !Get Hirshfeld weight of present atom
+				if (promol(i)/=0D0) then
+					allpotw(i,iatm)=selfdens(i)/promol(i)
+				else
+					allpotw(i,iatm)=0D0
+				end if
+			end do
+			allpotw(:,iatm)=allpotw(:,iatm)*gridorg(:)%value !Combine Hirshfeld weight with single-center integration weight
+		end do
+	else if (itype==2) then !Becke partition
+		if (info==1) write(*,*) "Generating Becke weights..."
+		do iatm=1,ncenter !Cycle points of each atom
+			gridatm%x=gridorg%x+a(iatm)%x
+			gridatm%y=gridorg%y+a(iatm)%y
+			gridatm%z=gridorg%z+a(iatm)%z
+			call gen1cbeckewei(iatm,iradcut,gridatm,allpotw(:,iatm),covr_tianlu,3)
+			allpotw(:,iatm)=allpotw(:,iatm)*gridorg%value !Combine Becke weight with single-center integration weight
+		end do
+	end if
+
+	if (info==1) write(*,*) "Calculating orbital compositions, please wait..."
+	do iatm=1,ncenter
+		!$OMP parallel shared(atmcomp) private(ipt,orbval,comptmp) num_threads(nthreads)
+		comptmp=0
+		!$OMP do schedule(dynamic)
+		do ipt=1+iradcut*sphpot,radpot*sphpot
+			if (allpotw(ipt,iatm)<1D-9) cycle !May lose 0.001% accuracy
+			call orbderv(1,ibeg,iend,allpotx(ipt,iatm),allpoty(ipt,iatm),allpotz(ipt,iatm),orbval)
+			comptmp(:)=comptmp(:)+orbval(ibeg:iend)**2*allpotw(ipt,iatm)
+		end do
+		!$OMP END DO
+		!$OMP CRITICAL
+		atmcomp(iatm,:)=atmcomp(iatm,:)+comptmp(:)
+		!$OMP END CRITICAL
+		!$OMP end parallel
+		call showprog(iatm,ncenter)
+	end do
+
+	if (iautointgrid==1) then
+		radpot=nradpotold
+		sphpot=nsphpotold
+		radcut=radcutold
+	end if
+
+else !Using evenly distributed grids for peridic systems
+	!call walltime(iwalltime1)
+	atmrhocut2(:)=atmrhocut(:)**2
+    if (igrid==0) spcgrd=0.35D0
+    if (igrid==1) spcgrd=0.25D0
+    if (info==1) write(*,"(' Grid spacing of',f6.3,' Bohr is used in integration')") spcgrd
+	call setgrid_for_PBC(spcgrd,2) !This is fully adequate for crude estimation
+	call calc_dvol(dvol)
+	call gen_neigh_GTF !Generate neighbouring GTFs list at reduced grids, for faster evaluation in orbderv
+	ifinish=0
+	ntmp=floor(ny*nz/100D0)
+	!$OMP PARALLEL SHARED(atmcomp_tmpsum,ifinish,ishowprog) PRIVATE(atmcomp_tmp,i,j,k,tmpx,tmpy,tmpz,icell,jcell,kcell,tvec,iatm,dist2,atmrho,prorho,orbval) NUM_THREADS(nthreads)
+	atmcomp_tmp(:,:)=0
+    atmcomp_tmpsum(:,:)=0
+	!$OMP DO schedule(dynamic) collapse(2)
+	do k=1,nz
+		do j=1,ny
+			do i=1,nx
+				call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
+				atmrho(:)=0
+				do icell=-PBCnx,PBCnx
+					do jcell=-PBCny,PBCny
+						do kcell=-PBCnz,PBCnz
+							call tvec_PBC(icell,jcell,kcell,tvec)
+							do iatm=1,ncenter
+								dist2=(a(iatm)%x+tvec(1)-tmpx)**2+(a(iatm)%y+tvec(2)-tmpy)**2+(a(iatm)%z+tvec(3)-tmpz)**2
+								if (dist2>atmrhocut2(a(iatm)%index)) then
+									cycle
+								else
+									atmrho(iatm)=atmrho(iatm)+eleraddens(a(iatm)%index,dsqrt(dist2),0)
+								end if
+							end do
+						end do
+					end do
+				end do
+				prorho=sum(atmrho(:))
+                if (prorho>0) then
+                    call orbderv_PBC(1,ibeg,iend,tmpx,tmpy,tmpz,orbval)
+					do iatm=1,ncenter
+						atmcomp_tmp(:,iatm)=atmcomp_tmp(:,iatm)+atmrho(iatm)/prorho*orbval(ibeg:iend)**2
+					end do
+                end if
+			end do
+			!$OMP CRITICAL
+			ifinish=ifinish+1
+			ishowprog=mod(ifinish,ntmp)
+			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+			!$OMP END CRITICAL
+		end do
+	end do
+	!$OMP END DO
+	!$OMP CRITICAL
+    atmcomp_tmpsum(:,:)=atmcomp_tmpsum(:,:)+atmcomp_tmp(:,:)
+	!$OMP END CRITICAL
+	!$OMP END PARALLEL
+	if (ishowprog/=0) call showprog(100,100)
+    atmcomp(:,:)=dvol*transpose(atmcomp_tmpsum(:,:))
+	!call walltime(iwalltime2)
+	!write(*,"(' Calculation of orbital compositions took',i10,' s')") iwalltime2-iwalltime1
+end if
 
 !Do normalization
 do imo=ibeg,iend
@@ -1123,18 +1237,12 @@ do imo=ibeg,iend
 	!do iatm=1,ncenter
 	!	write(*,"(i6,f12.6,' %')") iatm,atmcomp(iatm,imo)*100
 	!end do
-    !write(*,"(i6,f12.6)") imo,sum(atmcomp(:,imo))*100
+ !   write(*,"(i6,f12.6,/)") imo,sum(atmcomp(:,imo))*100
     itmp=imo-ibeg+1
     allsum=sum(atmcomp(:,itmp))
     if (allsum==0) cycle !When MO is larger than basis function, highest several MO will be filled by blank information to make them equal
     atmcomp(:,itmp)=atmcomp(:,itmp)/allsum
 end do
-
-if (iautointgrid==1) then
-	radpot=nradpotold
-	sphpot=nsphpotold
-    radcut=radcutold
-end if
 
 end subroutine
 
@@ -1470,7 +1578,7 @@ end subroutine
 
 
 
-!!---------- Localized orbital bonding analysis (LOBA) based on SCPA partition
+!!---------- Localized orbital bonding analysis (LOBA) and modified LOBA (mLOBA)
 !Input file should contains localized MO
 subroutine LOBA
 use defvar
@@ -1480,17 +1588,20 @@ real*8 oxdstat(ncenter),atmcomp(ncenter,nmo)
 integer,allocatable :: fragLOBA(:)
 character c2000tmp*2000,c80tmp*80
 
-call gen_orbatmcomp_space(1,atmcomp,1,nmo,0,0)
+if (wfntype==0) then
+	call gen_orbatmcomp_space(1,atmcomp,1,nint(nelec/2),0,0)
+else
+	call gen_orbatmcomp_space(1,atmcomp,1,nmo,0,0)
+end if
 write(*,*)
-write(*,*) "Citation: Phys. Chem. Chem. Phys., 11, 11297 (2009)"
 write(*,"(a)") " Hint: If you want to make Multiwfn output attribution of LMOs, &
 you can set ""outmedinfo"" in settings.ini to 1 before booting up Multiwfn"
 write(*,*)
 
 nfragLOBA=0
 do while(.true.)
-	write(*,*) "Input percentage threshold to determine oxidation state (50 is commonly used)"
-    write(*,"(a)") " Input ""m"" will determine oxidation state by assigning electron(s) in each orbital to the atom of maximal contribution, this is called as modified LOBA (mLOBA)"
+	write(*,*) "Input percentage threshold to determine oxidation states (50 is commonly used)"
+    write(*,"(a)") " Input ""m"" will determine oxidation states by assigning electron(s) in each orbital to the atom of maximal contribution, which corresponds to modified LOBA (mLOBA)"
 	if (allocated(fragLOBA)) then
         write(*,"(a,i6,a)") " Input -1 can redefine the fragment, current:",nfragLOBA," atoms"
     else
@@ -1571,7 +1682,6 @@ end subroutine
 
 
 !!------- Generate all atomic composition of all orbitals by SCPA method, or load them from orbcomp.txt in current folder
-!The orbcomp.txt can be exported via e.g. Becke and Hirshfeld orbital composition module
 !Currently not employed by any function
 subroutine gen_allorbatmcomp_SCPA(atmcomp)
 use defvar

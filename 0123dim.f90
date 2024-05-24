@@ -2619,7 +2619,7 @@ else !Calculate grid data
 				end do
 			end do
 		end do
-        if (allocated(b_EDF)) then
+        if (nEDFprims/=0) then
 		    dipx=sum(a%index*a%x)+dipx*dvol
 		    dipy=sum(a%index*a%y)+dipy*dvol
 		    dipz=sum(a%index*a%z)+dipz*dvol

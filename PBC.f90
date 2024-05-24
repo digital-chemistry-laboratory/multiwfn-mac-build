@@ -191,7 +191,7 @@ end subroutine
 
 
 
-!!!-------- Input xyz of points A and B, return coordinate of B closest to point A according to PBC
+!!!-------- Input xyz of points A and B, return coordinate of B closest to point A according to PBC (xyzB2)
 subroutine nearest_mirror(xyzA,xyzB,xyzB2)
 use defvar
 real*8 xyzA(3),xyzB(3),xyztmp(3),xyzB2(3),tvec(3),dist2tmp

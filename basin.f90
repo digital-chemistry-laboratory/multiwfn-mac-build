@@ -1747,7 +1747,7 @@ else if (igridsel==9) then
 else if (igridsel==10) then
 	call setboxGUI
 else if (igridsel==11) then
-	call setgrid_for_PBC(0.1D0)
+	call setgrid_for_PBC(0.1D0,0)
 end if
 
 
@@ -1968,8 +1968,10 @@ integer walltime1,walltime2
 character grdfilename*200
 
 if (ifuncbasin==1.and.ifPBC==0) then
-	write(*,"(a)") " IMPORTANT NOTE: To integrate AIM basins, it is significantly better to use function 7 &
-    to integrate the basins based on uniform + atomic center grid, the accuracy is much better than using the present function!"
+	write(*,"(a)") " IMPORTANT NOTE: To integrate AIM basins, it is much better to use option 7 &
+    to integrate the basins based on uniform + atomic center grid, the accuracy is significantly better than using the present function!"
+    write(*,*) "Press ENTER button to continue"
+    read(*,*)
 end if
 
 write(*,*)
@@ -2341,8 +2343,10 @@ use functions
 implicit real*8 (a-h,o-z)
 
 if (ifuncbasin==1.and.ifPBC==0.and.allocated(b)) then
-	write(*,"(a)") " IMPORTANT NOTE: To calculate multipole moments for AIM basins, it is significantly better to use function 8 &
-    to employ uniform + atomic center grid, the accuracy is much better than the present function!"
+	write(*,"(a)") " IMPORTANT NOTE: To calculate multipole moments for AIM basins, it is much better to use option 8 &
+    to employ uniform + atomic center grid, the accuracy is significantly better than the present function!"
+    write(*,*) "Press ENTER button to continue"
+    read(*,*)
 end if
 
 do while(.true.)
