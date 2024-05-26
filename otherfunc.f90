@@ -9,7 +9,7 @@ do while(.true.)
 	write(*,*) "0 Return"
 	write(*,*) "1 Draw scatter graph between two functions and generate their cube files"
 	write(*,"(a)") " 2 Export various files (mwfn/pdb/xyz/wfn/wfx/molden/fch/47/mkl...) or generate input file of quantum chemistry programs"
-	write(*,*) "3 Calculate molecular van der Waals Volume"
+	write(*,*) "3 Calculate molecular van der Waals volume"
 	write(*,*) "4 Integrate a function in whole space"
 	write(*,*) "5 Show overlap integral between alpha and beta orbitals"
 	write(*,*) "6 Monitor SCF convergence process of Gaussian"
@@ -1625,11 +1625,13 @@ end subroutine
 
 !!---------- Integrating a function in whole space
 !! ifunc: The real space function to be integrated
+!The intval and funcval have 5 slots, the first one is used in normal case
 !
-!The integration grid is directly controlled by sphpot and radpot in settings.ini, since integrand may be not proportional to electron density,
+!For isolated systems, atomic-center grids are used, &
+!the integration grid is directly controlled by sphpot and radpot in settings.ini, since integrand may be not proportional to electron density,
 !the grid will not be adjusted automatically (parm always=1) as proposed by Becke for more efficient integration of XC functional
 !
-!The intval and funcval have 5 slots, the first one is used in normal case
+!For periodic systems, evenly diestributed grids are used
 subroutine intfunc(ifunc)
 use functions
 use util
@@ -1639,65 +1641,80 @@ real*8 weigrid(radpot*sphpot) !Atom weighting function at grids
 type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
 real*8 ELF2,ELF2r2 !Used to evaluate spherically symmetric average ELF (or LOL)
 
-ioutvalue=1
-
-call gen_GTFuniq(0) !Generate unique GTFs, for faster evaluation in orbderv
-if (outmedinfo==1) open(10,file="integrate.txt",status="replace")
-
-write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
-call gen1cintgrid(gridatmorg,iradcut)
-
-call walltime(iwalltime1)
-
-intval=0
-intvalold=0
-ELFsqr=0
-ELFsqrr2=0
-do iatm=1,ncenter
-	write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
-	gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
-	gridatm%y=gridatmorg%y+a(iatm)%y
-	gridatm%z=gridatmorg%z+a(iatm)%z
-	!$OMP parallel do shared(funcval) private(i,rnowx,rnowy,rnowz) num_threads(nthreads)
-	do i=1+iradcut*sphpot,radpot*sphpot
-		rnowx=gridatm(i)%x
-		rnowy=gridatm(i)%y
-		rnowz=gridatm(i)%z
-		if (ispecial==0) then
-			funcval(i,1)=calcfuncall(ifunc,rnowx,rnowy,rnowz) !This function automatically considers PBC
-		else if (ispecial==1) then
-			funcval(i,1)=infoentro(2,rnowx,rnowy,rnowz) !Shannon entropy density, see JCP,126,191107 for example
-			funcval(i,2)=Fisherinfo(1,rnowx,rnowy,rnowz) !Fisher information density, see JCP,126,191107 for example
-			funcval(i,3)=weizsacker(rnowx,rnowy,rnowz) !Steric energy
-		end if
-	end do
-	!$OMP end parallel do
+if (ifPBC==0) then !Isolated wavefunction
+	call gen_GTFuniq(0) !Generate unique GTFs, for faster evaluation in orbderv
+	if (outmedinfo==1) open(10,file="integrate.txt",status="replace")
+	call walltime(iwalltime1)
+	write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
+	call gen1cintgrid(gridatmorg,iradcut)
+	intval=0
+	intvalold=0
+	ELFsqr=0
+	ELFsqrr2=0
+	do iatm=1,ncenter
+		write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
+		gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
+		gridatm%y=gridatmorg%y+a(iatm)%y
+		gridatm%z=gridatmorg%z+a(iatm)%z
+		!$OMP parallel do shared(funcval) private(i,rnowx,rnowy,rnowz) num_threads(nthreads)
+		do i=1+iradcut*sphpot,radpot*sphpot
+			rnowx=gridatm(i)%x
+			rnowy=gridatm(i)%y
+			rnowz=gridatm(i)%z
+			if (ispecial==0) then
+				funcval(i,1)=calcfuncall(ifunc,rnowx,rnowy,rnowz) !This function automatically considers PBC
+			else if (ispecial==1) then
+				funcval(i,1)=infoentro(2,rnowx,rnowy,rnowz) !Shannon entropy density, see JCP,126,191107 for example
+				funcval(i,2)=Fisherinfo(1,rnowx,rnowy,rnowz) !Fisher information density, see JCP,126,191107 for example
+				funcval(i,3)=weizsacker(rnowx,rnowy,rnowz) !Steric energy
+			end if
+		end do
+		!$OMP end parallel do
 	
-    !Generate atomic weighting function values at integration points
-    !call gen1catmwei(iatm,iradcut,gridatm,weigrid,1) !Hirshfeld weightnig function
-    call gen1cbeckewei(iatm,iradcut,gridatm,weigrid,covr_tianlu,3) !Becke weighting function
+		!Generate atomic weighting function values at integration points
+		!call gen1catmwei(iatm,iradcut,gridatm,weigrid,1) !Hirshfeld weightnig function
+		call gen1cbeckewei(iatm,iradcut,gridatm,weigrid,covr_tianlu,3) !Becke weighting function
     
-	do i=1+iradcut*sphpot,radpot*sphpot
-		intval=intval+funcval(i,:)*weigrid(i)*gridatmorg(i)%value
-		if (ifunc==9.or.ifunc==10) then !ELF and LOL
-			tmp=funcval(i,1)**2*weigrid(i)*gridatmorg(i)%value
-			r2=gridatm(i)%x**2+gridatm(i)%y**2+gridatm(i)%z**2
-			ELFsqr=ELFsqr+tmp
-			ELFsqrr2=ELFsqrr2+tmp*r2
-		end if
- 		if (outmedinfo==1) write(10,"(i7,3f12.5,3(1PE16.8))") i,gridatm(i)%x,gridatm(i)%y,gridatm(i)%z,funcval(i,1),gridatmorg(i)%value,weigrid(i)
+		do i=1+iradcut*sphpot,radpot*sphpot
+			intval=intval+funcval(i,:)*weigrid(i)*gridatmorg(i)%value
+			if (ifunc==9.or.ifunc==10) then !ELF and LOL
+				tmp=funcval(i,1)**2*weigrid(i)*gridatmorg(i)%value
+				r2=gridatm(i)%x**2+gridatm(i)%y**2+gridatm(i)%z**2
+				ELFsqr=ELFsqr+tmp
+				ELFsqrr2=ELFsqrr2+tmp*r2
+			end if
+ 			if (outmedinfo==1) write(10,"(i7,3f12.5,3(1PE16.8))") i,gridatm(i)%x,gridatm(i)%y,gridatm(i)%z,funcval(i,1),gridatmorg(i)%value,weigrid(i)
+		end do
+
+		if (ispecial==0) write(*,"(' Accumulated value:',f20.10,'  Current center:',f20.10)") intval(1),intval(1)-intvalold(1)
+		intvalold=intval
 	end do
-	
-	!call walltime(iwalltime2)
-	!write(*,"(' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
-	if (ispecial==0) write(*,"(' Accumulated value:',f20.10,'  Current center:',f20.10)") intval(1),intval(1)-intvalold(1)
-	intvalold=intval
-end do
 
-call walltime(iwalltime2)
-write(*,"(' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
+	call del_GTFuniq !Destory unique GTF informtaion
+	call walltime(iwalltime2)
+	write(*,"(' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
 
-call del_GTFuniq !Destory unique GTF informtaion
+else !Periodic wavefunction
+	if (any(a%index==a%charge)) then
+		write(*,"(a)") " Warning: This function employs evenly distributed grids for integration, it does not work well for all-electron wavefunction!"
+        write(*,*) "Press ENTER button to continue"
+        read(*,*)
+	end if
+    call setgrid_for_PBC(0.2D0,1)
+    if (allocated(cubmat)) deallocate(cubmat)
+    allocate(cubmat(nx,ny,nz))
+	call walltime(iwalltime1)
+    write(*,*) "Calculating grid data..."
+	!Because uniform grid cannot integrate well core density, so temporarily disable EDFs
+    nEDFprims_org=nEDFprims
+    nEDFprims=0
+    call delvirorb(1) !Delete high-lying virtual orbitals for faster calculation
+    call savecubmat(ifunc,0,1)
+    call delvirorb_back(1) !Restore to previous wavefunction
+    nEDFprims=nEDFprims_org
+    call calc_dvol(dvol)
+    intval(1)=sum(cubmat(:,:,:))*dvol
+end if
 
 write(*,*)
 if (ispecial==0) then

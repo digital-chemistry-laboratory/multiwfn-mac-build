@@ -1212,11 +1212,11 @@ if (imode==1) then !Calculate density from periodic wavefunction
     if (allocated(cubmat)) deallocate(cubmat)
     allocate(cubmat(nx,ny,nz))
 	call walltime(iwalltime1)
-    write(*,*) "Calculating electron density grid data..."
 	!Because uniform grid cannot integrate well core density, so temporarily disable EDFs
     nEDFprims_org=nEDFprims
     nEDFprims=0
     call delvirorb(1) !Delete high-lying virtual orbitals for faster calculation
+    write(*,*) "Calculating electron density grid data..."
     call savecubmat(1,0,1)
     call delvirorb_back(1) !Restore to previous wavefunction
     nEDFprims=nEDFprims_org
@@ -4021,11 +4021,11 @@ if (imode==1) then !Calculate density from periodic wavefunction
     if (allocated(cubmat)) deallocate(cubmat)
     allocate(cubmat(nx,ny,nz))
     call walltime(iwalltime1)
-    write(*,*) "Calculating electron density grid data..."
 	!Because uniform grid cannot integrate well core density, so temporarily disable EDFs
     nEDFprims_org=nEDFprims
     nEDFprims=0
     call delvirorb(1) !Delete high-lying virtual orbitals for faster calculation
+    write(*,*) "Calculating electron density grid data..."
     call savecubmat(1,0,1)
     call delvirorb_back(1) !Restore to previous wavefunction
     nEDFprims=nEDFprims_org
@@ -4146,6 +4146,10 @@ do icyc=1,maxcyc
 	if (varmax<crit.or.icyc==maxcyc) then
         if (varmax<crit) write(*,"(/,a,f10.6)") " All atomic charges have converged to criterion of",crit
         if (icyc==maxcyc) write(*,"(/,' Convergence failed within',i4,' cycles!')") maxcyc
+		if (itype==2) then
+			write(*,*) "Construction of Hirshfeld-I atomic spaces has finished"
+			return
+        end if
 		exit
 	end if
 	
@@ -4204,8 +4208,8 @@ if (imode==1) call normalize_atmchg(charge(:))
 call printatmchg(charge(:))
 
 if (allocated(frag1)) then
-    write(*,"(/,' Fragment charge:',f14.8)") sum(charge(frag1))
-    write(*,"(' Fragment population:',f14.8)") sum(a(frag1)%charge) - sum(charge(frag1))
+	write(*,"(/,' Fragment charge:',f14.8)") sum(charge(frag1))
+	write(*,"(' Fragment population:',f14.8)") sum(a(frag1)%charge) - sum(charge(frag1))
 end if
 
 call walltime(iwalltime2)
@@ -4688,11 +4692,11 @@ else if (imode==1) then !Calculate density from periodic wavefunction
     if (allocated(cubmat)) deallocate(cubmat)
     allocate(cubmat(nx,ny,nz))
 	call walltime(iwalltime1)
-    write(*,*) "Calculating electron density grid data..."
 	!Because uniform grid cannot integrate well core density, so temporarily disable EDFs
     nEDFprims_org=nEDFprims
     nEDFprims=0
     call delvirorb(1) !Delete high-lying virtual orbitals for faster calculation
+    write(*,*) "Calculating electron density grid data..."
     call savecubmat(1,0,1)
     call delvirorb_back(1) !Restore to previous wavefunction
     nEDFprims=nEDFprims_org
@@ -4955,29 +4959,31 @@ do icyc=1,maxcyc
     shsig(:,:)=shsignew(:,:)
 end do
 
-write(*,"(' Sum of all raw charges:',f14.8)") sum(charge(:))
-!Normalize atomic charges. This is not feasible if only grid data is available, &
-!because in this case the nelec used in "normalize_atmchg" is simply guessed by assuming system is neutral
-if (imode==1) call normalize_atmchg(charge(:))
-!Print final atomic charges
-call printatmchg(charge(:))
+if (itype==1) then
+	write(*,"(' Sum of all raw charges:',f14.8)") sum(charge(:))
+	!Normalize atomic charges. This is not feasible if only grid data is available, &
+	!because in this case the nelec used in "normalize_atmchg" is simply guessed by assuming system is neutral
+	if (imode==1) call normalize_atmchg(charge(:))
+	!Print final atomic charges
+	call printatmchg(charge(:))
 
-if (allocated(frag1)) then
-    write(*,"(/,' Fragment charge:',f14.8)") sum(charge(frag1))
-    write(*,"(' Fragment population:',f14.8)") sum(a(frag1)%charge) - sum(charge(frag1))
-end if
+	if (allocated(frag1)) then
+		write(*,"(/,' Fragment charge:',f14.8)") sum(charge(frag1))
+		write(*,"(' Fragment population:',f14.8)") sum(a(frag1)%charge) - sum(charge(frag1))
+	end if
 
-if (ioutshell==1) then
-    write(*,*)
-    write(*,*) "Population of each shell"
-    do iatm=1,ncenter
-       write(*,"(i5,'(',a,'):',6f12.6)") iatm,a(iatm)%name,(shpop(ish,iatm),ish=1,mshell(iatm))
-    end do
-    write(*,*)
-    write(*,*) "Width (sigma) of each shell in Bohr"
-    do iatm=1,ncenter
-       write(*,"(i5,'(',a,'):',6f12.6)") iatm,a(iatm)%name,(shsig(ish,iatm),ish=1,mshell(iatm))
-    end do
+	if (ioutshell==1) then
+		write(*,*)
+		write(*,*) "Population of each shell"
+		do iatm=1,ncenter
+		   write(*,"(i5,'(',a,'):',6f12.6)") iatm,a(iatm)%name,(shpop(ish,iatm),ish=1,mshell(iatm))
+		end do
+		write(*,*)
+		write(*,*) "Width (sigma) of each shell in Bohr"
+		do iatm=1,ncenter
+		   write(*,"(i5,'(',a,'):',6f12.6)") iatm,a(iatm)%name,(shsig(ish,iatm),ish=1,mshell(iatm))
+		end do
+	end if
 end if
 
 call walltime(iwalltime2)

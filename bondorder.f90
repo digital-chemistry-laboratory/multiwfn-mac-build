@@ -144,12 +144,12 @@ do while(.true.)
         call ask_Sbas_PBC
 		call OrbPertMayer
 	else if (ibondana==7) then
-		call intatomspace(1)
+		call fuzzyana(1)
 	else if (ibondana==8) then
 		write(*,"(a)") " Citation of Laplacian bond order (LBO):" 
 		write(*,"(a,/)") " Tian Lu and Feiwu Chen, &
 		Bond Order Analysis Based on the Laplacian of Electron Density in Fuzzy Overlap Space, J. Phys. Chem. A, 117, 3100-3108 (2013)"
-		call intatomspace(2)
+		call fuzzyana(2)
 	else if (ibondana==9) then
 		call decompWibergNAO
 	else if (ibondana==10) then

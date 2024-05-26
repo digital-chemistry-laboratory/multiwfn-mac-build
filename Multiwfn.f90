@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2024-May-23"
+write(*,*) "Version 3.8(dev), release date: 2024-May-25"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -486,7 +486,7 @@ do while(.true.) !Main loop
 	    !!!--------------------------------------------------
 	    !15!!------------------- Integrate fuzzy atomic space
 	    else if (isel==15) then
-		    call intatomspace(0)
+		    call fuzzyana(0)
 	    else if (isel==-15) then
 		    call fuzzySBL	
 

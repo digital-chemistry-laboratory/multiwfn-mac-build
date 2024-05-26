@@ -1,4 +1,4 @@
-!------ Integrate fuzzy atomic space
+!------ Fuzzy atomic space analysis
 !Normally iwork=0. If iwork=1, directly choose isel==4 to calculate delocalization index in fuzzy atomic spase (namely fuzzy bond order, see statement in JPCA,110,5108 below Eq.9) and then return
 !If iwork=2, directly choose isel==8 to calculate Laplacian bond order and then return
 !
@@ -11,7 +11,7 @@
 !
 !However, for calculating AOM, using molecular grid makes calculation much more expensive, while improvement on result is only notable &
 !when diffuse functions are heavily used, so atomic grid is employed by default and can be changed by users. This is determined by iAOMgrid
-subroutine intatomspace(iwork)
+subroutine fuzzyana(iwork)
 use functions
 use util
 use topo
@@ -74,17 +74,11 @@ real*8 :: atmC6_free(1:nelesupp)=(/ &
 4769D0,3175D0, (0D0,i=39,48),779D0,659D0,492D0,445D0,385D0,& !Ca,Sr...In-I
 (0D0,i=54,nelesupp)/)
 
-if (ifPBC/=0) then
-	write(*,*) "Error: This module does not support periodic systems yet!"
-    write(*,*) "Press ENTER button to return"
-    read(*,*)
-    return
-end if
-
 if (ispecial==2) then
 	ipartition=2 !Use Hirshfeld for Shubin's 2nd project
 	expcutoff=1 !Full accuracy
 end if
+if (ifPBC/=0) ipartition=3
 
 do i=1,ncenter !Initialize the list of the atoms to be integrated
 	atmcalclist(i)=i
@@ -121,27 +115,29 @@ if (iwork==0) then
 	write(*,*)
 	write(*,*) "                ======== Fuzzy atomic space analysis ========"
 	if (numcp>0) write(*,*) "-11 Choose a critical point as reference point"
-	write(*,"(a,3f10.5,' Bohr')") " -10 Set X,Y,Z of reference point, current: ",refx,refy,refz
-    if (iAOMgrid==1) then
-		write(*,*) "-6 Choose type of integration grid for AOM, current: Atomic grid"
-    else if (iAOMgrid==2) then
-		write(*,*) "-6 Choose type of integration grid for AOM, current: Molecular grid"
+    if (ifPBC==0) then
+		write(*,"(a,3f10.5,' Bohr')") " -10 Set X,Y,Z of reference point, current: ",refx,refy,refz
+		if (iAOMgrid==1) then
+			write(*,*) "-6 Choose type of integration grid for AOM, current: Atomic grid"
+		else if (iAOMgrid==2) then
+			write(*,*) "-6 Choose type of integration grid for AOM, current: Molecular grid"
+		end if
+		if (natmcalclist==ncenter) then
+			write(*,*) "-5 Define the atoms to be considered in options 1, 2, 13, current: all atoms"
+		else
+			write(*,"(a,i5,a)") " -5 Define the atoms to be considered in options 1, 2 and 13, current:",natmcalclist," atoms"
+		end if
+		write(*,*) "-4 Adjust reference parameter for FLU"
+		if (ipartition==1) then !For Becke
+			write(*,"(' -3 Set the number of iterations for Becke partition, current:',i3)") nbeckeiter
+			if (iraddefine==-1) write(*,*) "-2 Select radius definition for Becke partition, current: Modified CSD"
+			if (iraddefine==0) write(*,*) "-2 Select radius definition for Becke partition, current: Custom"
+			if (iraddefine==1) write(*,*) "-2 Select radius definition for Becke partition, current: CSD"
+			if (iraddefine==2) write(*,*) "-2 Select radius definition for Becke partition, current: Pyykko"
+			if (iraddefine==3) write(*,*) "-2 Select radius definition for Becke partition, current: Suresh"
+			if (iraddefine==4) write(*,*) "-2 Select radius definition for Becke partition, current: Hugo"
+		end if
     end if
-	if (natmcalclist==ncenter) then
-		write(*,*) "-5 Define the atoms to be considered in options 1, 2, 13, current: all atoms"
-	else
-		write(*,"(a,i5,a)") " -5 Define the atoms to be considered in options 1, 2 and 13, current:",natmcalclist," atoms"
-    end if
-	write(*,*) "-4 Adjust reference parameter for FLU"
-	if (ipartition==1) then !For Becke
-		write(*,"(' -3 Set the number of iterations for Becke partition, current:',i3)") nbeckeiter
-		if (iraddefine==-1) write(*,*) "-2 Select radius definition for Becke partition, current: Modified CSD"
-		if (iraddefine==0) write(*,*) "-2 Select radius definition for Becke partition, current: Custom"
-		if (iraddefine==1) write(*,*) "-2 Select radius definition for Becke partition, current: CSD"
-		if (iraddefine==2) write(*,*) "-2 Select radius definition for Becke partition, current: Pyykko"
-		if (iraddefine==3) write(*,*) "-2 Select radius definition for Becke partition, current: Suresh"
-		if (iraddefine==4) write(*,*) "-2 Select radius definition for Becke partition, current: Hugo"
-	end if
 	if (ipartition==1) write(*,*) "-1 Select method for partitioning atomic spaces, current: Becke"
 	if (ipartition==2) write(*,*) "-1 Select method for partitioning atomic spaces, current: Hirshfeld"
 	if (ipartition==3) write(*,*) "-1 Select method for partitioning atomic spaces, current: Hirshfeld*"
@@ -149,29 +145,31 @@ if (iwork==0) then
 	if (ipartition==5) write(*,*) "-1 Select method for partitioning atomic spaces, current: MBIS"
 	write(*,*) "0 Return"
 	write(*,*) "1 Perform integration in fuzzy atomic spaces for a real space function"
-	write(*,*) "2 Calculate atomic and molecular multipole moments and <r^2>"
-	write(*,*) "3 Calculate and output atomic overlap matrix (AOM) in current folder"
-	write(*,*) "4 Calculate localization (LI) and delocalization index (DI)"
-	write(*,*) "5 Calculate PDI (Para-delocalization index)"
-	write(*,*) "6 Calculate FLU (Aromatic fluctuation index)"
-	write(*,*) "7 Calculate FLU-pi"
-	write(*,*) "8 Perform integration in fuzzy overlap region for a real space functions"
-	if (allocated(CObasa)) write(*,*) "9 Calculate condensed linear response kernel (CLRK)" !Need virtual orbital informations
-	if (allocated(CObasa)) write(*,*) "10 Calculate PLR (Para linear response index)" !Need virtual orbital informations
-	write(*,*) "11 Calculate multi-center delocalization index" !Only can be used for HF/DFT closed-shell wavefunction
-    write(*,*) "12 Calculate information-theoretic aromaticity index (ACS Omega, 3, 18370)"
-    write(*,"(a)") " 13 Calculate atomic effective volume, free volume, polarizability and C6 coefficient"
-    !!If orbital occupancy has been modified before entering fuzzy analysis module, Hirshfeld-I cannot be chosen. &
-    !This option makes orbital occupancy can be changed after generating H-I information, so that H-I partition can be used to integrate functions contributed by specific orbitals
-    if (ipartition==4.or.ipartition==5) write(*,*) "26 Set occupation of some orbitals"
-  	!write(*,*) "101 Integrate a function in Hirshfeld atomic space with molecular grid"
-	if (ispecial==2) then
-		write(*,*) "99 Calculate relative Shannon and Fisher entropy and 2nd-order term"
-		write(*,"(a)") " 100 Calculate relative Shannon and Fisher entropy of specific state w.r.t. Hirshfeld density"
-		write(*,*) "102 Obtain quadratic and cubic Renyi entropy"
-		write(*,*) "103 Obtain quadratic and cubic Renyi relative entropy"
-		write(*,*) "104 The same as 99, but also calculate relative g1,g2,g3"
-	end if
+    if (ifPBC==0) then
+		write(*,*) "2 Calculate atomic and molecular multipole moments and <r^2>"
+		write(*,*) "3 Calculate and output atomic overlap matrix (AOM) in current folder"
+		write(*,*) "4 Calculate localization (LI) and delocalization index (DI)"
+		write(*,*) "5 Calculate PDI (Para-delocalization index)"
+		write(*,*) "6 Calculate FLU (Aromatic fluctuation index)"
+		write(*,*) "7 Calculate FLU-pi"
+		write(*,*) "8 Perform integration in fuzzy overlap region for a real space functions"
+		if (allocated(CObasa)) write(*,*) "9 Calculate condensed linear response kernel (CLRK)" !Need virtual orbital informations
+		if (allocated(CObasa)) write(*,*) "10 Calculate PLR (Para linear response index)" !Need virtual orbital informations
+		write(*,*) "11 Calculate multi-center delocalization index" !Only can be used for HF/DFT closed-shell wavefunction
+		write(*,*) "12 Calculate information-theoretic aromaticity index (ACS Omega, 3, 18370)"
+		write(*,"(a)") " 13 Calculate atomic effective volume, free volume, polarizability and C6 coefficient"
+		!!If orbital occupancy has been modified before entering fuzzy analysis module, Hirshfeld-I cannot be chosen. &
+		!This option makes orbital occupancy can be changed after generating H-I information, so that H-I partition can be used to integrate functions contributed by specific orbitals
+		if (ipartition==4.or.ipartition==5) write(*,*) "26 Set occupation of some orbitals"
+  		!write(*,*) "101 Integrate a function in Hirshfeld atomic space with molecular grid"
+		if (ispecial==2) then
+			write(*,*) "99 Calculate relative Shannon and Fisher entropy and 2nd-order term"
+			write(*,"(a)") " 100 Calculate relative Shannon and Fisher entropy of specific state w.r.t. Hirshfeld density"
+			write(*,*) "102 Obtain quadratic and cubic Renyi entropy"
+			write(*,*) "103 Obtain quadratic and cubic Renyi relative entropy"
+			write(*,*) "104 The same as 99, but also calculate relative g1,g2,g3"
+		end if
+    end if
 	read(*,*) isel
 	
 else if (iwork==1) then
@@ -353,14 +351,20 @@ else if (isel==-2) then
 else if (isel==-1) then
 	ipartitionold=ipartition
 	write(*,*) "Select atomic space partition method"
-	write(*,*) "1 Becke"
-	write(*,*) "2 Hirshfeld"
-	write(*,*) "3 Hirshfeld (preferred over 2)"
-	write(*,*) "4 Hirshfeld-I"
-	write(*,*) "5 MBIS"
-	write(*,"(a)") " Note: (2) uses atomic .wfn files to calculate Hirshfeld weights, they must be provided by yourself or let Multiwfn automatically &
-	invoke Gaussian to generate them. (3) evaluates the weights based on built-in radial atomic densities, thus is more convenient than (2)"
-	read(*,*) ipartition
+    if (ifPBC==0) then
+		write(*,*) "1 Becke"
+		write(*,*) "2 Hirshfeld"
+		write(*,*) "3 Hirshfeld (preferred over 2)"
+		write(*,*) "4 Hirshfeld-I"
+		write(*,*) "5 MBIS"
+		write(*,"(a)") " Note: (2) uses atomic .wfn files to calculate Hirshfeld weights, they must be provided by yourself or let Multiwfn automatically &
+		invoke Gaussian to generate them. (3) evaluates the weights based on built-in radial atomic densities, thus is more convenient than (2)"
+	else
+		write(*,*) "3 Hirshfeld"
+		write(*,*) "4 Hirshfeld-I"
+		write(*,*) "5 MBIS"
+    end if
+    read(*,*) ipartition
 	if (imodwfn==1.and.(ipartition==2.or.ipartition==4)) then !These two modes need reloading firstly loaded file, so they cannot be already modified
 		write(*,"(a)") " Error: Since the wavefunction has been modified by you or by other functions, present function is unable to use. &
 		Please reboot Multiwfn and reload the file"
@@ -374,9 +378,17 @@ else if (isel==-1) then
 		if (allocated(AOMb)) deallocate(AOMb,AOMsumb)
 	end if
 	if (ipartition==4) then !Generate radial density of all atoms by Hirshfeld-I
-		call Hirshfeld_I(2)
+		if (ifPBC==0) then
+			call Hirshfeld_I(2)
+        else
+			call Hirshfeld_I_evengrid(2,1)
+        end if
     else if (ipartition==5) then !Generate radial density of all atoms by MBIS
-		call MBIS(2,0)
+		if (ifPBC==0) then
+			call MBIS(2,0)
+        else
+			call MBIS(2,1)
+        end if
 	end if
 end if
 if (isel==26.or.isel==101.or.isel<0) cycle
@@ -548,6 +560,12 @@ end if
 !!--------- Start calculation -----------
 !!---------------------------------------
 !!=======================================
+
+if (ifPBC/=0.and.isel==1) then !For periodic case, goto a specific subroutine
+	call intatmspace_evengrid(ipartition,ifunc,rintval(1:ncenter,1))
+    goto 100 !Directly jump to result statistics
+end if
+
 rintval=0D0 !Initialize accumulated variables
 ovlpintpos=0D0
 ovlpintneg=0D0
@@ -1321,7 +1339,7 @@ end if
 !!====================================================
 !!------- Statistic results or post-processing -------
 !!====================================================
-write(*,*)
+100 write(*,*)
 if (isel==1) then
 	do iatm=1,ncenter
 		if ( all(atmcalclist(1:natmcalclist)/=iatm) ) rintval(iatm,1)=0
@@ -2143,3 +2161,90 @@ end subroutine
 
 
 
+!!--------- Integrate atomic spaces for a function using evenly distributed grids
+!mainly for periodic wavefunction only representing valence electrons
+!ipartition: =3 Hirshfeld using built-in atomic density, =4 Hirshfeld-I, =5 MBIS
+!ifunc: Index of the real space function to be integrated
+subroutine intatmspace_evengrid(ipartition,ifunc,atmint)
+use defvar
+use util
+use functions
+implicit real*8 (a-h,o-z)
+real*8 atmrho(ncenter),tvec(3),atmint(ncenter),atmint_tmp(ncenter)
+
+if (any(a%index==a%charge)) then
+	write(*,"(a)") " Warning: This function employs evenly distributed grids for integration, it does not work well for all-electron wavefunction!"
+    write(*,*) "Press ENTER button to continue"
+    read(*,*)
+end if
+
+call setgrid_for_PBC(0.2D0,1)
+if (allocated(cubmat)) deallocate(cubmat)
+allocate(cubmat(nx,ny,nz))
+call walltime(iwalltime1)
+!Because uniform grid cannot integrate well core density, so temporarily disable EDFs
+nEDFprims_org=nEDFprims
+nEDFprims=0
+call delvirorb(1) !Delete high-lying virtual orbitals for faster calculation
+write(*,*) "Calculating grid data of selected real space function..."
+call savecubmat(ifunc,0,1)
+call delvirorb_back(1) !Restore to previous wavefunction
+nEDFprims=nEDFprims_org
+call calc_dvol(dvol)
+
+write(*,*)
+write(*,*) "Calculating atomic contributions..."
+atmint(:)=0
+ifinish=0
+ntmp=floor(ny*nz/100D0)
+!$OMP PARALLEL SHARED(atmint,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz,iatm,atmrho,prorho,atmint_tmp,&
+!$OMP icell,jcell,kcell,tvec,dist2,tmprho,npt) NUM_THREADS(nthreads)
+atmint_tmp(:)=0
+!$OMP DO schedule(dynamic) collapse(2)
+do k=1,nz
+	do j=1,ny
+		do i=1,nx
+			if (cubmat(i,j,k)<1D-12) cycle
+			call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
+            atmrho(:)=0
+            do icell=-PBCnx,PBCnx
+                do jcell=-PBCny,PBCny
+                    do kcell=-PBCnz,PBCnz
+                        call tvec_PBC(icell,jcell,kcell,tvec)
+                        do iatm=1,ncenter
+                            dist2=(a(iatm)%x+tvec(1)-tmpx)**2+(a(iatm)%y+tvec(2)-tmpy)**2+(a(iatm)%z+tvec(3)-tmpz)**2
+                            if (dist2>atmrhocut2(a(iatm)%index)) then
+                                cycle
+                            else
+                                if (ipartition==3) then !Hirshfeld, using bulit-in atomic radial density to interpolate
+                                    tmprho=eleraddens(a(iatm)%index,dsqrt(dist2),0)
+                                else !Hirshfeld-I and MBIS. Refined atomic radial density of every atom has been available in atmraddens
+									npt=atmradnpt(iatm)
+									call lagintpol(atmradpos(1:npt),atmraddens(1:npt,iatm),npt,dsqrt(dist2),tmprho,rnouse,rnouse,1)
+                                end if
+                                atmrho(iatm)=atmrho(iatm)+tmprho
+                            end if
+                        end do
+                    end do
+                end do
+            end do
+            prorho=sum(atmrho(:))
+            if (prorho>0) atmint_tmp(:)=atmint_tmp(:)+atmrho(:)/prorho*cubmat(i,j,k)
+		end do
+		!$OMP CRITICAL
+		ifinish=ifinish+1
+		ishowprog=mod(ifinish,ntmp)
+		if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+		!$OMP END CRITICAL
+	end do
+end do
+!$OMP END DO
+!$OMP CRITICAL
+atmint(:)=atmint(:)+atmint_tmp(:)*dvol
+!$OMP END CRITICAL
+!$OMP END PARALLEL
+if (ishowprog/=0) call showprog(100,100)
+
+call walltime(iwalltime2)
+write(*,"(/,' Calculation totally took up wall clock time',i10,' s')") iwalltime2-iwalltime1
+end subroutine

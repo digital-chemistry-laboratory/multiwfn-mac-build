@@ -3808,7 +3808,7 @@ end subroutine
 !itype defines how the atomic densities will be evaluated
 !itype=-2: Fitted by no more than 10 GTFs
 !itype=-1: Fitted by a few STOs
-!itype=0: Lagrangian interpolation of built-in radial density
+!itype=0: Lagrangian interpolation based on built-in atomic radial density
 !itype=18: Use STO fitted atomic density for element <=18, quality is quite poor, not normalized to expected electron number, and thus highly deprecated! (From SI of RDG original paper)
 !  Accuracy: 0>-2>-1>>18   Cost: -2>=0>-1=18
 !  0 is best default choice because most accurate and not expensive. However its definition is truncated at finite distance, so if density at more distant region is needed, use -1(accurate) or -2 (cheaper)
