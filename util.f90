@@ -2852,18 +2852,19 @@ character(len=*) dirname
 logical diralive
 if (isys==1) then !Windows
 	call execute_command_line("mkdir "//trim(dirname)//" >NUL 2>&1",exitstat=ierror)
-else
-	call execute_command_line("mkdir "//trim(dirname)//" &> /dev/null",exitstat=ierror)
-end if
-if (ierror==0) then !Directory can be created, so the directory doesn't exist before
-	diralive=.false.
-    !Delete temporarily created directory
-	if (isys==1) then !Windows
+	if (ierror==0) then !Directory can be created, so the directory doesn't exist before
+		diralive=.false.
+		!Delete temporarily created directory
 		call execute_command_line("rmdir /Q /S "//trim(dirname)//" >NUL 2>&1")
 	else
-		call execute_command_line("rm -rf "//trim(dirname)//" &> /dev/null")
-    end if
+		diralive=.true.
+	end if
 else
-	diralive=.true.
+    call execute_command_line("[ -d "//dirname//" ]",exitstat=ierror)
+    if (ierror==0) then
+		diralive=.true.
+    else
+		diralive=.false.
+    end if
 end if
 end subroutine

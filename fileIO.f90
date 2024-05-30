@@ -2187,8 +2187,10 @@ implicit real*8 (a-h,o-z)
 integer infomode
 character(len=*) name
 character c200tmp*200,c80tmp*80,selectyn
+real*8,allocatable :: tmpeffchg(:)
+character,allocatable :: tmpelestr(:)*2
 
-!The first part of CHGCAR/CHG is identical to POSCAR
+!The first part of CHGCAR/CHG is identical to POSCAR, load atom and cell information from this part
 call readPOSCAR(name,0)
 
 ifiletype=7 !Same as cube
@@ -2196,8 +2198,27 @@ ifiletype=7 !Same as cube
 open(10,file=name,status="old")
 do while(.true.)
     read(10,"(a)") c200tmp
-    if (c200tmp==" ") exit
+	if (index(c200tmp,"Nval")/=0) then
+		call numdatastr(c200tmp(6:),ndata)
+		nread=ndata/2
+		allocate(tmpeffchg(nread),tmpelestr(nread))
+		read(c200tmp(6:),*) ((tmpelestr(i),tmpeffchg(i)),i=1,nread)
+		if (nread>0) then
+			write(*,*) "Loaded effctive nuclear charges"
+			do i=1,nread
+				write(*,"(1x,a,f12.6)") tmpelestr(i),tmpeffchg(i)
+				call lc2uc(tmpelestr(i)(1:1))
+				call uc2lc(tmpelestr(i)(2:2))
+				do iatm=1,ncenter
+					if (a(iatm)%name==tmpelestr(i)) a(iatm)%charge=tmpeffchg(i)
+				end do
+			end do
+		end if
+	else if (c200tmp==" ") then !Find the first blank line, the following data are grid data
+		exit
+    end if
 end do
+
 read(10,*) nx,ny,nz
 if (allocated(cubmat)) deallocate(cubmat)
 allocate(cubmat(nx,ny,nz))
