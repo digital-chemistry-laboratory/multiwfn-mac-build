@@ -2202,9 +2202,9 @@ do while(.true.)
 		call numdatastr(c200tmp(6:),ndata)
 		nread=ndata/2
 		allocate(tmpeffchg(nread),tmpelestr(nread))
-		read(c200tmp(6:),*) ((tmpelestr(i),tmpeffchg(i)),i=1,nread)
+		read(c200tmp(6:),*) (tmpelestr(i),tmpeffchg(i),i=1,nread)
 		if (nread>0) then
-			write(*,*) "Loaded effctive nuclear charges"
+			write(*,*) "Loaded effective nuclear charges"
 			do i=1,nread
 				write(*,"(1x,a,f12.6)") tmpelestr(i),tmpeffchg(i)
 				call lc2uc(tmpelestr(i)(1:1))
@@ -3087,7 +3087,7 @@ if (all(a%charge==0)) then
         call numdatastr(c200tmp,ndata)
         nread=ndata/2
         allocate(tmpeffchg(nread),tmpelestr(nread))
-        read(c200tmp,*) ((tmpelestr(i),tmpeffchg(i)),i=1,nread)
+        read(c200tmp,*) (tmpelestr(i),tmpeffchg(i),i=1,nread)
         if (nread>0) then
 			write(*,*) "Loaded effctive nuclear charges"
 			do i=1,nread
@@ -4107,14 +4107,22 @@ if (ifound==1) then
         call abc2cellv(alen/b2a,blen/b2a,clen/b2a,anga,angb,angc)
         ifPBC=3
     else !Load as cell vectors
+		ipos=index(c80tmp,'A')
+        if (ipos/=0) c80tmp(ipos:ipos)=' ' !The line may be "A    20.73430000     0.00000000     0.00000000", remove 'A'
         read(c80tmp,*) cellv1
         ifPBC=1
-        read(10,*,iostat=ierror) cellv2
+		read(10,"(a)") c80tmp
+		ipos=index(c80tmp,'B')
+        if (ipos/=0) c80tmp(ipos:ipos)=' ' !The line may be "B     0.00000000    20.73430000     0.00000000", remove 'B'
+        read(c80tmp,*,iostat=ierror) cellv2
         if (ierror/=0) then
             cellv2=0
         else
             ifPBC=ifPBC+1
-            read(10,*,iostat=ierror) cellv3
+			read(10,"(a)") c80tmp
+			ipos=index(c80tmp,'C')
+			if (ipos/=0) c80tmp(ipos:ipos)=' ' !The line may be "C     0.00000000     0.00000000    20.73430000", remove 'C'
+            read(c80tmp,*,iostat=ierror) cellv3
             if (ierror/=0) then
                 cellv3=0
             else
