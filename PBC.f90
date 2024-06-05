@@ -609,6 +609,7 @@ do itime=1,2
                                     a_tmp(ncenter+nadd)%x=Cart(1)
                                     a_tmp(ncenter+nadd)%y=Cart(2)
                                     a_tmp(ncenter+nadd)%z=Cart(3)
+                                    a_tmp_idx(ncenter+nadd)=iatm
                                 end if
                             end if
                         end if
@@ -620,14 +621,32 @@ do itime=1,2
     if (itime==1) then
         ncenter_tmp=ncenter+nadd
         if (allocated(a_tmp)) deallocate(a_tmp)
-        allocate(a_tmp(ncenter_tmp))
+        allocate(a_tmp(ncenter_tmp),a_tmp_idx(ncenter_tmp))
         a_tmp(1:ncenter)=a(1:ncenter)
+        forall(i=1:ncenter) a_tmp_idx(i)=i
     end if
 end do
+end subroutine
 
-!do iatm=1,ncenter_tmp
-!    write(*,"(i5,1x,a,3f12.6)") iatm,a_tmp(iatm)%name,a_tmp(iatm)%x,a_tmp(iatm)%y,a_tmp(iatm)%z
-!end do
+
+
+!!!------- Check if a point is close enough to any cell plane
+!pos: XYZ coordinate
+!thres: Threshold of determination in Bohr
+!ionplane=1: On plane, =0: Not
+subroutine check_on_plane(pos,thres,ionplane)
+use defvar
+implicit real*8 (a-h,o-z)
+real*8 pos(3),fract(3),thres
+integer ionplane
+
+call getcellabc(asize,bsize,csize,alpha,beta,gamma)
+call Cart2fract(pos,fract)
+xdiff=asize*abs(fract(1)-nint(fract(1)))
+ydiff=bsize*abs(fract(2)-nint(fract(2)))
+zdiff=csize*abs(fract(3)-nint(fract(3)))
+ionplane=0
+if (xdiff<thres.or.ydiff<thres.or.zdiff<thres) ionplane=1
 end subroutine
 
 

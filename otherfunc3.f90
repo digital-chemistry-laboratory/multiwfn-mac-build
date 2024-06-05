@@ -3030,7 +3030,7 @@ write(*,*) "Input threshold of detecting contact"
 write(*,"(a)") " If you input e.g. 1.5, then if the closest distance between a neighbouring molecule &
 and current molecule is shorter than the sum of the corresponding atomic vdW radii multiplied by 1.5, the neighbouring molecule will be extracted"
 write(*,*) "If pressing ENTER button directly, 1.2 will be used"
-write(*,"(a)") " If you simply want to keep get the single molecule containing the atom you selected, input 0"
+write(*,"(a)") " If you simply want to get the single molecule containing the atom you selected, input 0"
 read(*,"(a)") c80tmp
 if (c80tmp==" ") then
     crit=1.2D0

@@ -179,19 +179,23 @@ CALL ZBFINI(IRET) !Enable Z-buffer to determine visibility
 call litpos(1,XVU,YVU,ZVU,'ANGLE')
 call litmod(1,'on') !Dislin default light 1 is on, and off for others
 
+!Construct global array a_tmp, for non-PBC system it is the same as a, while for PBC case it contains real atoms and replicated boundary atoms
+if (idrawmol==1.or.ishowatmlab==1) then
+	if (ishowboundaryatom==1.and.ifPBC>0) then
+		call construct_atmp_withbound(ncenter_tmp)
+	else
+		if (allocated(a_tmp)) deallocate(a_tmp)
+		ncenter_tmp=ncenter
+		allocate(a_tmp(ncenter),a_tmp_idx(ncenter))
+		a_tmp=a
+        forall(i=1:ncenter) a_tmp_idx(i)=i
+	end if
+end if
+
 if (idrawmol==1) then
 	do ilight=2,8
 		call litmod(ilight,'off')
 	end do
-    !Construct global array a_tmp, for non-PBC system it is the same as a, while for PBC case it contains real atoms and replicated boundary atoms
-    if (ishowboundaryatom==1.and.ifPBC>0) then
-		call construct_atmp_withbound(ncenter_tmp)
-    else
-		if (allocated(a_tmp)) deallocate(a_tmp)
-        ncenter_tmp=ncenter
-        allocate(a_tmp(ncenter))
-        a_tmp=a
-    end if
 	!Draw atoms
 	do i=1,ncenter_tmp
         if (ishowhydrogen==0.and.a_tmp(i)%index==1) cycle
@@ -252,32 +256,38 @@ if (idrawmol==1) then
 		    end do
 	    end do
     end if
-    deallocate(a_tmp)
 end if
 
 !Draw critical points
+if (ishow3n3==1.or.ishow3n1==1.or.ishow3p1==1.or.ishow3p3==1) then
+	numcp_tmp=numcp
+	CPpos_tmp=CPpos
+    CPtype_tmp=CPtype
+    forall(i=1:numCP) CP_tmp_idx(i)=i
+	if (ishowboundarytopo==1.and.ifPBC>0) call construct_CPtmp_withbound(numcp_tmp)
+end if
 if (ishow3n3==1) then
 	CALL MATOP3(CP3n3RGB(1),CP3n3RGB(2),CP3n3RGB(3),'diffuse') !Purple
-	do i=1,numcp
-		if (CPtype(i)==1) CALL SPHE3D(CPpos(1,i),CPpos(2,i),CPpos(3,i),0.15D0*ratioCPsphere,20,20)
+	do i=1,numcp_tmp
+		if (CPtype_tmp(i)==1) CALL SPHE3D(CPpos_tmp(1,i),CPpos_tmp(2,i),CPpos_tmp(3,i),0.15D0*ratioCPsphere,20,20)
 	end do
 end if
 if (ishow3n1==1) then
 	CALL MATOP3(CP3n1RGB(1),CP3n1RGB(2),CP3n1RGB(3),'diffuse') !Orange
-	do i=1,numcp
-		if (CPtype(i)==2) CALL SPHE3D(CPpos(1,i),CPpos(2,i),CPpos(3,i),0.1D0*ratioCPsphere,20,20)
+	do i=1,numcp_tmp
+		if (CPtype_tmp(i)==2) CALL SPHE3D(CPpos_tmp(1,i),CPpos_tmp(2,i),CPpos_tmp(3,i),0.1D0*ratioCPsphere,20,20)
 	end do
 end if
 if (ishow3p1==1) then
 	CALL MATOP3(CP3p1RGB(1),CP3p1RGB(2),CP3p1RGB(3),'diffuse') !Yellow
-	do i=1,numcp
-		if (CPtype(i)==3) CALL SPHE3D(CPpos(1,i),CPpos(2,i),CPpos(3,i),0.1D0*ratioCPsphere,20,20)
+	do i=1,numcp_tmp
+		if (CPtype_tmp(i)==3) CALL SPHE3D(CPpos_tmp(1,i),CPpos_tmp(2,i),CPpos_tmp(3,i),0.1D0*ratioCPsphere,20,20)
 	end do
 end if
 if (ishow3p3==1) then
 	CALL MATOP3(CP3p3RGB(1),CP3p3RGB(2),CP3p3RGB(3),'diffuse') !Green
-	do i=1,numcp
-		if (CPtype(i)==4) CALL SPHE3D(CPpos(1,i),CPpos(2,i),CPpos(3,i),0.1D0*ratioCPsphere,20,20)
+	do i=1,numcp_tmp
+		if (CPtype_tmp(i)==4) CALL SPHE3D(CPpos_tmp(1,i),CPpos_tmp(2,i),CPpos_tmp(3,i),0.1D0*ratioCPsphere,20,20)
 	end do
 end if
 
@@ -354,22 +364,27 @@ end if
 
 !Draw topology paths
 if (idrawpath==1) then
+	numpath_tmp=numpath
+	pathnumpt_tmp=pathnumpt
+    topopath_tmp=topopath
+    forall(i=1:numpath) path_tmp_idx(i)=i
+	if (ishowboundarytopo==1.and.ifPBC>0) call construct_pathtmp_withbound(numpath_tmp) !Generate paths at cell boundary
     ntuberes=5
-    if (numpath>200) ntuberes=3 !For showing faster, use lower resolution
-	do ipath=1,numpath
-		call path_cp(ipath,icp1,icp2,ipathtype)
+    if (numpath_tmp>200) ntuberes=3 !For showing faster, use lower resolution
+	do ipath=1,numpath_tmp
+		call path_cp(path_tmp_idx(ipath),icp1,icp2,ipathtype)
 		!ipathtype=0: other   =1: (3,-1)->(3,-3) =2: (3,+1)->(3,+3) =3: (3,-1)<-->(3,+1)
 		if (ipathtype==0) call MATOP3(0.8D0, 0.8D0, 0.8D0, 'diffuse')
 		if (ipathtype==1) call MATOP3(0.9D0, 0.7D0, 0.0D0, 'diffuse')
 		if (ipathtype==2) call MATOP3(0.2D0, 0.7D0, 0.2D0, 'diffuse')
 		if (ipathtype==3) call MATOP3(0.8D0, 0.8D0, 0.3D0, 'diffuse')
-		do ipt=2,pathnumpt(ipath)
-            xlast=topopath(1,ipt-1,ipath)
-            ylast=topopath(2,ipt-1,ipath)
-            zlast=topopath(3,ipt-1,ipath)
-            xthis=topopath(1,ipt,ipath)
-            ythis=topopath(2,ipt,ipath)
-            zthis=topopath(3,ipt,ipath)
+		do ipt=2,pathnumpt_tmp(ipath)
+            xlast=topopath_tmp(1,ipt-1,ipath)
+            ylast=topopath_tmp(2,ipt-1,ipath)
+            zlast=topopath_tmp(3,ipt-1,ipath)
+            xthis=topopath_tmp(1,ipt,ipath)
+            ythis=topopath_tmp(2,ipt,ipath)
+            zthis=topopath_tmp(3,ipt,ipath)
             dist=dsqrt((xlast-xthis)**2+(ylast-ythis)**2+(zlast-zthis)**2)
             !If distance between two path points is very large, then the two points must cross box, so do not draw
             if (dist<pathstepsize*2) CALL TUBE3D(xlast,ylast,zlast,xthis,ythis,zthis,0.03D0,ntuberes,ntuberes)
@@ -635,56 +650,56 @@ if ((ishowatmlab==1.or.ishowCPlab==1.or.ishowpathlab==1.or.ishowlocminlab==1.or.
 	call height(int(textheighmod))
 	if (ishowatmlab==1) then
 		call setRGB(atmlabclrR,atmlabclrG,atmlabclrB)
-		do i=1,ncenter
-            if (ishowhydrogen==0.and.a(i)%index==1) cycle
-			write(ctemp,"(i5)") i
-			absx=(a(i)%x-(xhigh+xlow)/2) * plot2abs !Find atomic absolute coordinate in the axis
-			absy=(a(i)%y-(yhigh+ylow)/2) * plot2abs
- 			absz=(a(i)%z-(zhigh+zlow)/2) * plot2abs
+		do i=1,ncenter_tmp
+            if (ishowhydrogen==0.and.a_tmp(i)%index==1) cycle
+			write(ctemp,"(i5)") a_tmp_idx(i)
+			absx=(a_tmp(i)%x-(xhigh+xlow)/2) * plot2abs !Find atomic absolute coordinate in the axis
+			absy=(a_tmp(i)%y-(yhigh+ylow)/2) * plot2abs
+ 			absz=(a_tmp(i)%z-(zhigh+zlow)/2) * plot2abs
 			call abs3pt(absx,absy,absz,xplotcoor,yplotcoor) !Convert atomic absolute coordinate in the axis to screen coordinate (pixel)
 			screeny=nint(yplotcoor-textheighmod/1.8D0)
 			if (iatmlabtype3D==1) then !Show element
 				screenx=nint(xplotcoor-textheighmod/2D0)
-				if (a(i)%name(2:2)/=" ") screenx=nint(xplotcoor-textheighmod/1.3D0)
-				call messag(trim(a(i)%name),screenx,screeny)
+				if (a_tmp(i)%name(2:2)/=" ") screenx=nint(xplotcoor-textheighmod/1.3D0)
+				call messag(trim(a_tmp(i)%name),screenx,screeny)
 			else if (iatmlabtype3D==2) then !Show index all atoms (including Bq)
 				screenx=nint(xplotcoor-textheighmod/2D0)
 				if (i>=10) screenx=nint(xplotcoor-textheighmod/1.7D0)
 				call messag(ADJUSTL(ctemp),screenx,screeny)
 			else if (iatmlabtype3D==4.or.iatmlabtype3D==5) then !Show index	only for Bq atoms
-				if (a(i)%index/=0) cycle
+				if (a_tmp(i)%index/=0) cycle
 				screenx=nint(xplotcoor-textheighmod/2D0)
 				if (iatmlabtype3D==4) then
 					if (i>=10) screenx=nint(xplotcoor-textheighmod/1.7D0)
 				else
-					itmp=count(a(1:i)%index==0)
+					itmp=count(a_tmp(1:i)%index==0)
 					write(ctemp,"(i5)") itmp
 					if (itmp>=10) screenx=nint(xplotcoor-textheighmod/1.7D0)
 				end if
 				call messag(ADJUSTL(ctemp),screenx,screeny)
 			else !Show element and index
-                if (iatmlabtype3D==6.and.a(i)%index==0) cycle !Do not show Bq label
+                if (iatmlabtype3D==6.and.a_tmp(i)%index==0) cycle !Do not show Bq label
 				if (i<10) then !Slightly move center of text so that they can at center of atom
 					screenx=nint(xplotcoor-textheighmod/1.1D0)
 				else !Move in X more, since the index has two or more digitals
 					screenx=nint(xplotcoor-textheighmod/0.8D0)
 				end if
-				call messag(trim(a(i)%name)//ADJUSTL(ctemp),screenx,screeny)
+				call messag(trim(a_tmp(i)%name)//ADJUSTL(ctemp),screenx,screeny)
 			end if
 		end do
 	end if
 	if (ishowCPlab==1) then !Draw label for critical points
 		CALL SETRGB(CPlabclrR,CPlabclrG,CPlabclrB)
-		do i=1,numcp
-			if (CPtype(i)==1.and.ishow3n3==0) cycle
-			if (CPtype(i)==2.and.ishow3n1==0) cycle
-			if (CPtype(i)==3.and.ishow3p1==0) cycle
-			if (CPtype(i)==4.and.ishow3p3==0) cycle
+		do i=1,numcp_tmp
+			if (CPtype_tmp(i)==1.and.ishow3n3==0) cycle
+			if (CPtype_tmp(i)==2.and.ishow3n1==0) cycle
+			if (CPtype_tmp(i)==3.and.ishow3p1==0) cycle
+			if (CPtype_tmp(i)==4.and.ishow3p3==0) cycle
             if (lab_oneCP>0.and.lab_oneCP/=i) cycle
-			write(ctemp,"(i5)") i
-			absx=(CPpos(1,i)-(xhigh+xlow)/2) * plot2abs !Find atomic absolute coordinate
-			absy=(CPpos(2,i)-(yhigh+ylow)/2) * plot2abs
- 			absz=(CPpos(3,i)-(zhigh+zlow)/2) * plot2abs
+			write(ctemp,"(i5)") CP_tmp_idx(i)
+			absx=(CPpos_tmp(1,i)-(xhigh+xlow)/2) * plot2abs !Find atomic absolute coordinate
+			absy=(CPpos_tmp(2,i)-(yhigh+ylow)/2) * plot2abs
+ 			absz=(CPpos_tmp(3,i)-(zhigh+zlow)/2) * plot2abs
 			call abs3pt(absx,absy,absz,xplotcoor,yplotcoor) !Convert atomic absolute coordinate to screen coordinate(pixel)
 			screeny=nint(yplotcoor-textheighmod/1.8)
             if (i<10) then
@@ -699,12 +714,12 @@ if ((ishowatmlab==1.or.ishowCPlab==1.or.ishowpathlab==1.or.ishowlocminlab==1.or.
 	end if
 	if (ishowpathlab==1) then
 		call color("RED")
-		do ipath=1,numpath
-			write(ctemp,"(i5)") ipath
-			ipathmidpt=nint(pathnumpt(ipath)/2D0)
-			absx=(topopath(1,ipathmidpt,ipath)-(xhigh+xlow)/2) * plot2abs !Find atomic absolute coordinate
-			absy=(topopath(2,ipathmidpt,ipath)-(yhigh+ylow)/2) * plot2abs
- 			absz=(topopath(3,ipathmidpt,ipath)-(zhigh+zlow)/2) * plot2abs
+		do ipath=1,numpath_tmp
+			write(ctemp,"(i5)") path_tmp_idx(ipath)
+			ipathmidpt=nint(pathnumpt_tmp(ipath)/2D0)
+			absx=(topopath_tmp(1,ipathmidpt,ipath)-(xhigh+xlow)/2) * plot2abs !Find atomic absolute coordinate
+			absy=(topopath_tmp(2,ipathmidpt,ipath)-(yhigh+ylow)/2) * plot2abs
+ 			absz=(topopath_tmp(3,ipathmidpt,ipath)-(zhigh+zlow)/2) * plot2abs
 			call abs3pt(absx,absy,absz,xplotcoor,yplotcoor) !Convert atomic absolute coordinate to screen coordinate(pixel)
 			screenx=nint(xplotcoor-textheighmod/2.6D0)
 			screeny=nint(yplotcoor-textheighmod/1.8D0)
@@ -759,6 +774,7 @@ end if
 CALL DISFIN
 XVU=XVUold
 YVU=YVUold
+if (allocated(a_tmp)) deallocate(a_tmp,a_tmp_idx)
 end subroutine
 
 

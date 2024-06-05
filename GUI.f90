@@ -151,6 +151,7 @@ CALL wgapp(idisotherset,"Use CPK style",idisuseCPK)
 CALL wgapp(idisotherset,"Use vdW style",idisusevdW)
 CALL wgapp(idisotherset,"Use line style",idisuseline)
 CALL wgapp(idisotherset,"Toggle showing hydrogens",idisshowhydrogen)
+if (all(a%index/=1)) call swgatt(idisshowhydrogen,"INACTIVE","STATUS")
 CALL wgapp(idisotherset,"Toggle showing data range",idisshowdatarange)
 CALL wgapp(idisotherset,"Toggle showing cell frame",idisshowcell)
 if (ifPBC==0) call swgatt(idisshowcell,"INACTIVE","STATUS")
@@ -487,6 +488,7 @@ CALL wgapp(idisotherset,"Use CPK style",idisuseCPK)
 CALL wgapp(idisotherset,"Use vdW style",idisusevdW)
 CALL wgapp(idisotherset,"Use line style",idisuseline)
 CALL wgapp(idisotherset,"Toggle showing hydrogens",idisshowhydrogen)
+if (all(a%index/=1)) call swgatt(idisshowhydrogen,"INACTIVE","STATUS")
 CALL wgapp(idisotherset,"Toggle showing all boundary atoms",idisshowboundaryatom)
 if (ifPBC==0) call swgatt(idisshowboundaryatom,"INACTIVE","STATUS")
 CALL wgapp(idisotherset,"Set atom highlighting",idishighlightatom)
@@ -661,9 +663,12 @@ CALL wgapp(idisotherset,"Use CPK style",idisuseCPK)
 CALL wgapp(idisotherset,"Use vdW style",idisusevdW)
 CALL wgapp(idisotherset,"Use line style",idisuseline)
 CALL wgapp(idisotherset,"Toggle showing hydrogens",idisshowhydrogen)
+if (all(a%index/=1)) call swgatt(idisshowhydrogen,"INACTIVE","STATUS")
 CALL wgapp(idisotherset,"Toggle showing all boundary atoms",idisshowboundaryatom)
+CALL wgapp(idisotherset,"Toggle showing all boundary CPs and paths",idisshowboundarytopo)
 CALL wgapp(idisotherset,"Load bonding connectivity from mol/mol2 file",idisloadconn)
 if (ifPBC==0) call swgatt(idisshowboundaryatom,"INACTIVE","STATUS")
+if (ifPBC==0) call swgatt(idisshowboundarytopo,"INACTIVE","STATUS")
 !Main region
 CALL WGDRAW(idiswindow,idisgraph) !Draw-widget to display molecular structure
 CALL SWGWTH(20) !Set parent widget width
@@ -725,6 +730,7 @@ call SWGCBK(idissavepic,savepic)
 call SWGCBK(idissetangle,setviewangle)
 call SWGCBK(idissetzoom,setzoom)
 call SWGCBK(idisshowboundaryatom,setshowboundaryatom)
+call SWGCBK(idisshowboundarytopo,setshowboundarytopo)
 call SWGCBK(idisloadconn,loadconn)
 call SWGCBK(idisatmlabtyp,setatmlabtyp)
 call SWGCBK(idisuseCPK,setCPKstyle)
@@ -1979,8 +1985,22 @@ subroutine setshowboundaryatom(id)
 integer,intent (in) :: id
 if (ishowboundaryatom==0) then
     ishowboundaryatom=1
+    write(*,*) "Status of showing boundary atoms: Yes"
 else
     ishowboundaryatom=0
+    write(*,*) "Status of showing boundary atoms: No"
+end if
+call drawmol
+end subroutine
+
+subroutine setshowboundarytopo(id)
+integer,intent (in) :: id
+if (ishowboundarytopo==0) then
+    ishowboundarytopo=1
+    write(*,*) "Status of showing boundary CPs and paths: Yes"
+else
+    ishowboundarytopo=0
+    write(*,*) "Status of showing boundary CPs and paths: No"
 end if
 call drawmol
 end subroutine

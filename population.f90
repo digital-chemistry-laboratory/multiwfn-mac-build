@@ -21,6 +21,9 @@ implicit real*8 (a-h,o-z)
 character c2000tmp*2000,c80tmp*80
 character :: MPApath*200=" "
 
+write(*,*) "There is a nice reference comprehensively introducing atomic charges:"
+write(*,*) "Tian Lu, Qinxue Chen, Partial Charges, In Exploring Chemical Concepts Through Theory and Computation. &
+WILEY-VCH GmbH: Weinheim (2024); pp. 161-187. DOI: 10.1002/9783527843435.ch6"
 if (ifragcontri==1) then
 	write(*,*) "Population analysis function could not be used combining with self-defined fragment"
 else

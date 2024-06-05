@@ -259,6 +259,7 @@ integer :: loadmulti=-99,loadcharge=-99 !Spin multiplicity and net charge, loade
 real*8 :: kp1crd=0,kp2crd=0,kp3crd=0 !k-point fractional coordinate in three directions in reciprocal space for present wavefunction
 !-------- Variables for nuclei & GTF & Orbitals. Note: Row and column of CO(:,:) correspond to orbital and GTF, respectively, in contrary to convention
 type(atomtype),allocatable :: a(:),a_org(:),a_tmp(:) !a_tmp is only used in local temporary operation, should be destoried immediatedly after using
+integer,allocatable :: a_tmp_idx(:) !Record actual index of every atom in a_tmp
 type(primtype),allocatable,target :: b(:)
 type(primtype),allocatable :: b_org(:),b_tmp(:)
 real*8,allocatable :: MOocc(:),MOocc_org(:),MOene(:),MOene_org(:) !Occupation number & energy of orbital
@@ -427,7 +428,7 @@ integer,allocatable :: boldlinelist(:)
 character(len=3) :: drawsurmesh="ON "
 !Parameter for drawing molecular structure or 3D map
 integer :: ienablelight1=1,ienablelight2=1,ienablelight3=1,ienablelight4=0,ienablelight5=0 !If enable lighting 1~5
-integer :: ishowatmlab=1,ishowCPlab=0,ishowpathlab=0,ishowaxis=1,isosurshowboth=1,ishowdatarange=0,ishowcell=0,ishowboundaryatom=0,idrawpath=1,idrawbassurf=1,ishowattlab=0,ishowatt=0
+integer :: ishowatmlab=1,ishowCPlab=0,ishowpathlab=0,ishowaxis=1,isosurshowboth=1,ishowdatarange=0,ishowcell=0,ishowboundaryatom=1,ishowboundarytopo=1,idrawpath=1,idrawbassurf=1,ishowattlab=0,ishowatt=0
 integer :: isosur1style=1,isosur2style=1 !isosurface style,1/2/3/4/5=solid,mesh,points,solid+mesh,transparent
 integer :: ishowlocminlab=0,ishowlocmaxlab=0,ishowlocminpos=0,ishowlocmaxpos=0 !For molecular surface analysis
 integer :: ishow3n3=0,ishow3n1=0,ishow3p1=0,ishow3p3=0
@@ -496,21 +497,23 @@ end module
 !-------- Module for topology analysis
 module topo
 integer :: ifunctopo=1 !Index of currently selected real space function for topology analysis
-!CP related:
+!CP related: (the ones with _tmp are used to temporarily show CPs including those at cell boundary)
 integer,parameter :: maxnumcp=100000 !Maximum number of CPs
 integer :: numcp=0 !Number of located CPs
-real*8 :: CPpos(3,maxnumcp) !XYZ of CPs
-integer :: CPtype(maxnumcp)=0 !Type of CPs. 0=unknown 1=(3,-3) 2=(3,-1) 3=(3,+1) 4=(3,+3)
+integer CP_tmp_idx(maxnumcp) !Index of temporary CPs
+real*8 CPpos(3,maxnumcp),CPpos_tmp(3,maxnumcp) !XYZ of CPs
+integer :: CPtype(maxnumcp)=0,CPtype_tmp(maxnumcp) !Type of CPs. 0=unknown 1=(3,-3) 2=(3,-1) 3=(3,+1) 4=(3,+3)
 character :: CPtyp2lab(0:4)*6=(/ "  ??  ","(3,-3)","(3,-1)","(3,+1)","(3,+3)" /)
 real*8 :: CPstepscale=1D0,gradconv=1D-6,dispconv=1D-7,minicpdis=0.03D0,vdwsumcrit=1.5D0,singularcrit=5D-22,CPsearchlow=0D0,CPsearchhigh=0D0,topotrustrad=0D0
 integer :: topomaxcyc=120,ishowsearchlevel=0,itopomethod=1
 integer :: lab_oneCP=0 !If only allowing labelling one CP. =0: Labelling all, =x: Only allow show label for CP x
-!Path related:
+!Path related: (the ones with _tmp are used to temporarily show paths including those at cell boundary)
 integer,parameter :: maxnumpath=10000 !Maximum number of paths
 integer,parameter :: maxpathpt=1500 !Maximum number of points in each path
 integer :: numpath=0 !Number of generated paths
-integer pathnumpt(maxnumcp) !How many actual points in each path
-real*8 :: topopath(3,maxpathpt,maxnumpath) !Coordinate of topology paths. {x,y,z}, index of points in each path, index of paths
+integer path_tmp_idx(maxnumpath) !Index of temporary paths
+integer pathnumpt(maxnumcp),pathnumpt_tmp(maxnumcp) !How many actual points in each path
+real*8 :: topopath(3,maxpathpt,maxnumpath),topopath_tmp(3,maxpathpt,maxnumpath) !Coordinate of topology paths. {x,y,z}, index of points in each path, index of paths
 real*8 :: discritpathfin=0.05D0,pathstepsize=0.03D0
 integer :: maxpathpttry=451 !The actual upper limit of point during path generation
 integer :: npathtry=30

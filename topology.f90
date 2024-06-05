@@ -12,13 +12,14 @@ character selectyn,c80tmp*80,c200*200,c1000*1000,c2000tmp*2000,ctmp1*20,ctmp2*20
 real*8,allocatable :: randptx(:),randpty(:),randptz(:) !x,y,z of the points in the sphere
 real*8,allocatable :: bassurpathtmp(:,:,:,:) !Used for temporary store bassurpath
 real*8,allocatable :: shanCPrho(:) !For calculate Shannon aromaticity
-integer :: shanCPind(100),searchcenlist(500)
+integer shanCPind(100),searchcenlist(500)
 integer :: isearch=0 !Searching mode of CP (suboption 10 in option -1)
 integer :: nsearchlist=0 !The number of atoms considered in the searching modes 2,3,4,5 
 integer,allocatable :: searchlist(:) !The list of the atoms considered in the searching modes 2,3,4,5
 logical inlist1(ncenter),inlist2(ncenter) !If inlist1(i)=.true./.false., then atom i is in atom list 1 for interfragment searching
 integer,allocatable :: tmparr(:),tmparr2(:)
-real*8 :: hesstmp(3,3),gradtmp(3) !Temporarily used for calculating curvature
+real*8 hesstmp(3,3),gradtmp(3) !Temporarily used for calculating curvature
+real*8 tvec(3)
 integer :: ishowsearchpath=0
 
 !Do not need virtual orbitals, remove them for faster calculation
@@ -290,6 +291,7 @@ do while(.true.)
 			write(*,*) "4 Save points of all paths to paths.txt in current folder"
 			write(*,*) "5 Load paths from an external file"
 			write(*,*) "6 Export paths as paths.pdb file in current folder"
+			if (ifPBC>0) write(*,"(a)") " -6 Export paths (including images at cell boundary if any) as paths.pdb file in current folder"
 			write(*,*) "7 Calculate and plot specific real space function along a path"
 			write(*,"(a)") " 8 Only retain bond paths (and corresponding CPs) connecting two specific molecular fragments while remove all other bond paths and BCPs"
 			read(*,*) isel2
@@ -404,21 +406,37 @@ do while(.true.)
 					write(*,*) "Done, path information have been recovered from the file"
 				end if
 				
-			else if (isel2==6) then
+			else if (isel2==6.or.isel2==-6) then
 				open(10,file="paths.pdb",status="replace")
 				if (ifPBC>0) then
 					call getcellabc(asize,bsize,csize,alpha,beta,gamma)
 					write(10,"('CRYST1',3f9.3,3f7.2)") asize,bsize,csize,alpha,beta,gamma
 				end if
 				itmp=0
-				do ipath=1,numpath
-					do ipt=1,pathnumpt(ipath)
-						itmp=itmp+1
-						write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") "HETATM",itmp,&
-						' '//"C "//' ',"PTH",'A',ipath,topopath(:,ipt,ipath)*b2a,1.0,0.0,"C "
+                if (isel2==6) then
+					do ipath=1,numpath
+						do ipt=1,pathnumpt(ipath)
+							itmp=itmp+1
+							write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") "HETATM",itmp,&
+							' '//"C "//' ',"PTH",'A',ipath,topopath(:,ipt,ipath)*b2a,1.0,0.0,"C "
+						end do
+						write(10,"('TER')")
 					end do
-					write(10,"('TER')")
-				end do
+                else
+					numpath_tmp=numpath
+					pathnumpt_tmp=pathnumpt
+					topopath_tmp=topopath
+					forall(i=1:numpath) path_tmp_idx(i)=i
+					call construct_pathtmp_withbound(numpath_tmp) !Generate paths at cell boundary
+					do ipath=1,numpath_tmp
+						do ipt=1,pathnumpt_tmp(ipath)
+							itmp=itmp+1
+							write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") "HETATM",itmp,&
+							' '//"C "//' ',"PTH",'A',path_tmp_idx(ipath),topopath_tmp(:,ipt,ipath)*b2a,1.0,0.0,"C "
+						end do
+						write(10,"('TER')")
+					end do
+                end if
 				close(10)
 				write(*,"(a)") " Done, paths have been saved to paths.pdb in current folder. Each atom in this file &
                 corresponds to a point in the paths. Residue index corresponds path index"
@@ -445,6 +463,7 @@ do while(.true.)
 			write(*,*) "4 Save CPs to CPs.txt in current folder"
 			write(*,*) "5 Load CPs from a file"
 			write(*,*) "6 Export CPs as CPs.pdb file in current folder"
+			if (ifPBC>0) write(*,"(a)") " -6 Export CPs (including images at cell boundary if any) as CPs.pdb file in current folder"
 			read(*,*) isel2
 			
 			if (isel2==0) then
@@ -588,21 +607,36 @@ do while(.true.)
 					close(10)
 					write(*,*) "Done, CP information have been retrieved from the file"
 				end if
-			else if (isel2==6) then
+			else if (isel2==6.or.isel2==-6) then
 				open(10,file="CPs.pdb",status="replace")
 				if (ifPBC>0) then
 					call getcellabc(asize,bsize,csize,alpha,beta,gamma)
 					write(10,"('CRYST1',3f9.3,3f7.2)") asize,bsize,csize,alpha,beta,gamma
 				end if
 				write(10,"('REMARK   C=(3,-3) N=(3,-1) O=(3,+1) F=(3,+3)')")
-				do icp=1,numcp
-					if (CPtype(icp)==1) write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") "HETATM",icp,' '//"C "//' ',"CPS",'A',1,CPpos(:,icp)*b2a,1.0,0.0,"C "
-					if (CPtype(icp)==2) write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") "HETATM",icp,' '//"N "//' ',"CPS",'A',1,CPpos(:,icp)*b2a,1.0,0.0,"N "
-					if (CPtype(icp)==3) write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") "HETATM",icp,' '//"O "//' ',"CPS",'A',1,CPpos(:,icp)*b2a,1.0,0.0,"O "
-					if (CPtype(icp)==4) write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") "HETATM",icp,' '//"F "//' ',"CPS",'A',1,CPpos(:,icp)*b2a,1.0,0.0,"F "
-				end do
+                if (isel2==6) then
+					do icp=1,numcp
+						if (CPtype(icp)==1) write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") "HETATM",icp,' '//"C "//' ',"CPS",'A',1,CPpos(:,icp)*b2a,1.0,0.0,"C "
+						if (CPtype(icp)==2) write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") "HETATM",icp,' '//"N "//' ',"CPS",'A',1,CPpos(:,icp)*b2a,1.0,0.0,"N "
+						if (CPtype(icp)==3) write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") "HETATM",icp,' '//"O "//' ',"CPS",'A',1,CPpos(:,icp)*b2a,1.0,0.0,"O "
+						if (CPtype(icp)==4) write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") "HETATM",icp,' '//"F "//' ',"CPS",'A',1,CPpos(:,icp)*b2a,1.0,0.0,"F "
+					end do
+                else
+					numcp_tmp=numcp
+					CPpos_tmp=CPpos
+					CPtype_tmp=CPtype
+					forall(i=1:numCP) CP_tmp_idx(i)=i
+					call construct_CPtmp_withbound(numcp_tmp)
+					do icp=1,numcp_tmp
+						if (CPtype_tmp(icp)==1) write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") "HETATM",icp,' '//"C "//' ',"CPS",'A',CP_tmp_idx(icp),CPpos_tmp(:,icp)*b2a,1.0,0.0,"C "
+						if (CPtype_tmp(icp)==2) write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") "HETATM",icp,' '//"N "//' ',"CPS",'A',CP_tmp_idx(icp),CPpos_tmp(:,icp)*b2a,1.0,0.0,"N "
+						if (CPtype_tmp(icp)==3) write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") "HETATM",icp,' '//"O "//' ',"CPS",'A',CP_tmp_idx(icp),CPpos_tmp(:,icp)*b2a,1.0,0.0,"O "
+						if (CPtype_tmp(icp)==4) write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") "HETATM",icp,' '//"F "//' ',"CPS",'A',CP_tmp_idx(icp),CPpos_tmp(:,icp)*b2a,1.0,0.0,"F "
+					end do
+                end if
 				write(*,*) "Done, CP information have been saved to CPs.pdb in current folder"
 				write(*,*) "Note: Element C/N/O/F correspond to (3,-3)/(3,-1)/(3,+1)/(3,+3), respectively"
+                if (isel2==-6) write(*,"(a)") " For image CPs at cell boundary, their residue index corresponds to index of unique CP"
 				close(10)
 			end if
 		end do
@@ -867,7 +901,8 @@ do while(.true.)
 		if (numcp<500.and.numpath<500) then
 			call showtoposummary
         else
-			write(*,"(a)") " Note: Since there are too many critical points and/or paths, their summary is not automatically shown. &
+			call showPHrelat
+			write(*,"(/,a)") " Note: Since there are too many critical points and/or paths, their summary is not automatically shown. &
             To print them, input 00 in the topology analysis menu"
         end if
 		if (isilent==0) call drawmoltopogui
@@ -1007,44 +1042,93 @@ do while(.true.)
 		
 		!333333333333333333333, midpoint between two atoms as initial guess
 		else if (isel==3) then
+			if (ifPBC>0) write(*,*) "Note: Looping atoms in this mode considers image ones"
 			numcpold=numcp
 			itime=0
 			ntime=0
-			do idx=1,nsearchlist !Test how many iterations will be done
-				iatm=searchlist(idx)
-				do jdx=idx+1,nsearchlist
-					jatm=searchlist(jdx)
-                    if (isearch==2) then !Search will be performed between two fragments
-						if ( (inlist1(iatm).and.inlist1(jatm)).or.(inlist2(iatm).and.inlist2(jatm)) ) cycle !Two atoms are in the same fragment
-                    end if
-                    disttmp=atomdist(iatm,jatm,1)
-                    if ( disttmp <= vdwsumcrit*(vdwr(a(iatm)%index)+vdwr(a(jatm)%index)) ) ntime=ntime+1
+            if (ifPBC==0) then
+				do idx=1,nsearchlist !Test how many iterations will be done
+					iatm=searchlist(idx)
+					do jdx=idx+1,nsearchlist
+						jatm=searchlist(jdx)
+						if (isearch==2) then !Search will be performed between two fragments
+							if ( (inlist1(iatm).and.inlist1(jatm)).or.(inlist2(iatm).and.inlist2(jatm)) ) cycle !Two atoms are in the same fragment
+						end if
+						disttmp=atomdist(iatm,jatm,1)
+						if ( disttmp <= vdwsumcrit*(vdwr(a(iatm)%index)+vdwr(a(jatm)%index)) ) ntime=ntime+1
+					end do
 				end do
-			end do
-            write(*,"(' Number of starting points:',i8)") ntime
-			!$OMP PARALLEL DO SHARED(itime) PRIVATE(iatm,jatm,disttmp,atmx,atmy,atmz) schedule(dynamic) NUM_THREADS(nthreads)
-			do idx=1,nsearchlist
-				iatm=searchlist(idx)
-				do jdx=idx+1,nsearchlist
-					jatm=searchlist(jdx)
-                    if (isearch==2) then !Search will be performed between two fragments
-						if ( (inlist1(iatm).and.inlist1(jatm)).or.(inlist2(iatm).and.inlist2(jatm)) ) cycle !Two atoms are in the same fragment
-                    end if
-                    call nearest_atmdistxyz(iatm,jatm,disttmp,atmx,atmy,atmz)
-					if ( disttmp > vdwsumcrit*(vdwr(a(iatm)%index)+vdwr(a(jatm)%index)) ) cycle
-					!$OMP CRITICAL
-					itime=itime+1
-					if (ishowsearchlevel>=1) then
-						write(*,"(' #',i5,' /',i5,a,i5,'(',a,')',a,i5,'(',a,')')") &
-						itime,ntime,": Trying from midpoint between ",iatm,a(iatm)%name," and",jatm,a(jatm)%name
-					else
-						call showprog(itime,ntime)
-					end if
-					!$OMP end CRITICAL
-					call findcp( (a(iatm)%x+atmx)/2D0,(a(iatm)%y+atmy)/2D0,(a(iatm)%z+atmz)/2D0, ifunctopo)
+				write(*,"(' Number of starting points:',i8)") ntime
+				!$OMP PARALLEL DO SHARED(itime) PRIVATE(idx,iatm,jdx,jatm,disttmp) schedule(dynamic) NUM_THREADS(nthreads)
+				do idx=1,nsearchlist
+					iatm=searchlist(idx)
+					do jdx=idx+1,nsearchlist
+						jatm=searchlist(jdx)
+						if (isearch==2) then !Search will be performed between two fragments
+							if ( (inlist1(iatm).and.inlist1(jatm)).or.(inlist2(iatm).and.inlist2(jatm)) ) cycle !Two atoms are in the same fragment
+						end if
+						disttmp=atomdist(iatm,jatm,1)
+						if ( disttmp > vdwsumcrit*(vdwr(a(iatm)%index)+vdwr(a(jatm)%index)) ) cycle
+						!$OMP CRITICAL
+						itime=itime+1
+						if (ishowsearchlevel>=1) then
+							write(*,"(' #',i5,' /',i5,a,i5,'(',a,')',a,i5,'(',a,')')") &
+							itime,ntime,": Trying from midpoint between ",iatm,a(iatm)%name," and",jatm,a(jatm)%name
+						else
+							call showprog(itime,ntime)
+						end if
+						!$OMP end CRITICAL
+						call findcp( (a(iatm)%x+a(jatm)%x)/2D0,(a(iatm)%y+a(jatm)%y)/2D0,(a(iatm)%z+a(jatm)%z)/2D0, ifunctopo)
+					end do
 				end do
-			end do	
-			!$OMP END PARALLEL DO
+				!$OMP END PARALLEL DO
+            else !PBC case
+				do idx=1,nsearchlist !Test how many iterations will be done
+					iatm=searchlist(idx)
+					do jdx=idx,nsearchlist
+						jatm=searchlist(jdx)
+						if (isearch==2) then !Search will be performed between two fragments
+							if ( (inlist1(iatm).and.inlist1(jatm)).or.(inlist2(iatm).and.inlist2(jatm)) ) cycle !Two atoms are in the same fragment
+						end if
+						ntime=ntime+1
+					end do
+				end do
+				write(*,"(' Number of atom pairs:',i8)") ntime
+				!$OMP PARALLEL DO SHARED(itime) PRIVATE(idx,iatm,jdx,jatm,icell,jcell,kcell,disttmp,atmx,atmy,atmz) schedule(dynamic) NUM_THREADS(nthreads)
+				do idx=1,nsearchlist
+					iatm=searchlist(idx)
+					do jdx=idx,nsearchlist
+						jatm=searchlist(jdx)
+						if (isearch==2) then !Search will be performed between two fragments
+							if ( (inlist1(iatm).and.inlist1(jatm)).or.(inlist2(iatm).and.inlist2(jatm)) ) cycle !Two atoms are in the same fragment
+						end if
+						!$OMP CRITICAL
+						itime=itime+1
+						if (ishowsearchlevel>=1) then
+							write(*,"(' #',i5,' /',i5,a,i5,'(',a,')',a,i5,'(',a,')')") &
+							itime,ntime,": Trying between ",iatm,a(iatm)%name," and",jatm,a(jatm)%name
+						else
+							call showprog(itime,ntime)
+						end if
+						!$OMP end CRITICAL
+                        do icell=-1,1
+							do jcell=-1,1
+								do kcell=-1,1
+									if (jdx==idx.and.icell==0.and.jcell==0.and.kcell==0) cycle
+									call tvec_PBC(icell,jcell,kcell,tvec)
+                                    atmx=a(jatm)%x+tvec(1)
+                                    atmy=a(jatm)%y+tvec(2)
+                                    atmz=a(jatm)%z+tvec(3)
+									disttmp=dsqrt( (atmx-a(iatm)%x)**2 + (atmy-a(iatm)%y)**2 + (atmz-a(iatm)%z)**2 )
+									if ( disttmp > vdwsumcrit*(vdwr(a(iatm)%index)+vdwr(a(jatm)%index)) ) cycle
+									call findcp( (a(iatm)%x+atmx)/2D0,(a(iatm)%y+atmy)/2D0,(a(iatm)%z+atmz)/2D0, ifunctopo)
+                                end do
+                            end do
+                        end do
+					end do
+				end do
+				!$OMP END PARALLEL DO
+            end if
 			if ((numcp-numcpold)/=0) then
 				call sortCP(numcpold+1)
 				write(*,*) "                            ---- Summary ----"
@@ -1058,6 +1142,7 @@ do while(.true.)
 		!4444444444444444444, search CPs from triangle center of three atoms
         !If distance between any atomic pair is longer than threshold, the search will be skipped. For PBC case, only consider the other two atoms closest to it
 		else if (isel==4) then
+			if (ifPBC>0) write(*,*) "Note: Looping atoms in this mode does not consider image ones"
 			numcpold=numcp
 			itime=0
 			ntime=0
@@ -1125,6 +1210,7 @@ do while(.true.)
 	
 		!5555555555555555555, search CPs from pyramid center of four atoms
 		else if (isel==5) then
+			if (ifPBC>0) write(*,*) "Note: Looping atoms in this mode does not consider image ones"
 			numcpold=numcp
 			itime=0 
 			ntime=0
@@ -1869,7 +1955,7 @@ iterpt:	do ipt=2,maxpathpttry
 				if (icp==ithisCP) cycle
                 if (ifPBC==0) then
     				distcp=dsqrt(sum( (pathtmp(:,ipt,idir)-CPpos(:,icp))**2 ))
-                else if (ifPBC>0) then
+                else !PBC case
                     call nearest_mirror(pathtmp(:,ipt,idir),CPpos(:,icp),tmpvec)
     				distcp=dsqrt(sum( (pathtmp(:,ipt,idir)-tmpvec(:))**2 ))
                 end if
@@ -1878,11 +1964,11 @@ iterpt:	do ipt=2,maxpathpttry
 					numpath=numpath+1
 					pathnumpt(numpath)=ipt
 					topopath(:,:,numpath)=pathtmp(:,:,idir)
-                    !Add the nearly reached CP as the final point. In the case of PBC, use nearest periodic CP as this point
+                    !Add the nearly reached CP as the final point of the path. In the case of PBC, use the nearest image of the CP as this point
                     pathnumpt(numpath)=pathnumpt(numpath)+1
                     if (ifPBC==0) then
                         topopath(:,pathnumpt(numpath),numpath)=CPpos(:,icp)
-                    else if (ifPBC>0) then
+                    else !PBC case
                         call nearest_mirror(pathtmp(:,ipt,idir),CPpos(:,icp),tmpvec)
                         topopath(:,pathnumpt(numpath),numpath)=tmpvec
                     end if
@@ -1905,7 +1991,6 @@ iterpt:	do ipt=2,maxpathpttry
 			ztmp=pathtmp(3,ipt,idir)
 			valueold=value
 			call gencalchessmat(1,ifunc,xtmp,ytmp,ztmp,value,grad,hess)
- 			!if (ithisCP==14) write(*,*) idir,ipt,value
             !For electron density, also check if value decrease during generating bond path
             !While for other functions like LOL, when path curvature at CP is large, this check often make path generation failed, &
             !because at initial a few steps, the value may marginally decrease, but in fact this doesn't matter
@@ -1918,7 +2003,10 @@ iterpt:	do ipt=2,maxpathpttry
 			k2=grad/dsqrt(sum(grad**2))
 			if (itype==1) pathtmp(:,ipt+1,idir)=pathtmp(:,ipt,idir)+pathstepsize*k2
 			if (itype==2) pathtmp(:,ipt+1,idir)=pathtmp(:,ipt,idir)-pathstepsize*k2
-            if (ifPBC>0) call move_to_cell(pathtmp(:,ipt+1,idir),pathtmp(:,ipt+1,idir)) !If move to a position out of box, move it to central cell
+            if (ifPBC>0) then !If the point has moved to a position out of box and it is not on a plane (avoid jumping of boundary points), moving it to central cell
+				call check_on_plane(pathtmp(:,ipt+1,idir),0.001D0,ionplane)
+				if (ionplane==0) call move_to_cell(pathtmp(:,ipt+1,idir),pathtmp(:,ipt+1,idir))
+            end if
 		end do iterpt
 
 		if (info==1) write(*,*)
@@ -1929,6 +2017,7 @@ else if (itype==3) then !between (3,+1) and (3,-1)
 end if
 
 end subroutine
+
 
 
 
@@ -2672,31 +2761,40 @@ if (numcp>0) then
 			write(*,"(i6,3f14.8,3x,a)") icp,CPpos(:,icp),CPtyp2lab(icptype)
 		end if
 	end do
-	NumCPtype1=count(CPtype(1:numcp)==1)
-	NumCPtype2=count(CPtype(1:numcp)==2)
-	NumCPtype3=count(CPtype(1:numcp)==3)
-	NumCPtype4=count(CPtype(1:numcp)==4)
-	write(*,*) "The number of critical points of each type:"
-	write(*,"(' (3,-3):',i6,',   (3,-1):',i6,',   (3,+1):',i6,',   (3,+3):',i6)") NumCPtype1,NumCPtype2,NumCPtype3,NumCPtype4
-		
-	itestPH=NumCPtype1-NumCPtype2+NumCPtype3-NumCPtype4 !Poincare-Hopf relationship
-	write(*,"(' Poincare-Hopf relationship verification:',i5,'  -',i5,'  +',i5,'  -',i5,'  =',i4)") NumCPtype1,NumCPtype2,NumCPtype3,NumCPtype4,itestPH
-    if (ifPBC==0) then
-		if (itestPH==1) then
-            write(*,*) "Fine, Poincare-Hopf relationship is satisfied, all CPs may have been found"
-        else
-            write(*,*) "Warning: Poincare-Hopf relationship is not satisfied, some CPs may be missing"
-        end if
-    else if (ifPBC>0) then
-		if (itestPH==0) then
-            write(*,*) "Fine, Poincare-Hopf relationship is satisfied, all CPs may have been found"
-        else
-            write(*,*) "Warning: Poincare-Hopf relationship is not satisfied, some CPs may be missing"
-        end if
-    end if
+    call showPHrelat
 	if (numbassurf>0) write(*,"(' The number of generated interbasin surfaces:',i8)") numbassurf
 else
 	write(*,*) "No CP has been found"
+end if
+end subroutine
+
+
+
+!!---------- Show satisfaction of Poincare-Hopf relationship
+subroutine showPHrelat
+use defvar
+use topo
+implicit real*8 (a-h,o-z)
+NumCPtype1=count(CPtype(1:numcp)==1)
+NumCPtype2=count(CPtype(1:numcp)==2)
+NumCPtype3=count(CPtype(1:numcp)==3)
+NumCPtype4=count(CPtype(1:numcp)==4)
+write(*,*) "The number of critical points of each type:"
+write(*,"(' (3,-3):',i6,',   (3,-1):',i6,',   (3,+1):',i6,',   (3,+3):',i6)") NumCPtype1,NumCPtype2,NumCPtype3,NumCPtype4
+itestPH=NumCPtype1-NumCPtype2+NumCPtype3-NumCPtype4 !Poincare-Hopf relationship
+write(*,"(' Poincare-Hopf verification:',i6,'  -',i6,'  +',i6,'  -',i6,'  =',i6)") NumCPtype1,NumCPtype2,NumCPtype3,NumCPtype4,itestPH
+if (ifPBC==0) then
+	if (itestPH==1) then
+        write(*,*) "Fine, Poincare-Hopf relationship is satisfied, all CPs may have been found"
+    else
+        write(*,*) "Warning: Poincare-Hopf relationship is not satisfied, some CPs may be missing"
+    end if
+else if (ifPBC>0) then
+	if (itestPH==0) then
+        write(*,*) "Fine, Poincare-Hopf relationship is satisfied, all CPs may have been found"
+    else
+        write(*,*) "Warning: Poincare-Hopf relationship is not satisfied, some CPs may be missing"
+    end if
 end if
 end subroutine
 
@@ -2706,7 +2804,9 @@ end subroutine
 subroutine deallo_topo
 use topo
 numcp=0
+numcp_tmp=0
 numpath=0
+numpath_tmp=0
 nple3n1path=0
 numbassurf=0
 CPtype=0 !Clean relationship
@@ -2717,4 +2817,139 @@ CPsearchhigh=0D0
 lab_oneCP=0
 if (allocated(bassurpath)) deallocate(bassurpath)
 if (allocated(ple3n1path)) deallocate(ple3n1path)
+end subroutine
+
+
+
+
+
+!!!--------- Construct global array CPpos_tmp and CPtype_tmp, which contains real CPs and replicated boundary CPs, as well as CP_tmp_idx
+!numcp_tmp is returned variable containing number of all CPs including the replicated boundary ones
+subroutine construct_CPtmp_withbound(numcp_tmp)
+use defvar
+use topo
+implicit real*8 (a-h,o-z)
+real*8 Cart(3),fract(3),ftest(3)
+integer numcp_tmp
+
+call getcellabc(asize,bsize,csize,alpha,beta,gamma)
+devthres=1D-2 !If distance to cell boundary is less than 0.01 Bohr, then it will be regarded as boundary CP
+devthres2=devthres**2
+fdeva=devthres/asize
+fdevb=devthres/bsize
+fdevc=devthres/csize
+
+do iCP=1,numcp
+    Cart(1:3)=CPpos(1:3,iCP)
+    call Cart2fract(Cart,fract)
+    xdiff=asize*abs(fract(1)-nint(fract(1)))
+    ydiff=bsize*abs(fract(2)-nint(fract(2)))
+    zdiff=csize*abs(fract(3)-nint(fract(3)))
+    if (xdiff<devthres.or.ydiff<devthres.or.zdiff<devthres) then !Existing boundary CP is at least very close to one of cell walls
+        !Try to replicate the existing boundary CP to all possible neighbouring mirror sites
+        do ix=-1,1
+            do iy=-1,1
+                do iz=-1,1
+                    if (ix==0.and.iy==0.and.iz==0) cycle
+                    ftest(1)=fract(1)+ix
+                    ftest(2)=fract(2)+iy
+                    ftest(3)=fract(3)+iz
+                    !Mirror boundary must be within or quasi within current cell
+                    if (ftest(1)>-fdeva.and.ftest(1)<1+fdeva.and.ftest(2)>-fdevb.and.ftest(2)<1+fdevb.and.ftest(3)>-fdevc.and.ftest(3)<1+fdevc) then
+                        call fract2Cart(ftest,Cart)
+                        !Check if the mirror boundary CP is too close to existing CPs
+                        iadd=1
+                        do jCP=1,numcp
+                            if (jCP==iCP) cycle
+                            dist2=sum((Cart(:)-CPpos(:,jCP))**2)
+                            if (dist2<devthres2) then !Too close, skip it
+                                iadd=0
+                                exit
+                            end if
+                        end do
+                        if (iadd==1) then
+                            numcp_tmp=numcp_tmp+1
+                            CP_tmp_idx(numcp_tmp)=iCP
+                            CPtype_tmp(numcp_tmp)=CPtype(iCP)
+                            CPpos_tmp(:,numcp_tmp)=Cart(:)
+                        end if
+                    end if
+                end do
+            end do
+        end do
+    end if
+end do
+end subroutine
+
+
+
+
+
+!!!--------- Construct global array pathnumpt_tmp and topopath_tmp, which contains real paths and replicated boundary paths, as well as path_tmp_idx
+!numpath_tmp is returned variable containing number of all CPs including the replicated boundary ones
+subroutine construct_pathtmp_withbound(numpath_tmp)
+use defvar
+use topo
+implicit real*8 (a-h,o-z)
+real*8 Cart(3),fract(3),fract2(3),fracttmp(3),ftest(3),ftest2(3)
+integer numpath_tmp
+
+call getcellabc(asize,bsize,csize,alpha,beta,gamma)
+devthres=1D-2 !If distance to cell boundary is less than 0.01 Bohr, then it will be regarded as boundary CP
+fdeva=devthres/asize
+fdevb=devthres/bsize
+fdevc=devthres/csize
+
+do ipath=1,numpath
+    call Cart2fract(topopath(1:3,1,ipath),fract)
+    xdiff1=asize*abs(fract(1)-nint(fract(1)))
+    ydiff1=bsize*abs(fract(2)-nint(fract(2)))
+    zdiff1=csize*abs(fract(3)-nint(fract(3)))
+    call Cart2fract(topopath(1:3,pathnumpt(ipath),ipath),fract2)
+    xdiff2=asize*abs(fract2(1)-nint(fract2(1)))
+    ydiff2=bsize*abs(fract2(2)-nint(fract2(2)))
+    zdiff2=csize*abs(fract2(3)-nint(fract2(3)))
+    !Both first and last points of the path are very close to one of cell walls, so this is a boundary path
+    if ((xdiff1<devthres.or.ydiff1<devthres.or.zdiff1<devthres).and.(xdiff2<devthres.or.ydiff2<devthres.or.zdiff2<devthres)) then
+        !Try to replicate the existing boundary CP to all possible neighbouring mirror sites
+        do ix=-1,1
+            do iy=-1,1
+                do iz=-1,1
+                    if (ix==0.and.iy==0.and.iz==0) cycle
+                    ftest(1)=fract(1)+ix
+                    ftest(2)=fract(2)+iy
+                    ftest(3)=fract(3)+iz
+                    ftest2(1)=fract2(1)+ix
+                    ftest2(2)=fract2(2)+iy
+                    ftest2(3)=fract2(3)+iz
+                    !Mirror boundary must be within or quasi within current cell
+                    if (ftest(1)>-fdeva.and.ftest(1)<1+fdeva.and.ftest(2)>-fdevb.and.ftest(2)<1+fdevb.and.ftest(3)>-fdevc.and.ftest(3)<1+fdevc) then
+                        !Check if the mirror boundary path is too close to existing path
+                        iadd=1
+                        !do jCP=1,numcp !To be modified
+                        !    if (jCP==iCP) cycle
+                        !    dist2=sum((Cart(:)-CPpos(:,jCP))**2)
+                        !    if (dist2<devthres2) then !Too close, skip it
+                        !        iadd=0
+                        !        exit
+                        !    end if
+                        !end do
+                        if (iadd==1) then
+                            numpath_tmp=numpath_tmp+1
+                            path_tmp_idx(numpath_tmp)=ipath
+                            pathnumpt_tmp(numpath_tmp)=pathnumpt(ipath)
+                            do ipt=1,pathnumpt(ipath)
+                                call Cart2fract(topopath(1:3,ipt,ipath),fracttmp)
+                                fracttmp(1)=fracttmp(1)+ix
+                                fracttmp(2)=fracttmp(2)+iy
+                                fracttmp(3)=fracttmp(3)+iz
+                                call fract2Cart(fracttmp,topopath_tmp(:,ipt,numpath_tmp))
+                            end do
+                        end if
+                    end if
+                end do
+            end do
+        end do
+    end if
+end do
 end subroutine
