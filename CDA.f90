@@ -29,6 +29,7 @@ real*8,allocatable :: dterm(:),bterm(:),rterm(:), dtermb(:),btermb(:),rtermb(:) 
 real*8 :: conncritleft=0.1D0,conncritright=0.1D0,degencrit=0.1D0,eneshiftA=0D0,eneshiftB=0D0,eneshiftcomp=0D0,eneintv=2D0
 integer :: idrawMObar=1,iconnlogi=1,iout=6
 character c80tmp*80,c80tmp2*80,selectyn
+real*8 :: outthres=0 !Output threshold of CDA terms
 !Some options relating to orbital interaction diagram
 real*8 :: eneplotlow=-20,eneplothigh=5,complabshift=0.5D0
 integer :: ilabelorbidx=1,ilabelcomp=1,labsize=40,ticknamesize=40,ispinplot=1
@@ -170,7 +171,10 @@ do ifrag=0,nCDAfrag !Here we first gather basic informations of complex(ifrag=0)
 		naelecCDA(ifrag)=naelec
 		nbelecCDA(ifrag)=nbelec
 		write(*,"(' Alpha electrons:',i7,'     Beta electrons:',i7,'     Multiplicity:',i3)") naelecCDA(ifrag),nbelecCDA(ifrag),naelecCDA(ifrag)-nbelecCDA(ifrag)+1
-		if (ifrag==0) ovlpbasmat=Sbas
+        if (ifrag==0) then
+			call ask_Sbas_PBC !Compatible for periodic case
+			ovlpbasmat=Sbas
+        end if
 		if (wfntype==1.or.wfntype==4) then
 			iopsh(ifrag)=1
 		else
@@ -202,7 +206,7 @@ if (sum(natmCDA(1:))/=natmCDA(0)) then
 	read(*,*)
 	return
 end if
-!Check atom consistence between complex and fragments
+!Check atom consistency between complex and fragments
 !write(*,*) "total"
 !do iatm=1,ncenter_org
 !    write(*,*) elemidx(iatm,0),ind2name(elemidx(iatm,0))
@@ -512,8 +516,9 @@ end if
 
 
 !============= Post-processing interface, but in fact CDA and ECDA are calculated by option 0
-write(*,*)
 do while(.true.)
+	write(*,*)
+	write(*,"(a,f8.5)") " -3 Set threshold of printing CDA result in option 0, current:",outthres
 	if (iout==6) write(*,*) "-2 Switch output destination (for options 0, 1, 6), current: Screen"
 	if (iout==10) write(*,*) "-2 Switch output destination (for options 0, 1, 6), current: CDA.txt"
 	write(*,*) "-1 Return to main menu"
@@ -526,7 +531,10 @@ do while(.true.)
 	write(*,*) "6 Decompose complex orbital contribution to CDA"
 	read(*,*) isel
 	
-	if (isel==-2) then
+    if (isel==-3) then
+		write(*,*) "Input threshold of absolute value of d or b or r term in printing, e.g. 0.01"
+        read(*,*) outthres
+	else if (isel==-2) then
 		if (iout==6) then
 			iout=10
 		else if (iout==10) then
@@ -585,19 +593,22 @@ do while(.true.)
 					rterm(iorb)=rterm(iorb)+tmpval2
 				end do
 			end do
-			if (isel==1) then !Output all complex orbitals
-				write(iout,"(i8,5f12.6)") iorb,occCDA(iorb,0),dterm(iorb),bterm(iorb),dterm(iorb)-bterm(iorb),rterm(iorb)
-			else if (isel==0) then
-				if (iorb<naelecCDA(0)+5.or.iorb==nmo) then
+            if (abs(dterm(iorb))>outthres.or.abs(bterm(iorb))>outthres.or.abs(rterm(iorb))>outthres) then
+				if (isel==1) then !Output all complex orbitals
 					write(iout,"(i8,5f12.6)") iorb,occCDA(iorb,0),dterm(iorb),bterm(iorb),dterm(iorb)-bterm(iorb),rterm(iorb)
-				else
-					write(iout,*) " ......"
-					exit
+				else if (isel==0) then
+					if (iorb<naelecCDA(0)+5.or.iorb==nmo) then
+						write(iout,"(i8,5f12.6)") iorb,occCDA(iorb,0),dterm(iorb),bterm(iorb),dterm(iorb)-bterm(iorb),rterm(iorb)
+					else
+						write(iout,*) " ......"
+						exit
+					end if
 				end if
-			end if
+            end if
 		end do
 		write(iout,*) "-------------------------------------------------------------------"
 		write(iout,"(' Sum:   ',5f12.6)") sum(occCDA(:,0)),sum(dterm),sum(bterm),sum(dterm)-sum(bterm),sum(rterm)
+        if (outthres/=0) write(*,*) "Note: The ""Sum"" includes all terms including those not printed above"
 		!Beta part
 		if (iopshCDA==1) then
 			write(iout,"(/,a)") "                     **** Result for beta electrons ****"
@@ -625,19 +636,22 @@ do while(.true.)
 						rtermb(iorb)=rtermb(iorb)+tmpval
 					end do
 				end do
-				if (isel==1) then
-					write(iout,"(i8,5f12.6)") iorb,occCDAb(iorb,0),dtermb(iorb),btermb(iorb),dtermb(iorb)-btermb(iorb),rtermb(iorb)
-				else if (isel==0) then
-					if (iorb<nbelecCDA(0)+5.or.iorb==nmo) then
+				if (abs(dtermb(iorb))>outthres.or.abs(btermb(iorb))>outthres.or.abs(rtermb(iorb))>outthres) then
+					if (isel==1) then
 						write(iout,"(i8,5f12.6)") iorb,occCDAb(iorb,0),dtermb(iorb),btermb(iorb),dtermb(iorb)-btermb(iorb),rtermb(iorb)
-					else
-						write(iout,*) " ......"
-						exit
+					else if (isel==0) then
+						if (iorb<nbelecCDA(0)+5.or.iorb==nmo) then
+							write(iout,"(i8,5f12.6)") iorb,occCDAb(iorb,0),dtermb(iorb),btermb(iorb),dtermb(iorb)-btermb(iorb),rtermb(iorb)
+						else
+							write(iout,*) " ......"
+							exit
+						end if
 					end if
-				end if
+                end if
 			end do
 			write(iout,*) "-------------------------------------------------------------------"
 			write(iout,"(' Sum:   ',5f12.6)") sum(occCDAb(:,0)),sum(dtermb),sum(btermb),sum(dtermb)-sum(btermb),sum(rtermb)
+			if (outthres/=0) write(*,*) "Note: The ""Sum"" includes all terms including those not printed above"
 			write(iout,*)
 			write(iout,*) "Result for all electrons:"
 			write(iout,"(' d=',f10.6,'  b=',f10.6,'  d - b =',f10.6,'  r=',f10.6)") sum(dterm)+sum(dtermb),sum(bterm)+sum(btermb),sum(dterm)-sum(bterm)+sum(dtermb)-sum(btermb),sum(rterm)+sum(rtermb)
@@ -1089,6 +1103,9 @@ do while(.true.)
 			if (iopshCDA==1) refocc=1D0
 			if (iopshCDA==1) write(iout,"(/,a)") "                     **** Result for alpha electrons ****"
 			write(iout,*) "FragA Orb(Occ.)  FragB Orb(Occ.)      d           b        d - b          r"
+            sumd=0
+            sumb=0
+            sumr=0
 			do iAidx=1,nmoCDA(ifrag) !Scan each FO pairs
 				iAtmp=0
 				if (ifrag>1) iAtmp=sum(nmoCDA(1:ifrag-1)) !Actual index of FO of the first fragment in all FOs
@@ -1107,13 +1124,21 @@ do while(.true.)
 					if (occfac<0) btmp=-tmpval  !The minus sign before tmpval cancelled the negative of occfac
 					!The overlap population between the two FOs in current complex orbital, is the twice of original r
 					rtmp=occCDA(iorb,0)*2*min(occCDA(iAidx,ifrag),occCDA(iBidx,jfrag))/refocc*coFO(iA,iorb)*coFO(iB,iorb)*FOovlpmat(iA,iB)
-					if (abs(dtmp)>thres.or.abs(btmp)>thres.or.abs(rtmp)>thres) &
-					write(iout,"(i5,'(',f7.4,')',3x,i5,'(',f7.4,')',4f12.6)") iAidx,occCDA(iAidx,ifrag),iBidx,occCDA(iBidx,jfrag),dtmp,btmp,dtmp-btmp,rtmp
+					if (abs(dtmp)>thres.or.abs(btmp)>thres.or.abs(rtmp)>thres) then
+						write(iout,"(i5,'(',f7.4,')',3x,i5,'(',f7.4,')',4f12.6)") iAidx,occCDA(iAidx,ifrag),iBidx,occCDA(iBidx,jfrag),dtmp,btmp,dtmp-btmp,rtmp
+                        sumd=sumd+dtmp
+                        sumb=sumb+btmp
+                        sumr=sumr+rtmp
+                    end if
 				end do
 			end do
+            write(iout,"(' Sum of above terms:',11x,4f12.6)") sumd,sumb,sumd-sumb,sumr
 			if (iopshCDA==1) then
 				write(iout,"(/,a)") "                     **** Result for beta electrons ****"
 				write(iout,*) "FragA Orb(Occ.)  FragB Orb(Occ.)      d           b        d - b          r"
+				sumd=0
+				sumb=0
+				sumr=0
 				do iAidx=1,nmoCDA(ifrag) !Scan each FO pairs
 					iAtmp=0
 					if (ifrag>1) iAtmp=sum(nmoCDA(1:ifrag-1)) !Actual index of FO of the first fragment in all FOs
@@ -1129,10 +1154,15 @@ do while(.true.)
 						if (occfac>0) dtmp=tmpval
 						if (occfac<0) btmp=-tmpval
 						rtmp=occCDAb(iorb,0)*2*min(occCDAb(iAidx,ifrag),occCDAb(iBidx,jfrag))/refocc*coFOb(iA,iorb)*coFOb(iB,iorb)*FOovlpmatb(iA,iB)
-						if (abs(dtmp)>thres.or.abs(btmp)>thres.or.abs(rtmp)>thres) &
-						write(iout,"(i5,'(',f7.4,')',3x,i5,'(',f7.4,')',4f12.6)") iAidx,occCDAb(iAidx,ifrag),iBidx,occCDAb(iBidx,jfrag),dtmp,btmp,dtmp-btmp,rtmp
+						if (abs(dtmp)>thres.or.abs(btmp)>thres.or.abs(rtmp)>thres) then
+							write(iout,"(i5,'(',f7.4,')',3x,i5,'(',f7.4,')',4f12.6)") iAidx,occCDAb(iAidx,ifrag),iBidx,occCDAb(iBidx,jfrag),dtmp,btmp,dtmp-btmp,rtmp
+							sumd=sumd+dtmp
+							sumb=sumb+btmp
+							sumr=sumr+rtmp
+                        end if
 					end do
 				end do
+				write(iout,"(' Sum of above terms:',11x,4f12.6)") sumd,sumb,sumd-sumb,sumr
 			end if
 			write(*,*)
 			if (iout==10) then

@@ -2,6 +2,7 @@
 subroutine cp2kmate
 use defvar
 use util
+character c200tmp*200
 
 write(*,*)
 call menutitle("Auxiliary tools for CP2K (CP2Kmate)",10,1)
@@ -14,6 +15,7 @@ write(*,*) "5 Obtain exact DOS based on energy levels at all k-points"
 write(*,*) "6 Calculate and export overlap matrix to CP2K_overlap.txt in current folder"
 write(*,*) "7 Load orbital energies from CP2K output file"
 write(*,*) "8 Load orbitals of specific k-point from CP2K output file"
+write(*,*) "9 Load overlap matrix from .csr file exported by CP2K"
 read(*,*) isel
 
 if (isel==1) then
@@ -37,6 +39,9 @@ else if (isel==7) then
     call CP2K_MOene_load
 else if (isel==8) then
     call CP2K_loadkpwfn
+else if (isel==9) then
+    c200tmp=" "
+    call CP2K_loadSbas(c200tmp)
 end if
 end subroutine
 
@@ -77,7 +82,7 @@ integer,allocatable :: atmcons(:),thermoatm(:)
 real*8 :: efieldvec(3)=0,vacsizex=5/b2a,vacsizey=5/b2a,vacsizez=5/b2a
 real*8 :: frag1chg,frag2chg
 integer :: frag1multi,frag2multi,totalmulti
-integer :: iprestype=1,ioutSbas=0,ioutorbene=0,istate_force=1,idiaglib=1,iGAPW=0,iLSSCF=0,iLRIGPW=0,iPSOLVER=1,niter_evGW=1,niter_scGW0=1,istructfile=0
+integer :: iprestype=1,ioutSbas=0,ioutKSbas=0,ioutorbene=0,istate_force=1,idiaglib=1,iGAPW=0,iLSSCF=0,iLRIGPW=0,iPSOLVER=1,niter_evGW=1,niter_scGW0=1,istructfile=0
 real*8 :: Piso=1.01325D0,Ptens(3,3)=reshape( [1.01325D0,0D0,0D0, 0D0,1.01325D0,0D0, 0D0,0D0,1.01325D0], shape=shape(Ptens))
 real*8 :: PBEh_HFX=45
 integer :: CUTOFF=350,REL_CUTOFF=50
@@ -426,8 +431,10 @@ do while(.true.)
             if (icentering==1) write(*,*) "13 Toggle centering the coordinates of the system in the box, current: Yes"
             if (ioutorbene==0) write(*,*) "14 Toggle printing orbital energies and occupancies after SCF, current: No"
             if (ioutorbene==1) write(*,*) "14 Toggle printing orbital energies and occupancies after SCF, current: Yes"
-            !if (ioutSbas==0) write(*,*) "15 Toggle outputting overlap matrix to a file, current: No"
-            !if (ioutSbas==1) write(*,*) "15 Toggle outputting overlap matrix to a file, current: Yes"
+            if (ioutSbas==0) write(*,*) "15 Toggle outputting overlap matrix to .csr file, current: No"
+            if (ioutSbas==1) write(*,*) "15 Toggle outputting overlap matrix to .csr file, current: Yes"
+            if (ioutKSbas==0) write(*,*) "16 Toggle outputting Kohn-Sham matrix to .csr file, current: No"
+            if (ioutKSbas==1) write(*,*) "16 Toggle outputting Kohn-Sham matrix to .csr file, current: Yes"
             !if (idiaglib==1) write(*,*) "20 Choose diagonalization library, current: Default"
             !if (idiaglib==2) write(*,*) "20 Choose diagonalization library, current: ELPA"
             !if (idiaglib==3) write(*,*) "20 Choose diagonalization library, current: Scalapack"
@@ -647,6 +654,12 @@ do while(.true.)
                     ioutSbas=1
                 else
                     ioutSbas=0
+                end if
+            else if (isel2==16) then
+                if (ioutKSbas==0) then
+                    ioutKSbas=1
+                else
+                    ioutKSbas=0
                 end if
             else if (isel2==18) then
                 if (ihyperfine==0) then
@@ -2477,12 +2490,21 @@ else !&SCF
 end if
 
 !--- &PRINT of DFT level, FORCE_EVAL/DFT/PRINT
-if (imolden==1.or.ioutSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imoment==1.or.ihyperfine==1.or.ioutorbene==1.or.iSCCS==1.or.iDFTplusU==1) then
+if (imolden==1.or.ioutSbas==1.or.ioutKSbas==1.or.ioutcube>0.or.iatomcharge>0.or.itask==5.or.imoment==1.or.ihyperfine==1.or.ioutorbene==1.or.iSCCS==1.or.iDFTplusU==1) then
     write(ifileid,"(a)") "    &PRINT"
     if (ioutSbas==1) then
         write(ifileid,"(a)") "      &S_CSR_WRITE #Exporting .csr file containing overlap matrix"
         write(ifileid,"(a)") "        REAL_SPACE T #Print the overlap matrix in real-space instead of k-space"
+        write(ifileid,"(a)") "        UPPER_TRIANGULAR T #Print the matrix in upper triangular form"
+        write(ifileid,"(a)") "        THRESHOLD 0 #Threshold on the absolute value of the elements to be printed out"
         write(ifileid,"(a)") "      &END S_CSR_WRITE"
+    end if
+    if (ioutKSbas==1) then
+        write(ifileid,"(a)") "      &KS_CSR_WRITE #Exporting .csr file containing Kohn-Sham matrix"
+        write(ifileid,"(a)") "        REAL_SPACE T #Print the Kohn-Sham matrix in real-space instead of k-space"
+        write(ifileid,"(a)") "        UPPER_TRIANGULAR T #Print the matrix in upper triangular form"
+        write(ifileid,"(a)") "        THRESHOLD 0 #Threshold on the absolute value of the elements to be printed out"
+        write(ifileid,"(a)") "      &END KS_CSR_WRITE"
     end if
     if (ioutorbene==1) then
         write(ifileid,"(a)") "      &MO"
@@ -4983,3 +5005,179 @@ else
 end if
 call genP
 end subroutine
+
+
+
+
+!!--------- Load overlap matrix from .csr file exported by CP2K
+!If infilepath is not " ", then directly load overlap matrix from it
+subroutine CP2K_loadSbas(infilepath)
+use defvar
+implicit real*8 (a-h,o-z)
+character c200tmp*200,infilepath*200
+
+if (infilepath==" ") then
+    write(*,"(a)") " Input the .csr file exported by CP2K containing overlap matrix of present system, e.g. D:\Palaio\Faliro.csr"
+    write(*,*) "Note: The matrix should be in real space and only upper triangular part is recorded" 
+    do while(.true.)
+	    read(*,"(a)") c200tmp
+	    inquire(file=c200tmp,exist=alive)
+	    if (alive) exit
+	    write(*,*) "Cannot find the file, input again!"
+    end do
+else
+    c200tmp=infilepath
+end if
+
+if (allocated(Sbas)) deallocate(Sbas)
+allocate(Sbas(nbasis,nbasis))
+Sbas=0
+
+write(*,*) "Loading..."
+open(10,file=c200tmp,status="old")
+do while(.true.) !Note that when CP2K outputting upper triangular part, very few elements (I think should be very small) are not printed, very strange
+    read(10,*,iostat=ierror) ibas,jbas,Sbas(ibas,jbas)
+    if (ierror/=0) exit
+end do
+do ibas=1,nbasis !Fill lower triangular part
+    do jbas=ibas,nbasis
+        Sbas(jbas,ibas)=Sbas(ibas,jbas)
+    end do
+end do
+close(10)
+write(*,*) "Overlap matrix has been successfully loaded!"
+
+write(*,*) "Reordering matrix..."
+call CP2K_mat_reorder(Sbas)
+write(*,*) "Done!"
+end subroutine
+
+
+
+
+!!--------- Reordering basis function of loaded CP2K matrix to Multiwfn convention
+subroutine CP2K_mat_reorder(mat)
+use defvar
+integer ibas
+real*8 mat(nbasis,nbasis),tmpmat(nbasis,nbasis)
+
+tmpmat=0
+ibas=1
+!Reorder rows
+do while(ibas<=nbasis)
+    if (bastype(ibas)==1) then !S
+        tmpmat(ibas,:)=mat(ibas,:)
+        ibas=ibas+1
+    else if (bastype(ibas)==2) then !PX
+        !CP2K: Y,Z,X
+        tmpmat(ibas,:)=mat(ibas+2,:)   !X
+        tmpmat(ibas+1,:)=mat(ibas,:)   !Y
+        tmpmat(ibas+2,:)=mat(ibas+1,:) !Z
+        ibas=ibas+3
+    else if (bastype(ibas)==-5) then !D0
+        !CP2K: D-2,D-1,D0,D+1,D+2
+        tmpmat(ibas,:)=mat(ibas+2,:)
+        tmpmat(ibas+1,:)=mat(ibas+3,:)
+        tmpmat(ibas+2,:)=mat(ibas+1,:)
+        tmpmat(ibas+3,:)=mat(ibas+4,:)
+        tmpmat(ibas+4,:)=mat(ibas,:)
+        ibas=ibas+5
+    else if (bastype(ibas)==-12) then !F0
+        !CP2K: F-3,F-2,F-1,F0,F+1,F+2,F+3
+        tmpmat(ibas,:)=mat(ibas+3,:)
+        tmpmat(ibas+1,:)=mat(ibas+4,:)
+        tmpmat(ibas+2,:)=mat(ibas+2,:)
+        tmpmat(ibas+3,:)=mat(ibas+5,:)
+        tmpmat(ibas+4,:)=mat(ibas+1,:)
+        tmpmat(ibas+5,:)=mat(ibas+6,:)
+        tmpmat(ibas+6,:)=mat(ibas,:)
+        ibas=ibas+7
+    else if (bastype(ibas)==-21) then !G0
+        !CP2K: G-4,G-3,G-2,G-1,G0,G+1,G+2,G+3,G+4
+        tmpmat(ibas,:)=mat(ibas+4,:)   !G0
+        tmpmat(ibas+1,:)=mat(ibas+5,:) !G+1
+        tmpmat(ibas+2,:)=mat(ibas+3,:) !G-1
+        tmpmat(ibas+3,:)=mat(ibas+6,:) !G+2
+        tmpmat(ibas+4,:)=mat(ibas+2,:) !G-2
+        tmpmat(ibas+5,:)=mat(ibas+7,:) !G+3
+        tmpmat(ibas+6,:)=mat(ibas+1,:) !G-3
+        tmpmat(ibas+7,:)=mat(ibas+8,:) !G+4
+        tmpmat(ibas+8,:)=mat(ibas,:)   !G-4
+        ibas=ibas+9
+    else if (bastype(ibas)==-32) then !H0
+        !CP2K: H-5,H-4,H-3,H-2,H-1,H0,H+1,H+2,H+3,H+4,H+5
+        tmpmat(ibas,:)=mat(ibas+5,:)    !H0
+        tmpmat(ibas+1,:)=mat(ibas+6,:)  !H+1
+        tmpmat(ibas+2,:)=mat(ibas+4,:)  !H-1
+        tmpmat(ibas+3,:)=mat(ibas+7,:)  !H+2
+        tmpmat(ibas+4,:)=mat(ibas+3,:)  !H-2
+        tmpmat(ibas+5,:)=mat(ibas+8,:)  !H+3
+        tmpmat(ibas+6,:)=mat(ibas+2,:)  !H-3
+        tmpmat(ibas+7,:)=mat(ibas+9,:)  !H+4
+        tmpmat(ibas+8,:)=mat(ibas+1,:)  !H-4
+        tmpmat(ibas+9,:)=mat(ibas+10,:) !H+5
+        tmpmat(ibas+10,:)=mat(ibas,:)   !H-5
+        ibas=ibas+11
+    end if
+end do
+!Reorder columns
+mat=0
+ibas=1
+do while(ibas<=nbasis)
+    if (bastype(ibas)==1) then !S
+        mat(:,ibas)=tmpmat(:,ibas)
+        ibas=ibas+1
+    else if (bastype(ibas)==2) then !PX
+        !CP2K: Y,Z,X
+        mat(:,ibas)=tmpmat(:,ibas+2)   !X
+        mat(:,ibas+1)=tmpmat(:,ibas)   !Y
+        mat(:,ibas+2)=tmpmat(:,ibas+1) !Z
+        ibas=ibas+3
+    else if (bastype(ibas)==-5) then !D0
+        !CP2K: D-2,D-1,D0,D+1,D+2
+        mat(:,ibas)=tmpmat(:,ibas+2)
+        mat(:,ibas+1)=tmpmat(:,ibas+3)
+        mat(:,ibas+2)=tmpmat(:,ibas+1)
+        mat(:,ibas+3)=tmpmat(:,ibas+4)
+        mat(:,ibas+4)=tmpmat(:,ibas)
+        ibas=ibas+5
+    else if (bastype(ibas)==-12) then !F0
+        !CP2K: F-3,F-2,F-1,F0,F+1,F+2,F+3
+        mat(:,ibas)=tmpmat(:,ibas+3)
+        mat(:,ibas+1)=tmpmat(:,ibas+4)
+        mat(:,ibas+2)=tmpmat(:,ibas+2)
+        mat(:,ibas+3)=tmpmat(:,ibas+5)
+        mat(:,ibas+4)=tmpmat(:,ibas+1)
+        mat(:,ibas+5)=tmpmat(:,ibas+6)
+        mat(:,ibas+6)=tmpmat(:,ibas)
+        ibas=ibas+7
+    else if (bastype(ibas)==-21) then !G0
+        !CP2K: G-4,G-3,G-2,G-1,G0,G+1,G+2,G+3,G+4
+        mat(:,ibas)=tmpmat(:,ibas+4)   !G0
+        mat(:,ibas+1)=tmpmat(:,ibas+5) !G+1
+        mat(:,ibas+2)=tmpmat(:,ibas+3) !G-1
+        mat(:,ibas+3)=tmpmat(:,ibas+6) !G+2
+        mat(:,ibas+4)=tmpmat(:,ibas+2) !G-2
+        mat(:,ibas+5)=tmpmat(:,ibas+7) !G+3
+        mat(:,ibas+6)=tmpmat(:,ibas+1) !G-3
+        mat(:,ibas+7)=tmpmat(:,ibas+8) !G+4
+        mat(:,ibas+8)=tmpmat(:,ibas)   !G-4
+        ibas=ibas+9
+    else if (bastype(ibas)==-32) then !H0
+        !CP2K: H-5,H-4,H-3,H-2,H-1,H0,H+1,H+2,H+3,H+4,H+5
+        mat(:,ibas)=tmpmat(:,ibas+5)    !H0
+        mat(:,ibas+1)=tmpmat(:,ibas+6)  !H+1
+        mat(:,ibas+2)=tmpmat(:,ibas+4)  !H-1
+        mat(:,ibas+3)=tmpmat(:,ibas+7)  !H+2
+        mat(:,ibas+4)=tmpmat(:,ibas+3)  !H-2
+        mat(:,ibas+5)=tmpmat(:,ibas+8)  !H+3
+        mat(:,ibas+6)=tmpmat(:,ibas+2)  !H-3
+        mat(:,ibas+7)=tmpmat(:,ibas+9)  !H+4
+        mat(:,ibas+8)=tmpmat(:,ibas+1)  !H-4
+        mat(:,ibas+9)=tmpmat(:,ibas+10) !H+5
+        mat(:,ibas+10)=tmpmat(:,ibas)   !H-5
+        ibas=ibas+11
+    end if
+end do
+end subroutine
+

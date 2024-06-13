@@ -236,7 +236,19 @@ end subroutine
 subroutine ask_Sbas_PBC
 use defvar
 use util
-character c80tmp*80
+character c80tmp*80,c200tmp*200
+
+if (allocated(Sbas)) return
+
+!If there is a file having same path as input file but with -S.csr suffix, program will ask user to load it directly
+ipos=index(filename,'.',back=.true.)
+c200tmp=trim(filename(:ipos-1))//"-S.csr"
+inquire(file=c200tmp,exist=alive)
+if (alive) then
+    write(*,"(/,a)") " Found "//trim(c200tmp)//", load and use the overlap matrix in it later? (y/n)"
+	read(*,*) c80tmp
+	if (c80tmp=='y'.or.c80tmp=='Y') call CP2K_loadSbas(c200tmp)
+end if
 
 if (allocated(Sbas)) return
 

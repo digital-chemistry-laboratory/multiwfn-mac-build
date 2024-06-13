@@ -11,7 +11,7 @@ character c2000tmp*2000
 integer :: maxcyc=80,ireload=1,idoene=0,idocore=1,imethod=1,domark(4),iPMexp=2,ilmocen=0
 real*8 :: arrayi(nbasis),arrayj(nbasis),crit=1D-4,tmpbasarr(nbasis),tmpprimarr(nprims),bastot(nbasis)
 real*8,pointer :: Cmat(:,:)
-real*8,allocatable :: FLMOA(:,:),FLMOB(:,:),Xmat(:,:),Xmatinv(:,:),SC(:,:),AOMbas(:,:,:)
+real*8,allocatable :: FLMOA(:,:),FLMOB(:,:),Xmat(:,:),Xmatinv(:,:),SC(:,:),AOMbas(:,:,:),tmpmat(:,:)
 real*8 :: orbcomp(ncenter,nbasis) !Used in printing major orbital character
 integer :: orbtype(nmo) !LMO type determined according to composition, 0=other, 1=one-center, 2=two-center
 integer :: orbatm(2,nmo) !The index of the atom mainly involved in the LMO. one-center LMO has first element, two-center LMO has two elements
@@ -23,7 +23,7 @@ character c200tmp*200,typestr*4,selectyn
 integer orblist(nmo),norblist !Record the index of MOs included in the localization
 integer orblist_did(nmo) !If the orbital is involved in orbital localization, it will be set to 1, otherwise 0
 !Used by PM-Becke
-real*8 tmpmat(1,nbasis),mat11(1,1),veccoeffi(1,nbasis),veccoeffj(1,nbasis)
+real*8 tmprow(1,nbasis),mat11(1,1),veccoeffi(1,nbasis),veccoeffj(1,nbasis)
 !Below for calculating LMO centers and dipole moments
 real*8,allocatable :: orbvalpt(:,:)
 real*8 LMOpos(3,nmo),tmpvec(3)
@@ -223,6 +223,7 @@ if (imethod==1) then !PM with Mulliken
 	allocate(SC(nbasis,nbasis))
 else if (imethod==2) then !PM with Lowdin
 	write(*,*) "Performing Lowdin orthonormalization..."
+    call ask_Sbas_PBC
 	allocate(Xmat(nbasis,nbasis),Xmatinv(nbasis,nbasis))
 	call symmorthomat(Sbas,Xmat,Xmatinv)
     CObasa=matmul_blas(Xmat,CObasa,nbasis,nbasis) !Transform coefficient matrix to orthogonalized basis
@@ -347,18 +348,18 @@ do itime=1,4
 				    Aval=0;Bval=0
                     veccoeffi(1,:)=Cmat(:,imo)
                     veccoeffj(1,:)=Cmat(:,jmo)
-                    !$OMP parallel private(iatm,Avaltmp,Bvaltmp,tmpmat,mat11,Qij,Qii,Qjj) num_threads(nthreads)
+                    !$OMP parallel private(iatm,Avaltmp,Bvaltmp,tmprow,mat11,Qij,Qii,Qjj) num_threads(nthreads)
 					Avaltmp=0
 					Bvaltmp=0
                     !$OMP do schedule(dynamic)
-					do iatm=1,ncenter !Note: Constructing tmpmat is the most time-consuming step of PM-Becke method, especially for large system
-                        tmpmat=matmul_blas(veccoeffi(1:1,:),AOMbas(:,:,iatm),1,nbasis,0,0)
-                        mat11=matmul_blas(tmpmat(1:1,:),Cmat(:,jmo:jmo),1,1,0,0)
+					do iatm=1,ncenter !Note: Constructing tmprow is the most time-consuming step of PM-Becke method, especially for large system
+                        tmprow=matmul_blas(veccoeffi(1:1,:),AOMbas(:,:,iatm),1,nbasis,0,0)
+                        mat11=matmul_blas(tmprow(1:1,:),Cmat(:,jmo:jmo),1,1,0,0)
                         Qij=mat11(1,1)
-                        mat11=matmul_blas(tmpmat(1:1,:),Cmat(:,imo:imo),1,1,0,0)
+                        mat11=matmul_blas(tmprow(1:1,:),Cmat(:,imo:imo),1,1,0,0)
                         Qii=mat11(1,1)
-                        tmpmat=matmul_blas(veccoeffj(1:1,:),AOMbas(:,:,iatm),1,nbasis,0,0)
-                        mat11=matmul_blas(tmpmat(1:1,:),Cmat(:,jmo:jmo),1,1,0,0)
+                        tmprow=matmul_blas(veccoeffj(1:1,:),AOMbas(:,:,iatm),1,nbasis,0,0)
+                        mat11=matmul_blas(tmprow(1:1,:),Cmat(:,jmo:jmo),1,1,0,0)
                         Qjj=mat11(1,1)
 						if (iPMexp==2) then
 							Avaltmp=Avaltmp+( Qij**2-(Qii-Qjj)**2/4D0 )
@@ -431,11 +432,14 @@ write(*,"(/,' Orbital localization took up wall clock time',i10,' s')") iwalltim
 
 !Print orbital energies, sort orbitals according to energies
 if (idoene==1) then
+	write(*,*) "Evaluating orbital energies..."
 	nmobeg=1
 	if (isel/=3.and.idocore==0) nmobeg=ninnerele/2+1
 	!Do Alpha part or closed-shell orbitals
-	allocate(FLMOA(nbasis,nbasis))
-	FLMOA=matmul(matmul(transpose(CObasa),FmatA),CObasa)
+	allocate(FLMOA(nbasis,nbasis),tmpmat(nbasis,nbasis))
+    tmpmat=matmul_blas(CObasa,FmatA,nbasis,nbasis,1,0)
+    FLMOA=matmul_blas(tmpmat,CObasa,nbasis,nbasis,0,0)
+	!FLMOA=matmul(matmul(transpose(CObasa),FmatA),CObasa)
 	if (isel==1) then
         nmoend=naelec
 	else if (isel==2.or.isel==3) then
@@ -471,7 +475,9 @@ if (idoene==1) then
 	!Do beta part
 	if (wfntype==1) then
 		allocate(FLMOB(nbasis,nbasis))
-		FLMOB=matmul(matmul(transpose(CObasb),FmatB),CObasb)
+		tmpmat=matmul_blas(CObasb,FmatB,nbasis,nbasis,1,0)
+		FLMOB=matmul_blas(tmpmat,CObasb,nbasis,nbasis,0,0)
+		!FLMOB=matmul(matmul(transpose(CObasb),FmatB),CObasb)
 		if (isel==1) then
             nmoend=nbelec
 		else if (isel==2.or.isel==3) then

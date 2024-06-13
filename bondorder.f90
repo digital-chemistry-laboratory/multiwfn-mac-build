@@ -29,6 +29,14 @@ do while(.true.)
     write(*,*) "10 Intrinsic bond strength index (IBSI)"
     write(*,*) "11 AV1245 index (approximate multicenter bond order for large rings) and AVmin"
 	read(*,*) ibondana
+    
+    if (ifPBC>0.and.(ibondana==-2.or.ibondana==8.or.ibondana==9.or.ibondana==10)) then
+		write(*,*) "Error: This function does not support periodic systems currently!"
+        write(*,*) "Press ENTER button to return"
+        read(*,*)
+        cycle
+    end if
+    
 	if (.not.allocated(CObasa).and.(ibondana>=1.and.ibondana<=6)) then
 		write(*,"(a)") " Error: The input file you used does not contain basis function information! Please check Section 2.5 of the manual for explanation"
 		write(*,*) "Press ENTER button to return"
@@ -117,7 +125,7 @@ do while(.true.)
 	    CObasa_org=CObasa
 	    Sbas_org=Sbas
 	    write(*,*) "Performing Lowdin orthogonalization..."
- 		call symmortho
+ 		call symmortho(0)
  		if (ibondana==3) then
 			write(*,*) "Calculating Wiberg bond order..."
 			call mayerbndord

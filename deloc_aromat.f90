@@ -7,8 +7,8 @@ do while(.true.)
 	write(*,*)
 	write(*,*) "   ================ Delocalization and aromaticity analyses ==============="
     write(*,*) " 0 Return to main menu"
-    write(*,*) " 1 Multi-center index (MCI), also known as multicenter bond order (MCBO)"
-    write(*,*) "-1 Multi-center index (MCI) in NAO basis"
+    write(*,*) " 1 Multicenter bond order"
+    write(*,*) "-1 Multicenter bond order in NAO basis"
     write(*,*) " 2 AV1245 index"
     write(*,*) " 3 Iso-chemical shielding surface (ICSS)"
     write(*,*) " 4 NICS_ZZ for non-planar or tilted system"
@@ -585,6 +585,8 @@ integer cenind(2000),minidx(4)
 real*8,allocatable :: PSmat(:,:),PSmatA(:,:),PSmatB(:,:)
 
 iopsh=0
+call ask_Sbas_PBC
+
 if (allocated(CObasa)) then !Calculate AV1245 in original basis
     write(*,*) "Calculating PS matrix, please wait..."
     if (allocated(Palpha)) then !Open shell
@@ -641,7 +643,7 @@ do while(.true.)
     if (index(c2000tmp,'q')/=0) then
         exit
     else if (index(c2000tmp,'d')/=0) then
-        if (.not.allocated(connmat)) call genconnmat(1,0) !Generate connectivity matrix
+        if (.not.allocated(connmat)) call genconnmat(1,1) !Generate connectivity matrix
         write(*,*)
         write(*,*) "Input index of the atoms, the order is arbitrary"
         write(*,*) "For example: 1,3-4,6-8,10-14"

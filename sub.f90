@@ -256,6 +256,7 @@ do while(.true.)
 	!Print various kinds of integral matrix between basis functions
 	else if (isel==7) then
 		write(*,*) "Print which kind of integral matrix?"
+		write(*,*) "0 Fock/KS matrix"
 		write(*,*) "1 Overlap integral"
 		write(*,*) "2 Electric dipole moment integral"
 		write(*,*) "3 Magnetic dipole moment integral"
@@ -278,7 +279,35 @@ do while(.true.)
 			ides=10
 			open(ides,file="intmat.txt",status="replace")
 		end if
-		if (imattype==1) then
+		if (imattype==0) then
+			if (wfntype==3.or.wfntype==4) then
+				write(*,*) "Error: Fock/KS matrix is only available for single-determinant wavefunction"
+                cycle
+            end if
+			if (.not.allocated(FmatA)) then
+				do while(.true.)
+					write(*,*)
+					write(*,*) "How to provide the Fock/KS matrix?"
+					write(*,"(a)") " 1 Generating Fock/KS matrix by MO energies and coefficients as well as overlap matrix"
+					write(*,*) "2 Loading Fock/KS matrix from a file"
+					read(*,*) isel2
+					if (isel2==1) then
+						call MOene2Fmat(istatus)
+					else if (isel2==2) then
+						call loadFockfile(istatus)
+					end if
+					if (istatus==0) exit
+				end do
+			end if
+			write(ides,*)
+            if (wfntype==0.or.wfntype==2) then
+				call showmatgau(FmatA(:,:),"Fock/KS matrix",1,fileid=ides)
+            else if (wfntype==1) then
+				call showmatgau(FmatA(:,:),"Fock/KS matrix of alpha spin",1,fileid=ides)
+				write(ides,*)
+				call showmatgau(FmatB(:,:),"Fock/KS matrix of beta spin",1,fileid=ides)
+            end if
+		else if (imattype==1) then
 			call ask_Sbas_PBC
 			call showmatgau(Sbas,"Overlap matrix",1,fileid=ides)
             tmpmat=Sbas
@@ -1415,14 +1444,16 @@ end subroutine
 
 
 !!----- Use Lowdin orthogonalization method to transform density matrix and coefficient matrix &
-!to orthonormal basis, meanwhile update Sbas to identity matrix
+!to orthonormal basis, meanwhile update Sbas to identity matrix. If itask=1, also update Fock matrix to orthonormal basis if available
 !See Szabo p143 for details
-!NOTICE that in this routine Xmat=S^(1/2), in contrast to the definition of matrix X in 3.167 of Szabo
-subroutine symmortho
+!NOTICE that the matrix Xmat in this subroutine (Xmat=S^(1/2)) is inverse of that of p143 of Szabo book
+subroutine symmortho(itask)
 use defvar
 use util
 implicit real*8 (a-h,o-z)
+integer itask
 real*8 Umat(nbasis,nbasis),svalvec(nbasis),Xmat(nbasis,nbasis),tmpmat(nbasis,nbasis)
+real*8,allocatable :: Xmatinv(:,:)
 
 !call walltime(iwalltime1)
 call diagsymat(Sbas,Umat,svalvec,ierror)
@@ -1434,18 +1465,15 @@ if (ierror/=0) write(*,*) "Error: Diagonalization of overlap matrix failed!"
 forall (i=1:nbasis) Sbas(i,i)=dsqrt(svalvec(i)) !Use Sbas as temporary matrix here
 
 !call walltime(iwalltime1)
-!Xmat=matmul(matmul(Umat,Sbas),transpose(Umat)) !Then Xmat is S^0.5. Slow version
 tmpmat=matmul_blas(Umat,Sbas,nbasis,nbasis)
 Xmat=matmul_blas(tmpmat,Umat,nbasis,nbasis,0,1)
 !call walltime(iwalltime2)
 !write(*,"(' Time cost for constructing X matrix',i10,' s')") iwalltime2-iwalltime1
 
 !call walltime(iwalltime1)
-!Ptot=matmul(matmul(Xmat,Ptot),Xmat)
 tmpmat=matmul_blas(Xmat,Ptot,nbasis,nbasis)
 Ptot=matmul_blas(tmpmat,Xmat,nbasis,nbasis)
 if (allocated(Palpha)) then
-	!Palpha=matmul(matmul(Xmat,Palpha),Xmat)
 	tmpmat=matmul_blas(Xmat,Palpha,nbasis,nbasis)
 	Palpha=matmul_blas(tmpmat,Xmat,nbasis,nbasis)
 	Pbeta=Ptot-Palpha
@@ -1459,13 +1487,26 @@ if (allocated(CObasb)) CObasb=matmul_blas(Xmat,CObasb,nbasis,nbasis)
 !call walltime(iwalltime2)
 !write(*,"(' Time cost for transforming coefficient matrix',i10,' s')") iwalltime2-iwalltime1
 
+if (itask==1.and.allocated(FmatA)) then
+	allocate(Xmatinv(nbasis,nbasis))
+	forall (i=1:nbasis) Sbas(i,i)=1D0/Sbas(i,i)
+	tmpmat=matmul_blas(Umat,Sbas,nbasis,nbasis) !Szabo, Eq. 3.167
+	Xmatinv=matmul_blas(tmpmat,Umat,nbasis,nbasis,0,1)
+	tmpmat=matmul_blas(transpose(Xmatinv),FmatA,nbasis,nbasis) !Szabo, Eq. 3.177
+	FmatA=matmul_blas(tmpmat,Xmatinv,nbasis,nbasis)
+	if (allocated(FmatB)) then
+		tmpmat=matmul_blas(transpose(Xmatinv),FmatB,nbasis,nbasis)
+		FmatB=matmul_blas(tmpmat,Xmatinv,nbasis,nbasis)
+    end if
+end if
+
 forall(i=1:nbasis) Sbas(i,i)=1D0 !Set overlap matrix to identity matrix as expected
 end subroutine
 
 
 !!----- Input overlap matrix and return Lowdin orthogonalization transformation matrix Xmat=S^0.5 and Xmatinv=S^-0.5
 !Smatin is inputted overlap matrix, which will not be modified
-!NOTICE that the definition of matrix X is inverse of that of p143 of Szabo bok
+!NOTICE that the matrix Xmat in this subroutine (Xmat=S^(1/2)) is inverse of that of p143 of Szabo book
 subroutine symmorthomat(Smatin,Xmat,Xmatinv)
 use defvar
 use util
@@ -3611,8 +3652,7 @@ end subroutine
 
 
 
-!!---------- Load Fock or Kohn-Sham matrix from NBO .47 file, ORCA output file or plain text file
-!User can also require to directly generate Fock matirx based on orbital energies
+!!---------- Load Fock or Kohn-Sham matrix from NBO .47 file, ORCA output file, CP2K .csr file, or plain text file
 !istatus=0 means successfully loaded. =1 means failed
 subroutine loadFockfile(istatus)
 use defvar
@@ -3621,23 +3661,22 @@ character c200tmp*200
 integer istatus
 
 do while(.true.)
-	write(*,"(/,a)") " Input the file recording Fock/KS matrix in original basis functions in lower triangular form, e.g. C:\Fock.txt"
-	write(*,"(a)") " Note: If file suffix is .47 or .mwfn, then Fock/KS matrix will be directly loaded from it"
-	write(*,"(a)") "       If this is an ORCA output file using ""%output Print[P_Iter_F] 1 end"", Fock/KS matrix printed at last iteration will be loaded"
-    !Not quite meaningful, because when need to use Fock matrix, current orbitals are not original MOs and thus Fock matrix cannot be generated based on them
-	!write(*,*) "To directly generate Fock/KS matrix based on orbital energies, input ""gen"""
-	read(*,"(a)") c200tmp
-    if (c200tmp=="gen") then
-		call MOene2Fmat(istatus)
-        if (istatus==0) return !Successfully generated
+	write(*,"(/,a)") " Fock/KS matrix can be loaded from the following file, please input path of one of them, e.g. C:\Piraeus.out"
+    write(*,"(a)") " (1) Plain text file recording Fock/KS matrix in lower triangular form"
+    write(*,"(a)") " (2) .47 and .mwfn"
+	write(*,"(a)") " (3) ORCA output file using ""%output Print[P_Iter_F] 1 end"", Fock/KS matrix printed at last iteration will be loaded"
+    if (wfntype==0.or.wfntype==2) then
+		write(*,"(a)") " (4) CP2K .csr file recording KS matrix of real space in upper triangular form (&DFT/&PRINT/&KS_CSR_WRITE)"
     else
-		inquire(file=c200tmp,exist=alive)
-		if (.not.alive) then
-			write(*,*) "Error: Unable to find this file!"
-			cycle
-		end if
-		exit
+		write(*,"(a)") " (4) CP2K .csr file recording alpha KS matrix of real space in upper triangular form (&DFT/&PRINT/&KS_CSR_WRITE)"
     end if
+	read(*,"(a)") c200tmp
+	inquire(file=c200tmp,exist=alive)
+	if (.not.alive) then
+		write(*,*) "Error: Unable to find this file!"
+		cycle
+	end if
+	exit
 end do
 
 open(10,file=c200tmp,status="old")
@@ -3659,7 +3698,22 @@ if (iprog==2) then !ORCA output file
 		write(*,*) "Loading Fock/KS matrix (Fock matrix for operator 0)..."
     end if
     call readmatgau(10,FmatA,0,"?",10,6)
-    call ORCAmatconv(nbasis,FmatA)
+    call ORCA_mat_reorder(nbasis,FmatA)
+else if (index(c200tmp,".csr")/=0) then
+	FmatA=0
+	write(*,*) "Loading..."
+	open(10,file=c200tmp,status="old")
+	do while(.true.) !Note that when CP2K outputting upper triangular part, very few elements (I think should be very small) are not printed, very strange
+		read(10,*,iostat=ierror) ibas,jbas,FmatA(ibas,jbas)
+		if (ierror/=0) exit
+	end do
+	do ibas=1,nbasis !Fill lower triangular part
+		do jbas=ibas,nbasis
+			FmatA(jbas,ibas)=FmatA(ibas,jbas)
+		end do
+	end do
+	write(*,*) "Reordering matrix..."
+	call CP2K_mat_reorder(FmatA)
 else !.47 or .mwfn .or. plain text file
     if (index(c200tmp,".47")/=0) then
 	    if (wfntype==1.or.wfntype==4) then !Unrestricted
@@ -3717,7 +3771,33 @@ if (wfntype==1.or.wfntype==4) then !Also load beta part
     if (iprog==2) then !ORCA
         write(*,*) "Loading beta Fock/KS matrix (Fock matrix for operator 1)..."
         call readmatgau(10,FmatB,0,"?",10,6)
-        call ORCAmatconv(nbasis,FmatB)
+        call ORCA_mat_reorder(nbasis,FmatB)
+	else if (index(c200tmp,".csr")/=0) then
+		close(10)
+		do while(.true.)
+			write(*,"(/,a)") " Input .csr file recording beta KS matrix, e.g. D:\FmatB.csr"    
+			read(*,"(a)") c200tmp
+			inquire(file=c200tmp,exist=alive)
+			if (.not.alive) then
+				write(*,*) "Error: Unable to find this file!"
+				cycle
+			end if
+			exit
+		end do
+		FmatB=0
+		write(*,*) "Loading..."
+		open(10,file=c200tmp,status="old")
+		do while(.true.)
+			read(10,*,iostat=ierror) ibas,jbas,FmatB(ibas,jbas)
+			if (ierror/=0) exit
+		end do
+		do ibas=1,nbasis !Fill lower triangular part
+			do jbas=ibas,nbasis
+				FmatB(jbas,ibas)=FmatB(ibas,jbas)
+			end do
+		end do
+		write(*,*) "Reordering matrix..."
+		call CP2K_mat_reorder(FmatB)
     else
 	    write(*,*) "Trying to load beta Fock/KS matrix from the file..."
         if (index(c200tmp,".mwfn")/=0) then
@@ -3739,6 +3819,7 @@ if (wfntype==1.or.wfntype==4) then !Also load beta part
         end if
     end if
 end if
+
 close(10)
 write(*,*) "Fock/KS matrix has been loaded successfully!"
 istatus=0
@@ -4004,7 +4085,7 @@ else
     if (infomode==1) write(*,"(a)") " Unable to generate bonding relationship because there is no atom information!"
 end if
 
-call walltime(iwalltime2)
+!call walltime(iwalltime2)
 !write(*,"(' Generating connectivity matrix took up wall clock time',i10,' s')") iwalltime2-iwalltime1
 
 !Check connectivity
@@ -4477,7 +4558,7 @@ end subroutine
 
 
 
-!!------------- Convert matrix loaded from ORCA output file to the basis function order in Multiwfn
+!!------------- Reorder matrix loaded from ORCA output file to the basis function convention in Multiwfn
 !Order of ORCA matrices:
 !s    
 !pz,px,py   
@@ -4488,7 +4569,7 @@ end subroutine
 !  Notice that F(+3) and F(-3) are normalized to -1, therefore the relevant matrix elements must invert sign, &
 !while the elements between these two basis functions should keep unchanged due to cancellation
 !Simiarly for G(+3,-3,+4,-4) and H(+3,-3,+4,-4)
-subroutine ORCAmatconv(ndim,mat)
+subroutine ORCA_mat_reorder(ndim,mat)
 use defvar
 implicit real*8 (a-h,o-z)
 real*8 mat(ndim,ndim),tmparr(ndim)
@@ -5001,7 +5082,7 @@ end subroutine
 
 
 
-!!----------- Transform MO energies to Fock matrix
+!!----------- Transform MO energies to Fock matrix. PBC is supported
 !The numerical accuracy may be marginally lower than that directly loaded from e.g. 47
 !istatus is returned variable. It is 0 by default, when one or more orbital energies are zero and thus cannot generate Fock, istatus=1
 subroutine MOene2Fmat(istatus)
@@ -5038,7 +5119,9 @@ if (nzero>0) then
     return
 end if
 
-write(*,*) "Generating Fock/KS matrix based on orbital energies and LCAO coefficients ..."
+call ask_Sbas_PBC
+
+write(*,"(a)") " Generating Fock/KS matrix based on orbital energies, expansion coefficients and overlap matrix..."
 
 !Because FC=SCE, thus F=SCE(C)^-1
 if (allocated(FmatA)) deallocate(FmatA)

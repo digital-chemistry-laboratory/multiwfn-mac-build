@@ -265,6 +265,7 @@ type(primtype),allocatable :: b_org(:),b_tmp(:)
 real*8,allocatable :: MOocc(:),MOocc_org(:),MOene(:),MOene_org(:) !Occupation number & energy of orbital
 integer,allocatable :: MOtype(:) !The type of orbitals, (alpha&beta)=0/alpha=1/beta=2, not read from .wfn directly
 character(len=10) :: orbtypename(0:2)=(/ character(len=10) :: "Alpha&Beta","Alpha","Beta" /)
+character(len=3) :: orbtypename_short(0:2)=(/ character(len=10) :: "A+B"," A "," B " /)
 character(len=4),allocatable :: MOsym(:) !The symmetry of orbitals, meaningful when .mwfn/molden/gms is used
 real*8,allocatable, target :: CO(:,:) !Coefficient matrix of primitive basis functions, including both normalization and contraction coefficients
 real*8,allocatable :: CO_org(:,:),CO_tmp(:,:)
@@ -343,7 +344,7 @@ real*8 orgx_neigh,orgy_neigh,orgz_neigh !Starting position of reduced grids
 integer*2,allocatable :: connmat(:,:) !Diagonal terms are always zero
 
 !-------- Energy related arrays and matrices
-real*8,allocatable :: FmatA(:,:),FmatB(:,:) !Fock matrix of total/alpha and beta spin
+real*8,allocatable,target :: FmatA(:,:),FmatB(:,:) !Fock matrix of total/alpha and beta spin
 !-------- Trajectory
 integer :: nframetraj=0 !The number of frames in the trajectory
 real*8,allocatable :: traj(:,:,:) !traj(1/2/3,a,i) corresponds to x/y/z of the ath atom in frame i

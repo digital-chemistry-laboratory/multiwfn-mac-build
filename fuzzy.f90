@@ -145,10 +145,10 @@ if (iwork==0) then
 	if (ipartition==5) write(*,*) "-1 Select method for partitioning atomic spaces, current: MBIS"
 	write(*,*) "0 Return"
 	write(*,*) "1 Perform integration in fuzzy atomic spaces for a real space function"
+    if (ifPBC==0) write(*,*) "2 Calculate atomic and molecular multipole moments and <r^2>"
+	write(*,*) "3 Calculate and output atomic overlap matrix (AOM) in current folder"
+	write(*,*) "4 Calculate localization (LI) and delocalization index (DI)"
     if (ifPBC==0) then
-		write(*,*) "2 Calculate atomic and molecular multipole moments and <r^2>"
-		write(*,*) "3 Calculate and output atomic overlap matrix (AOM) in current folder"
-		write(*,*) "4 Calculate localization (LI) and delocalization index (DI)"
 		write(*,*) "5 Calculate PDI (Para-delocalization index)"
 		write(*,*) "6 Calculate FLU (Aromatic fluctuation index)"
 		write(*,*) "7 Calculate FLU-pi"
@@ -172,8 +172,9 @@ if (iwork==0) then
     end if
 	read(*,*) isel
 	
-else if (iwork==1) then
+else if (iwork==1) then !Calculate fuzzy bond order
 	isel=4 !Directly calculate delocalization index
+    if (ifPBC>0) write(*,*) "Note: The fuzzy bond order will be calculated under Hirshfeld partition"
 else if (iwork==2) then
 	isel=8 !Directly calculate Laplacian bond order
 end if
@@ -561,9 +562,14 @@ end if
 !!---------------------------------------
 !!=======================================
 
-if (ifPBC/=0.and.isel==1) then !For periodic case, goto a specific subroutine
-	call intatmspace_evengrid(ipartition,ifunc,rintval(1:ncenter,1))
-    goto 100 !Directly jump to result statistics
+if (ifPBC/=0) then !For periodic case, use a specific subroutine to integrate
+	if (isel==1) then
+		call intatmspace_evengrid(ipartition,ifunc,rintval(1:ncenter,1)) !Integrate real space function in atomic spaces using even grids
+		goto 110 !Directly jump to result statistics
+    else if (isel==3.or.isel==4) then
+		call AOM_evengrid(ipartition,iwork,AOM,AOMb,size(AOM,1),size(AOMb,1),iendalpha) !Calculate atomic overlap matrix using even grids
+		goto 100 !Jump to the position just after cycling atoms for integration
+    end if
 end if
 
 rintval=0D0 !Initialize accumulated variables
@@ -1159,7 +1165,7 @@ end do !End cycling atoms
 call walltime(nwalltime2)
 write(*,"(' Calculation took up',i8,' seconds wall clock time')") nwalltime2-nwalltime1
 
-
+100 continue
 
 !==== Check sanity of AOM ====!
 if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.or.isel==11) then
@@ -1339,7 +1345,7 @@ end if
 !!====================================================
 !!------- Statistic results or post-processing -------
 !!====================================================
-100 write(*,*)
+110 write(*,*)
 if (isel==1) then
 	do iatm=1,ncenter
 		if ( all(atmcalclist(1:natmcalclist)/=iatm) ) rintval(iatm,1)=0
@@ -2247,4 +2253,145 @@ if (ishowprog/=0) call showprog(100,100)
 
 call walltime(iwalltime2)
 write(*,"(/,' Calculation totally took up wall clock time',i10,' s')") iwalltime2-iwalltime1
+end subroutine
+
+
+
+
+
+!!------------- Calculate atomic overlap matrix (AOM) using evenly distributed grids
+!If iwork=1, that means this subroutine is invoked for calculating fuzzy bond order
+subroutine AOM_evengrid(ipartition,iwork,AOM,AOMb,nmatsize,nmatsizeb,iendalpha)
+use defvar
+use util
+use functions
+implicit real*8 (a-h,o-z)
+integer ipartition,nmatsize,nmatsizeb,iendalpha,iwork
+real*8 AOM(nmatsize,nmatsize,ncenter),AOMb(nmatsizeb,nmatsizeb,ncenter),AOM_tmp(nmatsize,nmatsize,ncenter)
+real*8 atmrho(ncenter),tvec(3),orbval(nmo)
+real*8,allocatable :: AOMb_tmp(:,:,:)
+
+if (any(a%index==a%charge)) then
+	write(*,"(a)") " Warning: This function employs evenly distributed grids for integration, it does not work well for all-electron wavefunction!"
+    write(*,*) "Press ENTER button to continue"
+    read(*,*)
+end if
+
+write(*,*)
+if (iwork==1) then
+	call setgrid_for_PBC(0.35D0,1)
+else
+	call setgrid_for_PBC(0.2D0,1)
+end if
+call calc_dvol(dvol)
+
+if (wfntype==1.or.wfntype==4) allocate(AOMb_tmp(nmatsizeb,nmatsizeb,ncenter))
+
+call walltime(iwalltime1)
+
+if (ifPBC==0) then
+	call gen_GTFuniq(infomode) !Generate unique GTFs, for faster evaluation in orbderv
+else
+	call gen_neigh_GTF !Generate neighbouring GTFs list at reduced grids, for faster evaluation
+end if
+
+write(*,*)
+write(*,*) "Calculating atomic overlap matrix (AOM)..."
+ifinish=0
+ntmp=floor(ny*nz/100D0)
+
+write(*,*) "Note: If Multiwfn suddenly crashes, please enlarge OpenMP stacksize and retry"
+call showprog(0,100)
+AOM(:,:,:)=0
+AOMb(:,:,:)=0
+!$OMP PARALLEL SHARED(AOM,AOMb,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz,iatm,atmrho,prorho,&
+!$OMP icell,jcell,kcell,tvec,dist2,tmprho,npt,AOM_tmp,AOMb_tmp,imo,jmo,MOinit,MOend,orbval) NUM_THREADS(nthreads)
+AOM_tmp(:,:,:)=0
+AOMb_tmp(:,:,:)=0
+!$OMP DO schedule(dynamic) collapse(2)
+do k=1,nz
+	do j=1,ny
+		do i=1,nx
+			call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
+            atmrho(:)=0
+            do icell=-PBCnx,PBCnx
+                do jcell=-PBCny,PBCny
+                    do kcell=-PBCnz,PBCnz
+                        call tvec_PBC(icell,jcell,kcell,tvec)
+                        do iatm=1,ncenter
+                            dist2=(a(iatm)%x+tvec(1)-tmpx)**2+(a(iatm)%y+tvec(2)-tmpy)**2+(a(iatm)%z+tvec(3)-tmpz)**2
+                            if (dist2>atmrhocut2(a(iatm)%index)) then
+                                cycle
+                            else
+                                if (ipartition==3) then !Hirshfeld, using bulit-in atomic radial density to interpolate
+                                    tmprho=eleraddens(a(iatm)%index,dsqrt(dist2),0)
+                                else !Hirshfeld-I and MBIS. Refined atomic radial density of every atom has been available in atmraddens
+									npt=atmradnpt(iatm)
+									call lagintpol(atmradpos(1:npt),atmraddens(1:npt,iatm),npt,dsqrt(dist2),tmprho,rnouse,rnouse,1)
+                                end if
+                                atmrho(iatm)=atmrho(iatm)+tmprho
+                            end if
+                        end do
+                    end do
+                end do
+            end do
+            prorho=sum(atmrho(:))
+            if (prorho==0) cycle
+            
+			!Calculate total or alpha part
+			call orbderv(1,1,nmatsize,tmpx,tmpy,tmpz,orbval)
+			do jmo=1,nmatsize
+				do imo=jmo,nmatsize
+                    AOM_tmp(imo,jmo,:)=AOM_tmp(imo,jmo,:)+orbval(imo)*orbval(jmo)*atmrho(:)/prorho
+				end do
+			end do
+            
+			!Calculate Beta part for UHF,U-post-HF
+			if ((wfntype==1.or.wfntype==4).and.nmatsizeb>0) then
+				MOinit=iendalpha+1
+				MOend=iendalpha+nmatsizeb
+                call orbderv(1,MOinit,MOend,tmpx,tmpy,tmpz,orbval)
+				do jmo=MOinit,MOend
+					do imo=jmo,MOend
+						AOMb_tmp(imo-iendalpha,jmo-iendalpha,:)=AOMb_tmp(imo-iendalpha,jmo-iendalpha,:)+orbval(imo)*orbval(jmo)*atmrho(:)/prorho
+					end do
+				end do
+			end if
+            
+		end do
+		!$OMP CRITICAL
+		ifinish=ifinish+1
+		ishowprog=mod(ifinish,ntmp)
+		if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+		!$OMP END CRITICAL
+	end do
+end do
+!$OMP END DO
+!$OMP CRITICAL
+AOM(:,:,:)=AOM(:,:,:)+AOM_tmp(:,:,:)*dvol
+if ((wfntype==1.or.wfntype==4).and.nmatsizeb>0) AOMb(:,:,:)=AOMb(:,:,:)+AOMb_tmp(:,:,:)*dvol
+!$OMP END CRITICAL
+!$OMP END PARALLEL
+if (ishowprog/=0) call showprog(100,100)
+
+do jmo=1,nmatsize
+	do imo=jmo+1,nmatsize
+		AOM(jmo,imo,:)=AOM(imo,jmo,:)
+	end do
+end do
+if ((wfntype==1.or.wfntype==4).and.nmatsizeb>0) then
+	do jmo=1,nmatsizeb
+		do imo=jmo+1,nmatsizeb
+			AOMb(jmo,imo,:)=AOMb(imo,jmo,:)
+		end do
+	end do
+end if
+
+!open(10,file="AOMtest.txt",status="replace")
+!call showmatgau(AOMtest,"AOMtest",1,"f14.8",10)
+!close(10)
+
+call walltime(iwalltime2)
+write(*,"(/,' Calculation totally took up wall clock time',i10,' s')") iwalltime2-iwalltime1
+
 end subroutine

@@ -8517,6 +8517,7 @@ if (iprint>=1) then
         write(ifileid,"(5(1PE16.8))") ((Pbeta(i,j),j=1,i),i=1,nbasis)
     end if
     if (iprint==2) then
+		call ask_sbas_PBC
         write(ifileid,"(/,'$Overlap matrix, dim=',2i5,'  lower= 1')") nbasis,nbasis !nbasis*(nbasis+1)/2 elements
         write(ifileid,"(5(1PE16.8))") ((Sbas(i,j),j=1,i),i=1,nbasis)
     end if

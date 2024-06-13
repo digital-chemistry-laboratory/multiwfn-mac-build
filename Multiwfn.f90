@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2024-Jun-4"
+write(*,*) "Version 3.8(dev), release date: 2024-Jun-13"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -249,7 +249,6 @@ end if
 
 
 !Special treatment and test new code
-!call MBIS(1,2)
 
 
 !!!--------------------- Now everything start ---------------------!!!
@@ -273,7 +272,7 @@ do while(.true.) !Main loop
 	write(*,*) "6 Check & modify wavefunction"
 	write(*,*) "7 Population analysis and calculation of atomic charges"
 	write(*,*) "8 Orbital composition analysis           9 Bond order analysis"
-	write(*,*) "10 Plot total DOS, partial DOS, OPDOS, local DOS and photoelectron spectrum"
+	write(*,*) "10 Plot total DOS, PDOS, OPDOS, local DOS, COHP and photoelectron spectrum"
 	write(*,*) "11 Plot IR/Raman/UV-Vis/ECD/VCD/ROA/NMR spectrum"
 	write(*,*) "12 Quantitative analysis of molecular surface"
 	if (allocated(cubmat)) write(*,*) "13 Process grid data"
@@ -665,6 +664,7 @@ do while(.true.) !Main loop
             write(*,*) "13 Convert bndmat.txt in current folder to Gaussian .gjf file with bond orders"
             write(*,*) "14 Convert current wavefunction to .rad file"
             write(*,*) "15 Make orbitals equivalent to basis functions"
+            write(*,*) "-15 Make orbitals equivalent to Lowdin orthogonalized basis functions"
 		    write(*,*) "16 Define one or two fragments for special purpose"
             write(*,*) "17 Generate promolecular wavefunction by calculating and combining atomic ones"
 		    write(*,*) "90 Calculate nuclear attractive energy between a fragment and an orbital"
@@ -786,17 +786,22 @@ do while(.true.) !Main loop
                 write(*,"(a)") " Converting to "//filename(1:ipos)//"rad"
                 call atmwfn2atmrad(filename,filename(1:ipos)//"rad")
                 write(*,*) "Done!"
-            else if (i==15) then
+            else if (abs(i)==15) then
                 if (.not.allocated(CObasa)) then
                     write(*,*) "Error: The input file must contain basis function information!"
                     write(*,*) "Press ENTER button to return"
                     read(*,*)
                     cycle
                 end if
+                write(*,*) "Please wait..."
                 CObasa=0
                 do ibas=1,nbasis
                     CObasa(ibas,ibas)=1
                 end do
+				if (i==-15) then
+					call ask_Sbas_PBC
+					call symmortho(0)
+                end if
                 call CObas2CO(1)
                 if (wfntype==0.or.wfntype==2.or.wfntype==3) then
                     write(*,"(a)") " Done! Now each orbital corresponds to a basis function, index of orbitals is identical to index of basis functions"

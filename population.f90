@@ -169,7 +169,7 @@ else
 		else if (ipopsel==6) then
             call ask_Sbas_PBC
 			write(*,*) "Performing Lowdin orthogonalization, please wait..."
-			call symmortho
+			call symmortho(0)
             write(*,*)
 			write(*,*) "Input the path for printing population analysis result, e.g. C:\ACG.txt"
 			write(*,*) "Note: If press ENTER button directly, result will be printed on screen"

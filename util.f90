@@ -293,6 +293,23 @@ end function
 
 
 
+!!-------- Input index of an atom (iatm), return the atom closest to it (iclose). PBC is taken into account
+subroutine nearest_atom(iatm,iclose)
+use defvar
+integer iatm,iclose
+distmin=1E10
+do itmp=1,ncenter
+    if (itmp==iatm) cycle
+    tmpdist=atomdist(iatm,itmp,1)
+    if (tmpdist<distmin) then
+        distmin=tmpdist
+        iclose=itmp
+    end if
+end do
+end subroutine
+
+
+
 !!-------- Return distance between two atoms in Bohr, consider PBC if iallowPBC=1
 real*8 function atomdist(iatm,jatm,iallowPBC)
 use defvar
