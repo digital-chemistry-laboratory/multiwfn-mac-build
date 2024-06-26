@@ -1714,11 +1714,14 @@ if (ifPBC==0) then !Isolated wavefunction
 	write(*,"(' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
 
 else !Periodic wavefunction
-	if (any(a%index==a%charge)) then
-		write(*,"(a)") " Warning: This function employs evenly distributed grids for integration, it does not work well for all-electron wavefunction!"
-        write(*,*) "Press ENTER button to continue"
-        read(*,*)
-	end if
+	do iatm=1,ncenter
+		if (a(iatm)%index>4.and.a(iatm)%index==nint(a(iatm)%charge)) then !MOLOPT is all-electron basis set for first <=Be
+			write(*,"(a)") " Warning: This function employs evenly distributed grids for integration, it does not work well for all-electron wavefunction!"
+			write(*,*) "Press ENTER button to continue"
+			read(*,*)
+			exit
+		end if
+	end do
     call setgrid_for_PBC(0.2D0,1)
     if (allocated(cubmat)) deallocate(cubmat)
     allocate(cubmat(nx,ny,nz))

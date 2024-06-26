@@ -2979,7 +2979,7 @@ use defvar
 use util
 implicit real*8 (a-h,o-z)
 character(len=*) cubname
-character titleline1*79,titleline2*79,selectyn,c200tmp*200
+character titleline1*79,titleline2*79,selectyn,c200tmp*200,c80tmp*80
 integer infomode,ionlygrid
 integer,allocatable :: mo_serial(:)
 real*8,allocatable :: temp_readdata(:),tmpreadcub(:,:,:),tmpeffchg(:)
@@ -3018,6 +3018,11 @@ if (infomode==0) then
 	write(*,"(a)") trim(titleline2)
 	write(*,"(/,' Total number of atoms:',i8)") ncenter
     call showgridinfo(1)
+end if
+if (index(titleline1,"box2cell")/=0) then
+	write(*,*)
+	write(*,*) "Note: Box of grid data has been set to cell!"
+    call grid2cellinfo
 end if
 
 if (ionlygrid==0) then
@@ -3077,27 +3082,30 @@ else !Load specified of many orbitals
 end if
 
 if (all(a%charge==0)) then
-	write(*,"(/,a)") " Warning: Effective nuclear charges recorded in this file are all zero. If this file was produced by CP2K, it is a bug. &
-    Do you want to let Multiwfn load effective nuclear charge of each element from the first line of this file? (y/n)"
-    write(*,"(a)") " Note: If you choose ""y"", the effctive nuclear charges should be provided in the first line such as ""B 3 N 5 Cl 7"""
-    read(*,*) selectyn
-    if (selectyn=='y'.or.selectyn=='Y') then
-		rewind(10)
-        read(10,"(a)") c200tmp
-        call numdatastr(c200tmp,ndata)
-        nread=ndata/2
-        allocate(tmpeffchg(nread),tmpelestr(nread))
-        read(c200tmp,*) (tmpelestr(i),tmpeffchg(i),i=1,nread)
-        if (nread>0) then
-			write(*,*) "Loaded effctive nuclear charges"
-			do i=1,nread
-				write(*,"(1x,a,f12.6)") tmpelestr(i),tmpeffchg(i)
-                call lc2uc(tmpelestr(i)(1:1))
-                call uc2lc(tmpelestr(i)(2:2))
-                do iatm=1,ncenter
-					if (a(iatm)%name==tmpelestr(i)) a(iatm)%charge=tmpeffchg(i)
-                end do
-			end do
+	write(*,"(/,a)") " Warning: Effective nuclear charges recorded in this file are all zero. If this file was produced by CP2K, it is a bug"
+	rewind(10)
+    read(10,"(a)") c200tmp
+    read(c200tmp,*,iostat=ierror) c80tmp,itmp !Can load a string and number, user may have specified element and effective nuclear charge
+    if (ierror==0) then
+		write(*,"(/,a)") " Do you want to let Multiwfn load effective nuclear charge of each element from the first line of this file? (y/n)"
+		write(*,"(a)") " Note: If you choose ""y"", the effctive nuclear charges should be provided in the first line such as ""B 3 N 5 Cl 7"""
+		read(*,*) selectyn
+		if (selectyn=='y'.or.selectyn=='Y') then
+			call numdatastr(c200tmp,ndata)
+			nread=ndata/2
+			allocate(tmpeffchg(nread),tmpelestr(nread))
+			read(c200tmp,*) (tmpelestr(i),tmpeffchg(i),i=1,nread)
+			if (nread>0) then
+				write(*,*) "Loaded effctive nuclear charges"
+				do i=1,nread
+					write(*,"(1x,a,f12.6)") tmpelestr(i),tmpeffchg(i)
+					call lc2uc(tmpelestr(i)(1:1))
+					call uc2lc(tmpelestr(i)(2:2))
+					do iatm=1,ncenter
+						if (a(iatm)%name==tmpelestr(i)) a(iatm)%charge=tmpeffchg(i)
+					end do
+				end do
+			end if
         end if
     end if
 end if
@@ -4202,7 +4210,7 @@ if (ifound==1) then
         end do
         if (iele<=nelesupp) then
             read(c80,*) c80tmp,ichg
-            write(*,"(' Note: Nuclear charge of ',a,' has been set to',i4)") ind2name(iele),ichg
+            if (infomode==0) write(*,"(' Note: Nuclear charge of ',a,' has been set to',i4)") ind2name(iele),ichg
             do iatm=1,ncenter
                 if (a(iatm)%index==iele) a(iatm)%charge=ichg
             end do

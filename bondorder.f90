@@ -170,72 +170,18 @@ end subroutine
 
 
 !! ----------------- Mayer/Generalized Wiberg 2-c bond order analysis
-! Mayer bond order analysis and Generalized Wiberg bond order (GWBO) analysis
 ! If Lowdin orthogonalization has been performed, that is carry out Wiberg bond order analysis in Lowdin orthogonalized basis
 ! Note: For closed-shell, two methods give the same result. For open-shell, Mayer bond order for all electrons is the sum of
 ! alpha and beta bond order, while GWBO directly use total density matrix to generate
-! total bond order, the "Mayer bond order" in gaussian is actually GWBO!
-subroutine mayerbndord
+! total bond order, the "Mayer bond order" in Gaussian is actually GWBO!
+subroutine Mayerbndord
 use defvar
 use util
 implicit real*8 (a-h,o-z)
-real*8 bndmata(ncenter,ncenter),bndmatb(ncenter,ncenter),bndmattot(ncenter,ncenter),&
-PSmata(nbasis,nbasis),PSmatb(nbasis,nbasis),PSmattot(nbasis,nbasis)
+real*8 bndmata(ncenter,ncenter),bndmatb(ncenter,ncenter),bndmattot(ncenter,ncenter),PSmattot(nbasis,nbasis)
 character selectyn
 
-bndmata=0D0
-bndmatb=0D0
-bndmattot=0D0
-!Calculate total bond order for restricted closed-shell wavefunction (for open-shell do GWBO, P=Palpha+Pbeta)
-PSmattot=matmul(Ptot,Sbas)
-
-bndmattot=0
-do i=1,ncenter
-	if (basstart(i)==0) cycle
-	do j=i+1,ncenter
-		if (basstart(j)==0) cycle
-		accum=0D0
-		do ii=basstart(i),basend(i)
-			do jj=basstart(j),basend(j)
-				accum=accum+PSmattot(ii,jj)*PSmattot(jj,ii)
-			end do
-		end do
-		bndmattot(i,j)=accum
-	end do
-end do
-bndmattot=bndmattot+transpose(bndmattot) !Because we only filled one triangular region, copy it to another
-do i=1,ncenter
-	bndmattot(i,i)=sum(bndmattot(i,:))
-end do
-
-if (wfntype==1.or.wfntype==2.or.wfntype==4) then
-	PSmata=matmul(Palpha,Sbas)
-	PSmatb=matmul(Pbeta,Sbas)
-	bndmata=0
-	bndmatb=0
-	do i=1,ncenter
-		if (basstart(i)==0) cycle
-		do j=i+1,ncenter
-			if (basstart(j)==0) cycle
-			accuma=0D0
-			accumb=0D0
-			do ii=basstart(i),basend(i)
-				do jj=basstart(j),basend(j)
-					accuma=accuma+PSmata(ii,jj)*PSmata(jj,ii)
-					accumb=accumb+PSmatb(ii,jj)*PSmatb(jj,ii)
-				end do
-			end do
-			bndmata(i,j)=accuma
-			bndmatb(i,j)=accumb
-		end do
-	end do
-	bndmata=2*(bndmata+transpose(bndmata))
-	bndmatb=2*(bndmatb+transpose(bndmatb))
-	do i=1,ncenter
-		bndmata(i,i)=sum(bndmata(i,:))
-		bndmatb(i,i)=sum(bndmatb(i,:))
-	end do
-end if
+call calcMayerbndord(bndmattot,bndmata,bndmatb)
 
 write(*,"(' Bond orders with absolute value >=',f10.6)") bndordthres
 itmp=0
@@ -267,6 +213,7 @@ end do
 
 write(*,*)
 write(*,*) "Total valences and free valences defined by Mayer:"
+PSmattot=matmul_blas(Ptot,Sbas,nbasis,nbasis)
 do i=1,ncenter
     if (basstart(i)==0) cycle
 	accum=0D0
@@ -302,8 +249,8 @@ if (allocated(frag1)) then
 		write(*,"(' The bond order between fragment 1 and 2:',f12.6)") bndordfragtot
 	end if
 end if
-write(*,*)
 
+write(*,*)
 write(*,*) "If outputting bond order matrix to bndmat.txt in current folder? (y/n)"
 read(*,*) selectyn
 if (selectyn=='y'.or.selectyn=='Y') then
@@ -325,10 +272,78 @@ end subroutine
 
 
 
+!!------ Return bond order matrix of Mayer bond order
+!For restricted closed-shell wavefunction, only bndmattot is returned
+!For unrestricted wavefunction, bndmattot corresponds to generalized Wiberg bond order, bndmata and bndmatb correspond to alpha and beta Mayer bond order, respectively
+subroutine calcMayerbndord(bndmattot,bndmata,bndmatb)
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+real*8 bndmata(ncenter,ncenter),bndmatb(ncenter,ncenter),bndmattot(ncenter,ncenter),&
+PSmata(nbasis,nbasis),PSmatb(nbasis,nbasis),PSmattot(nbasis,nbasis)
+
+bndmata=0D0
+bndmatb=0D0
+bndmattot=0D0
+
+!Calculate total bond order for restricted closed-shell wavefunction (for open-shell calculate GWBO, namely using density matrix of Palpha+Pbeta)
+PSmattot=matmul_blas(Ptot,Sbas,nbasis,nbasis)
+do i=1,ncenter
+	if (basstart(i)==0) cycle
+	do j=i+1,ncenter
+		if (basstart(j)==0) cycle
+		accum=0D0
+		do ii=basstart(i),basend(i)
+			do jj=basstart(j),basend(j)
+				accum=accum+PSmattot(ii,jj)*PSmattot(jj,ii)
+			end do
+		end do
+		bndmattot(i,j)=accum
+	end do
+end do
+bndmattot=bndmattot+transpose(bndmattot) !Because we only filled one triangular region, copy it to another
+do i=1,ncenter
+	bndmattot(i,i)=sum(bndmattot(:,i))
+end do
+
+!Unrestricted wavefunction
+if (wfntype==1.or.wfntype==2.or.wfntype==4) then
+	PSmata=matmul_blas(Palpha,Sbas,nbasis,nbasis)
+	PSmatb=matmul_blas(Pbeta,Sbas,nbasis,nbasis)
+	bndmata=0
+	bndmatb=0
+	do i=1,ncenter
+		if (basstart(i)==0) cycle
+		do j=i+1,ncenter
+			if (basstart(j)==0) cycle
+			accuma=0D0
+			accumb=0D0
+			do ii=basstart(i),basend(i)
+				do jj=basstart(j),basend(j)
+					accuma=accuma+PSmata(ii,jj)*PSmata(jj,ii)
+					accumb=accumb+PSmatb(ii,jj)*PSmatb(jj,ii)
+				end do
+			end do
+			bndmata(i,j)=accuma
+			bndmatb(i,j)=accumb
+		end do
+	end do
+	bndmata=2*(bndmata+transpose(bndmata))
+	bndmatb=2*(bndmatb+transpose(bndmatb))
+	do i=1,ncenter
+		bndmata(i,i)=sum(bndmata(:,i))
+		bndmatb(i,i)=sum(bndmatb(:,i))
+	end do
+end if
+
+end subroutine
+
+
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!--------- Calculate Mulliken bond order
-subroutine mullikenbndord
+subroutine Mullikenbndord
 use defvar
 use util
 implicit real*8 (a-h,o-z)
@@ -480,6 +495,7 @@ end subroutine
 !For simplicity, this routine only calculate Mayer bond for alpha and beta and then sum them up, don't concern mixed alpha+beta cases
 subroutine OrbPertMayer
 use defvar
+use util
 implicit real*8 (a-h,o-z)
 character orbtypechar*2
 real*8 bndmata(ncenter,ncenter),bndmatb(ncenter,ncenter),bndmattot(ncenter,ncenter)
@@ -497,7 +513,7 @@ if (wfntype==0.or.wfntype==3) then !Close shell
 	allocate(PSmattot(nbasis,nbasis),Ptottmp(nbasis,nbasis))
 	sumupvar=0D0
 	do imo=0,nmo !Cycle all MOs
-		Ptottmp=Ptot !Don't use Ptot to make troubles, because Ptot is a global array
+		Ptottmp=Ptot !Do not use Ptot to make troubles, because Ptot is a global array
 		if (imo/=0) then !Calculate perturbed density. At the first time (imo=1), we don't pertube density matrix to yield original Mayer bond order
 			if (MOocc(imo)<=1D-10) cycle
 			do ibas=1,nbasis
@@ -506,7 +522,7 @@ if (wfntype==0.or.wfntype==3) then !Close shell
 				end do
 			end do
 		end if
-		PSmattot=matmul(Ptottmp,Sbas) !Calculate Mayer bond order based on Ptottmp
+		PSmattot=matmul_blas(Ptottmp,Sbas,nbasis,nbasis) !Calculate Mayer bond order based on Ptottmp
 		bndordtot=0D0
 		do ii=basstart(iatm),basend(iatm)
 			do jj=basstart(jatm),basend(jatm)
@@ -566,8 +582,8 @@ else if (wfntype==1.or.wfntype==2.or.wfntype==4) then !Open shell
 				end if
 			end if
 		end if
-		PSmata=matmul(Palphatmp,Sbas)
-		PSmatb=matmul(Pbetatmp,Sbas)
+		PSmata=matmul_blas(Palphatmp,Sbas,nbasis,nbasis)
+		PSmatb=matmul_blas(Pbetatmp,Sbas,nbasis,nbasis)
 		bndorda=0D0
 		bndordb=0D0
 		do ii=basstart(iatm),basend(iatm)

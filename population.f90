@@ -4713,7 +4713,6 @@ else !Directly using loaded electron density from cub/VASP grid data, and transf
 	end if
     call grid2cellinfo
 	call calc_dvol(dvol)
-    !call showcellinfo
 	call walltime(iwalltime1)
 end if
 

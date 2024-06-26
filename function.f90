@@ -5746,7 +5746,7 @@ end function
 
 
 
-!!------- Use trilinear interpolation to obtain value at a given point by using cubmat. Both orthogonal and nonorthogonal grids are supported
+!!------- Use trilinear interpolation to obtain value at a given point by using cubmat. Both orthogonal and nonorthogonal grids are supported. PBC can be considered
 !itype==1: interpolate from cubmat, =2: from cubmattmp
 !Ref.: https://en.wikipedia.org/wiki/Trilinear_interpolation
 !Trilinear interpolation is equivalent to linear interpolation between two bilinear interpolations
@@ -5763,6 +5763,7 @@ if (itype==2.and.(.not.allocated(cubmattmp))) return
 
 !Get fractional coordinate of present position
 Cart(1)=x;Cart(2)=y;Cart(3)=z
+if (ifPBC==3) call move_to_cell(Cart,Cart)
 call Cart2fract_grid(Cart,fract)
 i1_val=fract(1);i2_val=fract(2);i3_val=fract(3)
 d1=1D0/nx !Grid spacing of fractional coordinate in each direction
@@ -5784,29 +5785,50 @@ do i3=1,nz
 	if (i3_val>=i3_low.and.i3_val<i3_high) exit
 end do
 
-if (i1<nx.and.i2<ny.and.i3<nz) then
-	!Perform two bilinear interpolations first, then further linear interpolation
+if (ifPBC==0) then
+	if (i1<nx.and.i2<ny.and.i3<nz) then
+		!Perform two bilinear interpolations first, then further linear interpolation
+		if (itype==1) then
+			val12_low= ( cubmat(i1,i2,i3    )*(i1_high-i1_val)*(i2_high-i2_val) + cubmat(i1+1,i2,i3    )*(i1_val-i1_low)*(i2_high-i2_val) + &
+						 cubmat(i1,i2+1,i3  )*(i1_high-i1_val)*(i2_val-i2_low ) + cubmat(i1+1,i2+1,i3  )*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
+			val12_high=( cubmat(i1,i2,i3+1  )*(i1_high-i1_val)*(i2_high-i2_val) + cubmat(i1+1,i2,i3+1  )*(i1_val-i1_low)*(i2_high-i2_val) + &
+						 cubmat(i1,i2+1,i3+1)*(i1_high-i1_val)*(i2_val-i2_low ) + cubmat(i1+1,i2+1,i3+1)*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
+		else
+			val12_low= ( cubmattmp(i1,i2,i3    )*(i1_high-i1_val)*(i2_high-i2_val) + cubmattmp(i1+1,i2,i3    )*(i1_val-i1_low)*(i2_high-i2_val) + &
+						 cubmattmp(i1,i2+1,i3  )*(i1_high-i1_val)*(i2_val-i2_low ) + cubmattmp(i1+1,i2+1,i3  )*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
+			val12_high=( cubmattmp(i1,i2,i3+1  )*(i1_high-i1_val)*(i2_high-i2_val) + cubmattmp(i1+1,i2,i3+1  )*(i1_val-i1_low)*(i2_high-i2_val) + &
+						 cubmattmp(i1,i2+1,i3+1)*(i1_high-i1_val)*(i2_val-i2_low ) + cubmattmp(i1+1,i2+1,i3+1)*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
+		end if
+		linintp3d=val12_low+(i3_val-i3_low)*(val12_high-val12_low)/d3
+	else !Out of grid data range
+		linintp3d=0D0
+	end if
+else !PBC
+	i1p1=i1+1
+    if (i1==nx) i1p1=1
+	i2p1=i2+1
+    if (i2==ny) i2p1=1
+	i3p1=i3+1
+    if (i3==nz) i3p1=1
 	if (itype==1) then
-		val12_low= ( cubmat(i1,i2,i3    )*(i1_high-i1_val)*(i2_high-i2_val) + cubmat(i1+1,i2,i3    )*(i1_val-i1_low)*(i2_high-i2_val) + &
-			         cubmat(i1,i2+1,i3  )*(i1_high-i1_val)*(i2_val-i2_low ) + cubmat(i1+1,i2+1,i3  )*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
-		val12_high=( cubmat(i1,i2,i3+1  )*(i1_high-i1_val)*(i2_high-i2_val) + cubmat(i1+1,i2,i3+1  )*(i1_val-i1_low)*(i2_high-i2_val) + &
-			         cubmat(i1,i2+1,i3+1)*(i1_high-i1_val)*(i2_val-i2_low ) + cubmat(i1+1,i2+1,i3+1)*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
+		val12_low= ( cubmat(i1,i2,i3    )*(i1_high-i1_val)*(i2_high-i2_val) + cubmat(i1p1,i2,i3    )*(i1_val-i1_low)*(i2_high-i2_val) + &
+						cubmat(i1,i2p1,i3  )*(i1_high-i1_val)*(i2_val-i2_low ) + cubmat(i1p1,i2p1,i3  )*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
+		val12_high=( cubmat(i1,i2,i3p1  )*(i1_high-i1_val)*(i2_high-i2_val) + cubmat(i1p1,i2,i3p1  )*(i1_val-i1_low)*(i2_high-i2_val) + &
+						cubmat(i1,i2p1,i3p1)*(i1_high-i1_val)*(i2_val-i2_low ) + cubmat(i1p1,i2p1,i3p1)*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
 	else
-		val12_low= ( cubmattmp(i1,i2,i3    )*(i1_high-i1_val)*(i2_high-i2_val) + cubmattmp(i1+1,i2,i3    )*(i1_val-i1_low)*(i2_high-i2_val) + &
-			         cubmattmp(i1,i2+1,i3  )*(i1_high-i1_val)*(i2_val-i2_low ) + cubmattmp(i1+1,i2+1,i3  )*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
-		val12_high=( cubmattmp(i1,i2,i3+1  )*(i1_high-i1_val)*(i2_high-i2_val) + cubmattmp(i1+1,i2,i3+1  )*(i1_val-i1_low)*(i2_high-i2_val) + &
-			         cubmattmp(i1,i2+1,i3+1)*(i1_high-i1_val)*(i2_val-i2_low ) + cubmattmp(i1+1,i2+1,i3+1)*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
+		val12_low= ( cubmattmp(i1,i2,i3    )*(i1_high-i1_val)*(i2_high-i2_val) + cubmattmp(i1p1,i2,i3    )*(i1_val-i1_low)*(i2_high-i2_val) + &
+						cubmattmp(i1,i2p1,i3  )*(i1_high-i1_val)*(i2_val-i2_low ) + cubmattmp(i1p1,i2p1,i3  )*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
+		val12_high=( cubmattmp(i1,i2,i3p1  )*(i1_high-i1_val)*(i2_high-i2_val) + cubmattmp(i1p1,i2,i3p1  )*(i1_val-i1_low)*(i2_high-i2_val) + &
+						cubmattmp(i1,i2p1,i3p1)*(i1_high-i1_val)*(i2_val-i2_low ) + cubmattmp(i1p1,i2p1,i3p1)*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
 	end if
 	linintp3d=val12_low+(i3_val-i3_low)*(val12_high-val12_low)/d3
-else !Out of grid data range
-	linintp3d=0D0
 end if
 end function
 
 
 
 
-!!------- Trilinear interpolation of 3D-vector field by using cubmatvec. Both orthogonal and nonorthogonal grids are supported
+!!------- Trilinear interpolation of 3D-vector field by using cubmatvec. Both orthogonal and nonorthogonal grids are supported. PBC can be considered
 !See comment in subroutine linintp3d for more information
 subroutine linintp3dvec(x,y,z,vecintp)
 real*8 x,y,z,vecintp(3),val12_low(3),val12_high(3)
@@ -5814,6 +5836,7 @@ real*8 Cart(3),fract(3),tmpvec(3)
 real*8 i1_val,i2_val,i3_val,i1_low,i2_low,i3_low,i1_high,i2_high,i3_high,d1,d2,d3
 
 Cart(1)=x;Cart(2)=y;Cart(3)=z
+if (ifPBC==3) call move_to_cell(Cart,Cart)
 call Cart2fract_grid(Cart,fract)
 i1_val=fract(1);i2_val=fract(2);i3_val=fract(3)
 d1=1D0/nx !Grid spacing of fractional coordinate in each direction
@@ -5835,21 +5858,35 @@ do i3=1,nz
 	if (i3_val>=i3_low.and.i3_val<i3_high) exit
 end do
 
-if (i1<nx.and.i2<ny.and.i3<nz) then
-	val12_low(:)= ( cubmatvec(:,i1,i2,i3    )*(i1_high-i1_val)*(i2_high-i2_val) + cubmatvec(:,i1+1,i2,i3    )*(i1_val-i1_low)*(i2_high-i2_val) + &
-			        cubmatvec(:,i1,i2+1,i3  )*(i1_high-i1_val)*(i2_val-i2_low ) + cubmatvec(:,i1+1,i2+1,i3  )*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
-	val12_high(:)=( cubmatvec(:,i1,i2,i3+1  )*(i1_high-i1_val)*(i2_high-i2_val) + cubmatvec(:,i1+1,i2,i3+1  )*(i1_val-i1_low)*(i2_high-i2_val) + &
-			        cubmatvec(:,i1,i2+1,i3+1)*(i1_high-i1_val)*(i2_val-i2_low ) + cubmatvec(:,i1+1,i2+1,i3+1)*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
+if (ifPBC==0) then
+	if (i1<nx.and.i2<ny.and.i3<nz) then
+		val12_low(:)= ( cubmatvec(:,i1,i2,i3    )*(i1_high-i1_val)*(i2_high-i2_val) + cubmatvec(:,i1+1,i2,i3    )*(i1_val-i1_low)*(i2_high-i2_val) + &
+						cubmatvec(:,i1,i2+1,i3  )*(i1_high-i1_val)*(i2_val-i2_low ) + cubmatvec(:,i1+1,i2+1,i3  )*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
+		val12_high(:)=( cubmatvec(:,i1,i2,i3+1  )*(i1_high-i1_val)*(i2_high-i2_val) + cubmatvec(:,i1+1,i2,i3+1  )*(i1_val-i1_low)*(i2_high-i2_val) + &
+						cubmatvec(:,i1,i2+1,i3+1)*(i1_high-i1_val)*(i2_val-i2_low ) + cubmatvec(:,i1+1,i2+1,i3+1)*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
+		vecintp(:)=val12_low(:)+(i3_val-i3_low)*(val12_high(:)-val12_low(:))/d3
+	else !Out of grid data range
+		vecintp=0D0
+	end if
+else !PBC
+	i1p1=i1+1
+    if (i1==nx) i1p1=1
+	i2p1=i2+1
+    if (i2==ny) i2p1=1
+	i3p1=i3+1
+    if (i3==nz) i3p1=1
+	val12_low(:)= ( cubmatvec(:,i1,i2,i3    )*(i1_high-i1_val)*(i2_high-i2_val) + cubmatvec(:,i1p1,i2,i3    )*(i1_val-i1_low)*(i2_high-i2_val) + &
+					cubmatvec(:,i1,i2p1,i3  )*(i1_high-i1_val)*(i2_val-i2_low ) + cubmatvec(:,i1p1,i2p1,i3  )*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
+	val12_high(:)=( cubmatvec(:,i1,i2,i3p1  )*(i1_high-i1_val)*(i2_high-i2_val) + cubmatvec(:,i1p1,i2,i3p1  )*(i1_val-i1_low)*(i2_high-i2_val) + &
+					cubmatvec(:,i1,i2p1,i3p1)*(i1_high-i1_val)*(i2_val-i2_low ) + cubmatvec(:,i1p1,i2p1,i3p1)*(i1_val-i1_low)*(i2_val-i2_low ) ) /(d1*d2)
 	vecintp(:)=val12_low(:)+(i3_val-i3_low)*(val12_high(:)-val12_low(:))/d3
-else !Out of grid data range
-	vecintp=0D0
 end if
 end subroutine
 
 
 
 
-!!-------- Use cubic spline interpolation to obtain value at a given point by using cubmat. Both orthogonal and nonorthogonal grids are supported
+!!-------- Use cubic spline interpolation to obtain value at a given point by using cubmat. Both orthogonal and nonorthogonal grids are supported. PBC can be considered
 !itype==1: interpolate from cubmat, =2: from cubmattmp
 !If all grid points in cubmat are used in the interpolation, the cost will be extremely high if very large number of points are to be calculated, &
 !therefore I decide only takes a few grids around the present position for the interpolation, and this idea works well and the cost is significantly lowered
@@ -5877,6 +5914,7 @@ if (itype==1.and.(.not.allocated(cubmat))) return
 if (itype==2.and.(.not.allocated(cubmattmp))) return
 
 Cart(1)=x;Cart(2)=y;Cart(3)=z
+if (ifPBC==3) call move_to_cell(Cart,Cart)
 call Cart2fract_grid(Cart,fract)
 i1_val=fract(1);i2_val=fract(2);i3_val=fract(3)
 d1=1D0/nx !Grid spacing of fractional coordinate in each direction
@@ -5897,10 +5935,14 @@ do i3=1,nz
 	i3_high=i3_low+d3
 	if (i3_val>=i3_low.and.i3_val<i3_high) exit
 end do
-if (i1+1>nx-next.or.i2+1>ny-next.or.i3+1>nz-next .or. i1<next+1.or.i2<next+1.or.i3<next+1) then !Out of grid data range
-	splineintp3D=0D0
-    return
+
+if (ifPBC==0) then
+	if (i1+1>nx-next.or.i2+1>ny-next.or.i3+1>nz-next .or. i1<next+1.or.i2<next+1.or.i3<next+1) then !Out of grid data range
+		splineintp3D=0D0
+		return
+	end if
 end if
+
 !Determine the index range of the grids around present point, these grids will be actually used in interpolation
 ilow1=i1-next
 ihigh1=i1+1+next
@@ -5920,8 +5962,12 @@ end do
 do i1=ilow1,ihigh1
     do i2=ilow2,ihigh2
         do i3=ilow3,ihigh3
-            if (itype==1) cubloc(i1-ilow1+1,i2-ilow2+1,i3-ilow3+1)=cubmat(i1,i2,i3)
-            if (itype==2) cubloc(i1-ilow1+1,i2-ilow2+1,i3-ilow3+1)=cubmattmp(i1,i2,i3)
+			ii1=i1
+            ii2=i2
+            ii3=i3
+			if (ifPBC/=0) call PBCgrididx(ii1,ii2,ii3)
+			if (itype==1) cubloc(i1-ilow1+1,i2-ilow2+1,i3-ilow3+1)=cubmat(ii1,ii2,ii3)
+			if (itype==2) cubloc(i1-ilow1+1,i2-ilow2+1,i3-ilow3+1)=cubmattmp(ii1,ii2,ii3)
         end do
     end do
 end do

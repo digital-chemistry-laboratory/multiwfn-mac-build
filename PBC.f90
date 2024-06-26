@@ -125,7 +125,7 @@ end subroutine
 
 
     
-!!!------ If the inputted coordinate is out of cell, move it to proper position in cell according to PBC
+!!!------ If the inputted Cartesian coordinate is out of cell, move it to proper position in cell according to PBC
 !See Ian Bush's reply in https://scicomp.stackexchange.com/questions/20165/periodic-boundary-conditions-for-triclinic-box for algorithm
 subroutine move_to_cell(xyzin,xyzout)
 use defvar

@@ -1,23 +1,28 @@
-!------ Fuzzy atomic space analysis
+!-----------------------------------------
+!------ Fuzzy atomic space analysis ------
+!-----------------------------------------
 !Normally iwork=0. If iwork=1, directly choose isel==4 to calculate delocalization index in fuzzy atomic spase (namely fuzzy bond order, see statement in JPCA,110,5108 below Eq.9) and then return
 !If iwork=2, directly choose isel==8 to calculate Laplacian bond order and then return
 !
-!The integration grid is directly controlled by sphpot and radpot in settings.ini, since integrand may be not proportional to electron density,
+!For periodic system, a special subroutine is used for integrating via even grids. For isolated systems, &
+!the integration grid is directly controlled by sphpot and radpot in settings.ini, since integrand may be not proportional to electron density,
 !the grid will not be adjusted automatically as proposed by Becke for more efficient integration of XC functional
 !
-!For integrating function value (subfunction 1), molecular grid (iintgrid=2) is always used (looping all atoms in turn, use atomic integration grids to calculate integral contribution to every atom), &
+!Note on type of integration grid for isolated systems:
+!  For integrating function in atomic spaces (subfunction 1) and calculating information-theoretic aromaticity index (subfunction 12), &
+!molecular grid (iintgrid=2) is always used (looping all atoms in turn, use atomic integration grids to calculate integral contribution to every atom), &
 !because it makes integrating e.g. Laplacian significantly more accurate when Hirshfeld(/-I) is used because of its over-extension behavior, while the increase of computational cost is basically negligible
-!For subfunction 1, "-5 Define the atoms to be considered" doesn't affect calculation process, but only the integral of selected atoms will be printed finally
-!
-!However, for calculating AOM, using molecular grid makes calculation much more expensive, while improvement on result is only notable &
-!when diffuse functions are heavily used, so atomic grid is employed by default and can be changed by users. This is determined by iAOMgrid
+!For subfunction 1, option "-5 Define the atoms to be considered" doesn't affect calculation process (all atoms are calculated), but only the integral of selected atoms will be printed finally
+! For calculating AOM, using molecular grid makes calculation much more expensive for large systems than atomic grid, while improvement on result is only notable &
+!when diffuse functions are heavily used, so atomic grid is employed by default and can be changed by users via option -6. This is determined by iAOMgrid
+! Subfunction "2 Calculate atomic and molecular multipole moments and <r^2>" uses atomic integration grid, which is satisfactory
 subroutine fuzzyana(iwork)
 use functions
 use util
 use topo
 implicit real*8 (a-h,o-z)
 integer iwork
-integer :: iintgrid=2 !Type of grids for integrating function value. =1: Atomic grid   =2: Molecular grid
+integer :: iintgrid=2 !Type of grids for integrating used in subfunctions 1 and 12. =1: Atomic grid =2: Molecular grid
 integer atmcalclist(ncenter),natmcalclist !The atoms to be calculated will be recorded in the array
 real*8 potx(sphpot),poty(sphpot),potz(sphpot),potw(sphpot)
 type(content) gridatm(radpot*sphpot)
@@ -32,12 +37,17 @@ integer :: iAOMgrid=1 !Type of grids for AOM integration. =1: Atomic grid   =2: 
 real*8,allocatable :: orbvalarr(:,:)
 real*8 orbval(nmo)
 real*8,allocatable :: AOMtmp(:,:)
-!---
+!--- Fragment related
+integer DIfrag1(ncenter),DIfrag2(ncenter),nDIfrag1,nDIfrag2 !Atom list used in evaluating interfragment DI and fragment LI
+integer FOM1atm(ncenter),FOM2atm(ncenter),nFOM1atm,nFOM2atm !Atom list used in evaluating one or two FOMs
+real*8,allocatable :: FOM1(:,:),FOM1b(:,:),FOM2(:,:),FOM2b(:,:) !Fragment overlap matrix of fragments 1 and 2
+!--- Misc
 real*8 rintvalp(ncenter,10) !Private for each OpenMP thread
 real*8 promol(radpot*sphpot),atomdens(radpot*sphpot),selfdens(radpot*sphpot),selfdensgrad(3,radpot*sphpot),selfdenslapl(radpot*sphpot) !For Hirshfeld partition
 real*8 specrho(radpot*sphpot),specrhograd2(radpot*sphpot) !Density and its gradient^2 of atom in specific state (user-provided atomic wavefunction). Used for taking Hirshfeld as reference to calculate relative Shannon and Fisher entropy
 real*8 :: covr_becke(0:nelesupp)=0D0 !Covalent radii used for Becke partition
 real*8 DI(ncenter,ncenter),DIa(ncenter,ncenter),DIb(ncenter,ncenter) !Delocalization index matrix
+real*8 DI_tmp(ncenter,ncenter),DIa_tmp(ncenter,ncenter),DIb_tmp(ncenter,ncenter) !Temporarily used for parallel calculation of DI
 real*8 LI(ncenter),LIa(ncenter),LIb(ncenter) !Localization index array
 real*8 CLRK(ncenter,ncenter) !Condensed linear response kernel
 real*8 ovlpinttot(ncenter,ncenter),ovlpintpos(ncenter,ncenter),ovlpintneg(ncenter,ncenter),ovlpintpostmp(ncenter,ncenter),ovlpintnegtmp(ncenter,ncenter) !Integration between fuzzy atoms, store positive part and negative part respectively
@@ -147,14 +157,16 @@ if (iwork==0) then
 	write(*,*) "1 Perform integration in fuzzy atomic spaces for a real space function"
     if (ifPBC==0) write(*,*) "2 Calculate atomic and molecular multipole moments and <r^2>"
 	write(*,*) "3 Calculate and output atomic overlap matrix (AOM) in current folder"
+	write(*,*) "33 Calculate and output fragment overlap matrix (FOM) in current folder"
 	write(*,*) "4 Calculate localization (LI) and delocalization index (DI)"
+	write(*,*) "44 Calculate fragment LI (FLI) and interfragment DI (IFDI)"
+	write(*,*) "5 Calculate PDI (Para-delocalization index)"
+	write(*,*) "6 Calculate FLU (Aromatic fluctuation index)"
+	write(*,*) "7 Calculate FLU-pi"
+    if (ifPBC==0) write(*,*) "8 Perform integration in fuzzy overlap region for a real space functions"
+	if (allocated(CObasa)) write(*,*) "9 Calculate condensed linear response kernel (CLRK)" !Need virtual orbital informations
+	if (allocated(CObasa)) write(*,*) "10 Calculate PLR (Para linear response index)" !Need virtual orbital informations
     if (ifPBC==0) then
-		write(*,*) "5 Calculate PDI (Para-delocalization index)"
-		write(*,*) "6 Calculate FLU (Aromatic fluctuation index)"
-		write(*,*) "7 Calculate FLU-pi"
-		write(*,*) "8 Perform integration in fuzzy overlap region for a real space functions"
-		if (allocated(CObasa)) write(*,*) "9 Calculate condensed linear response kernel (CLRK)" !Need virtual orbital informations
-		if (allocated(CObasa)) write(*,*) "10 Calculate PLR (Para linear response index)" !Need virtual orbital informations
 		write(*,*) "11 Calculate multi-center delocalization index" !Only can be used for HF/DFT closed-shell wavefunction
 		write(*,*) "12 Calculate information-theoretic aromaticity index (ACS Omega, 3, 18370)"
 		write(*,"(a)") " 13 Calculate atomic effective volume, free volume, polarizability and C6 coefficient"
@@ -232,6 +244,7 @@ else if (isel==-6) then
 else if (isel==-5) then
 	do while(.true.)
 		write(*,*) "Input atom indices, e.g. 1,3-7,9,12"
+        write(*,"(a)") " Note that this setting only determines which atoms will be printed and included into statistics, while the accuracy is not affected by this"
 		read(*,"(a)") c200tmp
 		call str2arr(c200tmp,natmcalclist,atmcalclist)
 		if (any(atmcalclist(1:natmcalclist)>ncenter).or.any(atmcalclist(1:natmcalclist)<=0)) then
@@ -253,7 +266,7 @@ else if (isel==-4) then
 	end do
 	do while(.true.)
 		write(*,*) "Input two element indices and a new reference parameter"
-		write(*,*) "e.g. 6,7,1.35  means set reference parameter for C-N to 1.35"
+		write(*,*) "e.g. 6,7,1.35 means set reference parameter for C-N to 1.35"
 		write(*,*) "(Input q can return)"
 		read(*,"(a)") c80inp
 		if (c80inp(1:1)=='q'.or.c80inp(1:1)=='Q') exit
@@ -287,7 +300,6 @@ else if (isel==-2) then
 		write(*,*) "10 Read radii from external file"
 		write(*,*) "11 Modify current radii by manual input"
 		write(*,*) "12 Print current radii list"
-		
 		read(*,*) iselrad
 		if (iselrad==-1) then
 			covr_becke=covr_TianLu
@@ -437,9 +449,9 @@ else if (isel==2) then !Multipole moment integral needs electron density
 	write(iout,*)
 	
 !AOM,LI/DI,PDI,FLU/-pi/CLRK/PLR/Multicenter DI. Note: MO values will be generated when collecting data
-else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.or.isel==11) then
+else if (isel==3.or.isel==33.or.isel==4.or.isel==44.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.or.isel==11) then
 	!Even (30,110) can be used for fuzzy bond order, so (45,170) is absolutely enough
-	if (iautointgrid==1) then !Allow change integration grid adapatively
+	if (iautointgrid==1) then !Allow changing integration grid adapatively
 		radpot=45
 		sphpot=170
 	end if
@@ -453,6 +465,40 @@ else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel=
 		write(*,"(a)") " Error: This function is only available for single-determinant closed-shell system!"
 		cycle
 	end if
+    if (isel==9.or.isel==10) then
+		do imo=1,nmo
+			if (MOocc(imo)==0.and.MOene(imo)==0) then
+				write(*,*) "Error: Calculation of CLRK and PLR needs virtual orbitals, however currently one or &
+                more virtual orbitals have zero energy! Perhaps virtual orbitals were not solved"
+                write(*,*) "Press ENTER button to continue, the result will be meaningless"
+                read(*,*)
+                exit
+            end if
+        end do
+    end if
+    if (isel==33.and.ifPBC==0) then !Calculate FOM. In the case of PBC, the fragment(s) is defined in subroutine AOMFOM_evengrid
+		write(*,*)
+		write(*,*) "Select the way of calculating fragment overlap matrix (FOM)"
+		write(*,*) "1 Calculate and export FOM for one fragment"
+		write(*,*) "2 Calculate and export FOM for two specific fragments"
+		read(*,*) iFOMmode
+		write(*,*) "Input indices of atoms for defining fragment 1, e.g. 3-9,14,19-20"
+		read(*,"(a)") c2000tmp
+		call str2arr(c2000tmp,nFOM1atm,FOM1atm)
+		if (iFOMmode==2) then
+			write(*,*) "Input indices of atoms for defining fragment 2, e.g. 1,2,10-13,15-18"
+			read(*,"(a)") c2000tmp
+			call str2arr(c2000tmp,nFOM2atm,FOM2atm)
+		end if		
+    end if
+    if (isel==44) then !Calculate fragment LI and interfragment DI
+		write(*,*) "Input atom indices to define fragment 1, e.g. 3,5-8,15-20"
+		read(*,"(a)") c2000tmp
+		call str2arr(c2000tmp,nDIfrag1,DIfrag1)
+		write(*,*) "Input atom indices to define fragment 2, e.g. 1,2,4,9-14"
+		read(*,"(a)") c2000tmp
+		call str2arr(c2000tmp,nDIfrag2,DIfrag2)
+    end if
 	!Allocate space for AOM
 	if ((isel==9.or.isel==10).and.allocated(AOM).and.size(AOM,1)==nmo) then !The AOM calculated for FLU/PDI is smaller than nmo, since virtual orbitals are not taken into account
 		goto 10
@@ -472,9 +518,10 @@ else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel=
 				end do
 				if (nmo-nmatsize>0) then
 					write(*,"(' Note: The highest',i6,' virtual orbitals will not be taken into account')") nmo-nmatsize
-                    if (isel==3) write(*,*) "If you hope to consider all orbitals, set ""ispecial"" in settings.ini to 3"
+                    if (isel==3.or.isel==33) write(*,*) "If you hope to consider all orbitals, set ""ispecial"" in settings.ini to 3"
                 end if
 			end if
+            write(*,*) "Allocating memory..."
 			if (allocated(AOM)) deallocate(AOM,AOMsum) !For PLR, the previous AOM and AOMsum allocated by PDI/FLU is too small, so here should be released
 			allocate(AOM(nmatsize,nmatsize,ncenter),AOMsum(nmatsize,nmatsize))
             if (allocated(AOMtmp)) deallocate(AOMtmp) 
@@ -505,7 +552,7 @@ else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel=
                 ntmpb=nmo-iendalpha-nmatsizeb
 				if (ntmpa>0) write(*,"(' Note: The highest',i6,' alpha virtual orbitals will not be taken into account')") iendalpha-nmatsizea
 				if (ntmpb>0) write(*,"('       The highest',i6,' beta virtual orbitals will not be taken into account')") nmo-iendalpha-nmatsizeb
-                if (isel==3.and.(ntmpa>0.or.ntmpb>0)) write(*,*) "If you hope to consider all orbitals, set ""ispecial"" in settings.ini to 3"
+                if ((isel==3.or.isel==33).and.(ntmpa>0.or.ntmpb>0)) write(*,*) "If you hope to consider all orbitals, set ""ispecial"" in settings.ini to 3"
 			end if
 			if (allocated(AOM)) deallocate(AOM,AOMsum) 
 			if (allocated(AOMb)) deallocate(AOMb,AOMsumb)
@@ -562,13 +609,18 @@ end if
 !!---------------------------------------
 !!=======================================
 
-if (ifPBC/=0) then !For periodic case, use a specific subroutine to integrate
-	if (isel==1) then
-		call intatmspace_evengrid(ipartition,ifunc,rintval(1:ncenter,1)) !Integrate real space function in atomic spaces using even grids
+!For periodic case, use a specific subroutine to integrate based on even grids
+if (ifPBC/=0) then
+	if (isel==1) then !Integrate real space function in atomic spaces
+		call intatmspace_evengrid(ipartition,ifunc,rintval(1:ncenter,1))
 		goto 110 !Directly jump to result statistics
-    else if (isel==3.or.isel==4) then
-		call AOM_evengrid(ipartition,iwork,AOM,AOMb,size(AOM,1),size(AOMb,1),iendalpha) !Calculate atomic overlap matrix using even grids
-		goto 100 !Jump to the position just after cycling atoms for integration
+    else if (isel==3.or.isel==33.or.isel==4.or.isel==44.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10) then
+		if (isel==33.or.isel==44) then !isel==33: Calculate and export FOM using even grids. isel==44: Calculate AOM for atoms only involved in computing fragment LI/DI later for saving cost
+			call AOMFOM_evengrid(ipartition,isel,AOM,AOMb,size(AOM,1),size(AOMb,1),iendalpha,DIfrag1,DIfrag2,nDIfrag1,nDIfrag2)
+		else !Calculate full AOM
+			call AOMFOM_evengrid(ipartition,iwork,AOM,AOMb,size(AOM,1),size(AOMb,1),iendalpha,DIfrag1,DIfrag2,nDIfrag1,nDIfrag2)
+		end if
+        goto 100 !Jump to the position just after cycling atoms for integration
     end if
 end if
 
@@ -599,12 +651,22 @@ end if
 
 !! Cycle each atom !!!! Cycle each atom !!!! Cycle each atom !!!! Cycle each atom !!
 !! Cycle each atom !!!! Cycle each atom !!!! Cycle each atom !!!! Cycle each atom !!
-
 do iatm=1,ncenter
-	if ( (isel==2.or.isel==13).and.all(atmcalclist(1:natmcalclist)/=iatm) ) cycle
-	if (isel==12) then
-        if (all(aromatatm(1:naromatatm)/=iatm)) cycle
+
+    if (isel==2.or.isel==13) then !These two functions employs atomic integration grid, nonrelated atoms are skipped and not printed during looping
+		if (all(atmcalclist(1:natmcalclist)/=iatm)) cycle
+    else if (isel==33.and.iAOMgrid==1) then !Calculate FOM using atomic grid
+		if (iFOMmode==1) then
+			if (all(FOM1atm(1:nFOM1atm)/=iatm)) cycle
+		else
+			if (all(FOM1atm(1:nFOM1atm)/=iatm).and.all(FOM2atm(1:nFOM2atm)/=iatm)) cycle
+        end if
+    else if (isel==44.and.iAOMgrid==1) then !Calculate interfragment DI and fragment LI
+        if (all(DIfrag1(1:nDIfrag1)/=iatm).and.all(DIfrag2(1:nDIfrag2)/=iatm)) cycle
     end if
+  !  if (iintgrid==1) then !When using atomic integration grid, non-involved atoms can be skipped for saving cost. This is not used, because currently always use molecular grid
+		!if (isel==1.and.all(atmcalclist(1:natmcalclist)/=iatm)) cycle
+  !  end if
     
 	!!! Prepare grid points on current center
 	iradcut=0 !Before where the radial points will be cut
@@ -786,7 +848,7 @@ do iatm=1,ncenter
     end if
     
 	!!! Perform integration
-	if (isel==1.or.isel==12) then
+	if (isel==1.or.isel==12) then !Integration in atomic spaces, and information-theoretic aromaticity index
 		if (iintgrid==1) then !Atomic grid
 			do i=1+iradcut*sphpot,radpot*sphpot
 				rintval(iatm,1)=rintval(iatm,1)+atmspcweight(i)*funcval(i)*gridatm(i)%value
@@ -880,7 +942,7 @@ do iatm=1,ncenter
 		xxxint=0D0;yyyint=0D0;zzzint=0D0;yzzint=0D0;xzzint=0D0;xxzint=0D0;yyzint=0D0;xxyint=0D0;xyyint=0D0;xyzint=0D0
 		do i=1+iradcut*sphpot,radpot*sphpot
 			tmpmul=atmspcweight(i)*funcval(i)*gridatm(i)%value
-			eleint=eleint-tmpmul !monopole
+			eleint=eleint-tmpmul !Monopole
             !Calculate atomic dipole/quadruple/octopole, the coordinates are w.r.t. nucleus
 			rx=gridatm(i)%x-a(iatm)%x
 			ry=gridatm(i)%y-a(iatm)%y
@@ -1047,7 +1109,7 @@ do iatm=1,ncenter
         atmC6(iatm)=atmC6_free(a(iatm)%index)*(effV/freeV)**2
 	
 	!Calculate atomic overlap matrix (AOM) for all tasks that require it
-	else if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.or.isel==11) then
+	else if (isel==3.or.isel==33.or.isel==4.or.isel==44.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.or.isel==11) then
 		!Calculate total or alpha part
 		if (wfntype==1.or.wfntype==4) nmatsize=nmatsizea !UHF,U-post-HF
 		if (iAOMgrid==1) then !Atomic grid
@@ -1148,15 +1210,19 @@ do iatm=1,ncenter
         end if
 	end if
     
-	!Show progress for integrating function
-    !For electric multipole moment integration and evaluating atomic volume, the process is not shown, because process is directly printed
-	if (isel==12) then
-        ifinish=ifinish+1
-        call showprog(ifinish,naromatatm)
-    else if (isel==2.and.iout==20) then
-        ifinish=ifinish+1
+	!Show progress
+    ifinish=ifinish+1
+	if (isel==2.and.iout==20) then !Output multipole moments to multipole.txt and atom_moment.txt
         call showprog(ifinish,natmcalclist)
-    else if (isel/=2.and.isel/=13) then
+    else if (isel==33.and.iAOMgrid==1) then !Calculate FOM
+		if (iFOMmode==1) then
+			call showprog(ifinish,nFOM1atm)
+		else
+			call showprog(ifinish,nFOM1atm+nFOM2atm)
+        end if
+    else if (isel==44.and.iAOMgrid==1) then !Calculate interfragment DI and fragment LI
+        call showprog(ifinish,nDIfrag1+nDIfrag2)
+    else if (isel/=2.and.isel/=13) then !For evaluating atomic multipole moments (isel=2) and atomic volumes (isel=13), the process is not shown, because result is directly printed during looping
         call showprog(iatm,ncenter)
     end if
 	
@@ -1196,11 +1262,16 @@ if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.o
         end if
     end if
 	if (iwarn==1) then
-		write(*,"(/,a)") " Warning: The integration is not very accurate. To improve accuracy, please try one or some of following treatments:"
-        write(*,*) "(1) Enlarge ""radpot"" and ""sphpot"" in settings.ini"
-        write(*,*) "(2) Set ""radcut"" in settings.ini to 0"
-        write(*,*) "(3) Choose option -6 to change to much more expensive molecular grid"
-        write(*,*) "(4) If diffuse functions were heavily employed, remove them"
+		write(*,"(/,a)") " Warning: The integration is not very accurate"
+        if (ifPBC==0) then
+			write(*,*) "To improve accuracy, please try one or some of following treatments:"
+			write(*,*) "(1) Enlarge ""radpot"" and ""sphpot"" in settings.ini"
+			write(*,*) "(2) Set ""radcut"" in settings.ini to 0"
+			write(*,*) "(3) Choose option -6 to change to much more expensive molecular grid"
+			write(*,*) "(4) If diffuse functions were heavily employed, remove them"
+        else
+			write(*,*) "To improve accuracy, please reduce grid spacing for integration"
+        end if
 		!open(10,file="AOMsum.txt",status="replace")
  	!	call showmatgau(AOMsum,"AOMsum",1,"f14.8",10)
 		!close(10)
@@ -1210,26 +1281,36 @@ end if
 !==== Generate DI, LI or condensed linear response kernel (CLRK) ====!
 !DI-pi will be calculated for FLU-pi at later stage
 !Multicenter DI will be calculated at later stage
-10	if (isel==4.or.isel==5.or.isel==6) then !For LI/DI, PDI and FLU
+10	if (isel==4.or.isel==44.or.isel==5.or.isel==6) then !For LI/DI, PDI and FLU
 	if (any(MOocc<0)) then
 		where(MOocc<0) MOocc=0
 		write(*,"(a)") " Note: Some occupation numbers are negative. In order to make the calculation feasible, they have been set to zero"
 		write(*,*) "Press ENTER button to continue"
 		read(*,*)
 	end if
+    write(*,*)
+    write(*,*) "Calculating LI and DI from AOM..."
 	!RHF,R-post-HF, DI_A,B=2∑[i,j]dsqrt(n_i*n_j)*S_i,j_A * S_i,j_B     where i and j are non-spin orbitals
 	if (wfntype==0.or.wfntype==3) then
 		DI=0D0
+        !$OMP parallel shared(DI) private(iatm,jatm,iorb,jorb,DI_tmp) num_threads(nthreads)
+        DI_tmp=0
+		!$OMP DO schedule(dynamic)
 		do iatm=1,ncenter
 			do jatm=iatm,ncenter
 				do iorb=1,nmatsize
 					do jorb=1,nmatsize
-						DI(iatm,jatm)=DI(iatm,jatm)+dsqrt(MOocc(iorb)*MOocc(jorb))*AOM(iorb,jorb,iatm)*AOM(iorb,jorb,jatm)
+						DI_tmp(iatm,jatm)=DI_tmp(iatm,jatm)+dsqrt(MOocc(iorb)*MOocc(jorb))*AOM(iorb,jorb,iatm)*AOM(iorb,jorb,jatm)
 					end do
 				end do
 			end do
-			LI(iatm)=DI(iatm,iatm)
 		end do
+		!$OMP END DO
+		!$OMP CRITICAL
+        DI=DI+DI_tmp
+		!$OMP END CRITICAL
+		!$OMP END PARALLEL
+        forall(iatm=1:ncenter) LI(iatm)=DI(iatm,iatm)
 		DI=2*(DI+transpose(DI))
 		do iatm=1,ncenter !Diagonal terms are the sum of corresponding row or column
 			DI(iatm,iatm)=0D0
@@ -1241,6 +1322,10 @@ end if
 		do nmoclose=nmatsize,1,-1
 			if (MOtype(nmoclose)==0) exit
 		end do
+        !$OMP parallel shared(DIa,DIb) private(iatm,jatm,iorb,jorb,occi,occj,DIa_tmp,DIb_tmp) num_threads(nthreads)
+        DIa_tmp=0
+        DIb_tmp=0
+		!$OMP DO schedule(dynamic)
 		do iatm=1,ncenter
 			do jatm=iatm,ncenter
 				!Alpha
@@ -1260,9 +1345,15 @@ end if
 					end do
 				end do
 			end do
-			LIa(iatm)=DIa(iatm,iatm)
-			LIb(iatm)=DIb(iatm,iatm)
 		end do
+		!$OMP END DO
+		!$OMP CRITICAL
+        DIa=DIa+DIa_tmp
+        DIb=DIb+DIb_tmp
+		!$OMP END CRITICAL
+		!$OMP END PARALLEL
+        forall(iatm=1:ncenter) LIa(iatm)=DIa(iatm,iatm)
+        forall(iatm=1:ncenter) LIb(iatm)=DIb(iatm,iatm)
 		DIa=2*(DIa+transpose(DIa))
 		DIb=2*(DIb+transpose(DIb))
 		do iatm=1,ncenter !Diagonal terms are the sum of corresponding row or column
@@ -1278,6 +1369,9 @@ end if
 	else if (wfntype==1.or.wfntype==4) then
 		!Alpha
 		DIa=0D0
+        !$OMP parallel shared(DIa) private(iatm,jatm,iorb,jorb,DIa_tmp) num_threads(nthreads)
+        DIa_tmp=0
+		!$OMP DO schedule(dynamic)
 		do iatm=1,ncenter
 			do jatm=iatm,ncenter
 				do iorb=1,nmatsizea
@@ -1286,14 +1380,22 @@ end if
 					end do
 				end do
 			end do
-			LIa(iatm)=DIa(iatm,iatm)
 		end do
+		!$OMP END DO
+		!$OMP CRITICAL
+        DIa=DIa+DIa_tmp
+		!$OMP END CRITICAL
+		!$OMP END PARALLEL
+        forall(iatm=1:ncenter) LIa(iatm)=DIa(iatm,iatm)
 		DIa=2*(DIa+transpose(DIa))
 		!Beta
 		if (nmatsizeb>0) then
 			DIb=0D0
 			MOinit=iendalpha+1 !Index range of beta orbitals
 			MOend=iendalpha+nmatsizeb
+			!$OMP parallel shared(DIb) private(iatm,jatm,iorb,iorbtmp,jorb,jorbtmp,DIb_tmp) num_threads(nthreads)
+			DIb_tmp=0
+			!$OMP DO schedule(dynamic)
 			do iatm=1,ncenter
 				do jatm=iatm,ncenter
 					do iorb=MOinit,MOend
@@ -1304,8 +1406,13 @@ end if
 						end do
 					end do
 				end do
-				LIb(iatm)=DIb(iatm,iatm)
 			end do
+			!$OMP END DO
+			!$OMP CRITICAL
+			DIb=DIb+DIb_tmp
+			!$OMP END CRITICAL
+			!$OMP END PARALLEL
+			forall(iatm=1:ncenter) LIb(iatm)=DIb(iatm,iatm)
 			DIb=2*(DIb+transpose(DIb))
 		end if
 		do iatm=1,ncenter !Diagonal terms are the sum of corresponding row or column
@@ -1552,6 +1659,74 @@ else if (isel==3) then !Output AOM
 	end if
 	close(10)
 	write(*,*) "Done, atomic overlap matrices have been exported to AOM.txt in current folder"
+    
+else if (isel==33.and.ifPBC==0) then !Construct and output FOM. For PBC case, FOM has been exported earlier in subroutine AOMFOM_evengrid
+	!Generate FOMs
+	allocate(FOM1(nmatsize,nmatsize),FOM2(nmatsize,nmatsize))
+    FOM1=0
+    FOM2=0
+    do idx=1,nFOM1atm
+		FOM1(:,:)=FOM1(:,:)+AOM(:,:,FOM1atm(idx))
+    end do
+    if (iFOMmode>1) then
+		do idx=1,nFOM2atm
+			FOM2(:,:)=FOM2(:,:)+AOM(:,:,FOM2atm(idx))
+		end do
+    end if
+    if (wfntype==1.or.wfntype==2.or.wfntype==4) then
+		allocate(FOM1b(nmatsizeb,nmatsizeb),FOM2b(nmatsizeb,nmatsizeb))
+		FOM1b=0
+		FOM2b=0
+		do idx=1,nFOM1atm
+			FOM1b(:,:)=FOM1b(:,:)+AOMb(:,:,FOM1atm(idx))
+		end do
+		if (iFOMmode>1) then
+			do idx=1,nFOM2atm
+				FOM2b(:,:)=FOM2b(:,:)+AOMb(:,:,FOM2atm(idx))
+			end do
+        end if
+    end if
+    !Export FOMs
+	open(10,file="FOM.txt",status="replace")
+	if (wfntype==0.or.wfntype==3) then !Closed-shell
+		if (iFOMmode==1) then
+			write(10,"('Fragment overlap matrix')")
+			call showmatgau(FOM1(:,:),"",1,"f14.8",10)
+			write(*,*) "FOM has been exported to FOM.txt in current folder"
+		else
+			write(10,"('Fragment overlap matrix of fragment 1')")
+			call showmatgau(FOM1(:,:),"",1,"f14.8",10)
+			write(10,*)
+			write(10,"('Fragment overlap matrix of fragment 2')")
+			call showmatgau(FOM2(:,:),"",1,"f14.8",10)
+			write(*,*) "FOM of fragments 1 and 2 has been exported to FOM.txt in current folder"
+		end if
+        deallocate(FOM1,FOM2)
+	else !Open-shell
+		if (iFOMmode==1) then
+			write(10,"('Alpha part of fragment overlap matrix')")
+			call showmatgau(FOM1(:,:),"",1,"f14.8",10)
+			write(*,*)
+			write(10,"('Beta part of fragment overlap matrix')")
+			call showmatgau(FOM1b(:,:),"",1,"f14.8",10)
+			write(*,*) "FOM has been exported to FOM.txt in current folder"
+		else
+			write(10,"('Alpha part of fragment overlap matrix of fragment 1')")
+			call showmatgau(FOM1(:,:),"",1,"f14.8",10)
+			write(10,*)
+			write(10,"('Beta part of fragment overlap matrix of fragment 1')")
+			call showmatgau(FOM1b(:,:),"",1,"f14.8",10)
+			write(10,*)
+			write(10,"('Alpha part of fragment overlap matrix of fragment 2')")
+			call showmatgau(FOM2(:,:),"",1,"f14.8",10)
+			write(10,*)
+			write(10,"('Beta part of fragment overlap matrix of fragment 2')")
+			call showmatgau(FOM2b(:,:),"",1,"f14.8",10)
+			write(*,*) "FOM of fragments 1 and 2 has been exported to FOM.txt in current folder"
+		end if
+        deallocate(FOM1,FOM1b,FOM2,FOM2b)
+	end if
+	close(10)
 	
 else if (isel==4) then !Show LI and DI or fuzzy bond order
 	if (iwork==0) then !Output LI and DI
@@ -1683,6 +1858,81 @@ else if (isel==4) then !Show LI and DI or fuzzy bond order
 		sphpot=nsphpotold
 		return !Fuzzy bond order has been shown, now (normally) return to bond order analysis interface
 	end if
+    
+else if (isel==44) then !FLI and IFDI
+	write(*,*) "Calculating FLI and IFDI..."
+    write(*,*)
+	!Calculate IFDI
+	sumDI=0
+	sumDIa=0
+    sumDIb=0
+    do idx=1,nDIfrag1
+		iatm=DIfrag1(idx)
+		do jdx=1,nDIfrag2
+			jatm=DIfrag2(jdx)
+            if (wfntype==0.or.wfntype==3) then
+				sumDI=sumDI+DI(iatm,jatm)
+            else
+				sumDIa=sumDIa+DIa(iatm,jatm)
+				sumDIb=sumDIb+DIb(iatm,jatm)
+            end if
+        end do
+    end do
+    !Calculate FLI
+    if (wfntype==0.or.wfntype==3) then
+		sumLI1=0
+		do idx=1,nDIfrag1
+			sumLI1=sumLI1+LI(DIfrag1(idx))
+			do jdx=idx+1,nDIfrag1
+				sumLI1=sumLI1+DI(DIfrag1(idx),DIfrag1(jdx))
+			end do
+		end do
+		sumLI2=0
+		do idx=1,nDIfrag2
+			sumLI2=sumLI2+LI(DIfrag2(idx))
+			do jdx=idx+1,nDIfrag2
+				sumLI2=sumLI2+DI(DIfrag2(idx),DIfrag2(jdx))
+			end do
+		end do
+    else
+		sumLI1a=0;sumLI1b=0
+		do idx=1,nDIfrag1
+			sumLI1a=sumLI1a+LIa(DIfrag1(idx))
+			sumLI1b=sumLI1b+LIb(DIfrag1(idx))
+			do jdx=idx+1,nDIfrag1
+				sumLI1a=sumLI1a+DIa(DIfrag1(idx),DIfrag1(jdx))
+				sumLI1b=sumLI1b+DIb(DIfrag1(idx),DIfrag1(jdx))
+			end do
+		end do
+		sumLI2a=0;sumLI2b=0
+		do idx=1,nDIfrag2
+			sumLI2a=sumLI2a+LIa(DIfrag2(idx))
+			sumLI2b=sumLI2b+LIb(DIfrag2(idx))
+			do jdx=idx+1,nDIfrag2
+				sumLI2a=sumLI2a+DIa(DIfrag2(idx),DIfrag2(jdx))
+				sumLI2b=sumLI2b+DIb(DIfrag2(idx),DIfrag2(jdx))
+			end do
+		end do
+    end if
+    if (wfntype==0.or.wfntype==3) then
+        write(*,"(' LI of fragment 1:',f14.6)") sumLI1
+        write(*,"(' LI of fragment 2:',f14.6)") sumLI2
+		write(*,"(' Interfragment DI:',f14.6)") sumDI
+    else
+		write(*,*) "Fragment 1:"
+        write(*,"(' Fragment LI of alpha spin:',f14.6)") sumLI1a
+        write(*,"(' Fragment LI of beta spin: ',f14.6)") sumLI1b
+        write(*,"(' Total fragment LI:        ',f14.6)") sumLI1a+sumLI1b
+        write(*,*)
+		write(*,*) "Fragment 2:"
+        write(*,"(' Fragment LI of alpha spin:',f14.6)") sumLI2a
+        write(*,"(' Fragment LI of beta spin: ',f14.6)") sumLI2b
+        write(*,"(' Total fragment LI:        ',f14.6)") sumLI2a+sumLI2b
+        write(*,*)
+		write(*,"(' Interfragment DI of alpha spin:',f14.6)") sumDIa
+		write(*,"(' Interfragment DI of beta spin: ',f14.6)") sumDIb
+		write(*,"(' Total interfragment DI:        ',f14.6)") sumDIa+sumDIb
+    end if
 	
 else if (isel==5) then !PDI
 	call showmatgau(DI,"Delocalization index matrix",0,"f14.8")
@@ -2178,11 +2428,14 @@ use functions
 implicit real*8 (a-h,o-z)
 real*8 atmrho(ncenter),tvec(3),atmint(ncenter),atmint_tmp(ncenter)
 
-if (any(a%index==a%charge)) then
-	write(*,"(a)") " Warning: This function employs evenly distributed grids for integration, it does not work well for all-electron wavefunction!"
-    write(*,*) "Press ENTER button to continue"
-    read(*,*)
-end if
+do iatm=1,ncenter
+	if (a(iatm)%index>4.and.a(iatm)%index==nint(a(iatm)%charge)) then !MOLOPT is all-electron basis set for first <=Be
+		write(*,"(a)") " Warning: This function employs evenly distributed grids for integration, it does not work well for all-electron wavefunction!"
+		write(*,*) "Press ENTER button to continue"
+		read(*,*)
+		exit
+    end if
+end do
 
 call setgrid_for_PBC(0.2D0,1)
 if (allocated(cubmat)) deallocate(cubmat)
@@ -2259,22 +2512,100 @@ end subroutine
 
 
 
-!!------------- Calculate atomic overlap matrix (AOM) using evenly distributed grids
-!If iwork=1, that means this subroutine is invoked for calculating fuzzy bond order
-subroutine AOM_evengrid(ipartition,iwork,AOM,AOMb,nmatsize,nmatsizeb,iendalpha)
+!!------------- Calculate atomic overlap matrix (AOM) or fragment overlap matrix (FOM) using evenly distributed grids. Fragment LI and interfragment DI can also be outputted
+!  Calculating AOM is extremely expensive for large systems consisting of thousands of orbitals. I have try my best to optimize the code, it is however still very expensive
+!ipartition: Partition method of atomic spaces
+!iwork: 0 means calculating AOM normally; 1 means this subroutine is invoked for calculating fuzzy bond order
+!       33 means calculating FOM and then exporting as .txt file
+!       44 means calculating AOM only for the atoms involved in fragment LI and interfragment DI, which will be evaluated later by other code
+!iendalpha: Index of last alpha orbital
+!DIfrag1,DIfrag2: Atom indices of fragments 1 and 2 used to calculate interfragment DI
+!nDIfrag1,nDIfrag2: Number of actual atoms in DIfrag1 and DIfrag2
+subroutine AOMFOM_evengrid(ipartition,iwork,AOM,AOMb,nmatsize,nmatsizeb,iendalpha,DIfrag1,DIfrag2,nDIfrag1,nDIfrag2)
 use defvar
 use util
 use functions
 implicit real*8 (a-h,o-z)
+character c2000tmp*2000
 integer ipartition,nmatsize,nmatsizeb,iendalpha,iwork
-real*8 AOM(nmatsize,nmatsize,ncenter),AOMb(nmatsizeb,nmatsizeb,ncenter),AOM_tmp(nmatsize,nmatsize,ncenter)
+real*8 AOM(nmatsize,nmatsize,ncenter),AOMb(nmatsizeb,nmatsizeb,ncenter) !,tmpmat(nmatsize,nmatsize)
+integer DIfrag1(ncenter),DIfrag2(ncenter),nDIfrag1,nDIfrag2
 real*8 atmrho(ncenter),tvec(3),orbval(nmo)
-real*8,allocatable :: AOMb_tmp(:,:,:)
+real*8,allocatable :: AOM_tmp(:,:,:),AOMb_tmp(:,:,:)
+real*8 :: thres=3D-6 !Threshold for ignoring an atom in loop atoms. This threshold is found to be good balance between accuracy and efficiency
+integer FOM1atm(ncenter),FOM2atm(ncenter),nFOM1atm,nFOM2atm
+real*8 bndmata(ncenter,ncenter),bndmatb(ncenter,ncenter),bndmattot(ncenter,ncenter)
+real*8,allocatable :: FOM1(:,:),FOM1b(:,:),FOM2(:,:),FOM2b(:,:)
+logical atmdolist(ncenter)
 
-if (any(a%index==a%charge)) then
-	write(*,"(a)") " Warning: This function employs evenly distributed grids for integration, it does not work well for all-electron wavefunction!"
-    write(*,*) "Press ENTER button to continue"
-    read(*,*)
+do iatm=1,ncenter
+	if (a(iatm)%index>4.and.a(iatm)%index==nint(a(iatm)%charge)) then !MOLOPT is all-electron basis set for first <=Be
+		write(*,"(a)") " Warning: This function employs evenly distributed grids for integration, it does not work well for all-electron wavefunction!"
+		write(*,*) "Press ENTER button to continue"
+		read(*,*)
+		exit
+    end if
+end do
+
+if (iwork==33) then
+	write(*,*)
+	write(*,*) "Select the way of calculating fragment overlap matrix (FOM)"
+    if (iwork==33) then
+		write(*,*) "1 Calculate and export FOM for one fragment"
+		write(*,*) "2 Calculate and export FOM for two specific fragments"
+		write(*,*) "3 Calculate and export FOM for two fragments. The atoms in the first fragment is directly specified, &
+		the atoms in fragment 2 are those having Mayer bond order with any atom in fragment 1 larger than a specific threshold"
+    else
+		write(*,*) "2 Calculate FOM for two specific fragments and then calculate DI"
+    end if
+    read(*,*) iFOMmode
+    write(*,*) "Input indices of atoms for defining fragment 1, e.g. 3-9,14,19-20"
+    read(*,"(a)") c2000tmp
+    call str2arr(c2000tmp,nFOM1atm,FOM1atm)
+    if (iFOMmode==2) then
+		write(*,*) "Input indices of atoms for defining fragment 2, e.g. 1,2,10-13,15-18"
+		read(*,"(a)") c2000tmp
+		call str2arr(c2000tmp,nFOM2atm,FOM2atm)
+    else if (iFOMmode==3) then
+		write(*,*) "Input threshold of Mayer bond order, e.g. 0.001"
+        write(*,*) "Note: If an atom not in fragment 1 has absolute value of total Mayer bond order with any atom &
+        in fragment 1 larger than this threshold, then this atom will be in fragment 2"
+        read(*,*) FOM2thres
+        call ask_Sbas_PBC
+		call calcMayerbndord(bndmattot,bndmata,bndmatb)
+        if (wfntype==1.or.wfntype==2.or.wfntype==4) bndmattot=bndmata+bndmatb !Make total bond order in open-shell case correspond to Mayer bond order definition
+        nFOM2atm=0
+        do iatm=1,ncenter
+			if (any(FOM1atm(1:nFOM1atm)==iatm)) cycle
+			if (any(abs(bndmattot(FOM1atm(1:nFOM1atm),iatm))>FOM2thres)) then
+				nFOM2atm=nFOM2atm+1
+                FOM2atm(nFOM2atm)=iatm
+                cycle
+            end if
+        end do
+        write(*,*) "Atoms in fragment 2:"
+        call arr2str_2(FOM2atm(1:nFOM2atm),c2000tmp)
+        write(*,*) trim(c2000tmp)
+        sumbo=sum(bndmattot(FOM1atm(1:nFOM1atm),FOM2atm(1:nFOM2atm)))
+        write(*,"(' Mayer bond order between fragments 1 and 2:',f8.3)") sumbo
+    end if
+	atmdolist=.false.
+    do idx=1,nFOM1atm
+		atmdolist(FOM1atm(idx))=.true.
+    end do
+    do idx=1,nFOM2atm
+		atmdolist(FOM2atm(idx))=.true.
+    end do
+else if (iwork==44) then !Will calculate AOM only for the atoms involved in evaluating fragment LI and interfragment DI
+	atmdolist=.false.
+    do idx=1,nDIfrag1
+		atmdolist(DIfrag1(idx))=.true.
+    end do
+    do idx=1,nDIfrag2
+		atmdolist(DIfrag2(idx))=.true.
+    end do
+else !Will calculate full AOM
+	atmdolist(:)=.true.
 end if
 
 write(*,*)
@@ -2285,113 +2616,245 @@ else
 end if
 call calc_dvol(dvol)
 
-if (wfntype==1.or.wfntype==4) allocate(AOMb_tmp(nmatsizeb,nmatsizeb,ncenter))
-
 call walltime(iwalltime1)
 
-if (ifPBC==0) then
-	call gen_GTFuniq(infomode) !Generate unique GTFs, for faster evaluation in orbderv
-else
-	call gen_neigh_GTF !Generate neighbouring GTFs list at reduced grids, for faster evaluation
-end if
+call gen_neigh_GTF !Generate neighbouring GTFs list at reduced grids, for faster evaluation
 
+!If each thread allocates AOM_tmp(nmatsize,nmatsize,ncenter), for large system it is very easily out-of-memory, so I decide &
+!calculate AOM contributed by different range of atoms in different batches, so that each batch only use AOM_tmp(nmatsize,nmatsize,natm_per_batch). &
+!The number of batches is determined dynamically according to present OpenMP stacksize
 write(*,*)
 write(*,*) "Calculating atomic overlap matrix (AOM)..."
-ifinish=0
-ntmp=floor(ny*nz/100D0)
+write(*,"(' Number of atoms will be considered in atomic loop:',i7)") count(atmdolist==.true.)
+if (wfntype==0.or.wfntype==3) then
+	write(*,"(' Number of orbitals will be considered:',i7)") nmatsize
+else
+	write(*,"(' Number of alpha orbitals will be considered:',i7)") nmatsize
+	write(*,"(' Number of bete orbitals will be considered: ',i7)") nmatsizeb
+end if
+write(*,"(' Threshold of atomic weight in looping atoms:',f12.8)") thres
+tmpmem_per_atm=8*(nmatsize*nmatsize+nmatsizeb*nmatsizeb) !The size (Bytes) of the matrix only recording contribution from one atom
+write(*,"(' OpenMP stacksize for each thread: ',f10.2,' MB')") dfloat(ompstacksize)/1024/1024
+write(*,"(a,f12.1,' MB memory')") " Each OpenMP thread needs at least",tmpmem_per_atm/1024/1024
+natm_per_batch=min(floor(ompstacksize/tmpmem_per_atm),ncenter)
+nbatch=ceiling(dfloat(ncenter)/natm_per_batch)
+if (nbatch>1) write(*,"(a)") " Note: If you have enough physical memory, after properly increasing OpenMP stacksize, number of batches can be reduced, making total computational time lower"
+write(*,"(' Maximum number of atoms per batch:',i6)") natm_per_batch
+write(*,"(' Number of batches:',i6)") nbatch
 
-write(*,*) "Note: If Multiwfn suddenly crashes, please enlarge OpenMP stacksize and retry"
-call showprog(0,100)
 AOM(:,:,:)=0
-AOMb(:,:,:)=0
-!$OMP PARALLEL SHARED(AOM,AOMb,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz,iatm,atmrho,prorho,&
-!$OMP icell,jcell,kcell,tvec,dist2,tmprho,npt,AOM_tmp,AOMb_tmp,imo,jmo,MOinit,MOend,orbval) NUM_THREADS(nthreads)
-AOM_tmp(:,:,:)=0
-AOMb_tmp(:,:,:)=0
-!$OMP DO schedule(dynamic) collapse(2)
-do k=1,nz
-	do j=1,ny
-		do i=1,nx
-			call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
-            atmrho(:)=0
-            do icell=-PBCnx,PBCnx
-                do jcell=-PBCny,PBCny
-                    do kcell=-PBCnz,PBCnz
-                        call tvec_PBC(icell,jcell,kcell,tvec)
-                        do iatm=1,ncenter
-                            dist2=(a(iatm)%x+tvec(1)-tmpx)**2+(a(iatm)%y+tvec(2)-tmpy)**2+(a(iatm)%z+tvec(3)-tmpz)**2
-                            if (dist2>atmrhocut2(a(iatm)%index)) then
-                                cycle
-                            else
-                                if (ipartition==3) then !Hirshfeld, using bulit-in atomic radial density to interpolate
-                                    tmprho=eleraddens(a(iatm)%index,dsqrt(dist2),0)
-                                else !Hirshfeld-I and MBIS. Refined atomic radial density of every atom has been available in atmraddens
-									npt=atmradnpt(iatm)
-									call lagintpol(atmradpos(1:npt),atmraddens(1:npt,iatm),npt,dsqrt(dist2),tmprho,rnouse,rnouse,1)
-                                end if
-                                atmrho(iatm)=atmrho(iatm)+tmprho
-                            end if
-                        end do
-                    end do
-                end do
-            end do
-            prorho=sum(atmrho(:))
-            if (prorho==0) cycle
-            
-			!Calculate total or alpha part
-			call orbderv(1,1,nmatsize,tmpx,tmpy,tmpz,orbval)
-			do jmo=1,nmatsize
-				do imo=jmo,nmatsize
-                    AOM_tmp(imo,jmo,:)=AOM_tmp(imo,jmo,:)+orbval(imo)*orbval(jmo)*atmrho(:)/prorho
-				end do
-			end do
-            
-			!Calculate Beta part for UHF,U-post-HF
-			if ((wfntype==1.or.wfntype==4).and.nmatsizeb>0) then
-				MOinit=iendalpha+1
-				MOend=iendalpha+nmatsizeb
-                call orbderv(1,MOinit,MOend,tmpx,tmpy,tmpz,orbval)
-				do jmo=MOinit,MOend
-					do imo=jmo,MOend
-						AOMb_tmp(imo-iendalpha,jmo-iendalpha,:)=AOMb_tmp(imo-iendalpha,jmo-iendalpha,:)+orbval(imo)*orbval(jmo)*atmrho(:)/prorho
+allocate(AOM_tmp(nmatsize,nmatsize,natm_per_batch))
+if ((wfntype==1.or.wfntype==4).and.nmatsizeb>0) then
+	AOMb(:,:,:)=0
+	allocate(AOMb_tmp(nmatsizeb,nmatsizeb,natm_per_batch))
+end if
+
+ntmp=floor(ny*nz/100D0)
+do ibatch=1,nbatch
+    iatmbeg=(ibatch-1)*natm_per_batch+1
+    iatmend=min(iatmbeg+natm_per_batch-1,ncenter)
+	write(*,"(/,' Performing batch',i4,' /',i4,', from atom',i6,' to',i6)") ibatch,nbatch,iatmbeg,iatmend
+    natmthis=iatmend-iatmbeg+1
+	ifinish=0
+	call showprog(0,100)
+	!$OMP PARALLEL SHARED(AOM,AOMb,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz,iatm,atmrho,prorho,&
+	!$OMP icell,jcell,kcell,tvec,dist2,tmprho,npt,AOM_tmp,AOMb_tmp,imo,jmo,MOinit,MOend,orbval,tmpval,wei,idx,icalcorb) NUM_THREADS(nthreads)
+	AOM_tmp(:,:,:)=0
+	if ((wfntype==1.or.wfntype==4).and.nmatsizeb>0) AOMb_tmp(:,:,:)=0
+	!$OMP DO schedule(dynamic) collapse(2)
+	do k=1,nz
+		do j=1,ny
+			do i=1,nx
+				call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
+				atmrho(:)=0
+				do icell=-PBCnx,PBCnx
+					do jcell=-PBCny,PBCny
+						do kcell=-PBCnz,PBCnz
+							call tvec_PBC(icell,jcell,kcell,tvec)
+							do iatm=1,ncenter
+								dist2=(a(iatm)%x+tvec(1)-tmpx)**2+(a(iatm)%y+tvec(2)-tmpy)**2+(a(iatm)%z+tvec(3)-tmpz)**2
+								if (dist2>atmrhocut2(a(iatm)%index)) then
+									cycle
+								else
+									if (ipartition==3) then !Hirshfeld, using built-in atomic radial density to interpolate
+										tmprho=eleraddens(a(iatm)%index,dsqrt(dist2),0)
+									else !Hirshfeld-I and MBIS. Refined atomic radial density of every atom has been available in atmraddens
+										npt=atmradnpt(iatm)
+										call lagintpol(atmradpos(1:npt),atmraddens(1:npt,iatm),npt,dsqrt(dist2),tmprho,rnouse,rnouse,1)
+									end if
+									atmrho(iatm)=atmrho(iatm)+tmprho
+								end if
+							end do
+						end do
 					end do
 				end do
-			end if
+				prorho=sum(atmrho(:))
+				if (prorho<1D-6) cycle !Accuracy loose is found to be negligible enough
+				
+                !If any atom whose AOM needs to calculate has weight on this grid larger than a threshold, then orbital values at this grid needs to be calculated
+                icalcorb=0
+                do idx=1,natmthis
+					iatm=iatmbeg+idx-1
+                    wei=atmrho(iatm)/prorho
+                    if (wei>thres.and.atmdolist(iatm)==.true.) icalcorb=1
+                end do
+                if (icalcorb==0) cycle
+                
+				!Calculate total or alpha part. This is time-consuming for very large system
+				call orbderv(1,1,nmatsize,tmpx,tmpy,tmpz,orbval)
+                
+                !Accumulate contribution of present integration grid to AOM of various atoms. This is most time-consuming for medium-sized system
+                !The following code is found to be significant faster than the below one, at least for a tested small system
+                do idx=1,natmthis
+					iatm=iatmbeg+idx-1
+                    if (atmdolist(iatm)==.false.) cycle !Skip atoms that do not need to evaluate AOM to reduce cost
+                    wei=atmrho(iatm)/prorho
+                    if (wei<thres) cycle
+					do jmo=1,nmatsize
+						tmpval=orbval(jmo)*wei
+						do imo=jmo,nmatsize
+							AOM_tmp(imo,jmo,idx)=AOM_tmp(imo,jmo,idx)+orbval(imo)*tmpval
+						end do
+					end do
+                end do
+                
+                !The following code is slower
+				!do jmo=1,nmatsize
+				!	do imo=jmo,nmatsize
+				!		AOM_tmp(imo,jmo,1:natmthis)=AOM_tmp(imo,jmo,1:natmthis)+orbval(imo)*orbval(jmo)*atmrho(iatmbeg:iatmend)/prorho
+				!	end do
+				!end do
+                !The following code is extremely slower! Mostly because the matrix operation in atomic looping is too expensive
+				!do jmo=1,nmatsize
+				!	do imo=jmo,nmatsize
+				!		tmpmat(imo,jmo)=orbval(imo)*orbval(jmo)
+				!	end do
+				!end do
+				!do idx=1,natmthis
+				!	iatm=iatmbeg+idx-1
+                !	AOM_tmp(:,:,idx)=AOM_tmp(:,:,idx)+tmpmat(:,:)*atmrho(iatm)/prorho
+				!end do
             
+				!Calculate Beta part for UHF,U-post-HF
+				if ((wfntype==1.or.wfntype==4).and.nmatsizeb>0) then
+                    call orbderv(1,MOinit,MOend,tmpx,tmpy,tmpz,orbval)
+					do idx=1,natmthis
+						iatm=iatmbeg+idx-1
+						if (atmdolist(iatm)==.false.) cycle !Skip atoms that do not need to calculate to reduce cost
+						wei=atmrho(iatm)/prorho
+						if (wei<thres) cycle
+						MOinit=iendalpha+1
+						MOend=iendalpha+nmatsizeb
+						do jmo=MOinit,MOend
+							tmpval=orbval(jmo)*wei
+							do imo=jmo,MOend
+								AOMb_tmp(imo-iendalpha,jmo-iendalpha,idx)=AOMb_tmp(imo-iendalpha,jmo-iendalpha,idx)+orbval(imo)*tmpval
+							end do
+						end do
+                    end do
+				end if
+            
+			end do
+			!$OMP CRITICAL
+			ifinish=ifinish+1
+			ishowprog=mod(ifinish,ntmp)
+			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+			!$OMP END CRITICAL
 		end do
-		!$OMP CRITICAL
-		ifinish=ifinish+1
-		ishowprog=mod(ifinish,ntmp)
-		if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-		!$OMP END CRITICAL
 	end do
+	!$OMP END DO
+	!$OMP CRITICAL
+	AOM(:,:,iatmbeg:iatmend)=AOM(:,:,iatmbeg:iatmend)+AOM_tmp(:,:,1:natmthis)
+	if ((wfntype==1.or.wfntype==4).and.nmatsizeb>0) AOMb(:,:,iatmbeg:iatmend)=AOMb(:,:,iatmbeg:iatmend)+AOMb_tmp(:,:,1:natmthis)
+	!$OMP END CRITICAL
+	!$OMP END PARALLEL
+	if (ishowprog/=0) call showprog(100,100)
 end do
-!$OMP END DO
-!$OMP CRITICAL
-AOM(:,:,:)=AOM(:,:,:)+AOM_tmp(:,:,:)*dvol
-if ((wfntype==1.or.wfntype==4).and.nmatsizeb>0) AOMb(:,:,:)=AOMb(:,:,:)+AOMb_tmp(:,:,:)*dvol
-!$OMP END CRITICAL
-!$OMP END PARALLEL
-if (ishowprog/=0) call showprog(100,100)
 
 do jmo=1,nmatsize
 	do imo=jmo+1,nmatsize
 		AOM(jmo,imo,:)=AOM(imo,jmo,:)
 	end do
 end do
+AOM=AOM*dvol
 if ((wfntype==1.or.wfntype==4).and.nmatsizeb>0) then
 	do jmo=1,nmatsizeb
 		do imo=jmo+1,nmatsizeb
 			AOMb(jmo,imo,:)=AOMb(imo,jmo,:)
 		end do
 	end do
+	AOMb=AOMb*dvol
 end if
-
-!open(10,file="AOMtest.txt",status="replace")
-!call showmatgau(AOMtest,"AOMtest",1,"f14.8",10)
-!close(10)
 
 call walltime(iwalltime2)
 write(*,"(/,' Calculation totally took up wall clock time',i10,' s')") iwalltime2-iwalltime1
+
+!Generate FOM and then export it
+if (iwork==33) then
+	!Generate FOMs
+	allocate(FOM1(nmatsize,nmatsize),FOM2(nmatsize,nmatsize))
+    FOM1=0
+    FOM2=0
+    do idx=1,nFOM1atm
+		FOM1(:,:)=FOM1(:,:)+AOM(:,:,FOM1atm(idx))
+    end do
+    if (iFOMmode>1) then
+		do idx=1,nFOM2atm
+			FOM2(:,:)=FOM2(:,:)+AOM(:,:,FOM2atm(idx))
+		end do
+    end if
+    if (wfntype==1.or.wfntype==2.or.wfntype==4) then
+		allocate(FOM1b(nmatsizeb,nmatsizeb),FOM2b(nmatsizeb,nmatsizeb))
+		FOM1b=0
+		FOM2b=0
+		do idx=1,nFOM1atm
+			FOM1b(:,:)=FOM1b(:,:)+AOMb(:,:,FOM1atm(idx))
+		end do
+		if (iFOMmode>1) then
+			do idx=1,nFOM2atm
+				FOM2b(:,:)=FOM2b(:,:)+AOMb(:,:,FOM2atm(idx))
+			end do
+        end if
+    end if
+    !Export FOMs
+	open(10,file="FOM.txt",status="replace")
+	if (wfntype==0.or.wfntype==3) then !Closed-shell
+		if (iFOMmode==1) then
+			write(10,"('Fragment overlap matrix')")
+			call showmatgau(FOM1(:,:),"",1,"f14.8",10)
+			write(*,*) "FOM has been exported to FOM.txt in current folder"
+		else
+			write(10,"('Fragment overlap matrix of fragment 1')")
+			call showmatgau(FOM1(:,:),"",1,"f14.8",10)
+			write(10,*)
+			write(10,"('Fragment overlap matrix of fragment 2')")
+			call showmatgau(FOM2(:,:),"",1,"f14.8",10)
+			write(*,*) "FOM of fragments 1 and 2 has been exported to FOM.txt in current folder"
+		end if
+	else !Open-shell
+		if (iFOMmode==1) then
+			write(10,"('Alpha part of fragment overlap matrix')")
+			call showmatgau(FOM1(:,:),"",1,"f14.8",10)
+			write(*,*)
+			write(10,"('Beta part of fragment overlap matrix')")
+			call showmatgau(FOM1b(:,:),"",1,"f14.8",10)
+			write(*,*) "FOM has been exported to FOM.txt in current folder"
+		else
+			write(10,"('Alpha part of fragment overlap matrix of fragment 1')")
+			call showmatgau(FOM1(:,:),"",1,"f14.8",10)
+			write(10,*)
+			write(10,"('Beta part of fragment overlap matrix of fragment 1')")
+			call showmatgau(FOM1b(:,:),"",1,"f14.8",10)
+			write(10,*)
+			write(10,"('Alpha part of fragment overlap matrix of fragment 2')")
+			call showmatgau(FOM2(:,:),"",1,"f14.8",10)
+			write(10,*)
+			write(10,"('Beta part of fragment overlap matrix of fragment 2')")
+			call showmatgau(FOM2b(:,:),"",1,"f14.8",10)
+			write(*,*) "FOM of fragments 1 and 2 has been exported to FOM.txt in current folder"
+		end if
+	end if
+	close(10)
+end if
 
 end subroutine

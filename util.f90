@@ -1300,6 +1300,14 @@ str=adjustl(str)
 end subroutine
 
 
+!!------- Remove replace a character from a string with " " if any
+subroutine remove_char(str,char)
+character(len=*) str
+character char
+itmp=index(str,char)
+if (itmp/=0) str(itmp:itmp)=" "
+end subroutine
+
 
 !!------- Show content of "nline" lines of fileid on screen, and the position of reading is unchanged
 subroutine showlines(ifileid,nline)

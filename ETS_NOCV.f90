@@ -755,6 +755,7 @@ do while(.true.)
         end do
         
     else if (isel==15) then !
+        call ask_Sbas_PBC
         write(*,*) "Variation in electron population:"
         vartot=0
         do ifrag=1,nfrag

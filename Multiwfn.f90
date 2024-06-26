@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), release date: 2024-Jun-13"
+write(*,*) "Version 3.8(dev), update date: 2024-Jun-25"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -48,6 +48,7 @@ nthreads,nowdate(1:4),nowdate(5:6),nowdate(7:8),nowtime(1:2),nowtime(3:4),nowtim
 !!-------- Set up hardware resource information
 !For Windows version of ifort, use KMP_SET_STACKSIZE_S() to directly set stacksize of OpenMP threads according to ompstacksize in settings.ini, &
 !for other cases, the stacksize is determined by OMP_STACKSIZE environment variable, and we check if it has been defined here
+!  ompstacksize variable is always actually used by Multiwfn to determine available memory
 if (isys==1) then !Windows
 #if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
     call KMP_SET_STACKSIZE_S(ompstacksize)
@@ -57,14 +58,17 @@ if (isys==1) then !Windows
 #endif
 else if (isys==2) then !Linux/MacOS
     CALL getenv('OMP_STACKSIZE',c200tmp)
+    if (c200tmp/=" ") call read_ompstacksize(c200tmp)
 #if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
-    if (c200tmp==" ") then !OpenMP stacksize may also be defined by KMP_STACKSIZE if compiled with ifort
-		CALL getenv('KMP_STACKSIZE',c200tmp)
-	end if
+    if (c200tmp==" ") then
+		CALL getenv('KMP_STACKSIZE',c200tmp) !OpenMP stacksize may also be defined by KMP_STACKSIZE by users if compiled with ifort
+		if (c200tmp/=" ") call read_ompstacksize(c200tmp)
+    end if
 #endif
     if (c200tmp==" ") write(*,"(/,a)") " Warning: You should set OMP_STACKSIZE environment variable as mentioned in Section 2.1.2 of Multiwfn manual!"
 end if
-!write(*,"(' OpenMP stacksize for each thread: ',f10.2,' MB')") dfloat(KMP_GET_STACKSIZE_S())/1024/1024
+!write(*,"(' OpenMP stacksize for each thread: ',f10.2,' MB')") dfloat(KMP_GET_STACKSIZE_S())/1024/1024 !Extended subroutine by Intel compiler
+write(*,"(' OpenMP stacksize for each thread: ',f10.2,' MB')") dfloat(ompstacksize)/1024/1024
 
 !Set number of cores used by calculation of MKL library (e.g. function matmul_blas)
 #if defined(INTEL_MKL)
@@ -667,6 +671,8 @@ do while(.true.) !Main loop
             write(*,*) "-15 Make orbitals equivalent to Lowdin orthogonalized basis functions"
 		    write(*,*) "16 Define one or two fragments for special purpose"
             write(*,*) "17 Generate promolecular wavefunction by calculating and combining atomic ones"
+            if (allocated(cubmat)) write(*,*) "18 Set box information of grid data as cell information"
+            write(*,*) "88/89 Calculate two-electron integral between for four PGTFs/orbitals"
 		    write(*,*) "90 Calculate nuclear attractive energy between a fragment and an orbital"
 		    write(*,*) "91 Exchange orbital energies and occupations"
 		    write(*,*) "92 Calculate result of various kinetic energy functionals"
@@ -830,6 +836,14 @@ do while(.true.) !Main loop
                 end do
             else if (i==17) then
 				call generate_promolwfn
+            else if (i==18) then
+				call grid2cellinfo
+                write(*,*) "Done!"
+                call showcellinfo
+            else if (i==88) then
+				call showGTF_ERI
+            else if (i==89) then
+				call showorb_ERI
 		    else if (i==90) then
 			    call attene_orb_fragnuc
 		    else if (i==91) then

@@ -981,6 +981,7 @@ do while(.true.)
 	
 	else if (isel==38) then
 		call make_occ_integer_Aufbau
+        imodwfn=1
 	end if
     
 end do
@@ -5010,6 +5011,34 @@ do iatm=2,ncenter
         end if
     end if
 end do
+end subroutine
+
+
+
+
+!!-------- Load OpenMP stacksize from a string, which may correspond to that set by OMP_STACKSIZE or KMP_STACKSIZE
+!The string should not be empty. See https://www.openmp.org/spec-html/5.0/openmpse54.html for more information about format
+subroutine read_ompstacksize(c200tmp)
+use defvar
+use util
+character(len=*) c200tmp
+iunit=2 !KB, this is default unit according to OpenMP standard when unit is not explicitly specified
+if (index(c200tmp,'b')/=0.or.index(c200tmp,'B')/=0) iunit=1 !Bytes
+if (index(c200tmp,'M')/=0.or.index(c200tmp,'n')/=0) iunit=3 !MBytes
+if (index(c200tmp,'G')/=0.or.index(c200tmp,'g')/=0) iunit=4 !GBytes
+call remove_char(c200tmp,'b')
+call remove_char(c200tmp,'B')
+call remove_char(c200tmp,'k')
+call remove_char(c200tmp,'K')
+call remove_char(c200tmp,'m')
+call remove_char(c200tmp,'M')
+call remove_char(c200tmp,'g')
+call remove_char(c200tmp,'G')
+read(c200tmp,*) ompstacksize
+!ompstacksize is recorded in Bytes
+if (iunit==2) ompstacksize=ompstacksize*1024
+if (iunit==3) ompstacksize=ompstacksize*1024**2
+if (iunit==4) ompstacksize=ompstacksize*1024**3
 end subroutine
 
 

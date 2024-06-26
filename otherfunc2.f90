@@ -2687,13 +2687,15 @@ if (selectyn=='y'.or.selectyn=='Y') then
     end do
 end if
 
-
 end subroutine
 
 
 
 
-!!------  Bond order density (BOD) and natural adaptive orbitals (NAdOs) analyses
+
+!!--------------------------------------------------------------------------------------
+!!------  Bond order density (BOD) and natural adaptive orbitals (NAdOs) analyses ------
+!!--------------------------------------------------------------------------------------
 subroutine BOD
 use defvar
 use util
@@ -2720,13 +2722,23 @@ if (.not.allocated(CObasa)) then
     return
 end if
 
-!User may use basin analysis module before, which called "delvirorb" routine and some arrays were modified
-if (imodwfn==1) then
-    write(*,"(a)") " The wavefunction has been modified previously. Reloading "//trim(filename)//" to recover initial status..."
-    call dealloall(0)
-    call readinfile(filename,1)
+if (ifdelvirorb==1) call delvirorb_back(1)
+
+if (all(MOene==0)) then
+	write(*,*) "Warning: Energies of all orbitals are zero, so you need to manually input HOMO index"
+	if (wfntype==0) then
+		write(*,*) "Input index of HOMO, e.g. 300"
+		read(*,*) idxHOMO
+    else if (wfntype==1) then
+		write(*,*) "Input index of HOMO of alpha spin, e.g. 300"
+		read(*,*) idxHOMO
+		write(*,*) "Input index of HOMO of beta spin, e.g. 299"
+		read(*,*) idxHOMOb
+        idxHOMOb=idxHOMOb+nbasis
+    end if
+else
+	call getHOMOidx
 end if
-call getHOMOidx
 
 idoene=0
 
@@ -2739,6 +2751,7 @@ do while(.true.)
 	write(*,"(a)") "  1 Interatomic interaction analysis based on atomic overlap matrix (AOM)"
 	write(*,"(a)") "  2 Interbasin interaction analysis based on basin overlap matrix (BOM)"
 	write(*,"(a)") "  3 Interfragment interaction analysis based on the fragment overlap matrix (FOM) constructed from AOM"
+	write(*,"(a)") "  4 Interfragment interaction analysis based on FOM directly provided in FOM.txt"
 	read(*,*) isel
 
 	if (isel==0) then
@@ -2875,7 +2888,7 @@ else if (isel==2) then
     close(10)
     write(*,*) "BOMs of the two basins have been successfully loaded"
     
-else if (isel==3) then !Interfragment analysis
+else if (isel==3) then !Interfragment analysis, building FOM based on loaded AOMs
     write(*,*) "Input the path of the file containing AOM, e.g. C:\AOM.txt"
     write(*,*) "If press ENTER button directly, AOM.txt in current folder will be loaded"
     read(*,"(a)") c200tmp
@@ -2961,6 +2974,46 @@ else if (isel==3) then !Interfragment analysis
     end if
     close(10)
     write(*,*) "Fragment overlap matrices have been successfully constructed!"
+
+else if (isel==4) then !Interfragment analysis, directly load FOMs
+	inquire(file="FOM.txt",exist=alive)
+    if (alive==.false.) then
+		write(*,"(a)") " Cannot find FOM.txt in current folder. &
+		Please directly input path of the file containing FOM of the two fragments, e.g. D:\Nea_makri\FOM.txt"
+		do while(.true.)
+			read(*,"(a)") c200tmp
+			inquire(file=c200tmp,exist=alive)
+			if (alive) exit
+			write(*,*) "Cannot find the file, input again!"
+		end do
+    else
+		c200tmp="FOM.txt"
+    end if
+    open(10,file=c200tmp,status="old")
+    if (wfntype==0) then !Closed-shell
+		allocate(FOM1(idxHOMO,idxHOMO),FOM2(idxHOMO,idxHOMO))
+		write(*,*) "Loading FOM of fragment 1..."
+		call readmatgau(10,FOM1(:,:),1,"f14.8",6,5)
+		write(*,*) "Loading FOM of fragment 2..."
+        read(10,*)
+		call readmatgau(10,FOM2(:,:),1,"f14.8",6,5)
+    else !Open-shell
+        nborb=idxHOMOb-nbasis
+        allocate(FOM1b(nborb,nborb),FOM2b(nborb,nborb))
+		write(*,*) "Loading alpha FOM of fragment 1..."
+		call readmatgau(10,FOM1(:,:),1,"f14.8",6,5)
+		write(*,*) "Loading beta FOM of fragment 1..."
+        read(10,*)
+		call readmatgau(10,FOM1b(:,:),1,"f14.8",6,5)
+		write(*,*) "Loading alpha FOM of fragment 2..."
+        read(10,*)
+		call readmatgau(10,FOM2(:,:),1,"f14.8",6,5)
+		write(*,*) "Loading beta FOM of fragment 2..."
+        read(10,*)
+		call readmatgau(10,FOM2b(:,:),1,"f14.8",6,5)
+    end if
+    close(10)
+    write(*,*) "Loading finished"
 end if
 
 write(*,*)
@@ -2970,7 +3023,7 @@ write(*,*) "Generating natural adaptive orbitals (NAdOs)..."
 allocate(BODmat(idxHOMO,idxHOMO))
 if (isel==1) BODmat=matmul(AOM1,AOM2)+matmul(AOM2,AOM1)
 if (isel==2) BODmat=matmul(BOM1,BOM2)+matmul(BOM2,BOM1)
-if (isel==3) BODmat=matmul(FOM1,FOM2)+matmul(FOM2,FOM1)
+if (isel==3.or.isel==4) BODmat=matmul(FOM1,FOM2)+matmul(FOM2,FOM1)
 allocate(eigvecmat(idxHOMO,idxHOMO),eigvalarr(idxHOMO))
 call diagsymat(BODmat,eigvecmat,eigvalarr,istat)
 CObasa(:,1:idxHOMO)=matmul(CObasa(:,1:idxHOMO),eigvecmat)
@@ -2997,7 +3050,7 @@ if (wfntype==1) then !Deal with beta part of unrestricted wavefunction
     allocate(BODmatb(nborb,nborb))
     if (isel==1) BODmatb=matmul(AOM1b,AOM2b)+matmul(AOM2b,AOM1b)
     if (isel==2) BODmatb=matmul(BOM1b,BOM2b)+matmul(BOM2b,BOM1b)
-    if (isel==3) BODmatb=matmul(FOM1b,FOM2b)+matmul(FOM2b,FOM1b)
+    if (isel==3.or.isel==4) BODmatb=matmul(FOM1b,FOM2b)+matmul(FOM2b,FOM1b)
     deallocate(eigvecmat,eigvalarr)
     allocate(eigvecmat(nborb,nborb),eigvalarr(nborb))
     call diagsymat(BODmatb,eigvecmat,eigvalarr,istat)
