@@ -6439,7 +6439,7 @@ if (itask==7.or.itask==-7) then
     write(ifileid,"(/,a)") trim(keyword)
     if (ilevel==1006.or.ilevel==1007) call ORCA_DFT_D3_parm(ifileid)
     if (ilevel==1008.or.ilevel==1009) call ORCA_revDSD_PBEP86_D4_parm(ifileid)
-    write(ifileid,"(a,i6)") "%maxcore",maxcore
+    write(ifileid,"(a,i9)") "%maxcore",maxcore
     write(ifileid,"('* xyz',2i4)") netcharge,multi
     do i=1,ncenter
         if (atmbasname(i)==" ") then
@@ -6454,7 +6454,7 @@ if (itask==7.or.itask==-7) then
         write(ifileid,"(a)") trim(keyword)//" Pmodel" !Use Pmodel to regenerate new initial guess rather than use the previous wavefunction
         if (ilevel==1006.or.ilevel==1007) call ORCA_DFT_D3_parm(ifileid)
         if (ilevel==1008.or.ilevel==1009) call ORCA_revDSD_PBEP86_D4_parm(ifileid)
-        write(ifileid,"(a,i6)") "%maxcore",maxcore
+        write(ifileid,"(a,i9)") "%maxcore",maxcore
         write(ifileid,"('* xyz',2i4)") netcharge,multi
         do i=1,ncenter
 	        if ((itime==1.and.any(CPfrag2==i)).or.(itime==2.and.any(CPfrag1==i))) then
@@ -6479,7 +6479,7 @@ if (itask==7.or.itask==-7) then
             write(ifileid,"(a)") trim(keyword)//" Pmodel" !Use Pmodel to regenerate new initial guess rather than use the previous wavefunction
             if (ilevel==1006.or.ilevel==1007) call ORCA_DFT_D3_parm(ifileid)
             if (ilevel==1008.or.ilevel==1009) call ORCA_revDSD_PBEP86_D4_parm(ifileid)
-            write(ifileid,"(a,i6)") "%maxcore",maxcore
+            write(ifileid,"(a,i9)") "%maxcore",maxcore
             write(ifileid,"('* xyz',2i4)") netcharge,multi
             do i=1,ncenter
 	            if ((itime==1.and.any(CPfrag1==i)) .or. (itime==2.and.any(CPfrag2==i))) then
@@ -6507,7 +6507,7 @@ end if
 
 !Start to write input file for normal cases
 write(ifileid,"(a)") trim(keyword)
-write(ifileid,"(a,i6)") "%maxcore",maxcore
+write(ifileid,"(a,i9)") "%maxcore",maxcore
 write(ifileid,"('%pal nprocs',i4,' end')") nprocs
 !Write solvation model information
 if (isolv==2.and.solvname/="custom") then
@@ -7549,6 +7549,7 @@ end subroutine
 !If isortatmind==1, then any atom without GTF posited on it will not be output, and the index is filled to assure contiguous
 !Orbitals with zero occupiation will not be outputted
 !If ioutinfo==1, output information
+!ifileid: The fileid that can be temporarily in this subroutien
 subroutine outwfn(outwfnname,isortatmind,ioutinfo,ifileid)
 use defvar
 implicit real*8 (a-h,o-z)

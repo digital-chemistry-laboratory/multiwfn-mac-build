@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), update date: 2024-Jun-25"
+write(*,*) "Version 3.8(dev), update date: 2024-Jun-29"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -835,7 +835,7 @@ do while(.true.) !Main loop
                     write(*,"(' Number of inputted atoms in this fragment:',i6)") ntmp
                 end do
             else if (i==17) then
-				call generate_promolwfn
+				call generate_promolwfn(1)
             else if (i==18) then
 				call grid2cellinfo
                 write(*,*) "Done!"

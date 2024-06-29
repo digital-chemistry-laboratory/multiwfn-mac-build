@@ -565,7 +565,7 @@ else if (isel==-7) then
 			read(*,*) c80tmp
 			if (c80tmp=='y'.or.c80tmp=='Y') then
 				call ask_Sbas_PBC !Sbas is needed in transformation to orthonormal basis
-				write(*,*) "Transforming coefficient and Fock/KS matrix to Lowdin orthonormal basis..."
+				write(*,*) "Transforming coefficient and Fock/KS matrices to Lowdin orthonormal basis..."
 				call symmortho(1)
 				write(*,*) "Done!"
 			end if

@@ -1734,7 +1734,7 @@ if (ieneinfo==4.or.ieneinfo==5.or.ieneinfo==6) then
 	write(*,*) "2 Another system"
 	read(*,*) ireftype
 	if (ireftype==1) then
-		call generate_promolwfn !Generate promolecular wavefunction and store to CO_pmol, MOocc_pmol, etc.
+		call generate_promolwfn(0) !Generate promolecular wavefunction and store to CO_pmol, MOocc_pmol, etc.
 	else
 		write(*,*) "Input path of wavefunction file of another system, e.g. /sob/test.wfn"
 		do while(.true.)

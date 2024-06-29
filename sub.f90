@@ -1989,9 +1989,12 @@ end subroutine
 !  Mainly used to calculate information gain at a batch of points, which needs evaluation of promolecular density frequently
 !  The density corresponding to this promolecular wavefunction is exactly identical to superposition of densities of all atomic .wfn files
 !  Since spin density is not interest in this context, spin flip is not taken into account
-subroutine generate_promolwfn
+!  itask=0: Only generate promolecular wavefunction information in memory (*_pmol); =1 Also export the promolecular wavefunction to a .wfn file
+subroutine generate_promolwfn(itask)
 use defvar
 implicit real*8 (a-h,o-z)
+integer itask
+character selectyn
 
 !Generate atomic .wfn files
 call setPromol
@@ -2034,19 +2037,28 @@ if (iGTF-1/=nprims_org) then
     stop
 end if
 
-write(*,*) "Done! Promolecular wavefunction has been successfully generated!"
-write(*,"(a)") " Reloading "//trim(firstfilename)
+write(*,"(/,a)") " Done! Promolecular wavefunction information has been successfully generated in memory!"
+
+write(*,"(/,a)") " Reloading "//trim(firstfilename)
 call dealloall(1)
 call readinfile(firstfilename,1)
 
-!Test if rho can be correctly calculated
-!deallocate(MOocc,MOtype,MOene,CO)
-!allocate(MOocc(nmo_pmol),MOene(nmo_pmol),MOtype(nmo_pmol),CO(nmo_pmol,nprims))
-!nmo=nmo_pmol
-!MOocc=MOocc_pmol
-!MOene=MOene_pmol
-!MOtype=MOtype_pmol
-!CO=CO_pmol
+if (itask==1) then
+	write(*,"(/,a)") " Do you want to make wavefunction information in memory correspond to promolecular wavefunction? (y/n)"
+    read(*,*) selectyn
+    if (selectyn=='y'.or.selectyn=='Y') then
+		deallocate(MOocc,MOtype,MOene,CO)
+		allocate(MOocc(nmo_pmol),MOene(nmo_pmol),MOtype(nmo_pmol),CO(nmo_pmol,nprims))
+		nmo=nmo_pmol
+		MOocc=MOocc_pmol
+		MOene=MOene_pmol
+		MOtype=MOtype_pmol
+		CO=CO_pmol
+		!call outwfn("promol.wfn",1,1,10) !Note that the unoccupied MOs are automatically skipped
+		!write(*,*) "Promolecular wavefunction has been outputted to promol.wfn in current folder"
+        write(*,*) "Done! The analysis you performed later will correspond to promolecular case. You can also use option 0 in main function 6 to export the promolecular wavefunction as a .wfn file"
+    end if
+end if
 end subroutine
 
 
