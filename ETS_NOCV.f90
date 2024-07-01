@@ -370,7 +370,7 @@ do while(.true.)
         drawisosurgui_lowlim=drawisosurgui_lowlim_old
         drawisosurgui_highlim=drawisosurgui_highlim_old
         write(*,"(/,a)") " Note that current orbitals in memory correspond to NOCV eigenvectors, &
-        and occupation numbers correspond to NOCV eigenvalues"
+        &and occupation numbers correspond to NOCV eigenvalues"
         exit
     
     else if (isel==-6) then !Manually define correspondence between NOCV pairs and orbitals
@@ -901,7 +901,7 @@ jorb=pairidx2(ipair)
 call gen_allorbbascomp_SCPA(bascomp)
 
 write(ides,"(a,f8.3,a)") " Note: Only the basis functions and shells having absolute composition in the NOCV pair or corresponding NOCV orbitals &
-larger than",compthres," % are printed below. The threshold can be changed via ""compthres"" parameter in settings.ini"
+&larger than",compthres," % are printed below. The threshold can be changed via ""compthres"" parameter in settings.ini"
 
 write(ides,"(/,' Contribution of each basis function to NOCV pair/orbitals:')")
 write(ides,"('  Basis    Type    Atom    Shell    Orb.',i5,'   Orb.',i5,'   Pair',i5)") iorb,jorb,ipair

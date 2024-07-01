@@ -457,7 +457,7 @@ do while(.true.)
 		rhigh=rhigh/b2a
 	else if (isel==4) then
 		write(*,"(a)") " Input the number of integration point in each shell, the value must be one of &
-		110/170/230/266/302/434/590/770/974/1454/1730/2030/2354/2702/3074/3470/3890/4334/4802/5294/5810"
+		&110/170/230/266/302/434/590/770/974/1454/1730/2030/2354/2702/3074/3470/3890/4334/4802/5294/5810"
 		read(*,*) nsphpt
 	else if (isel==5) then
 		write(*,*) "Input the number of radial points, e.g. 800"
@@ -715,7 +715,7 @@ if ((wfntype==0.or.wfntype==2).and.(iwfntype2==0.or.iwfntype2==2)) then !Both of
 end if
 write(*,"(' The maximum deviation to normalization condition is',f8.3,' % (Orbital',i6,')')") devmax,idevmax
 write(*,"(a)") " Note: The first column below is the index of the orbitals in present wavefunction, the largest five contributions from &
-the orbitals in the second wavefunction are shown at right side. If the dominative index is inconsistent to the first column, the row will be marked by asterisk"
+&the orbitals in the second wavefunction are shown at right side. If the dominative index is inconsistent to the first column, the row will be marked by asterisk"
 write(*,*)
 allocate(comparr(nmo2),comparridx(nmo2))
 do imo=istart1,iend1
@@ -766,7 +766,7 @@ do while(.true.)
 		end do
 		close(10)
 		write(*,"(a,/)") " The overlap integrals have been outputted to convmat.txt in current folder, &
-        the first and second columns correspond to the orbital indices in present and in the second wavefunctions, respectively"
+        &the first and second columns correspond to the orbital indices in present and in the second wavefunctions, respectively"
 	else if (imo==-2) then
 		open(10,file="Snormmat.txt",status="replace")
 		do i=istart1,iend1
@@ -776,7 +776,7 @@ do while(.true.)
 		end do
 		close(10)
 		write(*,"(a,/)") " The overlap integrals of wavefunction norms have been outputted to Snormmat.txt in current folder, &
-        the first and second columns correspond to the orbital indices in present and in the second wavefunctions, respectively"
+        &the first and second columns correspond to the orbital indices in present and in the second wavefunctions, respectively"
 	else if (imo==-3) then
 		open(10,file="Snorm2mat.txt",status="replace")
 		do i=istart1,iend1
@@ -786,7 +786,7 @@ do while(.true.)
 		end do
 		close(10)
 		write(*,"(a,/)") " The overlap integrals of square of wavefunctions have been outputted to Snorm2mat.txt in current folder, &
-        the first and second columns correspond to the orbital indices in present and in the second wavefunctions, respectively"
+        &the first and second columns correspond to the orbital indices in present and in the second wavefunctions, respectively"
 	else if (imo<istart1.or.imo>iend1) then
 		write(*,"(a,i6,a,i6)") "Error: Exceeded valid range! The value should within",istart1," and",iend1
 	else
@@ -1027,7 +1027,7 @@ else
 	write(*,*) "The integrals have been outputted to orbint.txt in current folder"
 	if (itype==1.or.itype==2.or.itype==3) then
 		write(*,"(a)") " The first and the second columns correspond to orbital indices, &
-		the next three columns correspond to the integral in X/Y/Z (a.u.), the final column is the norm"
+		&the next three columns correspond to the integral in X/Y/Z (a.u.), the final column is the norm"
 	else
 		write(*,"(a)") " The first and the second columns correspond to orbital indices. The last column corresponds to the integral value (a.u.)"
 	end if
@@ -1622,9 +1622,9 @@ do while(.true.)
 		qbind=-(qatt-qrep)
 		volneg=volneg*dvol
 		volpos=volpos*dvol
-		write(*,"(' q_att: 'f16.8,' a.u.')") qatt
-		write(*,"(' q_rep: 'f16.8,' a.u.')") qrep
-		write(*,"(' q_bind:'f16.8,' a.u.')") qbind
+		write(*,"(' q_att: ',f16.8,' a.u.')") qatt
+		write(*,"(' q_rep: ',f16.8,' a.u.')") qrep
+		write(*,"(' q_bind:',f16.8,' a.u.')") qbind
 		write(*,"(' Volume (lambda2<0):',f13.6,' Bohr^3  ',f13.6,' Angstrom^3')") volneg
 		write(*,"(' Volume (lambda2>0):',f13.6,' Bohr^3  ',f13.6,' Angstrom^3')") volpos
 		write(*,"(' Volume (Total):    ',f13.6,' Bohr^3  ',f13.6,' Angstrom^3')") volneg+volpos
@@ -1664,7 +1664,7 @@ do while(.true.)
 		end do
 		close(10)
 		write(*,"(a)") " Done! domain.cub has been outputted to current folder. &
-		The grids belonging and not belonging the domain have value of 1 and 0, respectively"
+		&The grids belonging and not belonging the domain have value of 1 and 0, respectively"
         
 	else if (isel2==11) then !Export boundary grids of a domain to domain.pdb file in current folder
 		write(*,*) "Input index of the domain, e.g. 4"
@@ -1815,7 +1815,7 @@ call gennatorb(iNOtype,1)
 write(*,*) "Done! Basis function information now correspond to natural orbitals"
 
 write(*,"(/,a)") " If next you intend to analyze real space functions based on the NOs, you should export new.mwfn &
-in current folder and then reload it, so that GTF information will also correspond to NOs"
+&in current folder and then reload it, so that GTF information will also correspond to NOs"
 write(*,*) "Would you like to do this immediately? (y/n)"
 read(*,*) selectyn
 if (selectyn=='y') then
@@ -2977,9 +2977,9 @@ else if (isel==3) then !Interfragment analysis, building FOM based on loaded AOM
 
 else if (isel==4) then !Interfragment analysis, directly load FOMs
 	inquire(file="FOM.txt",exist=alive)
-    if (alive==.false.) then
+    if (alive.eqv..false.) then
 		write(*,"(a)") " Cannot find FOM.txt in current folder. &
-		Please directly input path of the file containing FOM of the two fragments, e.g. D:\Nea_makri\FOM.txt"
+		&Please directly input path of the file containing FOM of the two fragments, e.g. D:\Nea_makri\FOM.txt"
 		do while(.true.)
 			read(*,"(a)") c200tmp
 			inquire(file=c200tmp,exist=alive)
@@ -3090,7 +3090,7 @@ end if
 call outmwfn("NAdOs.mwfn",10,0)
 write(*,"(/,a)") " All NAdO orbitals has been exported to NAdOs.mwfn in current folder"
 write(*,"(a)") " In this file, original occupied orbitals have been replaced with NAdOs, occupation numbers correspond to eigenvalues, &
-while the unoccupied orbitals are still the original ones"
+&while the unoccupied orbitals are still the original ones"
 write(*,*)
 write(*,*) "Do you want to load it now so that you can then study NAdOs? (y/n)"
 read(*,*) selectyn

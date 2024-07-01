@@ -225,7 +225,7 @@ allocate(parmA(ncenter),parmB(ncenter))
 							iatm=iatm+1
 							if (iatm>ncenter) then
 								write(*,"(a)") " Error: The index of the atom to be loaded exceeded actual number of atoms in the whole system! &
-								Please carefully check your molecular list and molecule type file"
+								&Please carefully check your molecular list and molecule type file"
 								write(*,*) "Press ENTER button to cancel loading"
 								read(*,*)
 								goto 10
@@ -252,7 +252,7 @@ allocate(parmA(ncenter),parmB(ncenter))
 			end if
 		end do
 		write(*,*) "Loading finished!"
-		if (iatm/=ncenter) write(*,"(' Warning: Only',i5,' atomic charges have been loaded, however there are'i5' atoms in current system!')") iatm,ncenter
+		if (iatm/=ncenter) write(*,"(' Warning: Only',i5,' atomic charges have been loaded, however there are',i5,' atoms in current system!')") iatm,ncenter
 		
 	else if (isel==4) then !Show current atomic charges and types
 		if (allocated(frag)) then
@@ -401,8 +401,8 @@ if (ioutatmpqr==1) then
 	write(10,"('END')")
 	write(*,*)
 	write(*,"(a)") " atmint_tot.pqr, atmint_ele.pqr, atmint_rep.pqr, atmint_disp.pqr, atmint_vdW.pqr have been exported to current folder. &
-	Their atomic charge fields record atom contribution to total/electrostatic/repulsive/dispersion/vdW interaction energy between all fragments, &
-	respectively. the radius column corresponds to Bondi vdW radii"
+	&Their atomic charge fields record atom contribution to total/electrostatic/repulsive/dispersion/vdW interaction energy between all fragments, &
+	&respectively. the radius column corresponds to Bondi vdW radii"
 	close(10)
 end if
 
@@ -693,8 +693,8 @@ write(*,"(/,a,f16.6,' Hartree')") " E_total:        ",E_tot
 diff=totenergy-E_tot
 if (abs(diff)>1D-4) then
 	write(*,"(/,a,f14.6,a)") " Warning: The total energy shown above is detectably different to the total energy (",totenergy," a.u.) in fch/fchk file! &
-	This issue is known in some versions of Gaussian for certain DFT functionals, the reason is that the &
-	correlation energy printed by Link 608 is inaccurate. You are suggested to either try to use other Gaussian version (G09 D.01 seems always gives correct result), or try to use other functionals"
+	&This issue is known in some versions of Gaussian for certain DFT functionals, the reason is that the &
+	&correlation energy printed by Link 608 is inaccurate. You are suggested to either try to use other Gaussian version (G09 D.01 seems always gives correct result), or try to use other functionals"
 	write(*,*) "Press ENTER button to continue"
 	read(*,*)
 end if
@@ -745,7 +745,7 @@ do while(.true.)
         end do
         write(*,*)
         write(*,*) "If outputting atomdisp.pqr, in which the ""charge"" property corresponds to &
-        atomic contribution to dispersion interaction energy in kcal/mol? (y/n)"
+        &atomic contribution to dispersion interaction energy in kcal/mol? (y/n)"
         read(*,*) selectyn
         if (selectyn=='y') then
             tmparr(:)=a(:)%charge
@@ -845,7 +845,7 @@ do while(.true.)
         if (isel==3) then
             write(*,*)
             write(*,*) "If outputting diffatomdisp.pqr, in which the ""charge"" property corresponds to &
-            atomic contribution to dispersion interaction energy in kcal/mol? (y/n)"
+            &atomic contribution to dispersion interaction energy in kcal/mol? (y/n)"
             read(*,*) selectyn
             if (selectyn=='y') then
                 tmparr(:)=a(:)%charge
@@ -956,7 +956,7 @@ character c200tmp*200
 inquire(file=dftd3path,exist=alive)
 if (.not.alive) then
     write(*,"(a)") " Path of executable file of dftd3 code was not properly defined by ""dftd3path"" in settings.ini, &
-    now please input its actual path, e.g. D:\study\dftd3_bin\dftd3.exe"
+    &now please input its actual path, e.g. D:\study\dftd3_bin\dftd3.exe"
     do while(.true.)
         read(*,"(a)") dftd3path
 	    inquire(file=dftd3path,exist=alive)
@@ -968,8 +968,8 @@ end if
 if (DFTname==" ") then
     write(*,*) "Input exchange-correlation functional name, available names:"
     write(*,"(a)") " b-p, b-lyp, revpbe, rpbe, b97-d, pbe, rpw86-pbe, b3-lyp, tpss, hf, tpss0, pbe0, hse06, revpbe38, pw6b95, &
-    b2-plyp, dsd-blyp, dsd-blyp-fc, bop, mpwlyp, o-lyp, pbesol, bpbe, opbe, ssb, revssb, otpss, b3pw91, bh-lyp, revpbe0, &
-    tpssh, mpw1b95, pwb6k, b1b95, bmk, cam-b3lyp, lc-wpbe, b2gp-plyp, ptpss, pwpb95"
+    &b2-plyp, dsd-blyp, dsd-blyp-fc, bop, mpwlyp, o-lyp, pbesol, bpbe, opbe, ssb, revssb, otpss, b3pw91, bh-lyp, revpbe0, &
+    &tpssh, mpw1b95, pwb6k, b1b95, bmk, cam-b3lyp, lc-wpbe, b2gp-plyp, ptpss, pwpb95"
     read(*,"(a)") DFTname
 end if
 

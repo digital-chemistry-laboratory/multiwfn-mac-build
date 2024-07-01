@@ -61,7 +61,7 @@ else if (index(thisfilename,".molden")/=0.or.index(thisfilename,".molden.input")
 else if (thisfilename(inamelen-2:inamelen)=="chk") then
 	if (formchkpath==" ") then
 		write(*,"(a)") " Error: .chk file is not directly supported. You should use formchk to convert it to fch/fchk before loading. &
-		Alternatively, you can set ""formchkpath"" parameter in settings.ini to actual path, so that Multiwfn can directly open .chk file"
+		&Alternatively, you can set ""formchkpath"" parameter in settings.ini to actual path, so that Multiwfn can directly open .chk file"
 		write(*,*) "Press ENTER button to exit"
 		read(*,*)
 		stop
@@ -69,7 +69,7 @@ else if (thisfilename(inamelen-2:inamelen)=="chk") then
 	inquire(file=formchkpath,exist=alive)
 	if (.not.alive) then
 		write(*,"(a)") " Note: Albeit ""formchkpath"" parameter in settings.ini has been defined, &
-		the formchk executable file cannot be located, therefore the .chk file cannot be directly opened by Multiwfn"
+		&the formchk executable file cannot be located, therefore the .chk file cannot be directly opened by Multiwfn"
 		write(*,*) "Press ENTER button to exit"
 		read(*,*)
 		stop
@@ -100,7 +100,7 @@ else if (thisfilename(inamelen-2:inamelen)=="chk") then
 else if (thisfilename(inamelen-2:inamelen)=="gbw") then
 	if (orca_2mklpath==" ") then
 		write(*,"(a)") " Error: .gbw file is not directly supported. You should use orca_2mkl to convert it to .molden before loading. &
-		Alternatively, you can set ""orca_2mklpath"" parameter in settings.ini to actual path, so that Multiwfn can directly open .gbw file"
+		&Alternatively, you can set ""orca_2mklpath"" parameter in settings.ini to actual path, so that Multiwfn can directly open .gbw file"
 		write(*,*) "Press ENTER button to exit"
 		read(*,*)
 		stop
@@ -108,7 +108,7 @@ else if (thisfilename(inamelen-2:inamelen)=="gbw") then
 	inquire(file=orca_2mklpath,exist=alive)
 	if (.not.alive) then
 		write(*,"(a)") " Note: Albeit ""orca_2mklpath"" parameter in settings.ini has been defined, &
-		the orca_2mkl executable file cannot be located, therefore the .gbw file cannot be directly opened by Multiwfn"
+		&the orca_2mkl executable file cannot be located, therefore the .gbw file cannot be directly opened by Multiwfn"
 		write(*,*) "Press ENTER button to exit"
 		read(*,*)
 		stop
@@ -494,8 +494,8 @@ if (any(tmparrint==0).and.infomode==0) then
 	write(*,*)
 	write(*,*) "Ghost atoms (Bq) are found in this file. Do you want to load them? (y/n)"
 	write(*,"(a)") " Note: If all Bq atoms have corresponding basis functions, then they can be safely loaded. &
-	However, if some of them do not have basis functions, in general they should not be loaded, otherwise problems or crashes may occur &
-	when performing analyses based on wavefunction"
+	&However, if some of them do not have basis functions, in general they should not be loaded, otherwise problems or crashes may occur &
+	&when performing analyses based on wavefunction"
 	read(*,"(a)") selectyn
 	if (selectyn=='n'.or.selectyn=='N') ncenter=count(tmparrint/=0)
 end if
@@ -574,9 +574,9 @@ if (wfntype==0.or.wfntype==2.or.wfntype==3) then !Restricted/restricted open-she
 	if (wfntype==0.or.wfntype==3) then
 		MOocc(1:nint(nelec/2))=2D0
 	else if (wfntype==2) then
-		MOocc(1:nbelec)=2D0  !Alpha electrons is always more than beta counterpart
-		MOocc(nbelec+1:naelec)=1D0
-		MOtype(nbelec+1:naelec)=1
+		MOocc(1:nint(nbelec))=2D0  !Alpha electrons is always more than beta counterpart
+		MOocc(nint(nbelec+1):nint(naelec))=1D0
+		MOtype(nint(nbelec+1):nint(naelec))=1
 	end if
 	call loclabel(10,'Alpha Orbital Energies',ifound) 
 	if (ifound==0) call loclabel(10,'orbital energies',ifound) !PSI4 since 1.2 uses "orbital energies" for closed-shell cases
@@ -602,8 +602,8 @@ else if (wfntype==1.or.wfntype==4) then !Unrestricted single-determinant or mult
 	allocate(amocoeff(nbasis,nbasis))
 	allocate(bmocoeff(nbasis,nbasis))
 	MOocc=0D0
-	MOocc(1:naelec)=1D0
-	MOocc(nbasis+1:nbasis+nbelec)=1D0
+	MOocc(1:nint(naelec))=1D0
+	MOocc(nbasis+1:nbasis+nint(nbelec))=1D0
 	MOtype(1:nbasis)=1
 	MOtype(nbasis+1:nmo)=2
 	MOene=0D0
@@ -2674,7 +2674,7 @@ if (any(bastype31==251).or.any(bastype31==351).or.any(bastype31==451)) isphergau
 !in the NBO manual, however there is no way to find out that for g-type. So if g-type is involved, Cartesian type must be used.
 if (any(bastype31==451)) then
 	write(*,"(a)") " Error: Multiwfn does not support spherical harmonic Gaussian functions with g or higher angular moment in NBO plot files. &
-	If you used Gaussian to generate them, you should add ""6d 10f"" keywords and regenerate these files"
+	&If you used Gaussian to generate them, you should add ""6d 10f"" keywords and regenerate these files"
 	write(*,*) "Press ENTER button to exit"
 	read(*,*)
 	stop
@@ -2727,7 +2727,7 @@ if (chartemp(1:11)==" ALPHA SPIN".or.chartemp(1:11)==" alpha spin") then
 	if (name2(itmplen-1:itmplen)=="37".or.name2(itmplen-1:itmplen)=="39") then !Need to load occupation
 		if (nload/=nbasis) then
 			write(*,"(/,a)") " Warning: The number of orbitals is smaller than basis functions! This is often because diffuse functions are used. &
-			Please now input the actual number of NAOs (you can easily find it from output of NBO program), e.g. 374"
+			&Please now input the actual number of NAOs (you can easily find it from output of NBO program), e.g. 374"
             write(*,"(' If you really do not know how to input, try to input',i6)") nload
 			read(*,*) nNAOs
 			call loclabel(10,chartemp(1:11))
@@ -2779,7 +2779,7 @@ else !Close shell system
 	if (name2(itmplen-1:itmplen)=="37".or.name2(itmplen-1:itmplen)=="39") then
 		if (nload/=nbasis) then
 			write(*,"(/,a)") " Warning: The number of orbitals is smaller than basis functions! This is often because diffuse functions are used. &
-			Please now input the actual number of NAOs (you can easily find it from output of NBO program), e.g. 374"
+			&Please now input the actual number of NAOs (you can easily find it from output of NBO program), e.g. 374"
             write(*,"(' If you really do not know how to input, try to input',i6)") nload
 			read(*,*) nNAOs
             rewind(10)
@@ -3279,7 +3279,7 @@ read(10,*) nx,ny,nz !Here nx,ny,nz are total spaces (between neighbour grid poin
 read(10,*) ifast,ixback,ixforw,iyback,iyforw,izback,izforw
 if (ifast/=1) then !ifast=1 means x varies fastest
 	write(*,*) "Error: The first integer in the fifth line must be 1!"
-    write(*,*) "Press ENTER button to exit"
+	write(*,*) "Press ENTER button to exit"
 	read(*,*)
 	stop
 end if
@@ -3482,7 +3482,7 @@ if (ibasmode==2) then
 end if
 if (infomode==0.and.index(wfntitle,"Run Type")/=0) then
 	write(*,"(a)") " Warning: It seems that this .wfn file was generated by ORCA. Notice that the .wfn file generated by ORCA is often non-standard, &
-	and usually makes Multiwfn crash. Using .molden file as input file instead is recommended"
+	&and usually makes Multiwfn crash. Using .molden file as input file instead is recommended"
 end if
 
 allocate(a(ncenter))
@@ -4237,9 +4237,9 @@ do while(.true.)
 	end if
 end do
 if (iorca==1.and.infomode==0) write(*,"(a)") " This file is recognized to be generated by ORCA because there is ""orca"" word in title line. &
-Special treatments are applied..."
+&Special treatments are applied..."
 if (icfour==1.and.infomode==0) write(*,"(a)") " This file is recognized to be generated by CFour because there is ""cfour"" word in title line. &
-Special treatments are applied..."
+&Special treatments are applied..."
 if (iorca==0.and.icfour==0) then !Test if it may be generated by xtb using the first three lines
 	rewind(10)
 	read(10,"(a)") c80
@@ -5253,13 +5253,13 @@ if (ibeta==0) then
 ! 		wfntype=3 !R-post-HF
 	else if (naelec/=nbelec) then
 		wfntype=2 !ROHF
-		MOocc(1:nbelec)=2D0
-		MOocc(nbelec+1:naelec)=1D0
+		MOocc(1:nint(nbelec))=2D0
+		MOocc(nint(nbelec+1):nint(naelec))=1D0
 		MOtype=0 !Close shell orbital
-		MOtype(nbelec+1:naelec)=1
+		MOtype(nint(nbelec+1):nint(naelec))=1
 	else !RHF
 		wfntype=0
-		MOocc(1:naelec)=2D0
+		MOocc(1:nint(naelec))=2D0
 		MOtype=0 !Close shell orbital		
 	end if
 else if (ibeta==1) then
@@ -5267,8 +5267,8 @@ else if (ibeta==1) then
 ! 	if (any(MOocc/=nint(MOocc))) wfntype=4 !U-post-HF
 	MOtype(1:nbasis)=1
 	MOtype(nbasis+1:nmo)=2
-	MOocc(1:naelec)=1D0
-	MOocc(nbasis+1:nbasis+nbelec)=1D0
+	MOocc(1:nint(naelec))=1D0
+	MOocc(nbasis+1:nbasis+nint(nbelec))=1D0
 end if
 
 close(10)
@@ -5952,7 +5952,7 @@ end if
 close(ifileid)
 write(*,"(a)") " Exporting Gaussian input file finished! It corresponds to single point task at B3LYP/6-31G* level"
 if (selectyn=='y') write(*,"(a)") " Note that you must specify the basis set to the one &
-originally used to yield the wavefunction, otherwise Gaussian calculation must be failed"
+&originally used to yield the wavefunction, otherwise Gaussian calculation must be failed"
 end subroutine
 
 
@@ -6724,7 +6724,7 @@ character multistr*80,chargestr*10,c80tmp*80,c2000tmp*2000,keyword*80
 integer :: itask=2,isolv=0,ifopt(ncenter),frozenatm(ncenter),iMOZYME=0
 real*8 :: eps
 write(*,"(a)") " Note: You can select an option with positive index to generate input file with corresponding level, &
-other options can be used to change various calculation setting"
+&other options can be used to change various calculation setting"
 
 ifopt(:)=1
 do while(.true.)
@@ -7341,7 +7341,7 @@ close(ifileid)
 
 write(*,"(a)") " Quantum ESPRESSO input file has been exported to "//trim(outname)//", you need to manually set proper pseudopotential file"
 if (ifPBC==0) write(*,"(a)") " Warning: Since the file loaded when Multiwfn booted up does not contain cell information, &
-all cell vectors in the created input file are set to be 0!"
+&all cell vectors in the created input file are set to be 0!"
 end subroutine
 
 
@@ -8126,7 +8126,7 @@ if (infomode==1) then
 		write(*,"(a)") " Exporting .fch file finished! The ""Total SCF Density"" field in this file corresponds to density matrix at current level"
 	else
 		write(*,"(a)") " Exporting .fch file finished! The ""Total SCF Density"" and ""Spin SCF Density"" fields in this file correspond &
-		to total density matrix and difference between alpha and beta density matrices at current level, respectively"
+		&to total density matrix and difference between alpha and beta density matrices at current level, respectively"
 	end if
 end if
 end subroutine
@@ -8716,8 +8716,8 @@ if (any(a%index==0).and.infomode==0) then
 	write(*,*)
 	write(*,*) "One or more dummy atoms (X) are found. Do you want to load them? (y/n)"
 	write(*,"(a)") " Note: If all of them have corresponding basis functions, then they can be safely loaded. &
-	However, if some of them do not have basis functions, in general they should not be loaded, otherwise &
-    problems or crashes may occur when performing analyses based on wavefunction"
+	&However, if some of them do not have basis functions, in general they should not be loaded, otherwise &
+	&problems or crashes may occur when performing analyses based on wavefunction"
 	read(*,*) selectyn
 	if (selectyn=='n'.or.selectyn=='N') then
         do itime=1,ncenter

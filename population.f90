@@ -23,7 +23,7 @@ character :: MPApath*200=" "
 
 write(*,*) "There is a nice reference comprehensively introducing atomic charges:"
 write(*,*) "Tian Lu, Qinxue Chen, Partial Charges, In Exploring Chemical Concepts Through Theory and Computation. &
-WILEY-VCH GmbH: Weinheim (2024); pp. 161-187. DOI: 10.1002/9783527843435.ch6"
+&WILEY-VCH GmbH: Weinheim (2024); pp. 161-187. DOI: 10.1002/9783527843435.ch6"
 if (ifragcontri==1) then
 	write(*,*) "Population analysis function could not be used combining with self-defined fragment"
 else
@@ -198,7 +198,7 @@ else
 			call fitESP(1)
 		else if (ipopsel==14) then !QTAIM
 			write(*,"(a)") " NOTE: AIM charges cannot be calculated in present module but can be calculated in basin analysis module, &
-			please check the example given in Section 4.17.1 of the manual on how to do this"
+			&please check the example given in Section 4.17.1 of the manual on how to do this"
             write(*,*) "Press ENTER button to continue"
             read(*,*)
 		else if (ipopsel==15) then !Hirshfeld-I
@@ -810,7 +810,7 @@ character radfilename*200
 
 if (.not.allocated(b)) then
     write(*,"(a)") " Error: Your input file does not contain wavefunction information which is needed by this function! &
-    Please carefully check Section 2.5 of Multiwfn manual to understand which kind of input files can be used. You should use e.g. .wfn/.mwfn/.molden/.fch..."
+    &Please carefully check Section 2.5 of Multiwfn manual to understand which kind of input files can be used. You should use e.g. .wfn/.mwfn/.molden/.fch..."
     write(*,*) "Press ENTER button to return"
     read(*,*)
     return
@@ -1226,7 +1226,7 @@ if (imode==1) then !Calculate density from periodic wavefunction
 else !Directly using loaded electron density from cub/VASP grid data, and transforming grid data information to cell information
 	if (all(a%charge==0)) then
 		write(*,*) "Error: All nuclear charges are zero! If this file was exported by CP2K, it is a bug. You need to manually &
-        edit the file so that effective nuclear charges (column 2 since line 8) are correctly recorded, otherwise atomic charges cannot be calculated"
+        &edit the file so that effective nuclear charges (column 2 since line 8) are correctly recorded, otherwise atomic charges cannot be calculated"
         write(*,*) "Press ENTER button to return"
         read(*,*)
         return
@@ -1380,7 +1380,7 @@ write(*,*)
 chargecorr=charge
 
 do i=1,ncenter
-	if (ishowchgtrans==1) write(*,"(' Atom: 'i4,a)") i,a(i)%name !ishowchgtrans==1 means output detail of charge transferation process during atomic dipole moment correction
+	if (ishowchgtrans==1) write(*,"(' Atom: ',i4,a)") i,a(i)%name !ishowchgtrans==1 means output detail of charge transferation process during atomic dipole moment correction
 	!Initialize variables
 	totq=0D0
 	tottmpdipx=0D0
@@ -1725,8 +1725,8 @@ integer neqvlist_H,eqvlistlen_H(ncenter),eqvlist_H(10,ncenter) !Constraint hydro
 
 if (.not.allocated(b).and.ifiletype/=4) then
     write(*,"(a)") " Error: Your input file does not contain wavefunction information at all, &
-evidently the RESP charges cannot be calculated! You should use &
-e.g. .wfn/wfx/mwfn/fch/molden... as input file, see Section 2.5 of Multiwfn manual"
+	&evidently the RESP charges cannot be calculated! You should use &
+	&e.g. .wfn/wfx/mwfn/fch/molden... as input file, see Section 2.5 of Multiwfn manual"
     write(*,*) "Press ENTER button to return"
     read(*,*)
     return
@@ -1767,9 +1767,9 @@ do while(.true.) !Interface loop
 	if (ideterbond==1) write(*,*) "7 Set the way of determining connectivity, current: Guess from bond length"
 	if (ideterbond==2) write(*,*) "7 Set the way of determining connectivity, current: Load from .mol"
 	if (iloadgau==0) write(*,"(a)") " 8 Toggle if loading fitting points and ESP values &
-    from Gaussian output file of pop=MK/CHELPG task with IOp(6/33=2) during the calculation, current: No"
+    &from Gaussian output file of pop=MK/CHELPG task with IOp(6/33=2) during the calculation, current: No"
 	if (iloadgau==1) write(*,"(a)") " 8 Toggle if loading fitting points and ESP values &
-    from Gaussian output file of pop=MK/CHELPG task with IOp(6/33=2) during the calculation, current: Yes"
+    &from Gaussian output file of pop=MK/CHELPG task with IOp(6/33=2) during the calculation, current: Yes"
     if (naddcen==0) then
         write(*,*) "9 Load additional fitting centers, current: None"
     else
@@ -1912,7 +1912,7 @@ do while(.true.) !Interface loop
 	else if (isel==5) then
         write(*,*)
         write(*,"(a)") " Please select options 1~3. You can also use options 10 or 11 to generate file containing &
-        equivalence constraint, which can then be utilized by option 1"
+        &equivalence constraint, which can then be utilized by option 1"
         write(*,"(a)") " Note: For standard two-stage RESP fitting, options 0 and 1 only take effect for the first stage"
         do while(.true.)
             write(*,*)
@@ -2135,7 +2135,7 @@ if (iloadgau==0) then
 else
 	if (nconf==1) then
 		write(*,"(a)") " Input path of the output file of Gaussian pop=MK/CHELPG task with IOp(6/33=2), e.g. C:\tsushima_yoshiko.out. &
-		Note that the geometry used in the Gaussian calculation must be exactly identical to current geometry"
+		&Note that the geometry used in the Gaussian calculation must be exactly identical to current geometry"
 		do while(.true.)
 			read(*,"(a)") gauoutfilepath
 			inquire(file=gauoutfilepath,exist=alive)
@@ -2384,7 +2384,7 @@ if (isel==1) then
 			end do
 			close(10)
 			write(*,"(/,a)") " The charges that kept fixed at stage 2 of RESP fitting &
-			has been written to chgcons_stage2.txt in current folder"
+			&has been written to chgcons_stage2.txt in current folder"
 		end if
 		
 		write(*,*)
@@ -2661,7 +2661,7 @@ integer atmlist(ncenter),atmindex(ncenter),classnatm(ncenter),classidx(ncenter,n
 toler=0.03D0 !loose
 open(10,file="eqvcons_PG.txt",status="replace")
 write(*,"(a)") " Note: You can change the tolerance for detecting point group to e.g. 0.02 by inputting ""t 0.02"". The default tolerance is 0.03. &
-If Multiwfn shows ""ERROR: Too many symmetry operations"", you should set the tolerance to a smaller value and retry"
+&If Multiwfn shows ""ERROR: Too many symmetry operations"", you should set the tolerance to a smaller value and retry"
 do while(.true.)
     write(*,*)
     write(*,*) "Input indices of the atoms in the fragment, e.g. 3,6-10,12,14"
@@ -2764,8 +2764,8 @@ real*8,allocatable :: ESPerr(:)
 
 if (.not.allocated(b).and.ifiletype/=4) then
     write(*,"(a)") " Error: Your input file does not contain wavefunction information at all, &
-    evidently the electrostatic potential fitted charges cannot be calculated! You should use &
-    e.g. .wfn/wfx/mwfn/fch/molden... as input file, see Section 2.5 of Multiwfn manual"
+    &evidently the electrostatic potential fitted charges cannot be calculated! You should use &
+    &e.g. .wfn/wfx/mwfn/fch/molden... as input file, see Section 2.5 of Multiwfn manual"
     write(*,*) "Press ENTER button to return"
     read(*,*)
     return
@@ -2940,7 +2940,7 @@ forall(i=1:ncenter) CHELPGatmlist(i)=i
 		else if (iloadgau==0) then
 			iloadgau=1
 			write(*,"(a)") " Input file path of the Gaussian pop=MK/CHELPG task with IOp(6/33=2) keyword, e.g. C:\tsushima_yoshiko.out. &
-			Note that the geometry used in the Gaussian calculation must be exactly identical to current geometry"
+			&Note that the geometry used in the Gaussian calculation must be exactly identical to current geometry"
 			do while(.true.)
 				read(*,"(a)") gauoutfilepath
 				inquire(file=gauoutfilepath,exist=alive)
@@ -3144,26 +3144,26 @@ if (ioutfitptval==1) then
 			end do
 			write(*,*) "Done! Fitting points have been exported to ESPfitpt.txt in current folder"
 			write(*,"(a)") " All units are in a.u. The first line shows the number of fitting points, &
-			the first three columns are X,Y,Z coordinates, the last column corresponds to ESP value"
+			&the first three columns are X,Y,Z coordinates, the last column corresponds to ESP value"
 			close(10)
 		else if (ides==2) then
 			open(10,file="ESPfitpt.pqr",status="replace")
 			do ipt=1,nESPpt
 				write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,f13.8,f9.3,a2)") &
-					"HETATM",ipt,' '//"O "//' ',"MOL",'A',1,ESPpt(:,ipt)*b2a,ESPptval(ipt)*au2kcal,0.1D0,"O "
+				"HETATM",ipt,' '//"O "//' ',"MOL",'A',1,ESPpt(:,ipt)*b2a,ESPptval(ipt)*au2kcal,0.1D0,"O "
 			end do
 			write(*,"(a)") " Done! Fitting points have been exported to ESPfitpt.pqr in current folder. &
-			The ""charge"" column in this file corresponds to ESP value in kcal/mol. The radius column is meaningless"
+			&The ""charge"" column in this file corresponds to ESP value in kcal/mol. The radius column is meaningless"
 			close(10)
 		else if (ides==3) then
 			open(10,file="ESPerr.pqr",status="replace")
 			do ipt=1,nESPpt
 				write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,f13.8,f9.3,a2)") &
-					"HETATM",ipt,' '//"O "//' ',"MOL",'A',1,ESPpt(:,ipt)*b2a,ESPerr(ipt)*au2kcal,0.1D0,"O "
+                "HETATM",ipt,' '//"O "//' ',"MOL",'A',1,ESPpt(:,ipt)*b2a,ESPerr(ipt)*au2kcal,0.1D0,"O "
 			end do
 			write(*,"(a)") " Done! Fitting points have been exported to ESPerr.pqr in current folder. &
-			The ""charge"" column in this file corresponds to absolute different (in kcal/mol) between the exactly evaluated ESP &
-			and that evaluated based on atomic charges. The radius column is meaningless"
+			&The ""charge"" column in this file corresponds to absolute different (in kcal/mol) between the exactly evaluated ESP &
+			&and that evaluated based on atomic charges. The radius column is meaningless"
 			close(10)
 		end if
 	end do
@@ -3384,7 +3384,7 @@ if (iradtype>0) then
 			if (ispecial==0) then
 				write(*,"(/,' vdW radius used in fitting for ',a,' is missing, input it in Angstrom, e.g. 1.7')") ind2name(idxtmp)
 				write(*,"(a)") " Hint: If pressing ENTER button directly, corresponding UFF radii scaled by 1/1.2 will be used, &
-                which usually is a proper workaround. (If you want to automatically employ this treatment, setting ""ispecial"" in settings.ini to 1)"
+                &which usually is a proper workaround. (If you want to automatically employ this treatment, setting ""ispecial"" in settings.ini to 1)"
 				read(*,"(a)") c80
 				if (c80==" ") then
 					espfitvdwr(idxtmp)=vdwr_UFF(idxtmp)/1.2D0
@@ -3397,7 +3397,7 @@ if (iradtype>0) then
                 espfitvdwr(idxtmp)=vdwr_UFF(idxtmp)/1.2D0
 				write(*,"(/,' NOTE: vdW radius used in fitting for ',a,' is missing!')") ind2name(idxtmp)
 				write(*,"(a,f6.3,a)") " Because ""ispecial"" parameter has been set to 1, therefore UFF radii of this element scaled by &
-                1/1.2 (",espfitvdwr(idxtmp)*b2a," Angstrom) is directly used, which usually is a proper workaround"
+                &1/1.2 (",espfitvdwr(idxtmp)*b2a," Angstrom) is directly used, which usually is a proper workaround"
             end if
 		end if
 	end do
@@ -3502,13 +3502,13 @@ if (cubegenpath/=" ".and.ifiletype==1) then
 	inquire(file=cubegenpath,exist=alive)
 	if ((.not.alive).and.ishowprompt==1) then
 		write(*,"(a)") " Note: Albeit current file type is fch/fchk/chk and ""cubegenpath"" parameter in settings.ini has been defined, &
-		the cubegen cannot be found, therefore electrostatic potential will still be calculated using internal code of Multiwfn"
+		&the cubegen cannot be found, therefore electrostatic potential will still be calculated using internal code of Multiwfn"
 	end if
 end if
 
 if (alive.and.ifiletype==1) then !Use cubegen to calculate ESP
 	if (ishowprompt==1) write(*,"(a)") " Since the input file type is fch/fchk/chk and ""cubegenpath"" parameter in settings.ini has been properly defined, &
-	now Multiwfn directly invokes cubegen to calculate electrostatic potential"
+	&now Multiwfn directly invokes cubegen to calculate electrostatic potential"
 	
 	!Generate cubegen input file
 	open(10,file="cubegenpt.txt",status="replace")
@@ -3672,10 +3672,10 @@ integer :: imode=2
 
 ntotpot=radpot*sphpot
 write(*,"(/,a,/)") " IMPORTANT HINT: If your system does not contain lanthanides and actinides and meantime you want to directly &
-perform Hirshfeld-I calculation without letting Multiwfn to automatically invoke Gaussian &
-to generate atomic .wfn files for various charged states, it is strongly suggested to copy ""atmrad"" folder from ""examples"" directory &
-to current directory, then the atomic radial density files in the ""atmrad"" folder will be directly utilized. See Section &
-3.9.13 of Multiwfn manual for more detail about the underlying mechanism, and see Section 4.7.4 for example of Hirshfeld-I calculation"
+&perform Hirshfeld-I calculation without letting Multiwfn to automatically invoke Gaussian &
+&to generate atomic .wfn files for various charged states, it is strongly suggested to copy ""atmrad"" folder from ""examples"" directory &
+&to current directory, then the atomic radial density files in the ""atmrad"" folder will be directly utilized. See Section &
+&3.9.13 of Multiwfn manual for more detail about the underlying mechanism, and see Section 4.7.4 for example of Hirshfeld-I calculation"
 
 do while(.true.)
     if (itype==1) write(*,*) "     =============== Iterative Hirshfeld (Hirshfeld-I) ==============="
@@ -3700,7 +3700,7 @@ do while(.true.)
             ignorefar=1
             write(*,*) "Input ratio factor of cutoff, e.g. 2.5"
             write(*,*) "Note: The higher the value, the more accurate the result and the more robust &
-            the calculation will be, however the computational cost will be correspondingly higher. The default value is 2.0"
+            &the calculation will be, however the computational cost will be correspondingly higher. The default value is 2.0"
             read(*,*) vdwsumcut
         end if
 	else if (isel==-2) then
@@ -3910,7 +3910,7 @@ do icyc=1,maxcyc
 			write(*,"(' Error: ',a,' is needed but was not prepared!')") trim(c80tmp)
             write(*,"(' Current charge of atom',i5,'(',a,'):',f12.8)") iatm,a(iatm)%name,charge(iatm)
             write(*,"(a)") " Note: This error implies that this atom has unusual charge. You should manually provide the corresponding .rad file &
-            in ""atmrad"" folder prior to the calculation. See Section 3.9.13 of Multiwfn manual for detail."
+            &in ""atmrad"" folder prior to the calculation. See Section 3.9.13 of Multiwfn manual for detail."
 			return
 		end if
 		open(10,file=c80tmp,status="old")
@@ -3928,7 +3928,7 @@ do icyc=1,maxcyc
 			write(*,"(' Error: ',a,' is needed but was not prepared!')") trim(c80tmp)
             write(*,"(' Current charge of atom',i5,'(',a,'):',f12.8)") iatm,a(iatm)%name,charge(iatm)
             write(*,"(a)") " Note: This error implies that this atom has unusual charge. You should manually provide the corresponding .rad file &
-            in ""atmrad"" folder prior to the calculation. See Section 3.9.13 of Multiwfn manual for detail."
+            &in ""atmrad"" folder prior to the calculation. See Section 3.9.13 of Multiwfn manual for detail."
 			return
 		end if
 		open(10,file=c80tmp,status="old")
@@ -3979,10 +3979,10 @@ integer :: maxcyc=50,ioutmedchg=0
 real*8 :: crit=0.0002D0
 
 write(*,"(/,a,/)") " IMPORTANT HINT: If your system does not contain lanthanides and actinides and meantime you want to directly &
-perform Hirshfeld-I calculation without letting Multiwfn to automatically invoke Gaussian &
-to generate atomic .wfn files for various charged states, it is strongly suggested to copy ""atmrad"" folder from ""examples"" directory &
-to current directory, then the atomic radial density files in the ""atmrad"" folder will be directly utilized. See Section &
-3.9.13 of Multiwfn manual for more detail about the underlying mechanism, and see Section 4.7.4 for example of Hirshfeld-I calculation"
+&perform Hirshfeld-I calculation without letting Multiwfn to automatically invoke Gaussian &
+&to generate atomic .wfn files for various charged states, it is strongly suggested to copy ""atmrad"" folder from ""examples"" directory &
+&to current directory, then the atomic radial density files in the ""atmrad"" folder will be directly utilized. See Section &
+&3.9.13 of Multiwfn manual for more detail about the underlying mechanism, and see Section 4.7.4 for example of Hirshfeld-I calculation"
 
 do while(.true.)
     if (itype==1) write(*,*) "     =============== Iterative Hirshfeld (Hirshfeld-I) ==============="
@@ -4035,7 +4035,7 @@ if (imode==1) then !Calculate density from periodic wavefunction
 else !Directly using loaded electron density from cub/VASP grid data, and transforming grid data information to cell information
 	if (all(a%charge==0)) then
 		write(*,*) "Error: All nuclear charges are zero! If this file was exported by CP2K, it is a bug. You need to manually &
-        edit the file so that effective nuclear charges (column 2 since line 8) are correctly recorded, otherwise atomic charges cannot be calculated"
+        &edit the file so that effective nuclear charges (column 2 since line 8) are correctly recorded, otherwise atomic charges cannot be calculated"
         write(*,*) "Press ENTER button to return"
         read(*,*)
         return
@@ -4167,7 +4167,7 @@ do icyc=1,maxcyc
 			write(*,"(' Error: ',a,' is needed but was not prepared!')") trim(c80tmp)
             write(*,"(' Current charge of atom',i5,'(',a,'):',f12.8)") iatm,a(iatm)%name,charge(iatm)
             write(*,"(a)") " Note: This error implies that this atom has unusual charge. You should manually provide the corresponding .rad file &
-            in ""atmrad"" folder prior to the calculation. See Section 3.9.13 of Multiwfn manual for detail."
+            &in ""atmrad"" folder prior to the calculation. See Section 3.9.13 of Multiwfn manual for detail."
 			return
 		end if
 		open(10,file=c80tmp,status="old")
@@ -4185,7 +4185,7 @@ do icyc=1,maxcyc
 			write(*,"(' Error: ',a,' is needed but was not prepared!')") trim(c80tmp)
             write(*,"(' Current charge of atom',i5,'(',a,'):',f12.8)") iatm,a(iatm)%name,charge(iatm)
             write(*,"(a)") " Note: This error implies that this atom has unusual charge. You should manually provide the corresponding .rad file &
-            in ""atmrad"" folder prior to the calculation. See Section 3.9.13 of Multiwfn manual for detail."
+            &in ""atmrad"" folder prior to the calculation. See Section 3.9.13 of Multiwfn manual for detail."
 			return
 		end if
 		open(10,file=c80tmp,status="old")
@@ -4706,7 +4706,7 @@ else if (imode==1) then !Calculate density from periodic wavefunction
 else !Directly using loaded electron density from cub/VASP grid data, and transforming grid data information to cell information
 	if (all(a%charge==0)) then
 		write(*,*) "Error: All nuclear charges are zero! If this file was exported by CP2K, it is a bug. You need to manually &
-        edit the file so that effective nuclear charges (column 2 since line 8) are correctly recorded, otherwise atomic charges cannot be calculated"
+        &edit the file so that effective nuclear charges (column 2 since line 8) are correctly recorded, otherwise atomic charges cannot be calculated"
         write(*,*) "Press ENTER button to return"
         read(*,*)
         return
@@ -5038,9 +5038,9 @@ real*8 :: chgnet=0
 
 if (ifiletype/=11.and.ifiletype/=13) then
 	write(*,"(/,a)") " Warning: Commonly MDL Molfile (.mol) or .mol2 file should be used as input file, &
-	because it contains bond information, which is needed by present function. If you want to let Multiwfn guess interatomic connectivity &
-	and then calculate EEM charges, you can input ""g"", however bond multiplicity cannot be determined in this way, and thus &
-	the EEM charges may be problematic if the employed EEM parameters explicitly involve bond multiplicity"
+	&because it contains bond information, which is needed by present function. If you want to let Multiwfn guess interatomic connectivity &
+	&and then calculate EEM charges, you can input ""g"", however bond multiplicity cannot be determined in this way, and thus &
+	&the EEM charges may be problematic if the employed EEM parameters explicitly involve bond multiplicity"
 	write(*,*) "If you simply want to return, press ENTER button"
 	read(*,"(a)") c200tmp
 	if (index(c200tmp,'g')/=0) then
@@ -5371,6 +5371,7 @@ use util
 implicit real*8 (a-h,o-z)
 character selectyn
 integer,parameter :: maxbond=4
+integer eleidx
 !The a,b,c and initial charge. Row is element index, column corresponds to number of bonds (hybridzation state)
 real*8 parma(nelesupp,maxbond),parmb(nelesupp,maxbond),parmc(nelesupp,maxbond),initchg(nelesupp,maxbond)
 real*8 atom_a(ncenter),atom_b(ncenter),atom_c(ncenter),delta_q(ncenter),eleneg(ncenter),elenegQ1(ncenter),charge(ncenter)
@@ -5565,7 +5566,7 @@ if (alive) then
     end if
 else
 	write(*,"(a)") " Note: If you want to manually set initial charges, you can prepare PEOEinit.txt &
-    in current folder, see Section 3.9.17 of manual"
+    &in current folder, see Section 3.9.17 of manual"
 end if
 
 write(*,*)
@@ -5591,7 +5592,7 @@ fdamp=0.5D0
 convcrit=0.0001D0 !This criterion is more strict than OpenBabel and Avogadro. It seems that their criteria are about 0.002
 maxcyc=50
 if (outmedinfo==0) write(*,"(/,a)") " Note: If you want to print atomic charges, amount of charge transfers and &
-atomic electronegativity in each cycle, set ""outmedinfo"" in settings.ini to 1"
+&atomic electronegativity in each cycle, set ""outmedinfo"" in settings.ini to 1"
 write(*,*)
 write(*,"(' Max cycles:',i3,'  Charge convergence criterion:',f8.5,'  Damping factor:',f6.3)") maxcyc,convcrit,fdamp
 write(*,*)

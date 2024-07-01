@@ -421,9 +421,9 @@ else if (iwork==4) then !IRI
 	iuserfunc=99
     write(*,*) "NOTE: Please cite original paper of IRI along with Multiwfn original paper:"
     write(*,"(a)") " Tian Lu, Qinxue Chen, Interaction Region Indicator (IRI): A Simple Real Space Function &
-    Clearly Revealing Both Chemical Bonds and Weak Interactions, Chemistry-Methods, 1, 231-239 (2021) DOI: 10.1002/cmtd.202100007"
+    &Clearly Revealing Both Chemical Bonds and Weak Interactions, Chemistry-Methods, 1, 231-239 (2021) DOI: 10.1002/cmtd.202100007"
     write(*,"(a,/)") " Review article: Tian Lu, Qinxue Chen, Visualization Analysis of &
-    Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
+    &Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
 else if (iwork==5) then !DORI
 	iselfunc1=15
 	iuserfunc_old=iuserfunc
@@ -435,7 +435,7 @@ else
 	if (allocated(b)) write(*,*) "Select function 1 (as X axis) and function 2 (as Y axis)  e.g. 15,13"
 	if (.not.allocated(b)) write(*,*) "Select function 1 (as X axis) and function 2 (as Y axis)  e.g. 16,14"
 	if (ifiletype==7) write(*,"(a)") " Note: If input 0,0, then the grid data in memory will be directly taken as function 1, &
-	and you need to input path of a cube file, whose data will be taken as function 2" 
+	&and you need to input path of a cube file, whose data will be taken as function 2" 
 	read(*,*) iselfunc1,iselfunc2
 	if (iselfunc1==4) then
 		write(*,*) "Select which orbital (for function 1)? Input the index"
@@ -616,7 +616,7 @@ do while (.true.)
         write(*,*) "Column 1/2/3: X/Y/Z in Angstrom"
         write(*,*) "Column 4/5: "//trim(f1name)//" and "//trim(f2name)//" in a.u."
 		write(*,"(a)") " Obviously, if you will plot scatter map between "//trim(f1name)//" and "//trim(f2name)//" in external tools such as Origin, &
-		the last two columns should be taken as X and Y axes data"
+		&the last two columns should be taken as X and Y axes data"
 	else if (isel==3) then
 		write(*,*) "Exporting..."
 		open(10,file="func1.cub",status="replace")
@@ -1072,10 +1072,10 @@ end do
 
 MOocc=0D0
 if (all(ifunrestrict==0)) then
-	MOocc(1:naelec)=2D0
+	MOocc(1:nint(naelec))=2D0
 else
-	MOocc(1:naelec)=1D0
-	MOocc(nbasis+1:nbasis+nbelec)=1D0
+	MOocc(1:nint(naelec))=1D0
+	MOocc(nbasis+1:nbasis+nint(nbelec))=1D0
 end if
 !Generate new.gjf
 open(10,file="new.gjf",status="replace")
@@ -1542,14 +1542,14 @@ write(10,*)
 if (ievalene>0) then
 	do imo=1,nmoend
 		write(10,"(' Orb:',i6,'   S=',f7.4,'  E(A)=',f11.3,'  O(A)=',f4.1,'  E(B)=',f11.3,'  O(B)=',f4.1)") &
-		imo,orbsingval(imo),MOene(imo)*au2eV,MOocc(imo),MOene(imo+nbasis)*au2eV,MOocc(imo+nbasis)
+		&imo,orbsingval(imo),MOene(imo)*au2eV,MOocc(imo),MOene(imo+nbasis)*au2eV,MOocc(imo+nbasis)
 		if (imo==nint(nbelec).and.naelec/=nbelec) write(10,*) &
 		"-------------------------------------------------------------------------------"
 		if (iorbrange==2.and.imo==nint(naelec)) write(10,*) &
 		"-------------------------------------------------------------------------------"
 	end do
 	write(*,"(a)") " Done! Singular values and energies of the biorthogonalized orbitals &
-	have been exported to biortho.txt in current folder"
+	&have been exported to biortho.txt in current folder"
 else
 	do imo=1,nmoend
 		write(10,"(' Orb:',i6,'   S=',f7.4,'   O(A)=',f4.1,'   O(B)=',f4.1)") &
@@ -1560,7 +1560,7 @@ else
 		write(10,*) "-----------------------------------------------"
 	end do
 	write(*,"(a)") " Done! Singular values of the biorthogonalized orbitals &
-	have been exported to biortho.txt in current folder"
+	&have been exported to biortho.txt in current folder"
 end if
 close(10)
 
@@ -1574,7 +1574,7 @@ else
 	write(*,"(a)") " The orbital energy information correspond to actual energy of the biorthogonalized orbitals"
 end if
 if (iorbrange==1) write(*,"(a,i6,a,i6,a)") " Note: Since biorthgonalization between unoccupied MOs was not performed, &
-the alpha and beta orbitals in the range",nint(naelec)+1," to",nbasis," are not meaningful"
+&the alpha and beta orbitals in the range",nint(naelec)+1," to",nbasis," are not meaningful"
 write(*,*)
 write(*,"(a)") " Do you want to load the biortho.fch now? If load, then you can directly visualize and analyze the biorthogonalized orbitals that just generated (y/n)"
 read(*,*) selectyn
@@ -1824,7 +1824,7 @@ write(*,*) "Input the filename of another wavefunction file, e.g. C:\yuri.wfn"
 read(*,"(a)") filename2
 write(*,*)
 write(*,"(a)") " Input density cutoff (e.g. 0.5), if electron density of the firstly loaded wavefunction at a point is &
-larger than this value, then corresponding integration grid will be ignored"
+&larger than this value, then corresponding integration grid will be ignored"
 write(*,*) "If you do not want to enable this feature, input 0"
 read(*,*) denscut
 
@@ -1956,7 +1956,7 @@ do while(.true.)
 	
 	if (iautointgrid==1) then
 		write(*,"(a)") " Note: The default integration grids in general should be sufficient. If you want to change, &
-		set ""iautointgrid"" in settings.ini to 0, and set ""radpot"" and ""sphpot"" to expected values"
+		&set ""iautointgrid"" in settings.ini to 0, and set ""radpot"" and ""sphpot"" to expected values"
 	end if
 	write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
 	call gen1cintgrid(gridatmorg,iradcut)
@@ -2048,7 +2048,7 @@ if (MCvolmethod==1) then !Using atomic vdW sphere superposition
 else if (MCvolmethod==2) then !Using Bader's definition
     if (.not.allocated(b)) then
         write(*,"(a)") " Error: To calculate molecular volume based on isosurface of electron density, your input file must contain &
-        wavefunction information, namely you should use e.g. fch, molden, mwfn, wfn, wfx... file as input file"
+        &wavefunction information, namely you should use e.g. fch, molden, mwfn, wfn, wfx... file as input file"
         write(*,"(a)") " If you want to calculate molecular volume based on superposition of vdW spheres of atoms, please set ""MCvolmethod"" in settings.ini to 1"
         write(*,*) "Press ENTER button to exit"
         read(*,*)
@@ -2056,7 +2056,7 @@ else if (MCvolmethod==2) then !Using Bader's definition
     end if
 	write(*,*) "Note: 100*2^i points will be used to evaluate the volume by Monte Carlo method"
 	write(*,"(a)") " The volume is defined as the region encompassed by the isosurface of electron density of x, &
-	The box used in the Monte Carlo calculation will be enlarged by vdW radii multiplied by k in each side"
+	&The box used in the Monte Carlo calculation will be enlarged by vdW radii multiplied by k in each side"
 	write(*,"(a)") " Hint: For evaluating the volume encompassed by rho=0.001 a.u. isosurface for small molecule, it is suggested to simply input 9,0.001,1.7"
 	do while(.true.)
 		write(*,*)
@@ -2635,7 +2635,7 @@ do while (.true.)
 				if (dist>=outcritdistlow.and.dist<=outcritdisthigh) write(10,"(2i6,2f12.6)") iatm,jatm,vallist(ipair),dist
 			end do
 			write(*,"(a)") " Done, the data has been outputted to result.txt in current folder. The first two columns correspond &
-			to atom indices, the third one corresponds to value, the fourth one is route distance (in Angstrom)."
+			&to atom indices, the third one corresponds to value, the fourth one is route distance (in Angstrom)."
 			close(10)
 		end if
 		!Output matrix
@@ -2722,7 +2722,7 @@ if (.not.allocated(b)) then
 end if
 write(*,*)
 write(*,"(a)") " Note: Please not only cite Multiwfn original paper but also cite below paper, in which the algorithm of this module &
-is very detailedly described and many interesting research examples are given:"
+&is very detailedly described and many interesting research examples are given:"
 write(*,*) "Tian Lu, Qinxue Chen, Theor. Chem. Acc., 139, 25 (2020)"
 write(*,*)
 write(*,*) "Choose current situation:"
@@ -2752,7 +2752,7 @@ if (iorbform==0) then !Delocalized case
         
 	else !non-planar case
 		write(*,"(a)") " Warning: Unable to detect the plane of the system! If you really want to carry out the pi-orbital detection, &
-        you need to manually choose an expected plane:"
+        &you need to manually choose an expected plane:"
         write(*,*) "0 Return"
         write(*,*) "1 XY plane"
         write(*,*) "2 YZ plane"
@@ -2764,7 +2764,7 @@ if (iorbform==0) then !Delocalized case
         if (iplane==3) c200tmp="S, X and Z"
         write(*,*) "Input a tolerance of expansion coefficient for "//trim(c200tmp)//" GTFs, e.g. 0.01"
         write(*,"(a)") " Note: If any above mentioned GTF has coefficient larger than this value, the orbital will not be identified as pi. &
-        Clearly, the larger the value, the higher the tendency that the orbitals will be determined as pi. &
+        &Clearly, the larger the value, the higher the tendency that the orbitals will be determined as pi. &
         If you press ENTER button directly, 0.1 will be employed, which is usually suitable"
         read(*,"(a)") c200tmp
         if (c200tmp/=" ") read(c200tmp,*) tolerpara
@@ -2773,7 +2773,7 @@ if (iorbform==0) then !Delocalized case
         if (iplane==3) c200tmp="Y"
         write(*,*) "Input a tolerance of percentage total contribution of "//trim(c200tmp)//" GTFs, e.g. 60"
         write(*,"(a)") " Note: If the contribution is lower than this value, the orbital will not be identified as pi. &
-        If you press ENTER button directly, 80% will be employed, which is usually suitable"
+        &If you press ENTER button directly, 80% will be employed, which is usually suitable"
         read(*,"(a)") c200tmp
         if (c200tmp/=" ") read(c200tmp,*) tolerperp
         
@@ -2838,13 +2838,13 @@ else if (iorbform==-1) then !LMO case
 		else if (isel==1) then
 			write(*,*) "Input the threshold composition, e.g. 0.8"
 			write(*,"(a)") " Note: If you input for example 0.8, then in an orbital, if an atom has contribution larger than 80%, &
-			then this orbital will be regarded as single-center orbital and will not be taken into account further"
+			&then this orbital will be regarded as single-center orbital and will not be taken into account further"
 			read(*,*) thressingle
 		else if (isel==2) then
 			write(*,*) "Input the threshold density in a.u., e.g. 0.02"
 			write(*,"(a)") " Note: Assume that in an orbital, A and B are the two atoms having maximum contributions, &
-			the orbital will be regarded as pi orbital if its density at two representative points between A and B &
-            is both smaller than the threshold"
+			&the orbital will be regarded as pi orbital if its density at two representative points between A and B &
+            &is both smaller than the threshold"
 			read(*,*) thresdens
 		else if (isel==3) then
 			if (ionlyocc==1) then
@@ -2861,7 +2861,7 @@ else if (iorbform==-1) then !LMO case
 		else if (isel==5) then
 			if (allocated(atmrange)) deallocate(atmrange)
 			write(*,"(a)") " Input index range of the atoms, e.g. 2,3,7-10. &
-			Only LMOs with two largest contributing atoms belonging to this index range will be considered"
+			&Only LMOs with two largest contributing atoms belonging to this index range will be considered"
 			read(*,"(a)") c2000tmp
 			call str2arr(c2000tmp,natmrange)
 			allocate(atmrange(natmrange))
@@ -2869,7 +2869,7 @@ else if (iorbform==-1) then !LMO case
         else if (isel==6) then
             !Mulliken method is better than SCPA for LMOs, in particular for lone pair type of LMO, the SCPA shows it is too delocalized
             write(*,"(a,/)") " Hint: Option 1 is very fast, however the method is not robust, and it is even useless when diffuse functions are employed. &
-            Options 2 and 3 usually give similar result, they are more expensive, but fully compatible with diffuse functions"
+            &Options 2 and 3 usually give similar result, they are more expensive, but fully compatible with diffuse functions"
             write(*,*) "1 Mulliken and SCPA methods for occupied and unoccupied orbitals, respectively"
             write(*,*) "2 Hirshfeld method"
             write(*,*) "3 Becke method"
@@ -3355,7 +3355,7 @@ if (selectyn=='y'.or.selectyn=="Y") then
 	end do
 	write(*,*) "Data have been outputted to funcfitpt.txt in current folder"
 	write(*,"(a)") " All units are in a.u. The first line shows the number of fitting points, &
-	the first three columns are X,Y,Z coordinates, the last column corresponds to function value"
+	&the first three columns are X,Y,Z coordinates, the last column corresponds to function value"
 	close(10)
 end if
 end subroutine
@@ -3829,7 +3829,7 @@ if (filename(itmp-3:itmp)==".xyz") then
     close(10)
     if (ierror==0) then
 		write(*,"(a)") " The loaded .xyz file seems to be a trajectory file. If you want to calculate MPP, SDP and atomic ds values &
-        for a range of frames, input the frame indices, e.g. 1,5-10,22-30. Inputting ""a"" can select all frames."
+        &for a range of frames, input the frame indices, e.g. 1,5-10,22-30. Inputting ""a"" can select all frames."
         write(*,*) "If you only want to calculate data for the first frame, input ""q"""
         read(*,"(a)") c2000tmp
         if (index(c2000tmp,'q')==0) then
@@ -3895,7 +3895,7 @@ if (filename(itmp-3:itmp)==".xyz") then
             write(*,"(a)") " Done!"
             write(*,"(a)") " Frame index, MPP and SDP have been exported to MPP_SDP.txt in current folder as the 1st, 2nd and 3rd columns, respectively"
             write(*,"(a)") " ds.pqr has been exported to current folder, the ""atomic charge"" column corresponds &
-            to the ds value of selected atoms in every frame (this value for unselected atoms is zero)"
+            &to the ds value of selected atoms in every frame (this value for unselected atoms is zero)"
             close(10)
             close(11)
             close(12)
@@ -3938,7 +3938,7 @@ write(*,"(/,' Molecular planarity parameter (MPP) is',f12.6,' Angstrom')") MPP*b
 write(*,"(' Span of deviation from plane (SDP) is',f12.6,' Angstrom')") SDP*b2a
 write(*,*)
 write(*,"(a)") " Do you want to export .pqr of the system, in which ""charge"" atomic properties &
-of the selected atoms correspond to vertical distance to the fitted plane? (y/n)"
+&of the selected atoms correspond to vertical distance to the fitted plane? (y/n)"
 read(*,*) selectyn
 if (selectyn=='Y'.or.selectyn=='y') then
 	call path2filename(filename,outname)
@@ -3963,8 +3963,8 @@ if (selectyn=='Y'.or.selectyn=='y') then
 	end do
     close(10)
     write(*,"(a)") " Done! In the newly generated .pqr file, ""charge"" property corresponds to the closest distance between &
-    atoms to fitted plane in Angstrom, positive and negative values correspond to whether the atom is above or below the plane. &
-    You can use e.g. VMD to color atoms corresponding this property"
+    &atoms to fitted plane in Angstrom, positive and negative values correspond to whether the atom is above or below the plane. &
+    &You can use e.g. VMD to color atoms corresponding this property"
 end if
 end subroutine
 
@@ -4180,8 +4180,8 @@ if (ifile==0) return
 
 write(*,*) "How many fragments to combine? (Including the fragment 1 that has been loaded)"
 write(*,"(a)") " Note: If the same basis functions and atoms were employed in every fragment calculation &
-(they only differ by the choice of ghost atoms and union of real atoms in each fragment corresponds to the whole system), input negative of number of fragments here. &
-In this case only single-determinant wavefunction is supported, and only occupied orbitals will be considered, while unoccupied orbitals will be ignored in the combined wavefunction file"
+&(they only differ by the choice of ghost atoms and union of real atoms in each fragment corresponds to the whole system), input negative of number of fragments here. &
+&In this case only single-determinant wavefunction is supported, and only occupied orbitals will be considered, while unoccupied orbitals will be ignored in the combined wavefunction file"
 read(*,*) nfrag
 isamebas=0
 if (nfrag<0) isamebas=1

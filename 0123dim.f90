@@ -231,12 +231,12 @@ else !Common case
 			    inquire(file=cubegenpath,exist=alive)
 			    if (.not.alive) then
 				    write(*,"(a)") " Note: Albeit current file type is fch/fchk/chk and ""cubegenpath"" parameter in settings.ini has been defined, &
-				    the cubegen cannot be found, therefore electrostatic potential will still be calculated using internal code of Multiwfn"
+				    &the cubegen cannot be found, therefore electrostatic potential will still be calculated using internal code of Multiwfn"
 			    end if
 		    end if
 		    if (alive.and.ifiletype==1.and.isel==12) then !Indeed use cubegen to calculate ESP
 			    write(*,"(a)") " Since the input file type is fch/fchk/chk and ""cubegenpath"" parameter in settings.ini has been properly defined, &
-			    now Multiwfn directly invokes cubegen to calculate electrostatic potential"
+			    &now Multiwfn directly invokes cubegen to calculate electrostatic potential"
 			
 			    !Generate cubegen input file
 			    open(10,file="cubegenpt.txt",status="replace")
@@ -413,7 +413,7 @@ do while(.true.)
 		close(10)
 		write(*,"(a)") " Data have been exported to "//trim(c200tmp)//" in current folder"
 		write(*,"(a)") " Unit is Angstrom. The first three columns are actual coordinates, the fourth column &
-		is X position in the curve graph, the fifth column is function value"
+		&is X position in the curve graph, the fifth column is function value"
 	else if (isel==3) then
 		if (ilog10y==0) then
 			write(*,*) "Input minimum and maximum value of Y axis, e.g. -0.1,2"
@@ -1236,7 +1236,7 @@ else if (iplaneextdata==1) then !Export plane data to external file, and then lo
 	close(11)
 	write(*,"(/,a)") " The coordinate of all points needed to be calculated have been outputted to plane.txt in current folder, the unit is in Bohr"
 	write(*,"(a)") " cubegenpt.txt is also outputted, which is similar to plane.txt, but the unit is in Angstrom, &
-	and there is no first line (the number of points). It can be directly utilized by cubegen"
+	&and there is no first line (the number of points). It can be directly utilized by cubegen"
 	write(*,"(a)") " For example ""cubegen 0 potential CNT.fch result.cub -5 h < cubegenpt.txt"""
 	write(*,*)
 	write(*,"(a)") " Now input the path of the file containing function values, e.g. C:\t.txt, whose format should be identical to plane.txt, but with function value in the fourth column"
@@ -1564,7 +1564,7 @@ i=-1
 
 if (numcp>0) then
 	write(*,"(/,a)") " If you did not modify ""CP_RGB_2D"" in settings.ini, then brown, blue, orange and green dots in this map (if any) &
-    correspond to position of (3,-3), (3,-1), (3,+1) and (3,+3) type of critical points, respectively"
+    &correspond to position of (3,-3), (3,-1), (3,+1) and (3,+3) type of critical points, respectively"
 end if
 
 !----------------- post-processing menu, use plane data to draw graph
@@ -2547,7 +2547,7 @@ else !Calculate grid data
 		close(20)
 		write(*,*) "Done, the results have been outputted to stericforce.txt in current folder"
 		write(*,"(a)") " Columns 1,2,3 correspond to X,Y,Z coordinates, 4,5,6 correspond to &
-        steric force component in X,Y,Z. The last column denotes magnitude of steric force"
+        &steric force component in X,Y,Z. The last column denotes magnitude of steric force"
 		write(*,*)
 		read(*,*)
 	else if (ifuncsel==112) then !Hirshfeld weight
@@ -2762,7 +2762,7 @@ else !Calculate grid data
 			close(10)
 			write(*,"(' Done! Grid data has been exported to ',a,' in current folder')") trim(outcubfile)
             if (iaddprefix==0) write(*,"(a)") " Hint: If you want to add input file name as prefix of the outputted &
-            cube file, you can set ""iaddprefix"" in settings.ini to 1"
+            &cube file, you can set ""iaddprefix"" in settings.ini to 1"
             
 		else if (i==3) then
             c200tmp="output.txt"
@@ -3364,7 +3364,7 @@ do while(.true.)
         end do
         close(10)
         write(*,"(a)") " Done! plane data has been exported to "//outfilename//".txt in current folder. &
-        The first two column correspond to X and Y coordinates in Angstrom, the last column is data"
+        &The first two column correspond to X and Y coordinates in Angstrom, the last column is data"
     else if (isel==-1) then
         return
     else if (isel==0.or.isel==1) then

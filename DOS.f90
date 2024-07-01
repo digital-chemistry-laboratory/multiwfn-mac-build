@@ -56,7 +56,7 @@ integer :: ishowPEScurve=1,ishowPESline=1,iusersetPES_Y=0,invPES_X=0,ilinebottom
 
 if (.not.(ifiletype==0.or.allocated(CObasa))) then
 	write(*,"(a,/)") " Error: This function is only available for input file containing basis function information &
-	(i.e. .mwfn/.fch/.molden/.gms) and plain text file with energy levels!"
+	&(i.e. .mwfn/.fch/.molden/.gms) and plain text file with energy levels!"
 	write(*,*) "Press ENTER button to return"
 	read(*,*)
 	return
@@ -679,7 +679,7 @@ else if (isel==-3) then
 	end do
 	close(10)
 	write(*,"(a)") " The energy levels, occupation numbers, strengths, FWHMs have been exported to orginfo.txt in current directory, &
-	you can modify it and then load it into Multiwfn again"
+	&you can modify it and then load it into Multiwfn again"
 	if (iunitx==1) write(*,*) "Note: The unit of energy levels and FWHMs in this file is a.u."
 	if (iunitx==2) write(*,*) "Note: The unit of energy levels and FWHMs in this file is eV"
 	write(*,*)
@@ -687,7 +687,7 @@ else if (isel==-3) then
 else if (isel==-2) then !Define MO sets for MO-PDOS
     if (iPDOStype==1) then
         write(*,"(a)") " Warning: You have defined atom or basis function fragments, which conflict with MO fragments. &
-        To proceed, these fragments will be cleaned, OK? (y/n)"
+        &To proceed, these fragments will be cleaned, OK? (y/n)"
         read(*,*) selectyn
         if (selectyn=='y') then
             nfragDOS=0
@@ -698,7 +698,7 @@ else if (isel==-2) then !Define MO sets for MO-PDOS
     end if
     write(*,"(a)") " Note 1: You can use options 1~10 to define up to 10 MO sets for plotting respective PDOS"
     write(*,"(a)") " Note 2: The first published paper employing MO-PDOS map is: Zeyu Liu, Tian Lu, Qinxue Chen, &
-    Carbon, 165, 461 (2020) DOI: 10.1016/j.carbon.2020.05.023. Please cite this paper if MO-PDOS map is employed in your work, thank you!"
+    &Carbon, 165, 461 (2020) DOI: 10.1016/j.carbon.2020.05.023. Please cite this paper if MO-PDOS map is employed in your work, thank you!"
     do while(.true.)
         write(*,*)
 		write(*,*) "     ---------------- Define fragments for MO-PDOS map ----------------"
@@ -733,7 +733,7 @@ else if (isel==-2) then !Define MO sets for MO-PDOS
 else if (isel==-1) then !Define fragments in common sense
     if (iPDOStype==2) then
         write(*,"(a)") " Warning: You have defined MO fragments, which conflicts with present fragment setting. To proceed, &
-        the MO fragments will be cleaned, OK? (y/n)"
+        &the MO fragments will be cleaned, OK? (y/n)"
         read(*,*) selectyn
         if (selectyn=='y') then
             nfragDOS=0
@@ -924,7 +924,7 @@ else if (isel==6) then
 else if (isel==7) then
     ioldmethod=icompmethod
     write(*,"(a,/)") " Hint: Options 1 and 2 are very fast, however the result is not robust for unoccupied MOs, &
-    and even useless when diffuse functions are employed"
+    &and even useless when diffuse functions are employed"
     write(*,*) "1 Mulliken method"
     write(*,*) "2 SCPA method"
     write(*,*) "3 Hirshfeld method"
@@ -1003,7 +1003,7 @@ else if (isel==0.or.isel==10) then
 			write(*,"(a)") " NOTE: COHP between nearest atoms will be plotted. While if you want to plot COHP between two fragments, you need to define them by option -1 first"
         else
 			write(*,"(a)") " Error: You should not only define one fragment! Please unset it (to plot COHP between all atoms) or &
-            also define another fragment (to plot COHP between two fragments) in option -1"
+            &also define another fragment (to plot COHP between two fragments) in option -1"
 			write(*,*) "Press ENTER button to continue"
 			read(*,*)
 			cycle
@@ -2402,7 +2402,7 @@ else if (isel==11) then
 !This module only use eV as unit
 else if (isel==12) then
 	write(*,"(a)") " Note: Most plotting parameters of PES module are irrelevant to those in the DOS module. &
-	Only eV and Gaussian broadening function will be used for PES plotting. Spin types are not distinguished"
+	&Only eV and Gaussian broadening function will be used for PES plotting. Spin types are not distinguished"
 	nmoocc=count(MOocc/=0)
 	if (allocated(bindene)) deallocate(bindene,PESlinex,PESliney,PES_str,PES_FWHM) !Binding energy
 	allocate(PESlinex(3*nmoocc),PESliney(3*nmoocc),bindene(nmoocc),PES_str(nmoocc),PES_FWHM(nmoocc))
@@ -2462,7 +2462,7 @@ else if (isel==12) then
 	        end do
 	        close(10)
 	        write(*,"(a)") " The occupied MO energies (original), occupation numbers, strengths, FWHMs have been exported to &
-            PESinfo.txt in current directory, you can modify it and then load it into Multiwfn again"
+            &PESinfo.txt in current directory, you can modify it and then load it into Multiwfn again"
 	        write(*,*) "Note: The unit of energy levels and FWHMs in this file is eV"
 	        write(*,*)
         else if (isel2==-2) then !The index is not necessary identical to original MOs
@@ -2525,7 +2525,7 @@ else if (isel==12) then
 		if (isel2==-1.or.isel2==1.or.isel2==2) then !Plot PES or export data
 	        if (all(bindene>PES_Xhigh)) then
                 write(*,"(a)") " Error: There is no molecular orbital in the current plotting range! &
-                You should increase upper limit of X-axis by option 4"
+                &You should increase upper limit of X-axis by option 4"
                 write(*,*) "Press ENTER button to continue"
                 read(*,*)
                 cycle

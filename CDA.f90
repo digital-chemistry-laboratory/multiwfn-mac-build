@@ -127,7 +127,7 @@ do ifrag=0,nCDAfrag !Here we first gather basic informations of complex(ifrag=0)
 		read(10,*) c80tmp,nmoCDA(ifrag)
 		if (nmoCDA(ifrag)/=nbasistmp) then
 			write(*,"(a)") " Error: The number of basis functions is unequal to the number of orbitals! Some basis functions may be &
-			eliminated during Gaussian calculation due to linear dependence problem. Please redo the Gaussian task with IOp(3/32=2) specified in route section"
+			&eliminated during Gaussian calculation due to linear dependence problem. Please redo the Gaussian task with IOp(3/32=2) specified in route section"
 			read(*,*)
 			return
 		end if
@@ -244,15 +244,15 @@ end do
 if (devmax>0.01D0) then
     write(*,"(/,' Maximum deviation of atomic coordinate between fragment and complex:',f10.3,' Angstrom')") devmax*b2a
     write(*,"(/,a)") " Warning: The coordinate of the fragments deviates from the complex distinctly! The result may be fully meaningless. &
-    Please check input files of your quantum chemistry code to make the coordinate of the fragments fully consistent with the complex. &
-    If you are a Gaussian user, please do not forget to add ""nosymm"" to avoid automatically translating and rotating the system to standard orientation"
+    &Please check input files of your quantum chemistry code to make the coordinate of the fragments fully consistent with the complex. &
+    &If you are a Gaussian user, please do not forget to add ""nosymm"" to avoid automatically translating and rotating the system to standard orientation"
     write(*,*) "Press ENTER button to continue"
     read(*,*)
 end if
 !Check if the number of basis functions in complex is equal to the sum of that in all fragments
 if (nmoCDA(0)/=sum(nmoCDA(1:))) then
 	write(*,"(/,a)") " Error: The sum of the number of basis functions in all fragments is inconsistent with complex! &
-	Please carefully check the basis set you used in each calculation"
+	&Please carefully check the basis set you used in each calculation"
 	write(*,*) "Press ENTER button to exit"
 	read(*,*)
 	return
@@ -402,7 +402,7 @@ end do
 !=== Check sanity of electron number, if all fragments are not ROHF
 if ( all(iRO==0) .and. (sum(naelecCDA(1:))/=naelecCDA(0) .or. sum(nbelecCDA(1:))/=nbelecCDA(0)) ) then
 	write(*,"(/,a)") " Error: The sum of the number of alpha (beta) electrons of all fragments is unequal to the number of alpha (beta) electrons of the complex! &
-	Please check if electron spin flipping option was incorrectly set"
+	&Please check if electron spin flipping option was incorrectly set"
 	read(*,*)
 	return
 end if
@@ -777,7 +777,7 @@ do while(.true.)
 					cycle
 				else
 					write(*,"(a,f5.1,a,/)") " Note: Only the fragment orbitals with contribution >",compthresCDA," % will be shown below, &
-                    the threshold can be changed by ""compthresCDA"" in settings.ini"
+                    &the threshold can be changed by ""compthresCDA"" in settings.ini"
 					if (iopshCDA==0) then
 						write(*,"(' Occupation number of orbital',i6,' of the complex:',f12.8)") iorb,occCDA(iorb,0)
                         sumcontri=0
@@ -872,7 +872,7 @@ do while(.true.)
 		end if
 		close(10)
 		write(*,"(a)") "Done! The coefficient matrix has been outputted to coFO.txt in current folder. &
-		The element (i,n) is the coefficient of fragment orbital i in complex orbital n."
+		&The element (i,n) is the coefficient of fragment orbital i in complex orbital n."
 		do ifrag=1,nCDAfrag
 			istart=1
 			if (ifrag>1) istart=sum(nmoCDA(1:ifrag-1))+1
@@ -890,7 +890,7 @@ do while(.true.)
 		end if
 		close(10)
 		write(*,"(a)") " Done! The matrix has been outputted to ovlpint.txt in current folder. &
-		The element (i,j) is the overlap integral between fragment orbital i and j"
+		&The element (i,j) is the overlap integral between fragment orbital i and j"
 		do ifrag=1,nCDAfrag
 			istart=1
 			if (ifrag>1) istart=sum(nmoCDA(1:ifrag-1))+1
@@ -985,7 +985,7 @@ do while(.true.)
 				write(*,*) "Input the criterion and rule for connecting orbital bars"
 				write(*,"(a)") " Example 1: ""15,or,20"" means the criterion for connecting FO of fragment A (B) and complex MO is >=15% (>=20%)."
 				write(*,"(a)") " Example 2: ""15,and,20"" means if a FO of fragment A and a FO of fragment B have contribution to a complex MO >=15% &
-				and >=20%, simultaneously and respectively, then the complex MO will be connected to these two FOs"
+				&and >=20%, simultaneously and respectively, then the complex MO will be connected to these two FOs"
 				write(*,"(a)") " Note: Inputting ""k"" can keep the current criterion unchanged. Using a criterion larger than 100 can nullify the connection."
 				do while(.true.)
 					read(*,"(a)") c80tmp
@@ -1028,7 +1028,7 @@ do while(.true.)
 			else if (isel2==9) then
 				write(*,*) "Input a value, e.g. 0.5"
 				write(*,"(a)") " Note: The value should within 0 and 1. The more the value close to 0, the more the &
-				composition labels in the lines will close to the bars of complex orbitals"
+				&composition labels in the lines will close to the bars of complex orbitals"
 				read(*,*) complabshift
 			else if (isel2==10) then
 				do ifrag=0,nCDAfrag

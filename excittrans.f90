@@ -98,7 +98,7 @@ do while(.true.)
 		call NTO
 	else if (isel==7) then
 		write(*,"(a)") " Note: To calculate the ghost-hunter index proposed in J. Comput. Chem., 38, 2151 (2017), you should use option 1 of subfunction 1 of main function 18 &
-		to calculate hole-electron distribution, then the index will be automatically printed. See Section 3.21.7 of the manual for more details."
+		&to calculate hole-electron distribution, then the index will be automatically printed. See Section 3.21.7 of the manual for more details."
 ! 		write(*,"(a)") " PS: The index calculated in this way is somewhat different to the original paper, &
 ! 		in which the 1/D term is calculated based on expensive relaxed density. If you really want to reproduce it, you can use subfunction 3 of main function 18&
 ! 		to calculate the 1/D term corresponding to relaxed density, and then manually calculate ghost-hunter index."
@@ -157,7 +157,7 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
 			write(*,"(a)") " Please input path of Gaussian/ORCA output file or plain text file, electron excitation information will be loaded from this file"
 			write(*,*) "e.g. C:\lovelive\sunshine\yosoro.out"
             if (ifiletype==1.or.ifiletype==9.or.ifiletype==14) write(*,"(a)") " Hint: If pressing ENTER button directly, the file with identical name as input file but &
-            with .out or .log suffix will be loaded"
+            &with .out or .log suffix will be loaded"
 			do while(.true.)
 				read(*,"(a)") excitfilename
                 if (excitfilename==" ") then
@@ -210,7 +210,7 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
 			call loclabel(10,"Excitation energies and oscillator strengths:",ifound)
 			if (ifound==0) then
 				write(*,"(a)") " Error: This file is not output file of CIS/TDHF/TDDFT/TDA-DFT task, &
-				therefore cannot be used for present analysis. Please read Multiwfn manual Section 3.21 carefully"
+				&therefore cannot be used for present analysis. Please read Multiwfn manual Section 3.21 carefully"
 				write(*,*) "Press ENTER button to return"
 				read(*,*)
 				return
@@ -218,7 +218,7 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
             call loclabelfinal(10,"Excitation energies and oscillator strengths",numexctime)
             if (numexctime>1) then
 			    write(*,"(a,i4,a)") " Note: Electron excitation information can be found",numexctime," times in the file, &
-                only the information printed last time will be loaded"
+                &only the information printed last time will be loaded"
             end if
             read(10,*)
 		else if (ifiletypeexc==3) then !Plain text file
@@ -249,7 +249,7 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
                 iORCAsTD=1
             else
 			    write(*,"(a)") "Error: This file is not output file of CIS/TDHF/TDDFT/TDA-DFT/SF-TDDFT/sTDA/sTDDFT task, &
-			    therefore cannot be used for present analysis. Please read Multiwfn manual Section 3.21 carefully"
+			    &therefore cannot be used for present analysis. Please read Multiwfn manual Section 3.21 carefully"
 			    write(*,*) "Press ENTER button to return"
 			    read(*,*)
 			    return
@@ -262,7 +262,7 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
         call loclabelfinal(10,"TD-DFT XC SETUP",numexctime)
         if (numexctime>1) then
 			write(*,"(a,i4,a)") " Note: Electron excitation information can be found",numexctime," times in the file, &
-            only the information printed last time will be loaded"
+            &only the information printed last time will be loaded"
         end if
 	else if (ifiletypeexc==4) then !Firefly output file
 		call loclabel(10,"NUMBER OF STATES REQUESTED =",ifound)
@@ -322,7 +322,7 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
             write(*,"(' There are',i5,' excited states, loading basic information...')") nstates
         else if (maxloadexc<nstates) then
             write(*,"(' There are',i5,' excited states, however as ""maxloadexc"" in settings.ini has been set to',i5,', &
-            only the first these excited states are recognized')") nstates,maxloadexc
+            &only the first these excited states are recognized')") nstates,maxloadexc
             nstates=maxloadexc
         end if
     end if
@@ -732,8 +732,8 @@ else
 				    else !TD task. Positive contribution of i->a and negative contribution a<-i are summed up and printed, e.g. 2a ->   6a  :     0.968777
 					    if (iexc==1.and.itmp==1) then
 						    write(*,"(a)") " Warning: For TD task, ORCA does not print configuration coefficients but only print contributions of each MO pair to excitation, &
-						    in this case Multiwfn guesses configuration coefficients by calculating square root of the contributions. &
-                            However, this treatment may lead to fully misleading result, you should consider using TDA instead, which is perfectly supported."
+						    &in this case Multiwfn guesses configuration coefficients by calculating square root of the contributions. &
+                            &However, this treatment may lead to fully misleading result, you should consider using TDA instead, which is perfectly supported."
 						    write(*,*) "If you really want to proceed, press ENTER button"
 						    read(*,*)
 					    end if
@@ -1108,8 +1108,8 @@ else if (ifiletypeexc==2) then !ORCA output file
 				    else !TD task, configuration coefficients are not presented. Contribution of i->a and i<-a are summed up and outputted as i->a
 					    if (iwarnORCA_TD==1.and.itmp==1) then
 						    write(*,"(a)") " Warning: For TD task, ORCA does not print configuration coefficients but only print corresponding contributions of each orbital pair, &
-						    in this case Multiwfn determines configuration coefficients simply as square root of contribution values. However, this treatment is &
-						    evidently inappropriate and the result is nonsense when de-excitation is significant (In this situation you have to use TDA-DFT instead)"
+						    &in this case Multiwfn determines configuration coefficients simply as square root of contribution values. However, this treatment is &
+						    &evidently inappropriate and the result is nonsense when de-excitation is significant (In this situation you have to use TDA-DFT instead)"
 						    write(*,*) "If you really want to proceed, press ENTER button to continue"
 						    read(*,*)
                             iwarnORCA_TD=0
@@ -1700,7 +1700,7 @@ if (excmulti==3) write(*,"(a,/)") " Note: The transition moments shown below cor
 
 if (rnormele==0) then
 	write(*,"(a,/)") " Warning: Integral of electron distribution is exactly zero, it is highly likely that &
-    wavefunctions of virtual orbitals were not recorded in your inputted wavefunction file! In this case hole-electron analysis is meaningless"
+    &wavefunctions of virtual orbitals were not recorded in your inputted wavefunction file! In this case hole-electron analysis is meaningless"
 end if
 
 write(*,"(' Integral of hole:    ',f12.6)") rnormhole
@@ -1785,10 +1785,10 @@ write(*,"(' Excitation energy of this state:',f10.3,' eV')") excene
 if (excene<ghostidx*au2eV) then
 	write(*,"(a)") " Note: Probably this is a ghost state, because excitation energy is lower than ghost-hunter index"
     write(*,"(a)") " Comment by Multiwfn author: It is frequently found that the condition of determining ghost state by the ghost-hunder &
-    index is too stringent, it is only suitable to be viewed as a necessary condition of ghost state rather than a sufficient condition. If you used a &
-    DFT functional having high Hartree-Fock composition in long range of electronic interaction, such as wB97XD, CAM-B3LYP, and M06-2X, &
-    you do not need to worry about presence of ghost state at all. In addition, ghost state should have excitation wavelength around 1000 nm or more and have &
-    negligible oscillator strength, if this is not the current case, you also do not to worry about the possibility of occurrence of ghost state"
+    &index is too stringent, it is only suitable to be viewed as a necessary condition of ghost state rather than a sufficient condition. If you used a &
+    &DFT functional having high Hartree-Fock composition in long range of electronic interaction, such as wB97XD, CAM-B3LYP, and M06-2X, &
+    &you do not need to worry about presence of ghost state at all. In addition, ghost state should have excitation wavelength around 1000 nm or more and have &
+    &negligible oscillator strength, if this is not the current case, you also do not to worry about the possibility of occurrence of ghost state"
 end if
 
 if (allocated(Cele)) deallocate(Cele,Chole)
@@ -1914,7 +1914,7 @@ do while(.true.)
 	 	else if (isel==9) then
             if (idomag==0) then
                 write(*,"(a)") " Error: In order to visualize transition magnetic dipole moment density, you must select &
-                ""-1 Toggle calculating transit. magnetic dip. density in option 1"" to switch status to ""Yes"" before calculating grid data!"
+                &""-1 Toggle calculating transit. magnetic dip. density in option 1"" to switch status to ""Yes"" before calculating grid data!"
                 write(*,*) "Press ENTER button to continue"
                 read(*,*)
                 cycle
@@ -2057,7 +2057,7 @@ do while(.true.)
  	else if (isel==17) then
         if (idomag==0) then
             write(*,"(a)") " Error: In order to export transition magnetic dipole moment density, you must select &
-            ""-1 Toggle calculating transit. magnetic dip. density in option 1"" to switch status to ""Yes"" before calculating grid data!"
+            &""-1 Toggle calculating transit. magnetic dip. density in option 1"" to switch status to ""Yes"" before calculating grid data!"
             write(*,*) "Press ENTER button to continue"
             read(*,*)
             cycle
@@ -2411,7 +2411,7 @@ do while(.true.)
 				write(10,"(i5,3f10.3)") ifrag,he_frag(ifrag,1:3)*100
 			end do
 			write(*,"(a)") " he_frag.txt has been exported to current folder! The column 1,2,3,4 correspond to &
-			fragment index, percentage contribution to hole, electron and overlap, respectively"
+			&fragment index, percentage contribution to hole, electron and overlap, respectively"
 			close(10)
 		else
 			if (ifhydrogen==1) then
@@ -2420,7 +2420,7 @@ do while(.true.)
 					write(10,"(i5,3f10.3)") iatm,he_atm(iatm,1:3)*100
 				end do
 				write(*,"(a)") " he_atm.txt has been exported to current folder! The column 1,2,3,4 correspond to &
-				atom index, percentage contribution to hole, electron and overlap, respectively"
+				&atom index, percentage contribution to hole, electron and overlap, respectively"
 				close(10)
 			else if (ifhydrogen==0) then
 				open(10,file="he_atmnoh.txt",status="replace")
@@ -2428,7 +2428,7 @@ do while(.true.)
 					write(10,"(i5,3f10.3)") nohlist(idx),he_atmnoh(idx,1:3)*100
 				end do
 				write(*,"(a)") " he_atmnoh.txt has been exported to current folder! The column 1,2,3,4 correspond to &
-				atom index, percentage contribution to hole, electron and overlap, respectively"
+				&atom index, percentage contribution to hole, electron and overlap, respectively"
 				close(10)
 			end if
 		end if
@@ -2893,12 +2893,12 @@ do while(.true.)
 		close(10)
 		write(*,*) "Done! Exporting finished!"
 		write(*,"(a)") " Note: This file can then be directly used to provide electronic excitation information for &
-		many functions, such as hole-electron analysis, NTO analysis and delta_r calculation"
+		&many functions, such as hole-electron analysis, NTO analysis and delta_r calculation"
 		cycle
 	else if (isel==-2) then
 		write(*,*) "Input the threshold for printing, e.g. 0.01"
 		write(*,"(a)") " Note: The orbital pairs whose absolute value of coefficient >= this value will be printed. &
-		If input 0, all orbital pairs will be printed"
+		&If input 0, all orbital pairs will be printed"
 		read(*,*) printthres
 		ntmp=0
 		do iexcitorb=1,excnorb
@@ -3255,7 +3255,7 @@ if (iautointgrid==1) then !Allow change integration grid adapatively
 	sphpot=170
 	radcut=18 !Enlarge radcut, because for Rydberg orbital, the default radcut 10 Bohr is not sufficient
 	write(*,"(a)") " Note: The default number of integration grids in general should be sufficient. If you want to change, &
-	set ""iautointgrid"" in settings.ini to 0, and set ""radpot"" and ""sphpot"" to proper values"
+	&set ""iautointgrid"" in settings.ini to 0, and set ""radpot"" and ""sphpot"" to proper values"
 end if
 write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
 call gen1cintgrid(gridatmorg,iradcut)
@@ -4019,7 +4019,7 @@ real*8,allocatable :: Cpos(:,:,:),Cneg(:,:,:),tmpmat(:,:,:)
 
 if (.not.allocated(cubmat)) then
 	write(*,"(a)") " Error: No grid data is presented, grid data of electron density difference must be &
-    firstly calculated by main function 5 or loaded from external file when Multiwfn boots up"
+    &firstly calculated by main function 5 or loaded from external file when Multiwfn boots up"
 	write(*,*) "Press ENTER button to return"
 	read(*,*)
 	return
@@ -4555,7 +4555,7 @@ do while(.true.)
 	else if (isel==6) then
 		write(*,*) "Please input interpolation steps between grids, e.g. 2"
 		write(*,"(a)") " Note: Larger value gives rise to smoother graph, 1 &
-		means do not perform interpolation, in this case each grid in the map corresponds to a matrix element"
+		&means do not perform interpolation, in this case each grid in the map corresponds to a matrix element"
 		read(*,*) ninterpo
 	else if (isel==7) then
 		if (.not.allocated(frag)) then
@@ -4637,7 +4637,7 @@ do while (.true.)
 	write(*,*)
 	write(*,*) "How many fragments to be defined? e.g. 3"
 	write(*,"(a)") " Note: If you input 0, then fragment definition will be loaded from an external file. &
-	If you input -1, then atom-atom charge transfer matrix will be exported to atmCTmat.txt in current folder"
+	&If you input -1, then atom-atom charge transfer matrix will be exported to atmCTmat.txt in current folder"
 	read(*,*) nfrag
 	if (nfrag==0) then
 		write(*,*) "Input the file containing fragment definition, e.g. C:\fragdef.txt"
@@ -4683,7 +4683,7 @@ do while (.true.)
 		close(10)
 		excitfilename=" "
 		write(*,"(a)") " Done! atom-atom charge transfer matrix has been exported to atmCTmat.txt in current folder, &
-		rows and columns correspond to hole and electron, respectively."
+		&rows and columns correspond to hole and electron, respectively."
 		write(*,"(a)") " Hint: You can use subfunction 2 of main function 18 to plot this matrix as heat map by using this file as input file"
 		return
 	else
@@ -4704,7 +4704,7 @@ do while (.true.)
 	end do
 	if (any(fraghole<0).or.any(fragele<0)) then
 		write(*,"(a)") " Warning: There are unphysical negative contributions, &
-		they are regarded as zero during the calculation of interfragment charger-transfer matrix"
+		&they are regarded as zero during the calculation of interfragment charger-transfer matrix"
         if (icompmethod==1) write(*,"(a)") " Using Hirshfeld partition instead of Mulliken partition may be able to obtain more reliable result"
 		where (fraghole<0) fraghole=0
 		where (fragele<0) fragele=0
@@ -4852,9 +4852,9 @@ zdipall=sum(dipcontri(3,:))
 dipallnorm=dsqrt(xdipall**2+ydipall**2+zdipall**2)
 write(*,*)
 write(*,"(a,/)") " Note: Carbon, 165, 461 (2020) employed this function to study the nature of very strong absorption of cyclo[18]carbon, &
-you are suggested to look at this paper and cite it along with Multiwfn original paper"
+&you are suggested to look at this paper and cite it along with Multiwfn original paper"
 if ((naelec==nbelec).and.excmulti==3) write(*,"(a,/)") " Notice: Since the spin multiplicity between ground state and the excited state &
-is different (spin-forbidden), the transition dipole moment analyzed in this function only considers spatial part"
+&is different (spin-forbidden), the transition dipole moment analyzed in this function only considers spatial part"
 write(*,"(' Transition dipole moment in X/Y/Z: ',3f11.6,' a.u.')") xdipall,ydipall,zdipall
 write(*,"(' Norm of transition dipole moment:  ',f11.6,' a.u.')") dipallnorm
 if (idiptype==1) then
@@ -4878,7 +4878,7 @@ do while(.true.)
 		return
 	else if (isel==1) then
 		write(*,"(/,a)") " Input the threshold for printing, e.g. 0.01 means the orbital pairs having contribution &
-		to any component of transition dipole moment >= 0.01 will be printed"
+		&to any component of transition dipole moment >= 0.01 will be printed"
 		read(*,*) printthres
 		xdipsum=0; ydipsum=0; zdipsum=0
 		nshownpair=0
@@ -5016,7 +5016,7 @@ real*8,allocatable :: tmpmat(:,:),tmparr(:) !Arrays for temporary use
 
 if (.not.allocated(CObasa)) then
 	write(*,"(a)") " Error: TDM is unable to be generated because basis function information is not available! &
-	Please carefully read corresponding sections of the manual to make clear which kinds of input files should be used!"
+	&Please carefully read corresponding sections of the manual to make clear which kinds of input files should be used!"
 	write(*,*) "Press ENTER button to exit program"
 	read(*,*)
 	stop
@@ -5510,7 +5510,7 @@ if (selectyn=='y'.or.selectyn=='Y') then
 	call showmatgau(trdipmatatm(1,:,:),"Atom transition dipole moment matrix (total)",0,"f14.8",10)
 	close(10)
 	write(*,"(a)") " Done! X/Y/Z components of the matrix have been outputted to AAtrdipX.txt, AAtrdipY.txt and AAtrdipZ.txt, &
-	respectively. The total matrix (sum of square of X,Y,Z components) has been outputted to AAtrdip.txt in current folder"
+	&respectively. The total matrix (sum of square of X,Y,Z components) has been outputted to AAtrdip.txt in current folder"
 	write(*,"(a)") " Hint: These file can be plotted as heat map via subfunction 2 of main function 18"
 end if
 
@@ -5573,7 +5573,7 @@ else
 	close(10)
 	close(11)
 	write(*,"(/,a)") " Done! Mulliken atomic transition charges for alpha and beta electrons have been outputted &
-	to atmtrchga.chg and atmtrchgb.chg in current folder, respectively"
+	&to atmtrchga.chg and atmtrchgb.chg in current folder, respectively"
 end if
 
 end subroutine
@@ -5598,7 +5598,7 @@ logical,allocatable :: skippair(:)
 
 if (.not.allocated(CObasa)) then
 	write(*,"(a)") " Error: TDM is unable to be generated because basis function information is not available! &
-	Please carefully read corresponding sections of the manual to make clear which kinds of input files should be used!"
+	&Please carefully read corresponding sections of the manual to make clear which kinds of input files should be used!"
 	write(*,*) "Press ENTER button to exit program"
 	read(*,*)
 	stop
@@ -5978,7 +5978,7 @@ end if
 
 write(*,*)
 write(*,"(a,f5.1,a,/)") " Only MO transitions with absolute contribution >=",compout," % &
-are shown below. It corresponds to 10 times of ""compthres"" parameter in settings.ini"
+&are shown below. It corresponds to 10 times of ""compthres"" parameter in settings.ini"
 call path2filename(filename,outfilename)
 outfilename=trim(outfilename)//"_exc.txt"
 do itime=1,2 !=1: Print on screen, =2: Print to file
@@ -6104,7 +6104,7 @@ real*8,allocatable :: fraghole(:,:),fragele(:,:)
 integer sphpot_bk,radpot_bk
 
 write(*,"(/,a,/)") " NOTE: The charge-transfer spectrum was first proposed in &
-Carbon, 187, 78 (2022) DOI: 10.1016/j.carbon.2021.11.005, please cite this paper in your work"
+&Carbon, 187, 78 (2022) DOI: 10.1016/j.carbon.2021.11.005, please cite this paper in your work"
 write(*,*) "How many fragments to define? At least 2 fragments should be defined"
 write(*,*) "Note: Input 0 can exit"
 read(*,*) nfrag
@@ -6150,7 +6150,7 @@ write(*,*) "2 Hirshfeld partition (slower but very robust)"
 read(*,*) imethod
 if (imethod==2) then
     write(*,"(a)") " Note: During the calculation of cross term of hole and electron, &
-the orbital pairs whose absolute value of coefficient <0.01 will be ignored to save time"
+	&the orbital pairs whose absolute value of coefficient <0.01 will be ignored to save time"
     if (iautointgrid==1) then !Though this grid setting is quite poor, I found it works equally well as (75,434)
         radpot_bk=radpot
         sphpot_bk=sphpot
@@ -6203,7 +6203,7 @@ do istate=1,nstates
     if (imethod==1) then
         if (any(fraghole(:,istate)<-0.01D0).or.any(fragele(:,istate)<-0.01D0)) then
             write(*,"(a)") " Warning: Evident negative fragment contribution is detected! &
-            The result may be unreliable, please use Hirshfeld partition instead! Now all negative contributions are set to 0"
+            &The result may be unreliable, please use Hirshfeld partition instead! Now all negative contributions are set to 0"
         end if
 	    where (fraghole(:,istate)<0) fraghole(:,istate)=0
 	    where (fragele(:,istate)<0) fragele(:,istate)=0
@@ -6326,7 +6326,7 @@ end do
 write(*,*)
 write(*,*) "The following files have been generated in current folder:"
 write(*,"(a)") "   IFCTdata.txt: IFCT data of all excited states, including fragment contributions to hole and electron, as well as intrafragment &
-redistribution and interfragment electron transfer terms"
+&redistribution and interfragment electron transfer terms"
 write(*,"(a)") "   IFCTmajor.txt: IFCT terms with contribution larger than 5% for every excited state"
 write(*,"(a)") "   Files in ""CT_multiple"" subfolder: The CT_multiple.txt can be used as input file of Multiwfn to plot UV-Vis charge-transfer spectrum via main function 11"
 end subroutine

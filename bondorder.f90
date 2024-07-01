@@ -156,7 +156,7 @@ do while(.true.)
 	else if (ibondana==8) then
 		write(*,"(a)") " Citation of Laplacian bond order (LBO):" 
 		write(*,"(a,/)") " Tian Lu and Feiwu Chen, &
-		Bond Order Analysis Based on the Laplacian of Electron Density in Fuzzy Overlap Space, J. Phys. Chem. A, 117, 3100-3108 (2013)"
+		&Bond Order Analysis Based on the Laplacian of Electron Density in Fuzzy Overlap Space, J. Phys. Chem. A, 117, 3100-3108 (2013)"
 		call fuzzyana(2)
 	else if (ibondana==9) then
 		call decompWibergNAO
@@ -197,7 +197,7 @@ if (wfntype==1.or.wfntype==2.or.wfntype==4) then
 	end do
 	write(*,*)    
     write(*,"(a)") " Note: The ""Total"" bond orders shown above are more meaningful than the below ones. If you are not familiar &
-    related theory, you can simply ignore below output"
+    &related theory, you can simply ignore below output"
     write(*,*)
 	write(*,"(' Bond order from mixed alpha&beta density matrix >=',f10.6)") bndordthres
 end if
@@ -848,7 +848,7 @@ if (allocated(b)) then
     iIGMtype=2
     refval=refval_IGMH
     write(*,"(a)") " Note: The current reference value corresponds to H2 in &
-    experimental structure (0.74144 Ang) with density generated at B3LYP/6-311G** level"
+    &experimental structure (0.74144 Ang) with density generated at B3LYP/6-311G** level"
 else
     iIGMtype=1
     refval=refval_IGM
@@ -876,7 +876,7 @@ do while(.true.)
         if (iIGMtype==1) then
             if (.not.allocated(b)) then
                 write(*,"(a)") " Error: Your input file does not contain wavefunction information, &
-                therefore only the IGM based on promolecular approximation can be used"
+                &therefore only the IGM based on promolecular approximation can be used"
                 write(*,*) "Press ENTER button to continue"
                 read(*,*)
                 cycle
@@ -884,7 +884,7 @@ do while(.true.)
             iIGMtype=2
             refval=refval_IGMH
             write(*,"(a)") " Note: The current reference value corresponds to H2 in &
-            experimental structure (0.74144 Ang) with density generated at B3LYP/6-311G** level"
+            &experimental structure (0.74144 Ang) with density generated at B3LYP/6-311G** level"
         else if (iIGMtype==2) then
             iIGMtype=1
             refval=refval_IGM
@@ -906,7 +906,7 @@ do while(.true.)
         call calcatmpairdg(iIGMtype,natmlist,atmlist,natmlist,atmlist,atmpairdg(1:natmlist,1:natmlist))
         write(*,*)
         write(*,"(a)") " Note: ""Dist"" is distance between the two atoms in Angstrom, Int(dg_pair) is the integral &
-        in the numerator of the IBSI formule (atomic pair delta-g index)"
+        &in the numerator of the IBSI formule (atomic pair delta-g index)"
         write(*,*)
         do idx=1,natmlist
             iatm=atmlist(idx)
@@ -932,7 +932,7 @@ do while(.true.)
 	            write(*,"(/,' The total IBSI between fragment 1 and 2:',f10.5)") IBSIfrag
             else
                 write(*,"(/,a)") " Note: IBSI between the two defined fragments is not shown because the range &
-                of the atoms to be taken into account is not all atoms"
+                &of the atoms to be taken into account is not all atoms"
             end if
         end if
     end if

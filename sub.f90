@@ -159,7 +159,7 @@ do while(.true.)
 			end if
 		end do
 		if (any(MOtype==2)) write(*,"(a)") " Note: For beta orbitals, &
-		the index in the parenthese shown above is the index counted from the first beta orbital"
+		&the index in the parenthese shown above is the index counted from the first beta orbital"
 		
 	else if (isel==4) then
 		write(*,*) "Input the orbital index, e.g. 12"
@@ -1779,7 +1779,7 @@ do i=1,nfragatm
 			inquire(file=trim(tmpdir)//a(fragatm(i))%name//".wfn",exist=alive)
 			if (.not.alive) then !The wfn file of the heavy element hasn't been provided in "atomwfn" and hence cannot be found in "wfntmp" here
 				write(*,"(a,a,a)") " Error: Multiwfn cannot invoke Gaussian to generate wavefunction file and sphericalize density for ",a(fragatm(i))%name,", since its &
-				index is larger than 36! You should provide corresponding atom .wfn files in ""atomwfn"" folder manually"
+				&index is larger than 36! You should provide corresponding atom .wfn files in ""atomwfn"" folder manually"
 				write(*,*) "Press ENTER button to continue"
 				read(*,*)
 				return
@@ -2306,7 +2306,7 @@ if (allocated(b)) then !If loaded file contains wavefuntion information
             if (iskipnuc/=0) then
 		        tmpval=totespskip(inx,iny,inz,iskipnuc)
                 write(ifileid,"(' Total ESP without contribution from nuclear charge of &
-		        atom',i6,':',/,E18.10,' a.u. (',E15.7,' eV,',E15.7,' kcal/mol)')") iskipnuc,tmpval,tmpval*au2eV,tmpval*au2kcal
+		        &atom',i6,':',/,E18.10,' a.u. (',E15.7,' eV,',E15.7,' kcal/mol)')") iskipnuc,tmpval,tmpval*au2eV,tmpval*au2kcal
             end if
         end if
     else if (ifPBC>0) then
@@ -2316,8 +2316,8 @@ if (allocated(b)) then !If loaded file contains wavefuntion information
 else !Only loaded structure, use YWT promolecule density
 	call calchessmat_prodens(inx,iny,inz,elerho,elegrad,elehess)
 	write(ifileid,"(/,a,/)") " Note: The input file does not contain wavefunction information, so the following quantities &
-    that related to electron density are evaluated based on promolecular density, which is constructed by the built-in &
-    free-state atomic densities described in Appendix 3 of Multiwfn manual"
+    &that related to electron density are evaluated based on promolecular density, which is constructed by the built-in &
+    &free-state atomic densities described in Appendix 3 of Multiwfn manual"
 	write(ifileid,"(' Density of electrons:',E18.10)") elerho
 	write(ifileid,"(' Reduced density gradient:',E18.10)") RDGprodens(inx,iny,inz)
 	write(ifileid,"(' Sign(lambda2)*rho:',E18.10)") signlambda2rho_prodens(inx,iny,inz)
@@ -2399,7 +2399,7 @@ call funclist
 read(*,*) ifunc
 write(*,*) "Input range of orbitals, e.g. 3,6-8,12-15"
 write(*,"(a)") " Note: If press ENTER button directly, all occupied orbitals will be taken into account, &
-and 10 orbitals having largest contributions will be shown"
+&and 10 orbitals having largest contributions will be shown"
 read(*,"(a)") c2000tmp
 if (c2000tmp==" ") then
 	norb=count(MOocc(1:nmo)/=0D0)
@@ -4076,7 +4076,7 @@ if (allocated(a)) then
     if (infomode==1) then
 		write(*,*) "Generating bonding relationship..."
 		write(*,"(a,f5.3,a)") " Note: If distance between two atoms is smaller than sum of their &
-		covalent radii multiplied by ",bondcrit,", then they are regarded as bonded"
+		&covalent radii multiplied by ",bondcrit,", then they are regarded as bonded"
     end if
     connmat=0
 	!$OMP PARALLEL DO SHARED(connmat) PRIVATE(iatm,jatm,covri,covrj,tmpdist) schedule(dynamic) NUM_THREADS(nthreads)
@@ -4139,7 +4139,7 @@ if (itype==1) then
 else if (itype==2) then
 	write(*,*) "Generating bonding relationship..."
 	write(*,"(a,f5.3,a)") " Note: If distance between two atoms is smaller than sum of their &
-	covalent radii multiplied by ",bondcrit,", then they are regarded as bonded"
+	&covalent radii multiplied by ",bondcrit,", then they are regarded as bonded"
     !$OMP PARALLEL DO SHARED(nneigh,neigh) PRIVATE(iatm,jatm,covri,covrj,tmpdist) schedule(dynamic) NUM_THREADS(nthreads)
     do iatm=1,ncenter
 		covri=covr(a(iatm)%index)
@@ -4268,8 +4268,9 @@ subroutine geomalign
 use defvar
 use util
 implicit real*8 (a-h,o-z)
-real*8 xyz1(3,ncenter),xyz2(3,ncenter),eleidx(ncenter),com1(3),com2(3)  !1/2/3=x,y,z
+real*8 xyz1(3,ncenter),xyz2(3,ncenter),com1(3),com2(3)  !1/2/3=x,y,z
 real*8 singval(3),Umat(3,3),Vmat(3,3),Hmat(3,3),Rmat(3,3)
+integer eleidx(ncenter)
 
 do i=1,ncenter
     xyz1(1,i)=a_org(i)%x
@@ -4471,10 +4472,10 @@ if (allocated(frag1)) then
 	write(*,*) "Atoms in current fragment:"
 	write(*,"(13i6)") frag1
 	write(*,"(a)") " Input 0 to keep unchanged, or redefine fragment, &
-    e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 will constitute the fragment"
+    &e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 will constitute the fragment"
 else
 	write(*,"(a)") " Input atomic indices to define fragment. &
-    e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 will constitute the fragment"
+    &e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 will constitute the fragment"
 end if
 read(*,"(a)") c2000tmp
 if (c2000tmp(1:1)=='0') then
@@ -4514,7 +4515,6 @@ if (ifPBC>0) then
 	write(*,*) "Error: Currently evaluation of ESP does not support periodic system"
     write(*,*) "Press ENTER button to continue (then Multiwfn may crash)"
     read(*,*)
-    pause
 end if
 if (iuserfunc>=61.and.iuserfunc<=67) return !In this case, the function involves derivative of ESP, while I found the numerical derivate of ESP produced by libreta has noise
 if (if_initlibreta==0) then
@@ -4524,7 +4524,7 @@ if (if_initlibreta==0) then
 		if (iESPcode==3) write(*,*) "Initializing LIBRETA library (slow version) for ESP evaluation ..."
 		if (nprims>7000) then
 			write(*,"(a)") " Note: Number of GTFs of present system is large, if then Multiwfn crashes due to insufficient memory, &
-			please change ""iESPcode"" in settings.ini to 1 to use slower ESP evaluation code instead. Alternatively, use a computer with larger memory!"
+			&please change ""iESPcode"" in settings.ini to 1 to use slower ESP evaluation code instead. Alternatively, use a computer with larger memory!"
 		end if
     end if
     if (iESPcode==2) then
@@ -4537,12 +4537,12 @@ if (if_initlibreta==0) then
 end if
 if (info==1) then
 	write(*,"(/,a)") " NOTE: The ESP evaluation code based on LIBRETA library is being used. &
-	Please in your work cite both Multiwfn original paper (J. Comput. Chem., 33, 580-592 (2012)) and the paper describing the &
-    efficient ESP evaluation algorithm adopted by Multiwfn: Phys. Chem. Chem. Phys., 23, 20323 (2021)"
+	&Please in your work cite both Multiwfn original paper (J. Comput. Chem., 33, 580-592 (2012)) and the paper describing the &
+    &efficient ESP evaluation algorithm adopted by Multiwfn: Phys. Chem. Chem. Phys., 23, 20323 (2021)"
 	if (isys==1.and.nthreads>12) then
 		write(*,"(a)") " Warning!!! In Windows system, it is found that the performance of ESP evaluation code may &
-		severely degrade when more than 12 CPU cores are used, therefore 12 cores are used in the following ESP calculation. &
-		If you want to pursue better performance by utilizing more cores, please use Linux version instead!"
+		&severely degrade when more than 12 CPU cores are used, therefore 12 cores are used in the following ESP calculation. &
+		&If you want to pursue better performance by utilizing more cores, please use Linux version instead!"
 	end if
 end if
 end subroutine
@@ -4555,14 +4555,14 @@ use defvar
 !Local Hartree-Fock exchange energy involves Coulomb matrix generated by libreta and density matrix, so initialize
 if (iuserfunc==999.and.allocated(b)) then
     write(*,"(/,a)") " Local Hartree-Fock exchange energy is chosen as user-defined function, &
-    it requires Coulomb integral between GTFs, so Libreta library is initialized now..."
+    &it requires Coulomb integral between GTFs, so Libreta library is initialized now..."
     if (iESPcode/=3) then
 		write(*,*) "iESPcode in settings.ini is not 3, now is forced to switched to 3"
 		iESPcode=3
     end if
     call doinitlibreta(0)
     write(*,"(/,a)") " Note: If local Hartree-Fock exchange energy will be studied using Multiwfn, &
-    please note only cite original paper of Multiwfn but also cite LIBRETA library: Jun Zhang, J. Chem. Theory Comput., 14, 572 (2018)"
+    &please note only cite original paper of Multiwfn but also cite LIBRETA library: Jun Zhang, J. Chem. Theory Comput., 14, 572 (2018)"
     write(*,*)
     write(*,*) "Generating density matrix between GTFs..."
     call genPprim
@@ -5145,14 +5145,14 @@ nzero=count(MOene==0)
 if (nzero>0) then
     if (nzero==nbasis) then
         write(*,"(a)") " Error: All orbital energies are zero, hence Fock/KS matrix &
-        cannot be generated based on orbital energies and expansion coefficients. Commonly this is because the orbital energies were not &
-        solved at all during your quantum chemistry calculation. For example, the current orbitals are not molecular orbitals, or you enabled OT in CP2K"
+        &cannot be generated based on orbital energies and expansion coefficients. Commonly this is because the orbital energies were not &
+        &solved at all during your quantum chemistry calculation. For example, the current orbitals are not molecular orbitals, or you enabled OT in CP2K"
     else
         write(*,"(a,i6,a)") " Error:",nzero," orbital energies are zero, hence Fock/KS matrix &
-        cannot be generated based on orbital energies and expansion coefficients. Commonly this is because there is linear dependency problem &
-        in your quantum chemistry calculation, and thus some basis functions are automatically removed by your quantum chemistry code. &
-        To tackle this problem, removing diffuse functions if they have been used; if you are a Gaussian user, also add IOp(3/32=2) to fully avoid &
-        eliminating linear-dependent basis functions"
+        &cannot be generated based on orbital energies and expansion coefficients. Commonly this is because there is linear dependency problem &
+        &in your quantum chemistry calculation, and thus some basis functions are automatically removed by your quantum chemistry code. &
+        &To tackle this problem, removing diffuse functions if they have been used; if you are a Gaussian user, also add IOp(3/32=2) to fully avoid &
+        &eliminating linear-dependent basis functions"
     end if
     write(*,*) "Press ENTER button to return"
     read(*,*)

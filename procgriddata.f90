@@ -71,7 +71,7 @@ type(content) useratom(3),maxv,minv
 
 if (.not.allocated(cubmat)) then
 	write(*,"(a)") " Error: Grid data has not been loaded or generated! If you want to load a grid data file now, &
-	input its path, e.g. C:\nico.cub, else input 0 to return"
+	&input its path, e.g. C:\nico.cub, else input 0 to return"
 	do while(.true.)
 		read(*,"(a)") c200tmp
 		if (c200tmp(1:1)=='0') then
@@ -1066,7 +1066,7 @@ if (idir==1) then
         continue
     else
         write(*,"(a)") " Error: To integrate along X axis, grid vector 1 must be parallel &
-        to X axis and the other two should be in YZ plane. The present grid does not meet this condition"
+        &to X axis and the other two should be in YZ plane. The present grid does not meet this condition"
         write(*,*) "Press ENTER button to continue"
         read(*,*)
         return
@@ -1076,7 +1076,7 @@ else if (idir==2) then
         continue
     else
         write(*,"(a)") " Error: To integrate along Y axis, grid vector 2 must be parallel &
-        to Y axis and the other two should be in XZ plane. The present grid does not meet this condition"
+        &to Y axis and the other two should be in XZ plane. The present grid does not meet this condition"
         write(*,*) "Press ENTER button to continue"
         read(*,*)
         return
@@ -1086,7 +1086,7 @@ else if (idir==3) then
         continue
     else
         write(*,"(a)") " Error: To integrate along Z axis, grid vector 3 must be parallel &
-        to Z axis and the other two should be in XY plane. The present grid does not meet this condition"
+        &to Z axis and the other two should be in XY plane. The present grid does not meet this condition"
         write(*,*) "Press ENTER button to continue"
         read(*,*)
         return
@@ -1159,7 +1159,7 @@ else if (idir==3) then !Direction 3
 end if
 
 write(*,"(/,a)") " Options 1~3 are mainly used for previewing purpose. To gain better graphical effect, &
-you can use options 7~9 to export curve data and plot the curves using third-part tool, such as gnuplot"
+&you can use options 7~9 to export curve data and plot the curves using third-part tool, such as gnuplot"
 write(*,*)
 write(*,"(' Minimum and maximum of plane-averaged curve:',2E16.8)") minval(pleavgcurve),maxval(pleavgcurve)
 write(*,"(' Minimum and maximum of local integral curve:',2E16.8)") minval(locintcurve),maxval(locintcurve)

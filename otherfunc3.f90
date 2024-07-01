@@ -108,18 +108,18 @@ do while(.true.)
             read(*,*) ismoothmethod
             if (ismoothmethod==1) then
                 write(*,"(a)") " Set full width at half maximum (FWHM) of Gaussian function. If inputting for example 1.8, &
-                then the FWHM will be 1.8 times of van der Waals radius of corresponding atom"
+                &then the FWHM will be 1.8 times of van der Waals radius of corresponding atom"
                 write(*,*) "Hint: Usually the value should be <=2.0"
                 read(*,*) Gauss_radmulti
             else if (ismoothmethod==2) then
                 write(*,*) "Input number of iterations of Becke function, e.g. 2"
                 write(*,"(a)") " Hint: Should be >=0. The smaller the number, the smoother the surface, &
-                but the farther region an atom will affect and thus more artificial it is. Usually 1 is used"
+                &but the farther region an atom will affect and thus more artificial it is. Usually 1 is used"
                 read(*,*) nBeckeiter
             else if (ismoothmethod==3) then
                 write(*,*) "Input scale factor of the error function, e.g. 0.3"
                 write(*,"(a)") " Hint: The larger the value, the smoother the surface, &
-                but the farther region an atom will affect and thus more artificial it is. Usually 1.0 is a good compromise"
+                &but the farther region an atom will affect and thus more artificial it is. Usually 1.0 is a good compromise"
                 read(*,*) erfscl
             end if
         else if (isel==5) then
@@ -561,7 +561,7 @@ do while(.true.)
                 parm(1:nfitfunc)=1
             else if (isel2==10) then
                 write(*,"(a)") " Input indices of the functions to combine (e.g. 1,3), whose average exponent will be taken as the new exponent, &
-                and their coefficients will be summed up"
+                &and their coefficients will be summed up"
                 read(*,*) ifunc1,ifunc2
                 parm(ifunc1)=parm(ifunc1)+parm(ifunc2)
                 parm(nfitfunc+ifunc1)=(parm(nfitfunc+ifunc1)+parm(nfitfunc+ifunc2))/2
@@ -891,7 +891,7 @@ do while(.true.)
                 end do
             else if (isel2==1) then
                 write(*,"(a)") " Radial distance (Angstrom), actual density (a.u.), &
-                difference between fitted and actual density (a.u.) as well as relative difference"
+                &difference between fitted and actual density (a.u.) as well as relative difference"
                 do ipt=1,npoint
                     write(*,"(' #',i5,'  r:',f8.5,'  rho:',f18.8,'  Diff:',f16.8,' (',f8.2,' %)')") &
                     ipt,radr(ipt)*b2a,radrho(ipt),fitrho(ipt)-radrho(ipt),(fitrho(ipt)-radrho(ipt))/radrho(ipt)*100
@@ -1140,13 +1140,13 @@ end if
 if (wfntype==3.or.wfntype==4) then
     write(*,"(a)") " Error: This function does not formally support wavefunction with non-integer orbital occupancy!"
     write(*,"(a)") " Please enter subfunction 9 of main function 300 to determine Fermi level, which can be used in the present function, and &
-    at the same time, all orbital occupancies will be set to integer"
+    &at the same time, all orbital occupancies will be set to integer"
     write(*,*) "Press ENTER button to return"
     read(*,*)
     return
 else if (wfntype==2) then
     write(*,"(a)") " Error: Restricted open-shell wavefunction is not directly supported by this function. You should first use subfunction 37 in &
-    main function 6 to transform the wavefunction to equivalent unrestricted open-shell form!"
+    &main function 6 to transform the wavefunction to equivalent unrestricted open-shell form!"
     write(*,*) "Press ENTER button to return"
     read(*,*)
     return
@@ -1160,10 +1160,10 @@ else !Single-determinant wavefunction
             write(*,*) "Note: The default Fermi level has been set to average of E(HOMO) and E(LUMO)"
         else
             write(*,*) "Note: The default Fermi level has been set to average of E(HOMO) and E(LUMO) of alpha spin. In this case, &
-            the result will be problematic if bias voltage is set to positive value (electron flows from tip to sample)"
+            &the result will be problematic if bias voltage is set to positive value (electron flows from tip to sample)"
         end if
         write(*,"(a)") " The default bias voltage has been set to the difference between E(HOMO) and Fermi level, &
-        therefore under default setting only HOMO will be imaged"
+        &therefore under default setting only HOMO will be imaged"
     else
         Ef=maxval(MOene)
         write(*,*) "Note: The default Fermi level has been set to HOMO"
@@ -1203,7 +1203,7 @@ do while(.true.)
     else if (isel==2) then
         write(*,*) "Input bias voltage in V, e.g. -3.5"
         write(*,"(a)") " Note: Negative value lets electron flow from sample to tip, thus density of occupied MOs are imaged. &
-        Positive value lets electron flow from tip to sample, thus unoccupied MOs are imaged."
+        &Positive value lets electron flow from tip to sample, thus unoccupied MOs are imaged."
         read(*,*) bias
         bias=bias/au2eV
     else if (isel==3) then
@@ -2000,7 +2000,7 @@ do while(.true.)
 		    call showcoordA(0)
         else
 			write(*,"(a)") " Note: There are more than 300 atoms, so their information are not shown here now. &
-            To print, in the manu bar please select ""Tools"" - ""Print XYZ coordinates"""
+            &To print, in the manu bar please select ""Tools"" - ""Print XYZ coordinates"""
         end if
         call drawmolgui
         
@@ -2142,7 +2142,7 @@ do while(.true.)
         write(*,*) "1 v_new = mat * v_old  (v is column vector of coordinates)"
         write(*,*) "2 v_new = v_old * mat  (v is row vector of coordinates)"
         write(*,"(a)") " Note: Option 1 corresponds to common situation. However, if your purpose is to apply the &
-        eigenvector matrix of Hessian printed by Multiwfn as rotation matrix to eliminate its non-diagonal terms, you should choose 2"
+        &eigenvector matrix of Hessian printed by Multiwfn as rotation matrix to eliminate its non-diagonal terms, you should choose 2"
         read(*,*) iapply
         
         do idx=1,nfragsel
@@ -3028,7 +3028,7 @@ write(*,"(/,a)") " Input index of an atom, e.g. 5. The whole molecule that the a
 read(*,*) iselatm
 write(*,*) "Input threshold of detecting contact"
 write(*,"(a)") " If you input e.g. 1.5, then if the closest distance between a neighbouring molecule &
-and current molecule is shorter than the sum of the corresponding atomic vdW radii multiplied by 1.5, the neighbouring molecule will be extracted"
+&and current molecule is shorter than the sum of the corresponding atomic vdW radii multiplied by 1.5, the neighbouring molecule will be extracted"
 write(*,*) "If pressing ENTER button directly, 1.2 will be used"
 write(*,"(a)") " If you simply want to get the single molecule containing the atom you selected, input 0"
 read(*,"(a)") c80tmp

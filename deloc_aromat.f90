@@ -38,30 +38,30 @@ do while(.true.)
 		call NICS_ZZ
 	else if (isel==5) then
 		write(*,"(a)") " Multiwfn is able to analyze ELF-sigma/pi and LOL-sigma/pi in different ways, such as plotting plane and isosurface maps, &
-        performing topology analysis to obtain bifurcation value, etc., which rely on different main functions. Please check &
-        Section 4.4.9, 4.5.3 and 4.100.22 of manunal for example of realizing these analyses."
+        &performing topology analysis to obtain bifurcation value, etc., which rely on different main functions. Please check &
+        &Section 4.4.9, 4.5.3 and 4.100.22 of manunal for example of realizing these analyses."
         write(*,*) "Press ENTER button to continue"
         read(*,*)
 	else if (isel==6) then
 		call HOMA_Bird
 	else if (isel==7) then
 		write(*,"(a)") " To realize this analysis, you should use topology analysis module (main function 2), see Section 3.14.6 of manual &
-        for introduction and Section 4.2.1 for practical example."
+        &for introduction and Section 4.2.1 for practical example."
         write(*,*) "Press ENTER button to continue"
         read(*,*)
 	else if (isel==8) then
 		write(*,"(a)") " To realize this analysis, you should use fuzzy analysis module (main function 15), see Section 3.18.6 of manual &
-        for introduction and Section 4.15.2 for practical example."
+        &for introduction and Section 4.15.2 for practical example."
         write(*,*) "Press ENTER button to continue"
         read(*,*)
 	else if (isel==9) then
 		write(*,"(a)") " To realize this analysis, you should use fuzzy analysis module (main function 15), see Section 3.18.7 of manual &
-        for introduction and Section 4.15.2 for practical example."
+        &for introduction and Section 4.15.2 for practical example."
         write(*,*) "Press ENTER button to continue"
         read(*,*)
 	else if (isel==10) then
 		write(*,"(a)") " To realize this analysis, you should use fuzzy analysis module (main function 15), see Section 3.18.9 of manual &
-        for introduction and Section 4.15.2 for practical example."
+        &for introduction and Section 4.15.2 for practical example."
         write(*,*) "Press ENTER button to continue"
         read(*,*)
 	else if (isel==11) then
@@ -70,7 +70,7 @@ do while(.true.)
         read(*,*)
 	else if (isel==12) then
 		write(*,"(a)") " To realize this analysis, you should use topology analysis module (main function 2), see Section 3.14.6 of manual &
-        for introduction and Section 4.2.1 for practical example."
+        &for introduction and Section 4.2.1 for practical example."
         write(*,*) "Press ENTER button to continue"
         read(*,*)
 	else if (isel==13) then
@@ -193,7 +193,7 @@ if (allocated(cubmat)) deallocate(cubmat)
 allocate(cubmat(nx,ny,nz))
 write(*,*) "Input the path of Gaussian output file of NMR task"
 write(*,"(a)") " Assume that you input ""C:\ltwd\NICS"", then C:\ltwd\NICS0001.out, C:\ltwd\NICS0002.out, &
-C:\ltwd\NICS0003.out... will be loaded (.log suffix is also allowed)"
+&C:\ltwd\NICS0003.out... will be loaded (.log suffix is also allowed)"
 do while(.true.)
 	read(*,"(a)") gauoutfile
 	suffix=".out"
@@ -637,7 +637,7 @@ do while(.true.)
     write(*,*) "To exit, input ""q"""
     !When NAO information is loaded form NBO output file, geometry information is not available and cannot generate connectivity
     if (ifNAO==0) write(*,"(a)") " Hint: If input ""d"" and press ENTER button, then you can input the indices in arbitrary order because the actual order &
-    will be automatically guessed, however in this case any atom should not connect to more than two atoms in the ring"
+    &will be automatically guessed, however in this case any atom should not connect to more than two atoms in the ring"
     read(*,"(a)") c2000tmp
     
     if (index(c2000tmp,'q')/=0) then
@@ -675,7 +675,7 @@ do while(.true.)
         deallocate(atmarrorg)
         if (any(atmarr<=0)) then
             write(*,"(a)") " Unfortunately, the order was not successfully recognized, you should manually input &
-            the atom indices according to connectivity"
+            &the atom indices according to connectivity"
             write(*,*) "Press ENTER button to continue"
             read(*,*)
             deallocate(atmarr)
@@ -782,14 +782,14 @@ end if
 
 if (iMCBOtype==0) then
     if (ientry==2) write(*,"(a)") " Note: Because the PS matrix may be not symmetric, the result may be dependent of &
-    inputting order of atomic indices. Settings the iMCBOtype in settings.ini to 1 is recommended, in this case the results corresponding &
-    to forward and reverse inputting orders will be automatically averaged"
+    &inputting order of atomic indices. Settings the iMCBOtype in settings.ini to 1 is recommended, in this case the results corresponding &
+    &to forward and reverse inputting orders will be automatically averaged"
 else if (iMCBOtype==1) then
     write(*,"(a)") " Note: Since iMCBOtype in settings.ini has been set to 1, the multi-center bond order will be &
-    reported after averaging the results corresponding to forward and reverse inputting directions"
+    &reported after averaging the results corresponding to forward and reverse inputting directions"
 else if (iMCBOtype==2) then
     write(*,"(a)") " Note: Since iMCBOtype in settings.ini has been set to 2, the multi-center bond order will be &
-    reported by taking all possible permutations into account"
+    &reported by taking all possible permutations into account"
 end if
 
 do while(.true.)
@@ -1026,7 +1026,7 @@ basend=NAOend
 
 if (iMCBOtype==2) then
     write(*,"(a)") " Note: Since iMCBOtype in settings.ini has been set to 2, the multi-center bond order will be &
-    reported by taking all possible permutations into account"
+    &reported by taking all possible permutations into account"
 end if
 
 do while(.true.)
@@ -1466,7 +1466,7 @@ write(*,"(3f16.10,' Angstrom')") (tmpx-xnor/b2a)*b2a,(tmpy-ynor/b2a)*b2a,(tmpz-z
 write(*,"(3f16.10,' Angstrom')") (tmpx+xnor/b2a)*b2a,(tmpy+ynor/b2a)*b2a,(tmpz+znor/b2a)*b2a
 write(*,*)
 write(*,"(a)") " Now input magnetic shielding tensor outputted by your ab-initio program, then Multiwfn will calculate the shielding value in the direction perpendicular to the plane. &
-You can also input ""q"" to return"
+&You can also input ""q"" to return"
 ! If you are a Gaussian user, you can also directly copy NMR shielding tensor (such as below) from Gaussian output file to present window
 ! (Note that this is not always a symmetric matrix)
 !    XX=     6.2246   YX=   -54.8190   ZX=    94.7322

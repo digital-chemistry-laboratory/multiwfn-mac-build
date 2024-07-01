@@ -19,7 +19,7 @@ implicit real*8 (a-h,o-z)
 
 do while(.true.)
     write(*,"(/,a)") " If this module is used in your work, please cite the following paper together with &
-    Multiwfn original paper (J. Comput. Chem., 33, 580 (2012)), as the methods employed in this module are comprehensively described in this paper:"
+    &Multiwfn original paper (J. Comput. Chem., 33, 580 (2012)), as the methods employed in this module are comprehensively described in this paper:"
     write(*,"(a)") " Tian Lu, Feiwu Chen, Acta Chimica Sinica, 69, 2393-2406 (2011) http://sioc-journal.cn/Jwk_hxxb/CN/abstract/abstract340458.shtml"
     write(*,*)
 	write(*,*) "       ================ Orbital composition analysis ==============="
@@ -86,7 +86,7 @@ do while(.true.)
 		call orbatmcomp_space(3)
 	else if (icompana==11) then
         write(*,"(a)") " Note: To compute orbital composition under AIM partition, you should use basin analysis module (main function 17). &
-        see Section 4.8.6 of Multiwfn manual for example"
+        &see Section 4.8.6 of Multiwfn manual for example"
         write(*,*) "Press ENTER button to continue"
         read(*,*)
 	else if (icompana==100) then
@@ -204,7 +204,7 @@ do while(.true.)
 		write(*,*) "Done!"
 	else if (c10000tmp(1:4)=="cond") then
 		write(*,"(a)") " Note: You will be prompted to input three conditions in turn, &
-		the basis functions satisfying all conditions will be added to current fragment"
+		&the basis functions satisfying all conditions will be added to current fragment"
 		write(*,*)
 		write(*,*) "Condition 1: Input range of atoms, e.g. 2,5-8,12"
         write(*,*) "You can also input one element name (case sensitive), e.g. Fe"
@@ -697,7 +697,7 @@ if (ifPBC==0) then !Using atomic-center grids to calculate intermediate array
 	allpotw=0D0
 	write(*,"(i6,' quadrature points are used for each atom to compute orbital compositions')") radpot*sphpot
 	write(*,"(a)") " Note: You can manually define the number of radial and angular points by &
-	setting ""iautointgrid"" in settings.ini to 0 and setting ""radpot"" and ""sphpot"""
+	&setting ""iautointgrid"" in settings.ini to 0 and setting ""radpot"" and ""sphpot"""
 	call walltime(iwalltime1)
 
 	if (itype==1.or.itype==3) then !Hirshfeld or Hirshfeld-I partition
@@ -1101,7 +1101,7 @@ if (ifPBC==0) then !Using atomic-center grids
 	if (info==1) then
 		write(*,"(i7,' integration points are used for each atom')") radpot*sphpot
 		write(*,"(a)") " Note: You can manually define the number of radial and angular points by &
-		setting ""iautointgrid"" in settings.ini to 0 and setting ""radpot"" and ""sphpot"""
+		&setting ""iautointgrid"" in settings.ini to 0 and setting ""radpot"" and ""sphpot"""
 	end if
 
 	call gen1cintgrid(gridorg,iradcut)
@@ -1595,7 +1595,7 @@ else
 end if
 write(*,*)
 write(*,"(a)") " Hint: If you want to make Multiwfn output attribution of LMOs, &
-you can set ""outmedinfo"" in settings.ini to 1 before booting up Multiwfn"
+&you can set ""outmedinfo"" in settings.ini to 1 before booting up Multiwfn"
 write(*,*)
 
 nfragLOBA=0

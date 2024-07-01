@@ -45,7 +45,7 @@ use NAOmod
 use util
 implicit real*8 (a-h,o-z)
 character :: c80tmp*80,c80tmp2*80
-character*3,allocatable :: shname_NAO_tmp(:),shset_NAO_tmp(:,:)
+character(len=3),allocatable :: shname_NAO_tmp(:),shset_NAO_tmp(:,:)
 integer,allocatable :: shcen_NAO_tmp(:)
 
 !Set iopshNAO

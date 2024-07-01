@@ -87,7 +87,7 @@ real*8,allocatable :: redmass(:) !Reduced masses of vibrational modes
 if (ifiletype/=0) then
 	if (ifiletype==1) then
 		write(*,"(a)") " Error: As a Gaussian user, you must use output file (.out/.log) as input file for this function! &
-		.fch/fchk does not contain information needed for plotting spectrum"
+		&.fch/fchk does not contain information needed for plotting spectrum"
 	else
 		write(*,"(a)") " Error: The type of input file is wrong for plotting spectrum purpose! See Section 3.13.2 of manual for details"
 	end if
@@ -556,7 +556,7 @@ do while(.true.)
 			end do
 			close(10)
 			write(*,"(a)") " The transition data have been exported to transinfo.txt in current directory, &
-			this file can be directly used as input file of Multiwfn"
+			&this file can be directly used as input file of Multiwfn"
 		else
 			do imol=1,nsystem
 				write(c200tmp,"(a,i3.3,a)") "transinfo",imol,".txt"
@@ -568,7 +568,7 @@ do while(.true.)
 				close(10)
 			end do
 			write(*,"(a)") " The transition data have been exported to .txt with ""transinfo"" as prefix in current directory, &
-			these files can be directly used as input file of Multiwfn"
+			&these files can be directly used as input file of Multiwfn"
 		end if
         
 	else if (isel==-1.or.isel==20) then !Show transition data and modify strengths
@@ -757,7 +757,7 @@ do while(.true.)
 			write(*,*) "Input the FWHM in cm^-1, e.g. 4"
 		else if (ispectrum==3.or.ispectrum==4) then
 			if (iunitx==2) write(*,"(a,/)") " NOTE: nm is not a linear unit of energy, so in principle one cannot define FWHM in nm. Nevertheless, in Multiwfn, when nm &
-			is chosen as the unit, the curve will be generated in eV as X-axis first, and then convert to nm. Since current unit is nm, now you have to define the FWHM in eV."
+			&is chosen as the unit, the curve will be generated in eV as X-axis first, and then convert to nm. Since current unit is nm, now you have to define the FWHM in eV."
 			if (iunitx==1.or.iunitx==2) write(*,*) "Input the FWHM in eV, e.g. 0.5"
 			if (iunitx==3) write(*,*) "Input the FWHM in 1000 cm^-1, e.g. 4"
 		end if
@@ -865,7 +865,7 @@ do while(.true.)
 				write(*,"(i6,' frequencies are selected')") nmode
 				write(*,"(/,a)") " Input scale factor, e.g. 0.97"
 				write(*,"(a)") " Note: If pressing ENTER button directly, 0.9614 will be used, which is recommended for B3LYP/6-31G* level. &
-				If inputting 1.0, frequencies will correspond to the ones originally loaded from input file"
+				&If inputting 1.0, frequencies will correspond to the ones originally loaded from input file"
 				read(*,"(a)") c200tmp
 				if (c200tmp==" ") then
 					tmpval=0.9614D0
@@ -1070,7 +1070,7 @@ do while(.true.)
             else if (isel2==13) then
 				do while(.true.)
 					write(*,"(a)") " The index and current color of various systems are listed below, &
-                    now input index of a system to change its color, or input ""q"" to return"
+                    &now input index of a system to change its color, or input ""q"" to return"
 					do isystem=1,nsystem
 						if (isystem<=ncurrclr) then
 							write(*,"(i4,2x,a)") isystem,colorname(currclr(isystem))
@@ -1087,7 +1087,7 @@ do while(.true.)
             else if (isel2==14) then
 				write(*,*) "Input number of points in the curve(s), e.g. 350"
                 write(*,"(a)") " Note: Assume that the energy range for plotting is 380 to 760 nm, &
-                if you set number of points to (760-380)+1=381, then spacing between adjacent two points will be exactly 1 nm"
+                &if you set number of points to (760-380)+1=381, then spacing between adjacent two points will be exactly 1 nm"
                 read(*,*) num1Dpoints
                 deallocate(curvex,curvey,curveytmp,curveyall,PVScurve,OPVScurve,PVScurveintra)
                 allocate(curvex(num1Dpoints),curvey(num1Dpoints),curveytmp(num1Dpoints),curveyall(nsystem,num1Dpoints))
@@ -1920,7 +1920,7 @@ do while(.true.)
 					if (iPVSfragtype==1) then !PVS based on atoms
 						write(*,"(a,i3,a)") " Input indices of the atoms in fragment",ifrag,", e.g. 2,3,7-10"
                         write(*,"(a)") " By default all Cartesian components are taken into account. You can also specify Cartesian component(s) as suffix, including X Y Z XY XZ YZ. &
-                        For example, inputting ""2-4,9 XY"" will only define X and Y components of atoms 2,3,4,9 as the fragment"
+                        &For example, inputting ""2-4,9 XY"" will only define X and Y components of atoms 2,3,4,9 as the fragment"
 						read(*,"(a)") c2000tmp
                         itmp=index(c2000tmp,' ')
 						call str2arr(c2000tmp(1:itmp-1),PVSnterm(ifrag),PVSterm(:,ifrag))
@@ -2084,7 +2084,7 @@ do while(.true.)
 		!This function is not available when multiple systems are considered
 		if (isel==15) then
 			write(*,"(a)") " Input criterion of strength, e.g. 0.2, then the contribution curves of the transitions &
-            whose absolute strength larger than it will be exported to plain text files"
+            &whose absolute strength larger than it will be exported to plain text files"
             write(*,"(a)") " If you input 0 now, then 10 maximum contributions to an inputted X position will be shown on screen"
 			read(*,*) critindband
             if (critindband==0) then
@@ -2284,7 +2284,7 @@ do while(.true.)
         end do
         if (ispectrum==4.or.ispectrum==5.or.ispectrum==6) then
             write(*,"(a)") " Note: The % shown above is calculated via dividing &
-            absolute value of a transition by sum of absolute values of all transitions"
+            &absolute value of a transition by sum of absolute values of all transitions"
         end if
         write(*,*)
         deallocate(indcontri,tmparr)
@@ -2433,7 +2433,7 @@ do while(.true.)
 		write(*,*)
 		if (nsystem>1) then
 			write(*,"(a)") " Discrete line data of all systems have been written together to spectrum_line.txt &
-            in current folder, data of each system is separated by a blank line"
+            &in current folder, data of each system is separated by a blank line"
 			if (any(weight/=1)) write(*,*) "Note: The height of discrete lines in this file have been weighted"
 		else
 			write(*,*) "Discrete line data have been written to spectrum_line.txt in current folder"
@@ -2929,7 +2929,7 @@ do while(.true.)
 		    CALL ENDGRF
 			call color("WHITE")
             if (iexportlevel==1) write(*,"(a)") " Line data corresponding to various spike sets have been &
-            exported to spike[index].txt in current folder"
+            &exported to spike[index].txt in current folder"
         end if
         
 		call disfin
@@ -3466,7 +3466,7 @@ if (iORCAout==1) then
 				call loclabel(10,"SOC CORRECTED ABSORPTION",ifound,0)
 				if (ifound==1) then
 					write(*,"(a)") " Spin-orbit coupling corrected spectra information was found, &
-					would you like to plot this kind of spectrum instead of the one without correction? (y/n)"
+					&would you like to plot this kind of spectrum instead of the one without correction? (y/n)"
 					read(*,*) ctest
 					if (ctest=='y'.or.ctest=='Y') then
 						numdata=4*numdata !If root=n, then there will be n singlet states and 3n triplet sublevels
@@ -3649,7 +3649,7 @@ if (iCP2K==1) then
         call loclabelfinal(10,"SOC-corrected exc.",iSOC)
         if (iSOC==1) then
 			write(*,"(a)") " Spin-orbit coupling corrected spectra information was found, &
-			would you like to plot this kind of spectrum instead of the one without correction? (y/n)"
+			&would you like to plot this kind of spectrum instead of the one without correction? (y/n)"
 			read(*,*) ctest
 			if (ctest=='n') then
 				write(*,*) "Information of singlet excited states will be loaded"
@@ -3757,12 +3757,12 @@ if (iCP2K==1) then
 					if (ispectrum==1) write(*,"(a,i6,a)") " Error: Cannot properly load IR intensity of mode",idxmode,"!"
 					if (ispectrum==2) write(*,"(a,i6,a)") " Error: Cannot properly load Raman activity of mode",idxmode,"!"
                     write(*,"(a)") " Please check corresponding data in the input file, perhaps the value is too large, &
-                    making the data be recorded as ************"
+                    &making the data be recorded as ************"
                     if (ispectrum==1) then
 						write(*,*) "If it is the case, please manually input the IR intensity in kM/mol, e.g. 89.64"
                         write(*,"(a)") "Hint: If you request CP2K to export .mol (Molden) file containing vibrational information, &
-                        you can find the intensity in [INT] field. The value to be inputted here should be that in [INT] multiplied by 974.85541. &
-                        Alternatively, you can directly use the .mol file as input file" 
+                        &you can find the intensity in [INT] field. The value to be inputted here should be that in [INT] multiplied by 974.85541. &
+                        &Alternatively, you can directly use the .mol file as input file" 
                     end if
                     if (ispectrum==2) write(*,*) "If it is the case, please manually input the Raman activity, e.g. 89.64"
                     read(*,*) str(idxmode)
@@ -3834,7 +3834,7 @@ if (iBDFout==1) then
         call loclabel(10,"List of SOC-SI results",ifound,0)
         if (ifound==1) then
             write(*,"(a)") " Spin-orbit coupling corrected spectra information was found, &
-            would you like to plot this kind of spectrum instead of the one without correction? (y/n)"
+            &would you like to plot this kind of spectrum instead of the one without correction? (y/n)"
             read(*,*) ctest
             if (ctest=='y'.or.ctest=='Y') then
                 numdata=4*numdata !If root=n, then there will be n singlet states and 3n triplet sublevels
@@ -4463,7 +4463,7 @@ do while(.true.)
         if (igetshift==1) then
             write(*,*) "Input reference value in ppm, e.g. 120.5"
             write(*,"(a)") " You can also input corresponding letter to use built-in values of TMS. &
-            a~f were all calculated under chloroform represented by SMD model, geometries were optimized at B3LYP/def2-SVP in vaccum"
+            &a~f were all calculated under chloroform represented by SMD model, geometries were optimized at B3LYP/def2-SVP in vaccum"
             write(*,*) "a: B97-2/def2-TZVP G09 (186.8707 for C and 31.5143 for H)"
             write(*,*) "b: B97-2/pcSseg-1 G09 (184.4144 for C and 31.2876 for H)"
             write(*,*) "c: MP2/pcSseg-1 G09 (195.6338 for C and 31.2732 for H)"
@@ -4501,7 +4501,7 @@ do while(.true.)
                     end if
                 else
                     write(*,"(a)") " Error: The current element is neither C nor H! You should use option 6 to &
-                    properly select the element to be considered"
+                    &properly select the element to be considered"
                 end if
             end if
         else if (igetshift==2) then
@@ -4522,7 +4522,7 @@ do while(.true.)
                     write(*,*) "Note: The parameters are taken from http://cheshirenmr.info" 
                 else
                     write(*,"(a)") " Error: The current element is neither C nor H! You should use option 6 to &
-                    properly select the element to be considered"
+                    &properly select the element to be considered"
                 end if
             end if
         end if

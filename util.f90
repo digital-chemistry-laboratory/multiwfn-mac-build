@@ -2470,7 +2470,7 @@ do i=1,nmo
 	end if
 end do
 if (any(MOtype==2)) write(*,"(a)") " Note: For beta orbitals, &
-the index in the parenthese shown above is the index counted from the first beta orbital"
+&the index in the parenthese shown above is the index counted from the first beta orbital"
 end subroutine
 
 !----- Show orbitals up to LUMO+10, works for wfntype==0,1,2
@@ -2521,7 +2521,7 @@ else if (wfntype==1) then
 		i,i-naorb,MOene(i),MOene(i)*au2eV,MOocc(i),orbtype(MOtype(i)),symstr
 	end do
 	write(*,"(a)") " Note: For beta orbitals, &
-	the index in the parenthese shown above is the index counted from the first beta orbital"
+	&the index in the parenthese shown above is the index counted from the first beta orbital"
 end if
 end subroutine
 
@@ -2551,7 +2551,7 @@ do i=1,nmo
 	end if
 end do
 if (any(MOtype==2)) write(*,"(a)") " Note: For beta orbitals, &
-the index in the parenthese shown above is the index counted from the first beta orbital"
+&the index in the parenthese shown above is the index counted from the first beta orbital"
 end subroutine
 
 
@@ -2718,6 +2718,7 @@ end subroutine
 subroutine linintpol(ptpos,ptval,npt,r,val)
 implicit real*8 (a-h,o-z)
 real*8 ptpos(npt),ptval(npt),r,val
+integer highpt
 
 if (r<=ptpos(1)) then
 	val=ptval(1)

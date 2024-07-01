@@ -85,15 +85,15 @@ do while(.true.)
 			else if (isel2==1) then
 				write(*,"(a)") " Input a value in percentage, e.g. 0.5"
 				write(*,"(a)") " Note: Inputting X means if the value difference between two attractors is less than X%, &
-				then they will be regarded as degenerate and may be clustered according to distance criterion"
+				&then they will be regarded as degenerate and may be clustered according to distance criterion"
 				read(*,*) valcritclus
 				valcritclus=valcritclus/100D0
 			else if (isel2==2) then
 				write(*,"(a)") " Input a value, e.g. 6"
 				write(*,"(a)") " Note: Inputting P means for any two attractors that have relative value difference less than the one set by option 1, &
-				if their interval is less than P*sqrt(dx^2+dy^2+dz^2), &
-				where dx,dy,dz are grid spacing in X,Y,Z,then they will be clustered together. If you want to nullify the clustering step after generating &
-				basins, simply set this value to 0"
+				&if their interval is less than P*sqrt(dx^2+dy^2+dz^2), &
+				&where dx,dy,dz are grid spacing in X,Y,Z,then they will be clustered together. If you want to nullify the clustering step after generating &
+				&basins, simply set this value to 0"
 				read(*,*) mergeattdist
 			else if (isel2==3) then
 				if (numatt<2) then
@@ -144,7 +144,7 @@ do while(.true.)
 		write(*,"(a)") " Inputting ""a"" will output basin.cub in current folder, whose value corresponds to basin index"
 		write(*,"(a)") "   If you want to export grid data of function value in the region of specific basins to basinsel.cub in current folder, input ""c"""
         write(*,"(a)") "   If you want to use VMD to plot ELF isosurface map colored by basin type &
-        (monosynaptic or disynaptic), input ""b"". See Section 4.17.10 of manual for detail"
+        &(monosynaptic or disynaptic), input ""b"". See Section 4.17.10 of manual for detail"
 		read(*,"(a)") c2000tmp
         if (index(c2000tmp,'a')/=0) then
 			write(*,*) "Exporting..."
@@ -239,7 +239,7 @@ do while(.true.)
             write(*,*) "2 Output boundary basin grids"
             write(*,*) "3 Output all basin grids where electron density > 0.001 a.u."
             write(*,"(a)") " If you want to export the current real space function in respective basin region &
-            (function value outside the corresponding basin is set to zero), input 0"
+            &(function value outside the corresponding basin is set to zero), input 0"
 		    read(*,*) igrid
 		    if (allocated(cubmattmp)) deallocate(cubmattmp)
 		    allocate(cubmattmp(nx,ny,nz))
@@ -280,7 +280,7 @@ do while(.true.)
 			    write(*,"(a)") " You can plot isosurface with isovalue=0.5 to visualize the basin boundary surface"
             else if (igrid==1.or.igrid==3) then
 			    write(*,"(a)") " Values 1 and 0 in these files indicate that the corresponding point belongs and not belongs to the basin, & 
-			    respectively. You can plot isosurface with isovalue=0.5 to visualize basin region"
+			    &respectively. You can plot isosurface with isovalue=0.5 to visualize basin region"
             end if
 		end if
 		
@@ -305,7 +305,7 @@ do while(.true.)
 		    close(10)
 		    write(*,*) "Done, all attractors have been exported to attractors.pdb in current folder"
 		    write(*,"(a)") " Note: The residue indices in the pdb file correspond to the attractor indices after clustering, &
-            while the atomic indices correspond to the raw attractor indices"
+            &while the atomic indices correspond to the raw attractor indices"
         else if (isel2==2) then
 		    open(10,file="attractors.pqr",status="replace")
 			if (ifPBC>0) then
@@ -318,7 +318,7 @@ do while(.true.)
 		    close(10)
 		    write(*,*) "Done, all attractors have been exported to attractors.pqr in current folder"
 		    write(*,"(a)") " Note: The residue indices in the pqr file correspond to the attractor indices after clustering, &
-            while the atomic indices correspond to the raw attractor indices. The atomic charge column corresponds to function value"
+            &while the atomic indices correspond to the raw attractor indices. The atomic charge column corresponds to function value"
         else if (isel2==3) then
 		    open(10,file="attractors.txt",status="replace")
 		    do iatt=1,numatt
@@ -352,8 +352,8 @@ do while(.true.)
             write(10,*);write(10,*)
 		    close(10)
 		    write(*,"(a)") " Done, all atoms and attractors have been exported to attractors.gjf in current folder. &
-            You can directly use GaussView to visualize. It is suggested to choose &
-            ""File""-""Preference""-""View""-""Display Format""-""Molecule"", and set low layer as ""Tube"""
+            &You can directly use GaussView to visualize. It is suggested to choose &
+            &""File""-""Preference""-""View""-""Display Format""-""Molecule"", and set low layer as ""Tube"""
         end if
 		
 	else if (isel==-3) then
@@ -402,7 +402,7 @@ do while(.true.)
 		write(*,*) """c2 c4 a3 c7"" returns the dihedral angle of att.2-att.4-atom3-att.7"
 		write(*,*) """d3 a1"" returns the distance between members of att.3 and atom1"
 		write(*,"(a)") " ""d3 a1 c2"" returns the the angle of (members of att.3)--atom1--att.2, &
-		meanwhile outputs the vertical distance from (members of att.3) to the line linking atom1 and att.2"
+		&meanwhile outputs the vertical distance from (members of att.3) to the line linking atom1 and att.2"
 		do while(.true.)
 			read(*,"(a)") c80tmp
 			c80tmp=adjustl(c80tmp)
@@ -579,7 +579,7 @@ do while(.true.)
 				write(*,*) "2: Near-grid method, J. Phys.: Condens. Matter, 21, 08420 (2009)"
 				write(*,*) "3: Near-grid method with boundary refinement step"
 				write(*,"(a)") " Note: Near-grid method (adapted by Tian Lu) is more accurate than On-grid method and thus &
-				is more recommended; with the boundary refinement step, the result will be better"
+				&s more recommended; with the boundary refinement step, the result will be better"
 				read(*,*) igridmethod
 			else if (isel2==2) then
 				if (ibasinlocmin==0) then
@@ -668,7 +668,7 @@ do while(.true.)
         if (ibasinlocmin==1) then
             if (all(cubmat>=0)) then
                 write(*,"(/,a)") " Note: Since ""ibasinlocmin"" in settings.ini has been set to 1, and all grid data have non-negative value, &
-                therefore minima (repulsors) rather than maxima (attractors) will be located. The attractors reported subsequently in fact correspond to minima"
+                &therefore minima (repulsors) rather than maxima (attractors) will be located. The attractors reported subsequently in fact correspond to minima"
 		        grdposneg(:,:,:)=.false.
 		        cubmat(:,:,:)=-cubmat(:,:,:)
             end if
@@ -772,7 +772,7 @@ do while(.true.)
 	else if (isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==-7.or.isel==8) then
 		if (.not.allocated(b)) then
 			write(*,"(a)") " Note: No GTF (Gaussian type function) information is available in your input file, please input the file &
-			containing GTF information of your system, such as .wfn/.wfx/.mwfn/.fch/.molden file. e.g. C:\abc.wfn"
+			&containing GTF information of your system, such as .wfn/.wfx/.mwfn/.fch/.molden file. e.g. C:\abc.wfn"
 			read(*,"(a)") c200tmp
 			call readinfile(c200tmp,1)
             if (ifPBC==0) then
@@ -1969,7 +1969,7 @@ character grdfilename*200
 
 if (ifuncbasin==1.and.ifPBC==0) then
 	write(*,"(a)") " IMPORTANT NOTE: To integrate AIM basins, it is much better to use option 7 &
-    to integrate the basins based on uniform + atomic center grid, the accuracy is significantly better than using the present function!"
+    &to integrate the basins based on uniform + atomic center grid, the accuracy is significantly better than using the present function!"
     write(*,*) "Press ENTER button to continue"
     read(*,*)
 end if
@@ -2074,7 +2074,7 @@ if (ifuncbasin==1.and.(ifuncint==-1.or.ifuncint==0.or.ifuncint==1)) then
     end do
     !Print atomic charges
 	write(*,"(/,a)") " Because the basins are partitioned based on electron density, and the integrand is electron density, &
-    atomic charges together with basin volumes and the atomic vdW volumes (within rho=0.001 a.u. isosurface) are printed below"
+    &atomic charges together with basin volumes and the atomic vdW volumes (within rho=0.001 a.u. isosurface) are printed below"
     rnormfac=1 !It is not possible to determine normalization factor of number of electron, since if purely grid data is used, we do not know net charge at all
     write(*,*)
 	write(*,*) "    Atom      Basin       Charge (e)     Volume (Bohr^3)   vdW Volume (Bohr^3)"
@@ -2344,7 +2344,7 @@ implicit real*8 (a-h,o-z)
 
 if (ifuncbasin==1.and.ifPBC==0.and.allocated(b)) then
 	write(*,"(a)") " IMPORTANT NOTE: To calculate multipole moments for AIM basins, it is much better to use option 8 &
-    to employ uniform + atomic center grid, the accuracy is significantly better than the present function!"
+    &to employ uniform + atomic center grid, the accuracy is significantly better than the present function!"
     write(*,*) "Press ENTER button to continue"
     read(*,*)
 end if
@@ -2978,7 +2978,7 @@ if (ispecial==0) then
 		end if
     else if (itype==10) then
 		write(*,"(a)") " Note: Atomic dipole/multipole moments will be calculated with respect to attractor of &
-        electron density rather than nuclear position, the discrepancy is usually very small"
+        &electron density rather than nuclear position, the discrepancy is usually very small"
 	end if
 else if (ispecial==1) then
 	continue !Don't let user to select integrand
@@ -3033,8 +3033,8 @@ do iatt=1,numrealatt !Cycle each attractors
 	if (att2atm(iatt)==0) then !No real atom corresponds to this attractor
 		write(*,"(/,a,i6,a)") " Warning: Unable to determine the attractor",iatt," belongs to which atom!"
 		write(*,"(a)") " If this is a non-nuclear attractor, simply press ENTER button to continue. If you used pseudopotential &
-		and this attractor corresponds to the cluster of all maxima of its valence electron, then input the index of this atom (e.g. 9). &
-		Else you should input q to return and regenerate basins with smaller grid spacing"
+		&and this attractor corresponds to the cluster of all maxima of its valence electron, then input the index of this atom (e.g. 9). &
+		&Else you should input q to return and regenerate basins with smaller grid spacing"
 		read(*,"(a)") c80tmp
 		if (c80tmp=='q') then
 			return
@@ -3953,7 +3953,7 @@ if (itype==10) then
 	write(*,*)
 	write(*,*) "If also outputting the above result to multipole.txt in current folder? (y/n)"
     write(*,"(a)") " If choose ""y"", atom_moment.txt will also be outputted in current folder, &
-    which contains electric dipole moments as well as eigenvalues and eigenvectors of quadrupole moment tensors of all atoms"
+    &which contains electric dipole moments as well as eigenvalues and eigenvectors of quadrupole moment tensors of all atoms"
 	read(*,*) selectyn
 	if (selectyn=='y'.or.selectyn=='Y') then
 		ioutid=10
@@ -4308,8 +4308,8 @@ else if (igridkind==2) then
 		if (att2atm(iatt)==0) then !No real atom corresponds to this attractor
 			write(*,"(a,i6,a)") " Warning: Unable to determine the attractor",iatt," belongs to which atom!"
 			write(*,"(a)") " If this is a non-nuclear attractor, simply press ENTER button to continue. If you used pseudopotential &
-			and this attractor corresponds to the cluster of all maxima of its valence electron, then input the index of this atom (e.g. 9). &
-			Else you should input q to return and regenerate basins with smaller grid spacing"
+			&and this attractor corresponds to the cluster of all maxima of its valence electron, then input the index of this atom (e.g. 9). &
+			&Else you should input q to return and regenerate basins with smaller grid spacing"
 			read(*,"(a)") c80tmp
 			if (c80tmp=='q') then
 				return

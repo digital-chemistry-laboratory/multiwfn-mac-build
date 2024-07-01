@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), update date: 2024-Jun-29"
+write(*,*) "Version 3.8(dev), update date: 2024-Jul-1"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Below paper ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used in your work:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
@@ -83,7 +83,7 @@ if (trim(filename)==" ") then !Haven't defined filename variable
 	write(*,"(a,a,a)") " Input file path, for example E:\",trim(lovername),".wfn"
 	write(*,*) "(.mwfn/wfn/wfx/fch/molden/pdb/xyz/mol2/cif/cub... see Section 2.5 of manual)"
 	write(*,"(a)") " Hint: Pressing ENTER button directly can select file in a GUI window. To reload the file last time used, simply input the letter ""o"". &
-	Input such as ?miku.fch can open the miku.fch in the same folder as the file last time used."
+	&Input such as ?miku.fch can open the miku.fch in the same folder as the file last time used."
 	do while(.true.)
 		read(*,"(a)") filename
 		if (filename=='o') then
@@ -206,11 +206,11 @@ call getcellabc(asize,bsize,csize,alpha,beta,gamma)
 crit=7D0/b2a
 if (allocated(b)) then !Warning user if any direction is less than 7 Angstrom
 	if (asize<crit.and.PBCnx==1) write(*,"(/,a,i3)") " Warning: Because size of a axis of the cell is relatively small, &
-	in order to guarantee analysis accuracy, it is suggested to increase the first index of ""PBCnxnynz"" in settings.ini to",ceiling(crit/asize)
+	&in order to guarantee analysis accuracy, it is suggested to increase the first index of ""PBCnxnynz"" in settings.ini to",ceiling(crit/asize)
 	if (bsize<crit.and.PBCny==1) write(*,"(/,a,i3)") " Warning: Because size of b axis of the cell is relatively small, &
-	in order to guarantee analysis accuracy, it is suggested to increase the second index of ""PBCnxnynz"" in settings.ini to",ceiling(crit/bsize)
+	&in order to guarantee analysis accuracy, it is suggested to increase the second index of ""PBCnxnynz"" in settings.ini to",ceiling(crit/bsize)
 	if (csize<crit.and.PBCnz==1) write(*,"(/,a,i3)") " Warning: Because size of c axis of the cell is relatively small, &
-	in order to guarantee analysis accuracy, it is suggested to increase the third index of ""PBCnxnynz"" in settings.ini to",ceiling(crit/csize)
+	&in order to guarantee analysis accuracy, it is suggested to increase the third index of ""PBCnxnynz"" in settings.ini to",ceiling(crit/csize)
 end if
 
 
@@ -365,7 +365,7 @@ do while(.true.) !Main loop
 					end do
                 else
 					write(*,"(a)") " Note: There are more than 300 atoms, so their information are not shown here now. &
-                    To print, in the manu bar please select ""Tools"" - ""Print XYZ coordinates"""
+                    &To print, in the manu bar please select ""Tools"" - ""Print XYZ coordinates"""
                     ishowatmlab=0
 				end if
             end if
@@ -616,7 +616,7 @@ do while(.true.) !Main loop
 					call molvol_MC
 				else if (isel==14) then
 					write(*,"(a)") " Please check Section 4.12.1 of Multiwfn manual on how to use main function 12 to &
-					calculate van der Waals volume based on electron density isosurface"
+					&calculate van der Waals volume based on electron density isosurface"
 					write(*,*) "Briefly speaking, you should simply enter main function 12 and choose option 6 to obtain the volume"
 					write(*,*) "Press ENTER button to return"
 					read(*,*)

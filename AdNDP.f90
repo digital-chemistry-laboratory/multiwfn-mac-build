@@ -12,11 +12,14 @@ integer,allocatable :: searchlist(:) !Store atom indices for those will be exhau
 real*8,allocatable :: orbeigval(:),orbeigvec(:,:),removemat(:,:),colvec(:,:),rowvec(:,:),DMNAOblk(:,:)
 ! real*8 :: bndcrit(30)=(/ 1.9D0,1.7D0,1.7D0,(1.8D0,i=4,30) /) 
 integer :: numprint=100
-real*8,allocatable :: candiocc(:),candivec(:,:),candinatm(:) !Store candidate orbital information, occupation, eigenvector(row vector in NAOs), number of atoms
+real*8,allocatable :: candiocc(:),candivec(:,:) !Store candidate orbital information, occupation, eigenvector(row vector in NAOs)
+integer,allocatable :: candinatm(:) !Number of atoms of candidate orbitals
 integer,allocatable :: candiatmlist(:,:) !Store atom list of candidate orbitals
-real*8,allocatable :: savedocc(:),savedvec(:,:),savednatm(:) !Store saved orbital information, occupation, eigenvector(row vector in NAOs), number of atoms
+real*8,allocatable :: savedocc(:),savedvec(:,:) !Store saved orbital information, occupation, eigenvector(row vector in NAOs)
+integer,allocatable :: savednatm(:) !Number of atoms of saved orbitals
 integer,allocatable :: savedatmlist(:,:) !Store atom list of saved orbitals
-real*8,allocatable :: oldsavedocc(:),oldsavedvec(:,:),oldsavednatm(:),oldDMNAO(:,:) !For temporarily store data
+real*8,allocatable :: oldsavedocc(:),oldsavedvec(:,:),oldDMNAO(:,:) !For temporarily store data
+integer,allocatable :: oldsavednatm(:) !For temporarily store data
 integer,allocatable :: oldsavedatmlist(:,:),eiguselist(:),tmparr(:)
 real*8,allocatable :: adndpCObas(:,:),Fmat(:,:),Emat(:,:)
 real*8,allocatable :: atmcomp(:),shcomp(:)
@@ -39,8 +42,8 @@ if (igauout==1) then !Gaussian+NBO output file
 	write(*,"(' The number of basis functions:',i6)") nbasis
     if (numNAO/=nbasis) then
         write(*,"(a)") " Warning: The number of basis functions is unequal to the number of NAOs, commonly this is because &
-        diffuse functions are used. If then Multiwfn fails to load data from the input file and crashes, or the result is weird, &
-        you should remove diffuse functions and regenerate the files, then try to redo the AdNDP analysis"
+        &diffuse functions are used. If then Multiwfn fails to load data from the input file and crashes, or the result is weird, &
+        &you should remove diffuse functions and regenerate the files, then try to redo the AdNDP analysis"
         write(*,*) "This situation is usually safe if NBO >=6.0 is used, while dangerous if NBO 3.1 is used"
         !I noticed that when linear dependency is occurred, although the number of NAOs is smaller than nbasis, &
         !the DMNAO printed by NBO 3.1 still has dimension of nbasis, making DMNAO incorrectly loaded by Multiwfn.
@@ -87,7 +90,7 @@ do iNAO=1,numNAO
     end if
 end do
 write(*,"(a,f10.3,a)") " Note: Contributions from core NAOs to density matrix (",removeocc," e) &
-have been eliminated by setting corresponding diagonal terms of density matrix to zero"
+&have been eliminated by setting corresponding diagonal terms of density matrix to zero"
 write(*,*) "Note: Default exhaustive search list is the entire system"
 write(*,*)
 !Initialization
@@ -128,7 +131,7 @@ do while(.true.)
 		if (numcandi>0) then
 			if (numcandi>numprint) then
                 write(*,"(a,i6,a)") " Note: Only",numprint," candidate orbitals with highest occupancy are printed (This &
-                threshold can be changed via suboption 2 of option -2"
+                &threshold can be changed via suboption 2 of option -2"
             end if
             write(*,*) "  ---- Current candidate orbital list, sorted according to occupation ----"
 			do icandi=min(numcandi,numprint),1,-1 !Print from occupation of small to large, so index is decreased
@@ -369,9 +372,9 @@ do while(.true.)
 						if (isel==2.and.ioutdetail==1) write(*,"('Found the ',i4,'th candidate orbital with occupation:',f8.4)") numcandi,orbeigval(iNAO)
 						if (numcandi>nlencandi) then
 							write(*,"(a)") " Error: Candidate orbital list is overflowed! The direct way of solving this problem is &
-                            increasing ""nlencandi"" in AdNDP.f90 in Multiwfn source code package and then recompile the code. However, it is more likely that &
-                            you were searching AdNDP orbitals in an incorrect way, such as occupation threshold is too low, high-occupancy orbitals with lower &
-                            number of centers were not picked out, etc."
+                            &increasing ""nlencandi"" in AdNDP.f90 in Multiwfn source code package and then recompile the code. However, it is more likely that &
+                            &you were searching AdNDP orbitals in an incorrect way, such as occupation threshold is too low, high-occupancy orbitals with lower &
+                            &number of centers were not picked out, etc."
 							write(*,*) "Press ENTER button to continue"
 							read(*,*)
 							deallocate(DMNAOblk,orbeigval,orbeigvec)
@@ -649,7 +652,7 @@ do while(.true.)
 		    end if
             
             write(*,"(a,f6.3,a)") " Terms whose absolute contribution > ",compthres," % are printed. &
-            This threshold can be changed by ""compthres"" in settings.ini"
+            &This threshold can be changed by ""compthres"" in settings.ini"
             write(*,*)
 		    write(*,*) "   NAO#   Center   Label      Type    Composition"
             shcomp=0D0

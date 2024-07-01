@@ -169,8 +169,8 @@ do while(.true.)
         end if
 		if (ifunctopo==13.or.ifunctopo==24) then !RDG and IRI
 			write(*,"(a)") " Note: CP searching method has been changed to steepest descent method, because it is most suitable for this case. &
-            In addition, gradient convergence criterion has been changed to a very large value (1000) to deactivate its effect, &
-            because for IRI or RDG, it is almost impossible to use steepest descent method to converge very accurately to a position with small enough gradient"
+            &In addition, gradient convergence criterion has been changed to a very large value (1000) to deactivate its effect, &
+            &because for IRI or RDG, it is almost impossible to use steepest descent method to converge very accurately to a position with small enough gradient"
 			itopomethod=4
             dispconv=0.0001D0
             gradconv=1000
@@ -439,7 +439,7 @@ do while(.true.)
                 end if
 				close(10)
 				write(*,"(a)") " Done, paths have been saved to paths.pdb in current folder. Each atom in this file &
-                corresponds to a point in the paths. Residue index corresponds path index"
+                &corresponds to a point in the paths. Residue index corresponds path index"
 				
 			else if (isel2==7) then
 				call plotpathprop
@@ -540,7 +540,7 @@ do while(.true.)
 						where(CPtype==4) CPtype=-1
 					else if (idel==7) then
 						write(*,"(a)") " Input a factor, e.g. 1.3. If distances between a CP and all atoms in a specific fragment &
-						are larger than corresponding atomic covalent radius multiplied by this factor, then the CP will be deleted"
+						&are larger than corresponding atomic covalent radius multiplied by this factor, then the CP will be deleted"
 						read(*,*) facdist
 						write(*,*) "Input index of the atoms in the fragment, e.g. 2,3,7-10"
 						read(*,"(a)") c2000tmp
@@ -809,11 +809,11 @@ do while(.true.)
 				if (nthreads>1) write(*,*) "Warning: The printed details may be messed up since parallel running is enabled"
 			else if (isel2==8) then
 				write(*,"(a)") " Input a value, if absolute value of determinant of Hessiant matrix is lower than this value, &
-                then the Hessian will be regarded as singular, and the CP search will stop. e.g. 1E-15"
+                &then the Hessian will be regarded as singular, and the CP search will stop. e.g. 1E-15"
 				read(*,*) singularcrit
 			else if (isel2==9) then
 				write(*,"(a)") " Input lower and upper limits. For example, if you input 0.05,0.22, &
-				then during CP searching, only when the real space function of a new CP is between 0.05 and 0.22 then it will be reserved"
+				&then during CP searching, only when the real space function of a new CP is between 0.05 and 0.22 then it will be reserved"
 				write(*,*) "Note: If the two values are identical, all CPs will be reserved (default case)"
 				read(*,*) CPsearchlow,CPsearchhigh
 			else if (isel2==10) then
@@ -883,7 +883,7 @@ do while(.true.)
             else if (isel2==11) then
                 write(*,*) "Input the trust radius in Bohr, e.g. 0.2"
                 write(*,"(a)") " Note: If norm of displacement is larger than this value, the displacement vector will be scaled to this value. &
-                To disable this consideration, input 0"
+                &To disable this consideration, input 0"
                 read(*,*) topotrustrad
             else if (isel2==12) then
                 write(*,"(a)") " Choose the CP searching algorithm"
@@ -903,7 +903,7 @@ do while(.true.)
         else
 			call showPHrelat
 			write(*,"(/,a)") " Note: Since there are too many critical points and/or paths, their summary is not automatically shown. &
-            To print them, input 00 in the topology analysis menu"
+            &To print them, input 00 in the topology analysis menu"
         end if
 		if (isilent==0) call drawmoltopogui
         
@@ -1458,7 +1458,7 @@ do while(.true.)
 	else if (isel==7) then
 		write(*,*) "Input the index of the CP that you are interested in, e.g. 3"
 		write(*,"(a)") " Note 1: If input 0, then properties of all CPs will be outputted to CPprop.txt in current folder &
-		(and if you feel the output speed is slow, you can input -1 to avoid outputting ESP, which is the most expensive one)"
+		&(and if you feel the output speed is slow, you can input -1 to avoid outputting ESP, which is the most expensive one)"
 		write(*,"(a)") " Note 2: If input CP index with ""d"" suffix, e.g. 17d, then property of this CP can be decomposed into orbital contribution"
 		read(*,*) c200
 		if (index(c200,"d")/=0) then
@@ -2494,10 +2494,10 @@ do while(.true.)
 	write(*,*)
 	write(*,*) "Input index of a path, e.g. 3     Input ""q"" can return"
 	write(*,"(a)") " Hint: If input index of two paths (e.g. 6,7) emitted from the same (3,-1) CP, &
-	then the real space function along the combined paths will be outputted"
+	&then the real space function along the combined paths will be outputted"
 	if (ifunctopo==1) write(*,"(a)") " Hint: If you input e.g. c6 and meantime the CP6 is BCP, then the two bond paths emitted from it will be chosen"
 	if (allocated(MOsym)) write(*,"(a)") " Hint: You can input ""s"" to choose which irreducible &
-	representations will be taken into account in the real space function evaluation"
+	&representations will be taken into account in the real space function evaluation"
 	read(*,"(a)") c200
 					
 	if (index(c200,'q')/=0) then
@@ -2520,7 +2520,7 @@ do while(.true.)
 			cycle
 		end if
 		if (itwopath==1.and.( topopath(1,1,ipath)/=topopath(1,1,jpath) .or. &
-		topopath(2,1,ipath)/=topopath(2,1,jpath) .or. topopath(3,1,ipath)/=topopath(3,1,jpath) )) then
+			topopath(2,1,ipath)/=topopath(2,1,jpath) .or. topopath(3,1,ipath)/=topopath(3,1,jpath) )) then
 			write(*,*) "Error: The two paths are not emitted from the same (3,-1) critical point!"
 			cycle
 		end if

@@ -32,9 +32,9 @@ type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
 cubfac=1D0
 
 write(*,"(/,a)") " !!! NOTE: If this module is used in your research, please NOT ONLY cite original paper of Multiwfn (J. Comput. Chem., 33, 580-592 (2012)), &
-BUT ALSO cite the following book chapter, which comprehensively introduces feature and implementation of this module:"
+&BUT ALSO cite the following book chapter, which comprehensively introduces feature and implementation of this module:"
 write(*,"(a)") " Tian Lu, Qinxue Chen. Realization of Conceptual Density Functional Theory and Information-Theoretic Approach in &
-Multiwfn Program. In Conceptual Density Functional Theory, WILEY-VCH GmbH: Weinheim (2022); pp 631-647 DOI: 10.1002/9783527829941.ch31"
+&Multiwfn Program. In Conceptual Density Functional Theory, WILEY-VCH GmbH: Weinheim (2022); pp 631-647 DOI: 10.1002/9783527829941.ch31"
 
 do while(.true.)
 	write(c3p,"(a,i1)") "N+",np !For more convenient output
@@ -98,7 +98,7 @@ do while(.true.)
             end do
         else
             write(*,"(a)") " Because the input file does not contain orbital information, energies of lowest unoccupied orbitals are not listed here. &
-            Please manually check orbital energies to determine degeneracy"
+            &Please manually check orbital energies to determine degeneracy"
         end if
         write(*,*)
         write(*,*) "Please input degeneracy of LUMO, e.g. 3"
@@ -132,7 +132,7 @@ do while(.true.)
             end do
         else
             write(*,"(a)") " Because the input file does not contain orbital information, energies of highest occupied orbitals are not listed here. &
-            Please manually check orbital energies to determine degeneracy"
+            &Please manually check orbital energies to determine degeneracy"
         end if
         write(*,*)
         write(*,*) "Please input degeneracy of HOMO, e.g. 3"
@@ -337,7 +337,7 @@ do while(.true.)
             selectyn='n'
             if (alive) then
                 write(*,"(a)") " Do you want to invoke Gaussian to calculate these .gjf files now to yield .wfn &
-                files, and then automatically delete the .gjf and .out files? (y/n)"
+                &files, and then automatically delete the .gjf and .out files? (y/n)"
                 write(*,*) "Note: You can manually edit the .gjf files before inputting ""y"""
                 read(*,*) selectyn
                 if (selectyn=='y'.or.selectyn=='Y') then
@@ -361,11 +361,11 @@ do while(.true.)
                 end if
             else
                 write(*,"(a,/)") " Since ""gaupath"" in settings.ini has not been set to actual path of Gaussian executable, &
-                automatically invoking Gaussian to run the input files is skipped"
+                &automatically invoking Gaussian to run the input files is skipped"
             end if
             if ((.not.alive).or.selectyn=='n') then
 				write(*,"(a)") " Now please manually run the input files by Gaussian, and then put the generated .wfn files to current folder, so that &
-				options 2 and 3 can perform analyses based on them"
+				&options 2 and 3 can perform analyses based on them"
             end if
         else if (iQCprog==2) then !Generate ORCA .inp for defined electronic states
             do istate=1,maxstate
@@ -389,7 +389,7 @@ do while(.true.)
             selectyn='n'
             if (alive) then
                 write(*,"(a)") " Do you want to invoke ORCA to calculate these .inp files now to yield .wfn &
-                files, and then automatically delete the .inp, .out and temporary files? (y/n)"
+                &files, and then automatically delete the .inp, .out and temporary files? (y/n)"
                 write(*,*) "Note: You can manually edit the .inp files before inputting ""y"""
                 read(*,*) selectyn
                 if (selectyn=='y'.or.selectyn=='Y') then
@@ -414,12 +414,12 @@ do while(.true.)
                 end if
             else
                 write(*,"(a)") " Since ""orcapath"" in settings.ini has not been set to actual path of ORCA executable, &
-                automatically invoking ORCA to run the input files is skipped"
+                &automatically invoking ORCA to run the input files is skipped"
                 write(*,*)
             end if
             if ((.not.alive).or.selectyn=='n') then
 				write(*,"(a)") " Now please manually run the input files by ORCA, and then put the generated .wfn files to current folder, so that &
-				options 2 and 3 can perform analyses based on them"
+				&options 2 and 3 can perform analyses based on them"
             end if
         end if
     
@@ -648,7 +648,7 @@ do while(.true.)
                 write(*,"(' X,Y,Z of the atom in N state file:  ',3f11.5,' Angstrom')") atmref(:,iatm)*b2a
                 write(*,"(' X,Y,Z of the atom in "//c3p//" state file:',3f11.5,' Angstrom')") a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%x*b2a
                 write(*,"(a)") " You need to carefully check input files of quantum chemistry program for generating the wavefunction files so that all &
-                atomic coordinates in these files are completely identical, otherwise the resulting density difference will be fully meaningless!"
+                &atomic coordinates in these files are completely identical, otherwise the resulting density difference will be fully meaningless!"
                 write(*,*) "Press ENTER button to continue"
                 read(*,*)
                 exit
@@ -667,7 +667,7 @@ do while(.true.)
                 write(*,"(' X,Y,Z of the atom in N state file:  ',3f11.5,' Angstrom')") atmref(:,iatm)*b2a
                 write(*,"(' X,Y,Z of the atom in "//c3q//" state file:',3f11.5,' Angstrom')") a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%x*b2a
                 write(*,"(a)") " You need to carefully check input files of quantum chemistry program for generating the wavefunction files so that all &
-                atomic coordinates in these files are completely identical, otherwise the resulting density difference will be fully meaningless!"
+                &atomic coordinates in these files are completely identical, otherwise the resulting density difference will be fully meaningless!"
                 write(*,*) "Press ENTER button to continue"
                 read(*,*)
                 exit
@@ -990,7 +990,7 @@ do while(.true.)
                 write(*,"(' X,Y,Z of the atom in N state file:  ',3f11.5,' Angstrom')") atmref(:,iatm)*b2a
                 write(*,"(' X,Y,Z of the atom in "//c3p//" state file:',3f11.5,' Angstrom')") a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%x*b2a
                 write(*,"(a)") " You need to carefully check input files of quantum chemistry program for generating the wavefunction files so that all &
-                atomic coordinates in these files are completely identical, otherwise the resulting density difference will be fully meaningless!"
+                &atomic coordinates in these files are completely identical, otherwise the resulting density difference will be fully meaningless!"
                 write(*,*) "Press ENTER button to continue"
                 read(*,*)
                 exit
@@ -1010,7 +1010,7 @@ do while(.true.)
                 write(*,"(' X,Y,Z of the atom in N state file:  ',3f11.5,' Angstrom')") atmref(:,iatm)*b2a
                 write(*,"(' X,Y,Z of the atom in "//c3q//" state file:',3f11.5,' Angstrom')") a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%x*b2a
                 write(*,"(a)") " You need to carefully check input files of quantum chemistry program for generating the wavefunction files so that all &
-                atomic coordinates in these files are completely identical, otherwise the resulting density difference will be fully meaningless!"
+                &atomic coordinates in these files are completely identical, otherwise the resulting density difference will be fully meaningless!"
                 write(*,*) "Press ENTER button to continue"
                 read(*,*)
                 exit

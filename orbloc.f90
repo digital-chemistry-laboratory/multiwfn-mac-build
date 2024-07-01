@@ -122,8 +122,8 @@ do while(.true.)
 	else if (isel==-6) then
 		write(*,*) "Please select orbital localization method"
 		write(*,"(a,/)") " Hint: 1 and 2 are very fast, but may not well work when diffuse functions are presented. 10 &
-        is evidently slower, and 3 is quite time-consuming for large systems, but they are but fully compatible &
-        with diffuse functions. Only 10 is unable to give sigma-pi separated LMOs"
+        &is evidently slower, and 3 is quite time-consuming for large systems, but they are but fully compatible &
+        &with diffuse functions. Only 10 is unable to give sigma-pi separated LMOs"
 		write(*,*) "1 Pipek-Mezey based on Mulliken type of population"
 		write(*,*) "2 Pipek-Mezey based on Lowdin type of population"
         if (ifPBC==0) then
@@ -157,7 +157,7 @@ do while(.true.)
         !Sometimes SCPA tends to overestimate delocalization character of lone pair type of LMO, &
         !while Mulliken method tends to result in extremely large atomic composition for virtual LMOs
         write(*,"(a,/)") " Hint: Option 1 is very fast, however the method is not robust, and it is even useless when diffuse functions are employed. &
-        Options 2 and 3 usually give similar result, they are more expensive, but fully compatible with diffuse functions"
+        &Options 2 and 3 usually give similar result, they are more expensive, but fully compatible with diffuse functions"
         write(*,*) "0 Do not calculate orbital compositions"
         write(*,*) "1 Mulliken method for occupied LMOs and SCPA method for unoccupied LMOs"
         write(*,*) "2 Hirshfeld method"
@@ -165,7 +165,7 @@ do while(.true.)
         read(*,*) icompmethod
 	else if (isel==-10) then
 		write(*,"(a)") " Input thresholds for identifying one- and two-center LMOs. For example, &
-		inputting 0.9,0.85 means using 90% and 85%, respectively"
+		&inputting 0.9,0.85 means using 90% and 85%, respectively"
 		read(*,*) crit1c,crit2c
         
 	else if (isel==1.or.isel==2) then
@@ -624,7 +624,7 @@ if (icompmethod>0) then
 		end do
 		
         if (itime==1) write(*,"(/,a)") " Hint: If you hope to print the LMOs in the order of atoms and atomic pairs, &
-        set ""iprintLMOorder"" in settings.ini to 1 prior to the analysis"
+        &set ""iprintLMOorder"" in settings.ini to 1 prior to the analysis"
 		if (wfntype==0) then
 			if (itime==1) write(*,"(/,a)") " **** Major character of occupied LMOs:"
 			if (itime==2) write(*,"(/,a)") " **** Major character of unoccupied LMOs:"
@@ -852,10 +852,10 @@ if (ireload==1) then !Automatically reload the newly generated new.fch as reques
 		isosur2style=2
 		atmlabclrR=1D0;atmlabclrG=0D0;atmlabclrB=0D0
 		write(*,"(/,a)") " Done! The Bq atoms in current system now correspond to center of LMOs. The LMO center coordinates, &
-		correspondence between LMO indices and Bq indices have been exported to LMOcen.txt in current folder. In addition, &
-		the plotting parameters in main function 0 have been set to the best status for showing LMO centers"
+		&correspondence between LMO indices and Bq indices have been exported to LMOcen.txt in current folder. In addition, &
+		&the plotting parameters in main function 0 have been set to the best status for showing LMO centers"
 		write(*,"(a)") " Note: Since these Bq atoms do not have corresponding basis functions, &
-		the present wavefunction should not be subjected to wavefunction analyses, otherwise Multiwfn may crash"
+		&the present wavefunction should not be subjected to wavefunction analyses, otherwise Multiwfn may crash"
 		write(*,*)
 		
 		
@@ -885,8 +885,7 @@ if (ireload==1) then !Automatically reload the newly generated new.fch as reques
 			x_tot=x_nuc+x_ele;y_tot=y_nuc+y_ele;z_tot=z_nuc+z_ele
 			
 			open(10,file="LMOdip.txt",status="replace")
-			write(10,"(' Dipole moment of the whole system (including nuclear and electronic contributions)',/,&
-			' X/Y/Z:',3f10.5,'  Norm:',f10.5,' a.u.')") &
+			write(10,"(' Dipole moment of the whole system (including nuclear and electronic contributions)',/,' X/Y/Z:',3f10.5,'  Norm:',f10.5,' a.u.')") &
 			x_tot,y_tot,z_tot,dsqrt(x_tot**2+y_tot**2+z_tot**2)
 			write(10,"(' Nuclear contribution:',/,' X/Y/Z:',3f10.5,'  Norm:',f10.5,' a.u.')") &
 			x_nuc,y_nuc,z_nuc,dsqrt(x_nuc**2+y_nuc**2+z_nuc**2)
@@ -1026,7 +1025,7 @@ if (ireload==1) then !Automatically reload the newly generated new.fch as reques
 			
 			close(10)
 			write(*,"(a)") " Done! Dipole moment of occupied LMOs as well as their contribution to &
-			system dipole moment have been exported as LMOdip.txt in current folder"
+			&system dipole moment have been exported as LMOdip.txt in current folder"
 		end if
 	end if
 end if

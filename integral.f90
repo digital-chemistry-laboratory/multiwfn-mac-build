@@ -1233,7 +1233,7 @@ allocate(COtr(nprims,nmo))
 COtr=transpose(CO)
 
 write(*,"(/,a)") " Note: Please note only cite original paper of Multiwfn but also cite LIBRETA library (Jun Zhang, J. Chem. Theory Comput., 14, 572 (2018)), &
-which provides two-electron integral for this function"
+&which provides two-electron integral for this function"
 do while(.true.)
     write(*,*)
     write(*,*) "Input four indices of orbitals, e.g. 3,9,6,10"
@@ -1289,7 +1289,7 @@ real*8 ERIval
 character c80tmp*80
 
 write(*,"(/,a)") " Note: Please note only cite original paper of Multiwfn but also cite LIBRETA library (Jun Zhang, J. Chem. Theory Comput., 14, 572 (2018)), &
-which provides two-electron integral for this function"
+&which provides two-electron integral for this function"
 do while(.true.)
     write(*,*)
     write(*,*) "Input four indices of GTFs, e.g. 3,9,6,10"

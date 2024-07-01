@@ -1315,7 +1315,7 @@ else if (isel==2.or.isel==6.or.isel==16.or.isel==19) then !Analysis of first hyp
 		end if
 		if (freqlist(1,2)/=0) then
 			wavlen2=1239.842D0/(freqlist(1,2)*au2eV)
-			write(*,"(' Wavelength of w2:'f12.6,' a.u.',f12.3,' nm')") freqlist(1,2),wavlen2
+			write(*,"(' Wavelength of w2:',f12.6,' a.u.',f12.3,' nm')") freqlist(1,2),wavlen2
         else
             write(*,*) "w2 is static"
 		end if

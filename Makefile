@@ -1,6 +1,7 @@
 SIMD = -msse3
-OPT = -O2 -qopenmp -qopenmp-link=static -threads -qopt-matmul $(SIMD) -diag-disable 8290,8291,6371,10316,6178 -fpp -mkl -static-intel -DINTEL_MKL
-OPT1 = -O1 -qopenmp -qopenmp-link=static -threads $(SIMD) -diag-disable 8290,8291,6371,10316,6178 -fpp -mkl -static-intel -DINTEL_MKL
+DISDIAG = -diag-disable 8290,8291,6371,10316,6178,6916,7416,5268,7342,7373,5120,5144,5082,5112,2554,5183,6182,7352
+OPT = -O2 -qopenmp -qopenmp-link=static -threads -qopt-matmul $(SIMD) $(DISDIAG) -fpp -mkl -static-intel -DINTEL_MKL -stand f08
+OPT1 = -O1 -qopenmp -qopenmp-link=static -threads $(SIMD) $(DISDIAG) -fpp -mkl -static-intel -DINTEL_MKL -stand f08
 #Options in the next line is for debugging purpose
 #OPTDBG = -O0 -qopenmp -diag-disable 8290,8291,6371 -threads -qopenmp-link=static -debug all -g -traceback -check all -fstack-protector -fpp -mkl -static-intel
 
@@ -150,11 +151,11 @@ Multiwfn.o : Multiwfn.f90 $(modules)
 LSB.o : LSB.f90 $(modules)
 	$(FC) $(OPT) -c LSB.f90
 
-frj.o : ext/frj.f90 $(modules)
-	$(FC) $(OPT) -c ext/frj.f90 -o frj.o
-
 population.o : population.f90 $(modules)
 	$(FC) $(OPT) -c population.f90
+
+frj.o : ext/frj.f90 $(modules)
+	$(FC) $(OPT) -c ext/frj.f90 -o frj.o
 
 orbcomp.o : orbcomp.f90 $(modules)
 	$(FC) $(OPT) -c orbcomp.f90

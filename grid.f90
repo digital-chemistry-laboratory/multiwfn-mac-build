@@ -23,13 +23,13 @@ if (cubegenpath/=" ".and.ifiletype==1.and.functype==12) then
 	inquire(file=cubegenpath,exist=alive)
 	if (.not.alive) then
 		write(*,"(a)") " Note: Albeit current file type is fch/fchk/chk and ""cubegenpath"" parameter in settings.ini has been defined, &
-		the cubegen cannot be found, therefore electrostatic potential will still be calculated using internal code of Multiwfn"
+		&the cubegen cannot be found, therefore electrostatic potential will still be calculated using internal code of Multiwfn"
 	end if
 end if
 if (alive.and.ifiletype==1.and.functype==12) then !Use cubegen to calculate total ESP
 	call walltime(iwalltime1)
 	write(*,"(a)") " Since the input file type is fch/fchk/chk and ""cubegenpath"" parameter in settings.ini has been properly defined, &
-	now Multiwfn directly invokes cubegen to calculate electrostatic potential"
+	&now Multiwfn directly invokes cubegen to calculate electrostatic potential"
 	
 	!Generate cubegen input file
 	open(10,file="ESPgridtmp.cub",status="replace")
@@ -299,7 +299,7 @@ else
 	molzlen=(maxval(a%z)-minval(a%z))+2*aug3D
 	if (molxlen==0D0.or.molylen==0D0.or.molzlen==0D0) then !Avoid catastrophe when aug3D=0 and system is plane
 		write(*,"(a,/)") " WARNING: The box size in one of Cartesian axis is zero, &
-		the calculation cannot be proceeded. Therefore, the size of corresponding direction is automatically set to 3 Bohr"
+		&the calculation cannot be proceeded. Therefore, the size of corresponding direction is automatically set to 3 Bohr"
 		if (molxlen==0D0) then
 			molxlen=3D0
 		else if (molylen==0D0) then
@@ -909,9 +909,9 @@ if (itype==1) then
 	write(*,"(a20,4f12.6)") "Vector 3: ",gridv3,dsqrt(sum(gridv3**2))
 	call calc_dvol(dvol)
     write(*,"(a,f12.6,' Bohr^3')") " Volume of each grid:",dvol
-	write(*,"(' The range of x is from ',f12.6,' to ',f12.6,' Bohr,' i5,' points')") ,orgx,endx,nx
-	write(*,"(' The range of y is from ',f12.6,' to ',f12.6,' Bohr,',i5,' points')") ,orgy,endy,ny
-	write(*,"(' The range of z is from ',f12.6,' to ',f12.6,' Bohr,',i5,' points')") ,orgz,endz,nz
+	write(*,"(' The range of x is from ',f12.6,' to ',f12.6,' Bohr,',i5,' points')") orgx,endx,nx
+	write(*,"(' The range of y is from ',f12.6,' to ',f12.6,' Bohr,',i5,' points')") orgy,endy,ny
+	write(*,"(' The range of z is from ',f12.6,' to ',f12.6,' Bohr,',i5,' points')") orgz,endz,nz
 	write(*,"(' Total number of grid points:',i12)") nx*ny*nz
 	write(*,"(' This grid data will take up at least',i6,' MB memory')") nx*ny*nz*8/1024/1024
 else if (itype==2) then

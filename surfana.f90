@@ -9,7 +9,7 @@ implicit real*8 (a-h,o-z)
 integer*2,allocatable :: corpos(:,:,:) !corner position
 logical,allocatable :: ifbndcub(:,:,:) !if true, means this is a boundary cub
 integer,allocatable :: mergerelat(:),HirBecatm(:)
-integer tmpintarr3(3)
+integer tmpintarr3(3),wrtnumedr
 character pdbfilename*200,filename_tmp*200,c80tmp*80,c200tmp*200,c400tmp*400,c2000tmp*2000,c10000tmp*10000,selectyn,grdfilename*200,char1tmp
 character FPAfile1*200,FPAfile2*200
 real*8 fragsurarea(ncenter,3),fragsuravg(ncenter,3),fragsurvar(ncenter,3) !Area, average value and variance of each atom surface. 1,2,3 corresponds to all,positive,negative part
@@ -41,9 +41,9 @@ do while(.true.)
 	tetravol3=0D0
 	write(*,*)
 	write(*,"(a)") " NOTE: If this module is used in your research, please cite both the Multiwfn original paper and below paper, &
-	the latter detailedly described the underlying algorithm employed in this module"
+	&the latter detailedly described the underlying algorithm employed in this module"
 	write(*,"(a)") " Tian Lu, Feiwu Chen, Quantitative analysis of molecular surface based on improved Marching Tetrahedra algorithm, &
-	J. Mol. Graph. Model., 38, 314-323 (2012)"
+	&J. Mol. Graph. Model., 38, 314-323 (2012)"
 	write(*,*)
 	write(*,*) "     ============= Quantitative Molecular Surface Analysis ============="
 	write(*,*) "-1 Return to main menu"
@@ -126,8 +126,8 @@ do while(.true.)
 				call str2arr(c10000tmp,nHirBecatm,HirBecatm)
                 if (nHirBecatm==ncenter) then
 					write(*,"(a)") " Error: You should not define all atoms as the fragment for Hirshfeld or Becke surface analysis! &
-                    Please carefully read Multiwfn manual to correctly understand the idea of this kind of analysis. The defined fragment &
-                    should correspond to a subset of the whole system"
+                    &Please carefully read Multiwfn manual to correctly understand the idea of this kind of analysis. The defined fragment &
+                    &should correspond to a subset of the whole system"
                     write(*,*) "Press ENTER button to re-input the atom indices"
                     read(*,*)
                 else
@@ -882,12 +882,12 @@ if (ireadextmapval==0) then !Directly calculate
 		inquire(file=cubegenpath,exist=alive)
 		if (.not.alive) then
 			write(*,"(a)") " Note: Albeit current file type is fch/fchk/chk and ""cubegenpath"" parameter in settings.ini has been defined, &
-			the cubegen cannot be found, therefore electrostatic potential will still be calculated using internal code of Multiwfn"
+			&the cubegen cannot be found, therefore electrostatic potential will still be calculated using internal code of Multiwfn"
 		end if
 	end if
 	if (alive.and.ifiletype==1.and.imapfunc==1) then !Use cubegen to calculate ESP
 		write(*,"(a)") " Since the input file type is fch/fchk/chk and ""cubegenpath"" parameter in settings.ini has been properly defined, &
-		now Multiwfn directly invokes cubegen to calculate electrostatic potential"
+		&now Multiwfn directly invokes cubegen to calculate electrostatic potential"
 		
 		!Generate cubegen input file
 		open(10,file="cubegenpt.txt",status="replace")
@@ -1002,9 +1002,9 @@ else if (ireadextmapval==1) then !Load mapped function from external file
 	end do
 	close(10)
 	write(*,"(/,a)") " The X/Y/Z coordinates of the surface vertices have been exported to surfptpos.txt in current folder, unit is in Bohr. &
-	Now you can use your favourite program to calculate mapped function values at this points"
+	&Now you can use your favourite program to calculate mapped function values at this points"
 	write(*,"(/,a)") " Now input the path of the file containing calculated mapped function values. The data will be read in free format. The first row is the number of points, &
-	in following lines the 1/2/3/4 column should correspond to X,Y,Z and mapped function value, respectively. All units must be in a.u."
+	&in following lines the 1/2/3/4 column should correspond to X,Y,Z and mapped function value, respectively. All units must be in a.u."
 	do while(.true.)
 		read(*,"(a)") c200tmp
 		inquire(file=c200tmp,exist=alive)
@@ -1059,7 +1059,7 @@ else if (ireadextmapval==3) then !Will calculate mapped function by interpolatin
 	close(10)
 	write(*,"(/,a)") " The template cube file has been outputted to template.cub in current folder"
 	write(*,"(a)") " Now input the name of the cube file representing mapped function, e.g. C:\t.cub. &
-	The grid setting in this cube file must be exactly identical to the template cube file"
+	&The grid setting in this cube file must be exactly identical to the template cube file"
 	do while(.true.)
 		read(*,"(a)") c200tmp
 		inquire(file=c200tmp,exist=alive)
@@ -1687,8 +1687,8 @@ do while(.true.)
 		write(10,"('END')")
 		close(10)
 		write(*,"(a)") " Surface extrema have been outputted to extrema.pqr in current folder. &
-        Carbons and oxygens correspond to local maximum and minimum points respectively. &
-        The atomic charge column (i.e. third last column) corresponds to function value in a.u."
+        &Carbons and oxygens correspond to local maximum and minimum points respectively. &
+        &The atomic charge column (i.e. third last column) corresponds to function value in a.u."
         
 		open(10,file="vtx.pqr",status="replace")
 		write(10,"('REMARK   Generated by Multiwfn, totally',i10,' surface vertices')") nsurvtx
@@ -1700,7 +1700,7 @@ do while(.true.)
 		write(10,"('END')")
 		close(10)
 		write(*,"(/,a)") " Surface vertices have been outputted to vtx.pqr in current folder. &
-        The atomic charge column (i.e. third last column) corresponds to function value in a.u."
+        &The atomic charge column (i.e. third last column) corresponds to function value in a.u."
 		
 	else if (isel==9) then
 		write(*,"(a)") " Input atomic indices to define the fragment. e.g. 1,3-6,8,10-11 means the atoms 1,3,4,5,6,8,10,11 will constitute the fragment"
@@ -2157,7 +2157,7 @@ do while(.true.)
 	
 	else if (isel==19) then  !Merge some surface extrema and take their average position
         write(*,"(a)") " In this function, you need to select a set of surface extrema. The position of the first selected extreme &
-        will be replaced with average coordinate of all selected extrema, other extrema will be removed"
+        &will be replaced with average coordinate of all selected extrema, other extrema will be removed"
         write(*,*)
         write(*,*) "Select the type of surface extrema"
         write(*,*) "1: Surface maxima   2: Surface minima"
@@ -3116,14 +3116,14 @@ if (iexttype==1) then
     write(*,"(' Value of this surface minimum:',f12.6,' a.u.',/)") valext
     write(*,*) "Input criterion of determining the region, e.g. 0.05"
     write(*,"(a)") " Note: If a vertex is directly or indirectly connected to the selected surface minimum and &
-    its value is lower than this criterion, then this vertex will belong to the region"
+    &its value is lower than this criterion, then this vertex will belong to the region"
 else
     idx=surlocmaxidx(iext)
     valext=survtx(idx)%value
     write(*,"(' Value of this surface maximum:',f12.6,' a.u.',/)") valext
     write(*,*) "Input criterion of determining the region, e.g. 0.05"
     write(*,"(a)") " Note: If a vertex is directly or indirectly connected to the selected surface maximum and &
-    its value is higher than this criterion, then this vertex will belong to the region"
+    &its value is higher than this criterion, then this vertex will belong to the region"
 end if
 read(*,*) critval
 
@@ -3393,6 +3393,6 @@ end do
 write(10,"('END')")
 close(10)
 write(*,"(/,a)") " Surface basins have been exported to surfbasin.pdb in current folder, &
-beta values correspond to indices of extrema, negative/positive index corresponds to minima/maxima"
+&beta values correspond to indices of extrema, negative/positive index corresponds to minima/maxima"
 
 end subroutine

@@ -236,7 +236,7 @@ else if (isel==-6) then
     write(*,*) "1 Atomic grid"
     write(*,*) "2 Molecular grid"
 	write(*,"(a)") " Note: Molecular grid is more accurate if virtual MOs are involved and meantime &
-    diffuse functions are presented, but it is significantly more expensive"
+    &diffuse functions are presented, but it is significantly more expensive"
     read(*,*) iAOMgrid
 	if (allocated(AOM)) deallocate(AOM,AOMsum)
     if (allocated(AOMb)) deallocate(AOMb,AOMsumb)
@@ -371,7 +371,7 @@ else if (isel==-1) then
 		write(*,*) "4 Hirshfeld-I"
 		write(*,*) "5 MBIS"
 		write(*,"(a)") " Note: (2) uses atomic .wfn files to calculate Hirshfeld weights, they must be provided by yourself or let Multiwfn automatically &
-		invoke Gaussian to generate them. (3) evaluates the weights based on built-in radial atomic densities, thus is more convenient than (2)"
+		&invoke Gaussian to generate them. (3) evaluates the weights based on built-in radial atomic densities, thus is more convenient than (2)"
 	else
 		write(*,*) "3 Hirshfeld"
 		write(*,*) "4 Hirshfeld-I"
@@ -380,7 +380,7 @@ else if (isel==-1) then
     read(*,*) ipartition
 	if (imodwfn==1.and.(ipartition==2.or.ipartition==4)) then !These two modes need reloading firstly loaded file, so they cannot be already modified
 		write(*,"(a)") " Error: Since the wavefunction has been modified by you or by other functions, present function is unable to use. &
-		Please reboot Multiwfn and reload the file"
+		&Please reboot Multiwfn and reload the file"
         write(*,*) "Press ENTER button to continue"
         read(*,*)
 		ipartition=ipartitionold
@@ -436,7 +436,7 @@ else if (isel==2) then !Multipole moment integral needs electron density
     write(*,*) "1 Output on screen"
     write(*,*) "2 Output to multipole.txt in current folder"
     write(*,"(a)") " If choose 2, atom_moment.txt will also be outputted in current folder, &
-    which contains electric dipole moments as well as eigenvalues and eigenvectors of quadrupole moment tensors of all atoms"
+    &which contains electric dipole moments as well as eigenvalues and eigenvectors of quadrupole moment tensors of all atoms"
     read(*,*) itmp
     if (itmp==1) then
 		iout=6
@@ -469,7 +469,7 @@ else if (isel==3.or.isel==33.or.isel==4.or.isel==44.or.isel==5.or.isel==6.or.ise
 		do imo=1,nmo
 			if (MOocc(imo)==0.and.MOene(imo)==0) then
 				write(*,*) "Error: Calculation of CLRK and PLR needs virtual orbitals, however currently one or &
-                more virtual orbitals have zero energy! Perhaps virtual orbitals were not solved"
+                &more virtual orbitals have zero energy! Perhaps virtual orbitals were not solved"
                 write(*,*) "Press ENTER button to continue, the result will be meaningless"
                 read(*,*)
                 exit
@@ -2554,7 +2554,7 @@ if (iwork==33) then
 		write(*,*) "1 Calculate and export FOM for one fragment"
 		write(*,*) "2 Calculate and export FOM for two specific fragments"
 		write(*,*) "3 Calculate and export FOM for two fragments. The atoms in the first fragment is directly specified, &
-		the atoms in fragment 2 are those having Mayer bond order with any atom in fragment 1 larger than a specific threshold"
+		&the atoms in fragment 2 are those having Mayer bond order with any atom in fragment 1 larger than a specific threshold"
     else
 		write(*,*) "2 Calculate FOM for two specific fragments and then calculate DI"
     end if
@@ -2569,7 +2569,7 @@ if (iwork==33) then
     else if (iFOMmode==3) then
 		write(*,*) "Input threshold of Mayer bond order, e.g. 0.001"
         write(*,*) "Note: If an atom not in fragment 1 has absolute value of total Mayer bond order with any atom &
-        in fragment 1 larger than this threshold, then this atom will be in fragment 2"
+        &in fragment 1 larger than this threshold, then this atom will be in fragment 2"
         read(*,*) FOM2thres
         call ask_Sbas_PBC
 		call calcMayerbndord(bndmattot,bndmata,bndmatb)
@@ -2625,7 +2625,7 @@ call gen_neigh_GTF !Generate neighbouring GTFs list at reduced grids, for faster
 !The number of batches is determined dynamically according to present OpenMP stacksize
 write(*,*)
 write(*,*) "Calculating atomic overlap matrix (AOM)..."
-write(*,"(' Number of atoms will be considered in atomic loop:',i7)") count(atmdolist==.true.)
+write(*,"(' Number of atoms will be considered in atomic loop:',i7)") count(atmdolist.eqv..true.)
 if (wfntype==0.or.wfntype==3) then
 	write(*,"(' Number of orbitals will be considered:',i7)") nmatsize
 else
@@ -2696,7 +2696,7 @@ do ibatch=1,nbatch
                 do idx=1,natmthis
 					iatm=iatmbeg+idx-1
                     wei=atmrho(iatm)/prorho
-                    if (wei>thres.and.atmdolist(iatm)==.true.) icalcorb=1
+                    if (wei>thres.and.atmdolist(iatm).eqv..true.) icalcorb=1
                 end do
                 if (icalcorb==0) cycle
                 
@@ -2707,7 +2707,7 @@ do ibatch=1,nbatch
                 !The following code is found to be significant faster than the below one, at least for a tested small system
                 do idx=1,natmthis
 					iatm=iatmbeg+idx-1
-                    if (atmdolist(iatm)==.false.) cycle !Skip atoms that do not need to evaluate AOM to reduce cost
+                    if (atmdolist(iatm).eqv..false.) cycle !Skip atoms that do not need to evaluate AOM to reduce cost
                     wei=atmrho(iatm)/prorho
                     if (wei<thres) cycle
 					do jmo=1,nmatsize
@@ -2740,7 +2740,7 @@ do ibatch=1,nbatch
                     call orbderv(1,MOinit,MOend,tmpx,tmpy,tmpz,orbval)
 					do idx=1,natmthis
 						iatm=iatmbeg+idx-1
-						if (atmdolist(iatm)==.false.) cycle !Skip atoms that do not need to calculate to reduce cost
+						if (atmdolist(iatm).eqv..false.) cycle !Skip atoms that do not need to calculate to reduce cost
 						wei=atmrho(iatm)/prorho
 						if (wei<thres) cycle
 						MOinit=iendalpha+1

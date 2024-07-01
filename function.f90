@@ -4323,12 +4323,12 @@ if (cubegenpath/=" ".and.ifiletype==1) then
 	inquire(file=cubegenpath,exist=alive)
 	if (.not.alive) then
 		write(*,"(a)") " Note: Albeit current file type is fch/fchk/chk and ""cubegenpath"" parameter in settings.ini has been defined, &
-		the cubegen cannot be found, therefore electrostatic potential will still be calculated using internal code of Multiwfn"
+		&the cubegen cannot be found, therefore electrostatic potential will still be calculated using internal code of Multiwfn"
 	end if
 end if
 if (alive.and.ifiletype==1) then !Use cubegen to calculate ESP
 	write(*,"(a)") " Since the input file type is fch/fchk/chk and ""cubegenpath"" parameter in settings.ini has been properly defined, &
-	now Multiwfn directly invokes cubegen to calculate electrostatic potential"
+	&now Multiwfn directly invokes cubegen to calculate electrostatic potential"
 	
 	!Generate cubegen input file
 	open(10,file="cubegenpt.txt",status="replace")

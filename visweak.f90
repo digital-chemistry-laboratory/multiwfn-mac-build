@@ -22,7 +22,7 @@ do while(.true.)
 	if ((isel==1.or.isel==4.or.isel==5.or.isel==11).and.(.not.allocated(b))) then
 		write(*,*) "Error: Wavefunction information is not available!"
         write(*,"(a)") " You must use a file containing wavefunction information (e.g. .wfn/fch/mwfn/wfx...) as input file to perform the analysis. &
-        See Section 2.5 of Multiwfn manual to understand which files contain wavefunction information"
+        &See Section 2.5 of Multiwfn manual to understand which files contain wavefunction information"
         write(*,*) "Press ENTER button to return"
         read(*,*)
         return
@@ -43,7 +43,7 @@ do while(.true.)
         call vdWpotential
 	else if (isel==9) then
 		write(*,"(a)") " Note: To perform Becke or Hirshfeld surface analysis, you should use main function 12. &
-		Please check Section 3.15.5 of Multiwfn manual on how to do that. Corresponding examples are given as Sections 4.12.5 and 4.12.6."
+		&Please check Section 3.15.5 of Multiwfn manual on how to do that. Corresponding examples are given as Sections 4.12.5 and 4.12.6."
 		write(*,*) "Press ENTER button to continue"
 		read(*,*)
 	else if (isel==10) then
@@ -363,7 +363,7 @@ if (iIGMtype==1) then
     write(*,*) "Phys. Chem. Chem. Phys., 19, 17928 (2017)"
     write(*,*) "J. Comput. Chem., 43, 539 (2022) DOI: 10.1002/jcc.26812"
     write(*,"(a)") " Review article: Tian Lu, Qinxue Chen, Visualization Analysis of &
-    Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
+    &Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
 else if (iIGMtype==2) then
 	write(*,*)
 	write(*,*) "***** Please cite this introductory paper of IGMH: *****"
@@ -371,7 +371,7 @@ else if (iIGMtype==2) then
     write(*,*) "An erratum to the IGMH paper is also suggested to cite together:"
     write(*,*) "Tian Lu, Qinxue Chen, ChemRxiv (2022) DOI: 10.26434/chemrxiv-2022-g1m34"
     write(*,"(a)") " Review article: Tian Lu, Qinxue Chen, Visualization Analysis of &
-    Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
+    &Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
 end if
 
 !----- Define fragments
@@ -785,8 +785,8 @@ do while (.true.)
         
         iouttype=1 !1: atmdg.pdb. 2: atmdg.pqr & atmdg%.pqr. pqr is not good choice because VMD is unable to load elements from it, making determination of bonding often incorrect
         if (iouttype==1) then
-        		write(*,"(/,a)") " If outputting the two fragments as atmdg.pdb in current folder, whose ""Beta"" and ""Occupancy"" &
-                atomic properties correspond to atomic delta-g index multiplied by 10 and percentage atomic delta-g index, respectively? (y/n)"
+            write(*,"(/,a)") " If outputting the two fragments as atmdg.pdb in current folder, whose ""Beta"" and ""Occupancy"" &
+            &atomic properties correspond to atomic delta-g index multiplied by 10 and percentage atomic delta-g index, respectively? (y/n)"
 			read(*,*) selectyn
 			if (selectyn=='y') then
 				open(10,file="atmdg.pdb",status="replace")
@@ -887,7 +887,7 @@ real*8 prorho,prograd(3),realrho,realgrad(3),hess(3,3),Hirshwei(ncenter)
 if (ifPBC>0) then
     write(*,*)
 	write(*,"(a)") " Warning: This function currently does not fully support periodic systems. &
-    To use it for periodic system, the atoms of interest should far from boundary"
+    &To use it for periodic system, the atoms of interest should far from boundary"
     write(*,*)
 end if
 
@@ -1271,7 +1271,7 @@ character outcubfile*200,c80tmp*80
 
 write(*,"(/,a)") " !!! If this method is employed in your work, please cite this paper along with Multiwfn original paper:"
 write(*,"(a,/)") " Tian Lu, Qinxue Chen, van der Waals Potential: An Important Complement to Molecular Electrostatic &
-Potential in Studying Intermolecular Interactions. J. Mol. Model., 26, 315 (2020) DOI: 10.1007/s00894-020-04577-0"
+&Potential in Studying Intermolecular Interactions. J. Mol. Model., 26, 315 (2020) DOI: 10.1007/s00894-020-04577-0"
 
 if (ivdwprobe==0) then
     write(*,*) "Input name of probe atom, e.g. Ar"

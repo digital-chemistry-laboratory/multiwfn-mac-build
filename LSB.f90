@@ -1665,12 +1665,12 @@ close(11)
 if (izero>0) then
 	close(12)
 	write(*,"(a,i9,a)") " Note:",izero," points have zero density difference, these points were skipped &
-	during calculation. Please check zero_rhodiff.txt in current folder for information of these points"
+	&during calculation. Please check zero_rhodiff.txt in current folder for information of these points"
 end if
 if (ineg>0) then
 	close(13)
 	write(*,"(a,i9,a)") " Note:",ineg," points have negative density difference, their absolute values were considered &
-	during integration. Please check neg_rhodiff.txt in current folder for information of these points"
+	&during integration. Please check neg_rhodiff.txt in current folder for information of these points"
 end if
 end subroutine
 
