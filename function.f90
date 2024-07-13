@@ -2571,7 +2571,7 @@ end subroutine
 
 
 
-!!------ Same as calchessmat_dens, but for promolecular wavefunction
+!!------ Same as calchessmat_dens, but for promolecular wavefunction stored in memory
 !itype=1 Only calculate value and grad, not Hessian
 !itype=2 Calculate value, gradient and Hessian
 subroutine calchessmat_dens_promol(itype,x,y,z,elerho,elegrad,elehess)
@@ -3673,7 +3673,8 @@ end subroutine
 
 
 !!----- Calculate electron density, its gradient and Hessian matrix at x,y,z with promolecular approximation
-!Currently only employed by RDG analysis!!!!!!!!!!! The YWT fitted atomic density used in this subroutine is poor!
+!Currently only employed by RDG analysis!!!!!!!!!!!
+!The YWT fitted atomic density used in this subroutine (for element <=Ar) in fact is poor
 !Electron density and its gradient are always calculated, Hessian will be calculated when "elehess" is present
 !Notice that global array "fragment" must be properly defined! Only the atoms in fragment will be taken into account
 subroutine calchessmat_prodens(xin,yin,zin,elerho,elegrad,elehess)
@@ -3769,7 +3770,7 @@ do icell=ic-PBCnx,ic+PBCnx
 		            derx=derx+der1rdr*rx
 		            dery=dery+der1rdr*ry
 		            derz=derz+der1rdr*rz
-		            if (idohess==1) then !See promolecular_grid routine in props.f90 of NCIplot
+		            if (idohess==1) then
 			            tmpval=(der2r-der1rdr)/r2
 			            dxx=dxx+der1rdr+tmpval*rx2
 			            dyy=dyy+der1rdr+tmpval*ry2

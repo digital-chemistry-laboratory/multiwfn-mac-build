@@ -20,7 +20,7 @@ do while(.true.)
     write(*,*) "10 Para linear response index (PLR)"
     write(*,*) "11 Information-theoretic (ITA) aromaticity index"
     write(*,*) "12 Properties of ring critical point"
-    write(*,*) "13 NICS-1D scan curve map and integral"
+    write(*,*) "13 NICS-1D scan curve map, integral NICS (INICS) and FiPC-NICS"
     write(*,*) "14 NICS-2D scan plane map"
     read(*,*) isel
     if (isel==0) then
@@ -1493,6 +1493,7 @@ write(*,*) "The magnetic shielding tensor you inputted is:"
 write(*,"(' XX=',f12.6,'   YX=',f12.6,'   ZX=',f12.6)") hesstmp(1,:)
 write(*,"(' XY=',f12.6,'   YY=',f12.6,'   ZY=',f12.6)") hesstmp(2,:)
 write(*,"(' XZ=',f12.6,'   YZ=',f12.6,'   ZZ=',f12.6)") hesstmp(3,:)
+!This part can also use "function prjmat" to evaluate
 shieldperpen=xnor*xnor*hesstmp(1,1)+xnor*ynor*hesstmp(1,2)+xnor*znor*hesstmp(1,3)+&
 			 ynor*xnor*hesstmp(2,1)+ynor*ynor*hesstmp(2,2)+ynor*znor*hesstmp(2,3)+&
 			 znor*xnor*hesstmp(3,1)+znor*ynor*hesstmp(3,2)+znor*znor*hesstmp(3,3)
@@ -1517,9 +1518,10 @@ integer,allocatable :: tmparr(:)
 integer npt !Number of ghost atoms
 real*8,allocatable :: ptxyz(:,:) !XYZ of scanning points, ptpos(3,npt)
 real*8,allocatable :: ptpos(:) !Relative position of scanning points. In the case of inputting two points, relative to the first one. Case of relative to plane, relative to plane center
-real*8,allocatable :: pttens(:,:,:) !pttens(1:3,1:3,ipt) is 3*3 shielding tensor of ipt
+real*8,allocatable :: pttens(:,:,:) !pttens(1:3,1:3,ipt) is 3*3 NICS tensor of ipt (negative of magnetic shielding tensor)
 real*8,allocatable :: ptNICS(:) !Specific component value of NICS of scanning points
 real*8,allocatable :: ptNICSiso(:),ptNICSaniso(:) !Isotropic and anisotropic NICS of scanning points
+real*8,allocatable :: compin(:),compout(:) !In-plane and out-of-plane components of NICS
 
 write(*,*)
 call menutitle("NICS-1D scan and integral",10,1)
@@ -1599,7 +1601,7 @@ else
 	read(c80tmp,*) npt
 end if
 
-allocate(ptxyz(3,npt),ptpos(npt))
+allocate(ptxyz(3,npt),ptpos(npt),compin(npt),compout(npt))
 tmpvec(:)=endpt2(:)-endpt1(:)
 dist=dsqrt(sum(tmpvec(:)**2))
 spacing=dist/(npt-1)
@@ -1729,10 +1731,12 @@ do while(.true.)
     write(*,*) "3 Export NICS curve data along the line"
     write(*,*) "4 Calculate integral of NICS along the line"
     write(*,*) "5 Find minima and maxima along NICS curve"
+    write(*,*) "6 Calculate FiPC-NICS"
     read(*,*) isel
     
     if (isel==0) then
         return
+        
     else if (isel==-3) then
 		do ipt=1,floor(npt/2D0)
 			tmpval=ptpos(ipt)
@@ -1743,6 +1747,7 @@ do while(.true.)
             ptxyz(:,npt+1-ipt)=tmpvec(:)
         end do
         write(*,*) "Done!"
+        
     else if (isel==-2) then
         write(*,*) "Input the value to be multiplied to NICS data, e.g. 2.5"
         write(*,*) "Obviously, if you input -1, then the sign of NICS will be inverted"
@@ -1750,6 +1755,7 @@ do while(.true.)
         ptNICS=ptNICS*tmpval
         pttens=pttens*tmpval
         write(*,*) "Done!"
+        
     else if (isel==-1) then
         write(*,*) "Please choose the NICS component:"
         write(*,*) "-1 Anisotropy"
@@ -1783,6 +1789,7 @@ do while(.true.)
             end do
         end if
         write(*,*) "Done!"
+        
     else if (isel==1.or.isel==2.or.isel==4) then
         rintval=sum(ptNICS(:))*spacing*b2a
         write(*,"(' Integral of NICS component:',f10.2,' ppm*Angstrom')") rintval
@@ -1813,6 +1820,7 @@ do while(.true.)
             numdigliney=numdigliney_old
             graphformat=graphformat_old
         end if
+        
     else if (isel==3) then
         write(*,*) "Input path of the file to export, e.g. D:\Genjitsu\no\Yohane.txt"
         write(*,*) "If press ENTER button directly, data will be exported to NICS_1D.txt in current folder"
@@ -1828,8 +1836,53 @@ do while(.true.)
         write(*,*) "Column 2/3/4: X/Y/Z position of the point in Angstrom"
         write(*,*) "Column 5: Distance of the point relative to starting point in Angstrom"
         write(*,*) "Column 6: NICS data at the point"
+        
     else if (isel==5) then
 		call showcurveminmax(npt,ptpos(:),ptNICS(:),2)
+        
+    else if (isel==6) then !FiPC-NICS
+		idir=0
+        if (uvec(2)==0.and.uvec(3)==0) idir=1 !X scan
+        if (uvec(1)==0.and.uvec(3)==0) idir=2 !Y scan
+        if (uvec(1)==0.and.uvec(2)==0) idir=3 !Z scan
+        if (idir==0) then
+			write(*,*) "Error: This function is only available when scanning direction is X or Y or Z"
+            write(*,*) "Press ENTER button to return"
+			read(*,*)
+            cycle
+        end if
+        open(10,file="FiPC-NICS.txt",status="replace")
+		do ipt=1,npt
+            if (idir==1) then
+				compin(ipt)=(pttens(2,2,ipt)+pttens(3,3,ipt))/3D0
+				compout(ipt)=pttens(1,1,ipt)/3D0
+            else if (idir==2) then
+				compin(ipt)=(pttens(1,1,ipt)+pttens(3,3,ipt))/3D0
+				compout(ipt)=pttens(2,2,ipt)/3D0
+            else if (idir==3) then
+				compin(ipt)=(pttens(1,1,ipt)+pttens(2,2,ipt))/3D0
+				compout(ipt)=pttens(3,3,ipt)/3D0
+            end if
+			write(10,"(i5,f10.3,2f12.6)") ipt,ptpos(ipt)*b2a,compin(ipt),compout(ipt)
+		end do
+		close(10)
+        write(*,*) "FiPC-NICS.txt has been generated in current folder"
+        write(*,*) "Column 1: Point index"
+        write(*,*) "Column 2: Scanning distance in Angstrom"
+        write(*,*) "Column 3: In-plane component of NICS"
+        write(*,*) "Column 4: Out-of-plane component of NICS"
+        !Determine position for evaluating FiPC-NICS
+        do ipt=2,npt
+			if (compin(ipt-1)*compin(ipt)<0) exit
+        end do
+        if (ipt==npt+1) then
+			write(*,*)
+			write(*,*) "Error: Unable to determine the position for evaluating FiPC-NICS!"
+        else
+			tmpval = compout(ipt-1) + (compout(ipt)-compout(ipt-1))*compin(ipt-1)/(compin(ipt-1)-compin(ipt))
+            tmpr = ptpos(ipt-1) + (ptpos(ipt)-ptpos(ipt-1))*compin(ipt-1)/(compin(ipt-1)-compin(ipt))
+			write(*,"(/,' FiPC-NICS is',f12.6,' ppm, at',f8.3,' Angstrom')") tmpval,tmpr*b2a
+        end if
     end if
 end do
 

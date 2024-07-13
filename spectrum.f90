@@ -2882,6 +2882,7 @@ do while(.true.)
 		    if (iunitx==1) CALL NAME('Excitation energy (eV)','X')
 		    if (iunitx==2) CALL NAME('Wavelength (nm)','X')
 		    if (iunitx==3) CALL NAME('Wavenumber (1000 cm$^{-1}$)','X')
+			call height(ticksize) !Size of ticks
             call setgrf('NAME','TICKS','NONE','TICKS')
 		    if (idegen==0) CALL GRAF(xlow+shiftx,xhigh+shiftx,xlow+shiftx,stepx, 0D0,1D0,0D0,1D0)
             if (idegen==1) CALL GRAF(xlow+shiftx,xhigh+shiftx,xlow+shiftx,stepx, 0D0,dfloat(maxdegen),0D0,1D0)
@@ -2926,6 +2927,7 @@ do while(.true.)
                 end if
             end do
             deallocate(spikey)
+			call height(36) !Recover to default
 		    CALL ENDGRF
 			call color("WHITE")
             if (iexportlevel==1) write(*,"(a)") " Line data corresponding to various spike sets have been &

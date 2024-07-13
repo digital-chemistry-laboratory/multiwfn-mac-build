@@ -8143,8 +8143,15 @@ character(80) c80tmp1,c80tmp2
 real*8 primshcoefftmp(nprimshell)
 real*8,allocatable :: halfmat(:)
 real*8,external :: normgau
-integer bastype2NBO(-5:50),nptr(nshell)
+integer bastype2NBO(-12:50),nptr(nshell)
 integer ifileid
+bastype2NBO(-12)=351 !F 0
+bastype2NBO(-11)=352 !F+1
+bastype2NBO(-10)=353 !F-1
+bastype2NBO(-9)=354 !F+2
+bastype2NBO(-8)=355 !F-2
+bastype2NBO(-7)=356 !F+3
+bastype2NBO(-6)=357 !F-3
 bastype2NBO(-5)=255 !z2
 bastype2NBO(-4)=252 !xz
 bastype2NBO(-3)=253 !yz
@@ -8187,8 +8194,8 @@ bastype2NBO(23)=413 !YYZZ
 bastype2NBO(22)=414 !YZZZ
 bastype2NBO(21)=415 !ZZZZ
 
-if (any(shtype<=-3)) then
-	write(*,"(a)") " Error: This function cannot be used if any spherical-harmonic basis function has >=f angular moment!"
+if (any(shtype<-3)) then
+	write(*,"(a)") " Error: This function cannot be used if any spherical-harmonic basis function has >=g angular moment!"
 	write(*,"(a)") " To make this function usable, there are three ways:"
     write(*,"(a)") " (1) Reduce quality of basis set so that highest angular moment does not exceed d. Note that most NBO analyses are quite insensitive to basis set"
     write(*,"(a)") " (2) Perform calculation based on Cartesian instead of spherical-harmonic basis functions"
@@ -8269,7 +8276,7 @@ do iang=0,maxval(abs(shtype))
 	else if (iang==2) then
 		write(ifileid,"('     CD =')")
 		do ish=1,nshell
-			if (shtype(ish)==2) then
+			if (abs(shtype(ish))==2) then
 				do icon=1,shcon(ish)
 					iprimshnow=nptr(ish)+icon-1
 					primshcoefftmp(iprimshnow)=primshcoeff(iprimshnow)*normgau(5,primshexp(iprimshnow))
@@ -8279,17 +8286,20 @@ do iang=0,maxval(abs(shtype))
 	else if (iang==3) then
 		write(ifileid,"('     CF =')")
 		do ish=1,nshell
-			if (shtype(ish)==3) then
+			if (abs(shtype(ish))==3) then
 				do icon=1,shcon(ish)
 					iprimshnow=nptr(ish)+icon-1
 					primshcoefftmp(iprimshnow)=primshcoeff(iprimshnow)*normgau(11,primshexp(iprimshnow))
+					!do itmp=11,20
+					!	write(*,*) itmp,primshcoeff(iprimshnow)*normgau(itmp,primshexp(iprimshnow))
+					!end do
 				end do
 			end if
 		end do
 	else if (iang==4) then
 		write(ifileid,"('     CG =')")
 		do ish=1,nshell
-			if (shtype(ish)==4) then
+			if (abs(shtype(ish))==4) then
 				do icon=1,shcon(ish)
 					iprimshnow=nptr(ish)+icon-1
 					primshcoefftmp(iprimshnow)=primshcoeff(iprimshnow)*normgau(21,primshexp(iprimshnow))
