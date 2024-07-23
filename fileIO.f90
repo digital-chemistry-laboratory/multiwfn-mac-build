@@ -3608,6 +3608,8 @@ end if
 close(10)
 
 !Determine MOtype of all orbitals and wfntype from occupancy
+!write(*,*) MOocc
+!pause
 if (sum(MOocc)==2*nmo.and.all(int(MOocc)==MOocc)) then
 	wfntype=0 !This is restricted wavefunction
 	MOtype=0

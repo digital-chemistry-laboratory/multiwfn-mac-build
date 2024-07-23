@@ -1985,23 +1985,40 @@ end subroutine
 
 !!------- Generate a promolecular wavefunction by calculating and then combining atomic .wfn files, &
 !store to global arrays with _pmol, namely MOocc_pmol, MOene_pmol, MOtype_pmol, CO_pmol, and then recover the original wavefunction
-!  The basis set for evaluating atoms must be identical to present system!
+!itask=0: Only generate promolecular wavefunction information in memory (*_pmol); =1 Also export the promolecular wavefunction to a .wfn file
+!  If wavefunction information is available, the basis set for evaluating atoms must be identical to present system, otherwise error will be reported!
 !  Mainly used to calculate information gain at a batch of points, which needs evaluation of promolecular density frequently
 !  The density corresponding to this promolecular wavefunction is exactly identical to superposition of densities of all atomic .wfn files
 !  Since spin density is not interest in this context, spin flip is not taken into account
-!  itask=0: Only generate promolecular wavefunction information in memory (*_pmol); =1 Also export the promolecular wavefunction to a .wfn file
 subroutine generate_promolwfn(itask)
 use defvar
 implicit real*8 (a-h,o-z)
 integer itask
 character selectyn
+type(primtype),allocatable :: btmp(:)
 
 !Generate atomic .wfn files
 call setPromol
 
 nmo_pmol=0
 if (allocated(MOocc_pmol)) deallocate(MOocc_pmol,MOtype_pmol,MOene_pmol,CO_pmol)
-allocate(MOocc_pmol(2*nmo),MOtype_pmol(2*nmo),MOene_pmol(2*nmo),CO_pmol(2*nmo,nprims)) !2*nmo is large enough for storing combined MOs
+
+!Allocate proper array sizes
+if (allocated(b)) then
+	allocate(MOocc_pmol(2*nmo),MOtype_pmol(2*nmo),MOene_pmol(2*nmo),CO_pmol(2*nmo,nprims)) !2*nmo is large enough for storing combined MOs
+else !The original system does not have wavefunction information. Estimate sufficient size of nmo and prims
+	nmotmp=0
+	nprimstmp=0
+	do iatm=1,ncustommap
+		call dealloall(0)
+		write(*,"(a)") " Dealing with "//trim(custommapname(iatm))
+		call readinfile(custommapname(iatm),1)
+		nmotmp=nmotmp+nmo
+		nprimstmp=nprimstmp+nprims
+	end do
+    allocate(btmp(nprimstmp),MOocc_pmol(2*nmotmp),MOtype_pmol(2*nmotmp),MOene_pmol(2*nmotmp),CO_pmol(2*nmotmp,nprimstmp))
+end if
+
 MOocc_pmol=0
 MOene_pmol=0
 MOtype_pmol=0
@@ -2014,27 +2031,35 @@ do iatm=1,ncustommap
     call dealloall(0)
     write(*,"(a)") " Dealing with "//trim(custommapname(iatm))
     call readinfile(custommapname(iatm),1)
-    if (iGTF+nprims-1>nprims_org) then
-        write(*,"(a)") " Error: The basis set used for calculating atoms must be different to that originally used for calculating molecule!"
-        write(*,*) "This situation is not supported. Press ENTER button to exit"
-        read(*,*)
-        stop
+    if (nprims_org/=0) then !The original system has wavefunction information
+		if (iGTF+nprims-1>nprims_org) then
+			write(*,"(a)") " Error: The basis set used for calculating atoms must be different to that originally used for calculating molecule!"
+			write(*,*) "This situation is not supported. Press ENTER button to exit"
+			read(*,*)
+			stop
+		end if
     end if
     MOocc_pmol(imo_pmol:imo_pmol+nmo-1)=MOocc(:)
     MOene_pmol(imo_pmol:imo_pmol+nmo-1)=MOene(:)
     MOtype_pmol(imo_pmol:imo_pmol+nmo-1)=MOtype(:)
     CO_pmol(imo_pmol:imo_pmol+nmo-1,iGTF:iGTF+nprims-1)=CO(:,:)
+    if (allocated(btmp)) then !Original system does not have GTF information, now accumulate
+		btmp(iGTF:iGTF+nprims-1)=b(:)
+        btmp(iGTF:iGTF+nprims-1)%center=iatm
+    end if
     iGTF=iGTF+nprims
     imo_pmol=imo_pmol+nmo
 end do
 nmo_pmol=imo_pmol-1
-if (iGTF-1/=nprims_org) then
-    write(*,"(/,a)") " Error: The basis set used for calculating atoms must be different to that originally used for calculating molecule!"
-    write(*,"(' Number of GTFs of promolecular wavefunction:',i10)") iGTF-1
-    write(*,"(' Number of GTFs of original wavefunction:    ',i10)") nprims_org
-    write(*,*) "This situation is not supported. Press ENTER button to exit"
-    read(*,*)
-    stop
+if (nprims_org/=0) then !The original system has wavefunction information
+	if (iGTF-1/=nprims_org) then
+		write(*,"(/,a)") " Error: The basis set used for calculating atoms must be different to that originally used for calculating molecule!"
+		write(*,"(' Number of GTFs of promolecular wavefunction:',i10)") iGTF-1
+		write(*,"(' Number of GTFs of original wavefunction:    ',i10)") nprims_org
+		write(*,*) "This situation is not supported. Press ENTER button to exit"
+		read(*,*)
+		stop
+	end if
 end if
 
 write(*,"(/,a)") " Done! Promolecular wavefunction information has been successfully generated in memory!"
@@ -2044,11 +2069,17 @@ call dealloall(1)
 call readinfile(firstfilename,1)
 
 if (itask==1) then
-	write(*,"(/,a)") " Do you want to make wavefunction information in memory correspond to promolecular wavefunction? (y/n)"
+	write(*,"(/,a)") " Do you want to make wavefunction information in memory correspond to the just generated promolecular wavefunction? (y/n)"
     read(*,*) selectyn
     if (selectyn=='y'.or.selectyn=='Y') then
-		deallocate(MOocc,MOtype,MOene,CO)
-		allocate(MOocc(nmo_pmol),MOene(nmo_pmol),MOtype(nmo_pmol),CO(nmo_pmol,nprims))
+		if (allocated(b)) then
+			deallocate(MOocc,MOtype,MOene,CO)
+        else
+			nprims=nprimstmp
+            allocate(b(nprims))
+            b(:)=btmp(:)
+        end if
+        allocate(MOocc(nmo_pmol),MOene(nmo_pmol),MOtype(nmo_pmol),CO(nmo_pmol,nprims))
 		nmo=nmo_pmol
 		MOocc=MOocc_pmol
 		MOene=MOene_pmol

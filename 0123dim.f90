@@ -2226,7 +2226,7 @@ do while(.true.)
     if (itickreverse==0) write(*,*) "1 Toggle reversing ticks, current: No"
     if (itickreverse==1) write(*,*) "1 Toggle reversing ticks, current: Yes"
     write(*,*) "2 Set number of decimal places of tick labels"
-    write(*,"(a,2i6)") " 3 Set pixel for weight and height of the exported figure, current:",graph2Dwidth,graph2Dheight
+    write(*,"(a,2i6)") " 3 Set pixel for width and height of the exported figure, current:",graph2Dwidth,graph2Dheight
 	write(*,"(a,i3)") " 4 Set the number of ticks between the labels, current:",iticks-1
     write(*,"(a,i3)") " 5 Set text size of tick labels, current:",plane_axistextsize
     write(*,"(a,i3)") " 6 Set text size of axis names, current:",plane_axisnamesize

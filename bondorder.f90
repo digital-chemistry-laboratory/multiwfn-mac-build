@@ -28,6 +28,7 @@ do while(.true.)
 	write(*,*) "9 Decompose Wiberg bond order in NAO basis as atomic orbital pair contribution"
     write(*,*) "10 Intrinsic bond strength index (IBSI)"
     write(*,*) "11 AV1245 index (approximate multicenter bond order for large rings) and AVmin"
+    write(*,*) "20 Bond order density (BOD) and natural adaptive orbital (NAdO) analyses"
 	read(*,*) ibondana
     
     if (ifPBC>0.and.(ibondana==-2.or.ibondana==8.or.ibondana==9.or.ibondana==10)) then
@@ -37,7 +38,7 @@ do while(.true.)
         cycle
     end if
     
-	if (.not.allocated(CObasa).and.(ibondana>=1.and.ibondana<=6)) then
+	if (.not.allocated(CObasa).and.((ibondana>=1.and.ibondana<=6).or.ibondana==20)) then
 		write(*,"(a)") " Error: The input file you used does not contain basis function information! Please check Section 2.5 of the manual for explanation"
 		write(*,*) "Press ENTER button to return"
 		read(*,*)
@@ -154,7 +155,7 @@ do while(.true.)
 	else if (ibondana==7) then
 		call fuzzyana(1)
 	else if (ibondana==8) then
-		write(*,"(a)") " Citation of Laplacian bond order (LBO):" 
+		write(*,"(/,a)") " Citation of Laplacian bond order (LBO):" 
 		write(*,"(a,/)") " Tian Lu and Feiwu Chen, &
 		&Bond Order Analysis Based on the Laplacian of Electron Density in Fuzzy Overlap Space, J. Phys. Chem. A, 117, 3100-3108 (2013)"
 		call fuzzyana(2)
@@ -164,6 +165,8 @@ do while(.true.)
         call IBSI
     else if (ibondana==11) then
         call AV1245
+    else if (ibondana==20) then
+        call BOD
 	end if
 end do
 end subroutine
