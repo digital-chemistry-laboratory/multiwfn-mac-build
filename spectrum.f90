@@ -3454,15 +3454,36 @@ if (iORCAout==1) then
 					call loclabel(10,"CD SPECTRUM",ifound,0)
                 end if
 				call skiplines(10,5)
+                read(10,"(a)") c80tmp
+                if (index(c80tmp,'->')/=0) then
+					iORCAver=6 !>=6.0.x
+                else
+					iORCAver=5 !<=5.0.x
+                end if
+                backspace(10)
                 datax=0;str=0
 				do i=1,numdata
-					if (ispectrum==3) read(10,*,iostat=ierror) itmp,t1,rnouse,t2,t3,xdip,ydip,zdip
-					if (ispectrum==4) read(10,*,iostat=ierror) itmp,t1,rnouse,t2
+					read(10,"(a)") c200tmp
+					if (ispectrum==3) then !t1: wavenumber, t2: f, t3: D2
+						if (iORCAver==5) then
+							read(c200tmp,*,iostat=ierror) itmp,t1,rnouse,t2,t3,xdip,ydip,zdip
+                        else if (iORCAver==6) then
+							itmp=i
+							read(c200tmp(29:),*,iostat=ierror) t1,rnouse,t2,t3,xdip,ydip,zdip
+                        end if
+					else if (ispectrum==4) then !t1: wavenumber, t2: R
+						if (iORCAver==5) then
+							read(c200tmp,*,iostat=ierror) itmp,t1,rnouse,t2
+                        else if (iORCAver==6) then
+							itmp=i
+							read(c200tmp(29:),*,iostat=ierror) t1,rnouse,t2
+                        end if
+                    end if
                     if (ierror/=0) exit !For SF-TDDFT, number of states recorded in this field is less than nstates by 1, because one of SF-TDDFT states is viewed as ground state
                     datax(itmp)=t1
                     str(itmp)=t2
                     if (iUVdir/=0.and.ispectrum==3) then
-						str(itmp)=2D0/3D0*tmp*datax(itmp)/219474.6363D0
+						str(itmp)=2D0/3D0*tmp*datax(itmp)/au2cm
                     end if
 				end do
 				call loclabel(10,"SOC CORRECTED ABSORPTION",ifound,0)
@@ -3516,7 +3537,7 @@ if (iORCAout==1) then
 									tmpvec=UVdirvec/dsqrt(sum(UVdirvec**2))
 									tmp=tmpvec(1)**2*xdipsq+tmpvec(2)**2*ydipsq+tmpvec(3)**2*zdipsq
 								end if
-								str(i)=2D0/3D0*tmp*datax(i)/219474.6363D0
+								str(i)=2D0/3D0*tmp*datax(i)/au2cm
 							end if
 						end do
 					end if
@@ -3526,21 +3547,33 @@ if (iORCAout==1) then
 				call loclabelfinal(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",nfound)
                 if (nfound>1) write(*,"(a)") " Note: Excited state information was outputted by ORCA multiple times, the finally outputted ones will be loaded"
                 call skiplines(10,5)
+                read(10,"(a)") c80tmp
+                if (index(c80tmp,'->')/=0) then
+					iORCAver=6 !>=6.0.x
+                else
+					iORCAver=5 !<=5.0.x
+                end if
+                backspace(10)
                 numdata=0
                 do while(.true.)
 					read(10,"(a)") c80tmp
-                    if (c80tmp==" ") exit
+                    if (c80tmp==" ".or.c80tmp(1:1)=='*') exit !Since 6.0, final line will be "*The positivity of oscillator strengths is ..."
 					numdata=numdata+1
                 end do
 				allocate(datax(numdata),str(numdata),FWHM(numdata))
 				if (ispectrum==3) then
-					call loclabel(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS")
+					call loclabelfinal(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",nfound) !Since 6.0, the finally printed are the case of LEFT-RIGHT TRANSITION MOMENTS
 				else if (ispectrum==4) then
 					call loclabel(10,"CD SPECTRUM")
                 end if
 				call skiplines(10,5)
 				do i=1,numdata
-					read(10,*) rnouse,datax(i),tmpval,str(i),tmpval,xdip,ydip,zdip
+					read(10,"(a)") c200tmp
+					if (iORCAver==5) then
+						read(c200tmp,*) rnouse,datax(i),tmpval,str(i),tmpval,xdip,ydip,zdip
+                    else
+						read(c200tmp(29:),*) datax(i),tmpval,str(i),tmpval,xdip,ydip,zdip
+                    end if
                     if (tmpval>datax(i)) then !I noticed ORCA at least 5.0.1~5.0.3 has a bug, in output of CD SPECTRUM, the values in cm-1 and nm are inversed
 						ttt=tmpval
                         datax(i)=tmpval
@@ -3548,7 +3581,7 @@ if (iORCAout==1) then
                     end if
                     if (iUVdir/=0.and.ispectrum==3) then
 						call calc_trdipsqr(xdip,ydip,zdip,tmp)
-						str(i)=2D0/3D0*tmp*datax(i)/219474.6363D0
+						str(i)=2D0/3D0*tmp*datax(i)/au2cm
                     end if
 				end do
             end if
@@ -3599,7 +3632,7 @@ if (iORCAout==1) then
 			do i=1,numdata
 				read(10,*) rnouse,tmpene,tmpval,tmpval,tmpval,xdip,ydip,zdip
                 call calc_trdipsqr(xdip,ydip,zdip,tmp)
-				str(i)=2D0/3D0*tmp*tmpene/219474.6363D0
+				str(i)=2D0/3D0*tmp*tmpene/au2cm
 			end do
         end if
 	end if

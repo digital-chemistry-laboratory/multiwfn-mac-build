@@ -3,6 +3,9 @@ subroutine visweak_main
 use defvar
 implicit real*8 (a-h,o-z)
 
+write(*,"(a)") " Review article of most functions in this module, please consider to cite:"
+write(*,"(a)") " Tian Lu and Qinxue Chen, Visualization Analysis of Weak Interactions in Chemical Systems. &
+&In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) http://dx.doi.org/10.1016/B978-0-12-821978-2.00076-3"
 do while(.true.)
 	write(*,*)
 	write(*,*) "           ============ Visual study of weak interaction ============ "
@@ -359,14 +362,14 @@ write(*,*) "Note: Atomic unit is used for all outputs of this function"
 
 
 if (iIGMtype==1) then
-	write(*,*) "***** Please cite following papers in your work: *****"
+	write(*,*) "***** Please cite following papers in your work *****"
     write(*,*) "Phys. Chem. Chem. Phys., 19, 17928 (2017)"
     write(*,*) "J. Comput. Chem., 43, 539 (2022) DOI: 10.1002/jcc.26812"
     write(*,"(a)") " Review article: Tian Lu, Qinxue Chen, Visualization Analysis of &
     &Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
 else if (iIGMtype==2) then
 	write(*,*)
-	write(*,*) "***** Please cite this introductory paper of IGMH: *****"
+	write(*,*) "***** Please cite this introductory paper of IGMH *****"
     write(*,*) "Tian Lu, Qinxue Chen, J. Comput. Chem., 43, 539 (2022) DOI: 10.1002/jcc.26812"
     write(*,*) "An erratum to the IGMH paper is also suggested to cite together:"
     write(*,*) "Tian Lu, Qinxue Chen, ChemRxiv (2022) DOI: 10.26434/chemrxiv-2022-g1m34"

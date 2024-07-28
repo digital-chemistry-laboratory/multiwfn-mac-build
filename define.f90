@@ -26,7 +26,7 @@ use deftype
 integer, private :: i
 real*8,parameter :: pi=3.141592653589793D0
 real*8,parameter :: b2a=0.529177210903D0 !Bohr to Angstrom, 2018 CODATA value
-real*8,parameter :: au2kcal=627.51D0,au2KJ=2625.5D0,au2eV=27.2113838D0,cal2J=4.184D0
+real*8,parameter :: au2kcal=627.51D0,au2KJ=2625.5D0,au2eV=27.2113838D0,au2cm=219474.6363D0,cal2J=4.184D0
 real*8,parameter :: masse=9.10938215D-31,lightc=2.99792458D8,au2debye=2.5417462D0 !masse/chge: Mass/charge of an electron
 real*8,parameter :: planckc=6.62606896D-34,h_bar=1.054571628D-34,amu2kg=1.66053878D-27
 real*8,parameter :: boltzc=1.3806488D-23,boltzcau=3.1668114D-6,boltzceV=8.6173324D-5 !in J/K, in Hartree/K and in eV/K, respectively
