@@ -3463,20 +3463,19 @@ if (iORCAout==1) then
                 backspace(10)
                 datax=0;str=0
 				do i=1,numdata
-					read(10,"(a)") c200tmp
 					if (ispectrum==3) then !t1: wavenumber, t2: f, t3: D2
 						if (iORCAver==5) then
-							read(c200tmp,*,iostat=ierror) itmp,t1,rnouse,t2,t3,xdip,ydip,zdip
+							read(10,*,iostat=ierror) itmp,t1,rnouse,t2,t3,xdip,ydip,zdip
                         else if (iORCAver==6) then
 							itmp=i
-							read(c200tmp(29:),*,iostat=ierror) t1,rnouse,t2,t3,xdip,ydip,zdip
+							read(10,*,iostat=ierror) c80tmp,c80tmp,c80tmp,c80tmp,t1,rnouse,t2,t3,xdip,ydip,zdip
                         end if
 					else if (ispectrum==4) then !t1: wavenumber, t2: R
 						if (iORCAver==5) then
-							read(c200tmp,*,iostat=ierror) itmp,t1,rnouse,t2
+							read(10,*,iostat=ierror) itmp,t1,rnouse,t2
                         else if (iORCAver==6) then
 							itmp=i
-							read(c200tmp(29:),*,iostat=ierror) t1,rnouse,t2
+							read(10,*,iostat=ierror) c80tmp,c80tmp,c80tmp,c80tmp,t1,rnouse,t2
                         end if
                     end if
                     if (ierror/=0) exit !For SF-TDDFT, number of states recorded in this field is less than nstates by 1, because one of SF-TDDFT states is viewed as ground state
@@ -3498,14 +3497,18 @@ if (iORCAout==1) then
 						if (ispectrum==4) call loclabel(10,"CD SPECTRUM",ifound,0)
 						call skiplines(10,5)
 						do i=1,numdata
-							read(10,*) tmp1,tmp2,tmp3,tmp4,tmp5 !Since 5.0, the first column is always 0, strange!
-							if (tmp1==0) then !ORCA >=5.0
-								datax(i)=tmp3
-								str(i)=tmp5
-							else !ORCA 4.x
-								datax(i)=tmp2
-								str(i)=tmp4
-							end if
+							if (iORCAver==5) then
+								read(10,*) tmp1,tmp2,tmp3,tmp4,tmp5 !Since 5.0, the first column is always 0, strange!
+								if (tmp1==0) then !ORCA >=5.0
+									datax(i)=tmp3
+									str(i)=tmp5
+								else !ORCA 4.x
+									datax(i)=tmp2
+									str(i)=tmp4
+								end if
+                            else if (iORCAver==6) then
+								read(10,*) c80tmp,c80tmp,c80tmp,c80tmp,datax(i),c80tmp,str(i)
+                            end if
 							if (iUVdir/=0.and.ispectrum==3) then
 								backspace(10)
                                 read(10,"(a)") c200tmp
@@ -3568,11 +3571,10 @@ if (iORCAout==1) then
                 end if
 				call skiplines(10,5)
 				do i=1,numdata
-					read(10,"(a)") c200tmp
 					if (iORCAver==5) then
-						read(c200tmp,*) rnouse,datax(i),tmpval,str(i),tmpval,xdip,ydip,zdip
+						read(10,*) rnouse,datax(i),tmpval,str(i),tmpval,xdip,ydip,zdip
                     else
-						read(c200tmp(29:),*) datax(i),tmpval,str(i),tmpval,xdip,ydip,zdip
+						read(10,*) c80tmp,c80tmp,c80tmp,c80tmp,datax(i),tmpval,str(i),tmpval,xdip,ydip,zdip
                     end if
                     if (tmpval>datax(i)) then !I noticed ORCA at least 5.0.1~5.0.3 has a bug, in output of CD SPECTRUM, the values in cm-1 and nm are inversed
 						ttt=tmpval
