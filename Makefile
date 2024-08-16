@@ -3,7 +3,7 @@ DISDIAG = -diag-disable 8290,8291,6371,10316,6178,6916,7416,5268,7342,7373,5120,
 OPT = -O2 -qopenmp -qopenmp-link=static -threads -qopt-matmul $(SIMD) $(DISDIAG) -fpp -mkl -static-intel -DINTEL_MKL -stand f08
 OPT1 = -O1 -qopenmp -qopenmp-link=static -threads $(SIMD) $(DISDIAG) -fpp -mkl -static-intel -DINTEL_MKL -stand f08
 #Options in the next line is for debugging purpose
-#OPTDBG = -O0 -qopenmp -diag-disable 8290,8291,6371 -threads -qopenmp-link=static -debug all -g -traceback -check all -fstack-protector -fpp -mkl -static-intel
+#OPT = -O0 -qopenmp -qopenmp-link=static -threads $(DISDIAG) -fpp -mkl -static-intel -DINTEL_MKL -stand f08 -debug all -g -traceback -check all -fstack-protector
 
 LIB_base =
 LIB_GUI = $(LIB_base) ./dislin_d-11.0.a -lXm -lXt -lX11 -lGL   #At least works for CentOS 7.x

@@ -1205,7 +1205,7 @@ if (ispace==1) backspace(10)
 end subroutine
 
 
-!---- Plot orbital interaction diagram
+!----------- Plot orbital interaction diagram
 !ilabelorbidx=0 means don't label orbital indices, =1 means label them
 !ilabelcomp=0 means don't label orbital composition, =1 means label them
 subroutine plotintdiag(status,ifrag,jfrag,nCDAfrag,nmoCDA,FOcp,nmo0,nmo1,nmo2,occ0,occ1,occ2,ene0,ene1,ene2,&
@@ -1245,8 +1245,17 @@ else if (status=="save") then
 	call winsiz(1500,1500)
 end if
 CALL DISINI
-if (status=="show") call WINTIT("Click right mouse button to close...")
-call hwfont
+if (status=="show") then
+	call WINTIT("Click right mouse button to close...")
+	call hwfont
+else if (status=="save") then
+	if (ttfontfile=="none") then
+		CALL HELVES
+    else
+		CALL TTFONT(ttfontfile)
+    end if
+	CALL SHDCHA
+end if
 call center
 call AXSLEN(1500,2300)
 call height(ticknamesize)

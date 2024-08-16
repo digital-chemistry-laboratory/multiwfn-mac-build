@@ -2363,19 +2363,15 @@ do while(.true.)
 			call METAFL('xwin')
 			call window(200,100,900,770)
 		else if (isavepic==1) then
-			call METAFL(graphformat)
+			call METAFL("pdf")
 			call winsiz(graph2Dwidth,graph2Dheight) !Because color bar need to draw, so width is bigger than height
 			CALL IMGFMT('RGB')
 		end if
 		call DISINI
-		call ERRMOD("ALL","OFF") !If don't set this, when atom label in contour map is out of page range, DISLIN annoys users
+		call ERRMOD("ALL","OFF") !If do not set this, when atom label in contour map is out of page range, DISLIN annoys users
 		itexth=45
-		if (isavepic==0) then
-			call HWFONT
- 			if (allocated(frag)) itexth=55 !Since the number of fragments is small, use larger labels
-		else if (isavepic==1) then
-			call COMPLX
-		end if
+        call HWFONT
+		if (isavepic==0.and.allocated(frag)) itexth=55 !Since the number of fragments is small, use larger labels
 		call height(itexth)
 		CALL LABDIG(-1,"X")
 		CALL LABDIG(-1,"Y")
@@ -2402,7 +2398,7 @@ do while(.true.)
 		call DISFIN
 		if (isel==3) then
 			isavepic=0
-			write(*,*) "Done, the picture has been saved to current folder with ""dislin"" prefix"
+			write(*,"(a)") " Done, the image has been saved as pdf format in current folder with ""dislin"" prefix"
 		end if
 	else if (isel==2) then
 		if (allocated(frag)) then

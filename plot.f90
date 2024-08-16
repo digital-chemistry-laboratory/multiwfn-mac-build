@@ -140,11 +140,15 @@ if (iorthoview==1) call vscl3d(XFAC)
 CALL erase
 
 !Set font
-if (isavepic==0) then
+if (isavepic==0.or.graphformat=="pdf ") then
 	CALL HWFONT
 else if (isavepic==1) then
-	call HELVES
-	CALL SHDCHA
+	if (ttfontfile=="none") then
+		CALL HELVES
+    else
+		CALL TTFONT(ttfontfile)
+    end if
+    CALL SHDCHA
 end if
 if (isavepic==0.and.isys==1) then
 	call height(60)
@@ -817,7 +821,16 @@ else
 end if
 CALL NAMDIS(40,'X')
 CALL NAMDIS(50,'Y')
-CALL HWFONT
+if (status=="show".or.graphformat=="pdf ") then
+	CALL HWFONT
+else if (status=="save") then
+	if (ttfontfile=="none") then
+		CALL HELVES
+    else
+		CALL TTFONT(ttfontfile)
+    end if
+    CALL SHDCHA
+end if
 call center
 nysize=nint(2300*curvexyratio)
 call AXSLEN(2300,nysize)
@@ -926,7 +939,16 @@ CALL setxid(0,'NONE')
 CALL DISINI
 if (isavepic==0) call WINTIT("Scatter graph between two functions, click right mouse button to continue")
 call ERRMOD("ALL","OFF")
-call hwfont
+if (isavepic==0.or.graphformat=="pdf ") then
+	call hwfont
+else if (isavepic==1) then
+	if (ttfontfile=="none") then
+		CALL HELVES
+	else
+		CALL TTFONT(ttfontfile)
+	end if
+    CALL SHDCHA
+end if
 call center
 if (iratio==1) then
 	call AXSLEN(2400,1800) !4:3
@@ -999,7 +1021,16 @@ else if (isavepic==1) then
 end if
 call DISINI
 call ERRMOD("ALL","OFF") !If don't set this, when atom label in contour map is out of page range, DISLIN annoys users
-call HWFONT
+if (isavepic==0.or.graphformat=="pdf ") then
+	call HWFONT
+else if (isavepic==1) then
+	if (ttfontfile=="none") then
+		CALL HELVES
+    else
+		CALL TTFONT(ttfontfile)
+    end if
+	CALL SHDCHA
+end if
 CALL LABDIG(nlabdig,"X") !-1 means integer label
 CALL LABDIG(nlabdig,"Y")
 if (present(nlabdigz)) then
@@ -1096,7 +1127,16 @@ call DISINI
 call ERRMOD("ALL","OFF") !If don't set this, when atom label in contour map is out of page range, DISLIN annoys users
 CALL VIEW3D(XVU,YVU,ZVU,"ANGLE")
 CALL erase
-CALL HWFONT
+if (isavepic==0.or.graphformat=="pdf ") then
+	CALL HWFONT
+else if (isavepic==1) then
+	if (ttfontfile=="none") then
+		CALL HELVES
+    else
+		CALL TTFONT(ttfontfile)
+    end if
+	CALL SHDCHA
+end if
 if (itickreverse==1) CALL TICPOS("REVERSE","XYZ")
 if (numdigx>0) then
     CALL LABDIG(numdigx,"X")
@@ -1652,8 +1692,8 @@ else if (idrawtype==3.or.idrawtype==4.or.idrawtype==5) then
 			planetrunc=-3
 		end where
 	end if
-	CALL AXSLEN(3000,3000) !Shouldn't smaller than xxx of page(xxx,xxx), else project map couldn't show completely
-	call complx !A good font
+	CALL AXSLEN(3000,3000) !Should not smaller than xxx of page(xxx,xxx), else project map couldn't show completely
+    
 	!!! Set axis
 	call axis3D(2D0,(end2-init2)/(end1-init1)*2D0,2D0)
 	if (idrawtype==5) then !Employ large negative part in Z to avoid relief map overlay the projected map

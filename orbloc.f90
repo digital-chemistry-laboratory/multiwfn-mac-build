@@ -121,7 +121,7 @@ do while(.true.)
 		end if
 	else if (isel==-6) then
 		write(*,*) "Please select orbital localization method"
-		write(*,"(a,/)") " Hint: 1 and 2 are very fast, but may not well work when diffuse functions are presented. 10 &
+		if (ifPBC==0) write(*,"(a,/)") " Hint: 1 and 2 are very fast, but may not well work when diffuse functions are presented. 10 &
         &is evidently slower, and 3 is quite time-consuming for large systems, but they are but fully compatible &
         &with diffuse functions. Only 10 is unable to give sigma-pi separated LMOs"
 		write(*,*) "1 Pipek-Mezey based on Mulliken type of population"

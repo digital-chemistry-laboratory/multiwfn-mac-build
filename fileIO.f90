@@ -9673,6 +9673,10 @@ if (c200tmp/=" ".and.c200tmp/="none") then
 	end if
 end if
 
+!Load true type font filepath
+call get_option_str(20,'ttfontfile=',c200tmp)
+if (c200tmp/=" ") read(c200tmp,*) ttfontfile
+
 !Load vdW radii from external file if the file is specified
 call get_option_str(20,'vdwrfile=',c200tmp)
 if (c200tmp/=" ".and.c200tmp/="none") then

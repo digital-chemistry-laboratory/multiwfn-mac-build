@@ -2528,10 +2528,15 @@ do while(.true.)
 		CALL PAGE(3000,1800)
         if (isavepic==1) CALL PAGE(3050,1900) !Make page larger to avoid truncation when text size is set to relatively large
 		call disini
-		if (isavepic==1.and.graphformat=="png") then
-			call TRIPLX 
-		else
+		if (isavepic==0.or.graphformat=="pdf ") then
 			CALL HWFONT
+		else if (isavepic==1) then
+			if (ttfontfile=="none") then
+				CALL HELVES
+			else
+				CALL TTFONT(ttfontfile)
+			end if
+			CALL SHDCHA
 		end if
         nxpixel=2150
 		if (ishowlevel==0) nypixel=1500
@@ -5132,11 +5137,16 @@ do while(.true.)
 		    call disini
 		    if (isavepic==0) call WINTIT("Click right mouse button to close")
 		    call ERRMOD("ALL","OFF")
-		    if (isavepic==1.and.graphformat=="png") then
-			    call TRIPLX
-		    else
-			    CALL HWFONT
-		    end if
+			if (isavepic==0.or.graphformat=="pdf ") then
+				CALL HWFONT
+			else if (isavepic==1) then
+				if (ttfontfile=="none") then
+					CALL HELVES
+				else
+					CALL TTFONT(ttfontfile)
+				end if
+				CALL SHDCHA
+			end if
             call axspos(350,1600)
             nxpixel=2300
             nypixel=1470

@@ -1458,7 +1458,16 @@ else if (isel==0.or.isel==10) then
 			call DISINI
             call HNAME(height_axis) !Height of axis name
             call height(ticksize) !Size of ticks
-			call hwfont
+			if (isavepic==0.or.graphformat=="pdf ") then
+				CALL HWFONT
+			else if (isavepic==1) then
+				if (ttfontfile=="none") then
+					CALL HELVES
+				else
+					CALL TTFONT(ttfontfile)
+				end if
+				CALL SHDCHA
+			end if
             leny_curve=1400
             iyaxspos_curve=1550
             leny_line=160 !When showing lines at bottom, leave space for plotting lines
@@ -2324,7 +2333,16 @@ else if (isel==11) then
 				CALL HNAME(45)
 			end if
 			call ERRMOD("ALL","OFF") !If don't set this, when atom label in contour map is out of page range, DISLIN annoys users
-			call HWFONT
+			if (isavepic==0.or.graphformat=="pdf ") then
+				CALL HWFONT
+			else if (isavepic==1) then
+				if (ttfontfile=="none") then
+					CALL HELVES
+				else
+					CALL TTFONT(ttfontfile)
+				end if
+				CALL SHDCHA
+			end if
 			CALL LABDIG(2,"X")
 			CALL LABDIG(3,"Y")
 			CALL LABDIG(4,"Z")
@@ -2365,6 +2383,7 @@ else if (isel==11) then
 		else if (isel2==2) then
 			idraw=1
 			isavepic=1
+            write(*,*) "Done! The image has been saved to current folder with ""DISLIN"" prefix"
 		else if (isel2==3) then
 			open(10,file="LDOS.txt",status="replace")
 			do imappt=1,num2Dpoints
@@ -2589,7 +2608,16 @@ else if (isel==12) then
 				else
 					call height(40) !The text shown in graphic file is strangely larger than window, so slight decrease it
 				end if
-				call hwfont
+				if (isavepic==0.or.graphformat=="pdf ") then
+					CALL HWFONT
+				else if (isavepic==1) then
+					if (ttfontfile=="none") then
+						CALL HELVES
+					else
+						CALL TTFONT(ttfontfile)
+					end if
+					CALL SHDCHA
+				end if
 				call AXSLEN(2450,1400)
 				if (isavepic==0) call WINTIT("Click right mouse button to close")
                 if (ishowYlab==0) then
