@@ -4607,7 +4607,7 @@ integer :: maxcyc=500,ioutmedchg=0,ioutshell=0,ignorefar=1
 real*8 :: crit=0.0001D0,eps=1D-14,dencut=1D-10
 
 if (any(a%index>86)) then
-    write(*,*) "Error: MBIS for atoms beyond Rn is not supported"
+    write(*,*) "Error: MBIS for elements beyond Rn is not supported"
     write(*,*) "Press ENTER button to exit"
     read(*,*)
     return
@@ -4723,7 +4723,7 @@ icore=1 !If consider core shells. If =0, initial population of core shells will 
 do iatm=1,ncenter
     iele = a(iatm)%index
     if (iele==0) then !Ghost atom, initialize as shsig=1 and with a tiny population. This scheme is defined by frj
-        mshell=0
+        mshell(iatm)=1
         shsig(1,iatm) = 1
         shpop(1,iatm)=1D-3
     else if (iele<=2) then

@@ -177,13 +177,13 @@ real*8 :: YWTatomexp(18,3)=reshape((/ & !Corresponding exponent of YWTatom, the 
 1.0D0,1.0D0,0.9992D0,0.6945D0,0.53D0,0.548D0,0.4532D0,0.3974D0,0.3994D0,0.3447D0,0.2511D0,0.215D0,0.1874D0,0.1654D0,0.1509D0,0.1369D0,0.1259D0,0.1168D0, &
 1.0D0,1.0D0,1.0D0,1.0D0,1.0D0,1.0D0,1.0D0,1.0D0,1.0D0,1.0D0,1.0236D0,0.7753D0,0.5962D0,0.6995D0,0.5851D0,0.5149D0,0.4974D0,0.4412D0 /),(/18,3/))
 !The largest distance of radial density of every element in atmraddens.f90, used to truncate calculation for saving time
-real*8 :: atmrhocut(1:nelesupp)=(/7.80D0,5.89D0,14.37D0,11.30D0,10.10D0,8.20D0,7.08D0,6.75D0,6.16D0,5.64D0,15.33D0,12.70D0,12.70D0,10.68D0,9.57D0,9.08D0,8.20D0,7.80D0,16.38D0,&
+real*8 :: atmrhocut(0:nelesupp)=(/14D0,7.80D0,5.89D0,14.37D0,11.30D0,10.10D0,8.20D0,7.08D0,6.75D0,6.16D0,5.64D0,15.33D0,12.70D0,12.70D0,10.68D0,9.57D0,9.08D0,8.20D0,7.80D0,16.38D0,&
 14.37D0,14.37D0,14.37D0,13.50D0,13.50D0,13.50D0,12.70D0,12.70D0,11.97D0,11.97D0,11.30D0,13.50D0,11.97D0,10.68D0,10.68D0,10.10D0,9.08D0,16.38D0,&
 15.33D0,14.37D0,14.37D0,13.50D0,11.97D0,14.37D0,12.70D0,12.70D0,9.57D0,12.70D0,11.97D0,14.37D0,12.70D0,11.97D0,11.30D0,10.68D0,10.10D0,17.53D0,&
 16.38D0,15.33D0,15.33D0,15.33D0,15.33D0,15.33D0,15.33D0,15.33D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,11.97D0,11.97D0,&
 11.97D0,11.97D0,12.70D0,11.97D0,11.30D0,11.30D0,11.30D0,14.37D0,12.70D0,11.30D0,11.30D0,10.68D0,10.10D0,17.53D0,15.33D0,14.37D0,14.37D0,14.37D0,&
 15.33D0,15.33D0,14.37D0,14.37D0,13.50D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,12.70D0,(14D0,i=104,nelesupp) /)
-real*8 atmrhocut2(1:nelesupp) !Square of atmrhocut, generate when Multiwfn boots up
+real*8 atmrhocut2(0:nelesupp) !Square of atmrhocut, generate when Multiwfn boots up
 
 !Standard atomic weight. Computed from abundance and isotope masses, the data was obtained from https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl?ele=&ascii=ascii2&isotype=all
 !For radioactive elements, the mass corresponds to longest-living isotope
