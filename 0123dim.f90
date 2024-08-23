@@ -2482,7 +2482,7 @@ else !Calculate grid data
         nx=nx_ext;ny=ny_ext;nz=nz_ext
         if (allocated(cubmattmp)) deallocate(cubmattmp)
         allocate(cubmattmp(nx_new,ny_new,nz_new))
-        ifinish=0
+        ifinish=0;ishowprog=1
 		ntmp=floor(ny_new*nz_new/100D0)
 		!$OMP PARALLEL DO SHARED(cubmattmp,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
         do k=1,nz_new
@@ -2493,11 +2493,13 @@ else !Calculate grid data
 					tmpz = orgz_new + gridv1_new(3)*(i-1) + gridv2_new(3)*(j-1) + gridv3_new(3)*(k-1)
 					cubmattmp(i,j,k)=calcfuncall(ifuncsel,tmpx,tmpy,tmpz)
 				end do
-				!$OMP CRITICAL
-				ifinish=ifinish+1
-				ishowprog=mod(ifinish,ntmp)
-				if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny_new*nz_new)),100)
-				!$OMP END CRITICAL
+				if (ntmp/=0) then
+					!$OMP CRITICAL
+					ifinish=ifinish+1
+					ishowprog=mod(ifinish,ntmp)
+					if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny_new*nz_new)),100)
+					!$OMP END CRITICAL
+                end if
 			end do
 		end do
 		!$OMP END PARALLEL DO

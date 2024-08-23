@@ -278,7 +278,8 @@ do itime=1,4
     end if
     orblist_did(orblist(1:norblist))=1
 	if (imethod==1) then
-        write(*,*) "Please wait..."
+		write(*,*)
+        write(*,*) "Calculating intermediate matrix, please wait..."
         SC=matmul_blas(Sbas,Cmat,nbasis,nbasis,0,0) !Generate intermediate matrix SC for PM-Mulliken for lowering cost from N^4 to N^3
     end if
 	

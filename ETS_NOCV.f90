@@ -486,7 +486,8 @@ do while(.true.)
             cubmat=0
             write(*,*) "Calculating grid data..."
             allocate(wfnval(nmo))
-            ifinish=0
+            ifinish=0;ishowprog=1
+            ntmp=floor(ny*nz/100D0)
             !$OMP PARALLEL DO SHARED(cubmat,ifinish) PRIVATE(i,j,k,tmpx,tmpy,tmpz,ilow,ihigh,wfnval,idx,iorb,jorb) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
             do k=1,nz
 	            do j=1,ny
@@ -505,11 +506,13 @@ do while(.true.)
                             end if
                         end do
 		            end do
-		            !$OMP CRITICAL
-                    ifinish=ifinish+1
-                    ishowprog=mod(ifinish,floor(ny*nz/100D0))
-		            if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-                    !$OMP END CRITICAL
+		            if (ntmp/=0) then
+		                !$OMP CRITICAL
+                        ifinish=ifinish+1
+                        ishowprog=mod(ifinish,ntmp)
+		                if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+                        !$OMP END CRITICAL
+		            end if
 	            end do
             end do
             !$OMP END PARALLEL DO

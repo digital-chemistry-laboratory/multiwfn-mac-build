@@ -1354,7 +1354,8 @@ do while(.true.)
             write(*,*) "Calculating, please wait..."
             allocate(cubmat(nx,ny,nz))
             call walltime(iwalltime1)
-            ifinish=0
+            ifinish=0;ishowprog=1
+            ntmp=floor(ny*nz/100D0)
             !$OMP PARALLEL DO SHARED(cubmat,ifinish) PRIVATE(ix,xpos,iy,ypos,iz,zpos) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
             do iz=1,nz
                 do iy=1,ny
@@ -1367,14 +1368,17 @@ do while(.true.)
                             cubmat(ix,iy,iz)=cubmat(ix,iy,iz)+LDOS_STM(xpos,ypos,zpos,ibetabeg,ibetaend)
                         end if
                     end do
-		            !$OMP CRITICAL
-		            ifinish=ifinish+1
-		            ishowprog=mod(ifinish,floor(ny*nz/100D0))
-		            if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-        	        !$OMP END CRITICAL
+		            if (ntmp/=0) then
+		                !$OMP CRITICAL
+		                ifinish=ifinish+1
+		                ishowprog=mod(ifinish,ntmp)
+		                if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+        	            !$OMP END CRITICAL
+                    end if
                 end do
             end do
             !$OMP END PARALLEL DO
+            if (ishowprog/=0) call showprog(100,100)
             call walltime(iwalltime2)
             write(*,"(' Calculation took up time',i10,' s')") iwalltime2-iwalltime1
             valmax=maxval(cubmat)

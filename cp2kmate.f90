@@ -3585,10 +3585,10 @@ do while(.true.)
         do ilevel=1,nlevelthis
             read(10,*) idx,ene,occ
             if (occ/=0) then
-                write(11,"(f14.8)",advance="no") ene+eshift
+                write(11,"(f16.8)",advance="no") ene+eshift
                 if (ene>E_VBT) E_VBT=ene
             else
-                write(12,"(f14.8)",advance="no") ene+eshift
+                write(12,"(f16.8)",advance="no") ene+eshift
                 if (ene<E_CBB) E_CBB=ene
             end if
         end do
@@ -3603,10 +3603,10 @@ do while(.true.)
             do ilevel=1,nlevelthis
                 read(10,*) idx,ene,occ
                 if (occ/=0) then
-                    write(13,"(f14.8)",advance="no") ene+eshift
+                    write(13,"(f16.8)",advance="no") ene+eshift
                     if (ene>E_VBT) E_VBT=ene
                 else
-                    write(14,"(f14.8)",advance="no") ene+eshift
+                    write(14,"(f16.8)",advance="no") ene+eshift
                     if (ene<E_CBB) E_CBB=ene
                 end if
             end do
@@ -3678,9 +3678,9 @@ end do
 
 write(*,"(/,' Number of total levels:',i7)") nlevelthis
 !write(*,*)
-!write(*,"(' Valence band top:      ',f14.8,' eV')") E_VBT
-!write(*,"(' Conduction band bottom:',f14.8,' eV')") E_CBB
-!write(*,"(' Band gap:              ',f14.8,' eV')") E_CBB-E_VBT
+!write(*,"(' Valence band top:      ',f16.8,' eV')") E_VBT
+!write(*,"(' Conduction band bottom:',f16.8,' eV')") E_CBB
+!write(*,"(' Band gap:              ',f16.8,' eV')") E_CBB-E_VBT
 write(*,*)
 write(*,*) "Special points for plotting band structure:"
 write(*,*) "SP#   kp#   Label                Coordinates          Path"

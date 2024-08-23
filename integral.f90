@@ -173,7 +173,7 @@ else !PBC case
 	call walltime(iwalltime1)
 	!Summing up all neighbouring cells. This is valid for analysis for periodic system
 	!See (9.4) in p328 of Quantum Chemistry of Solids - The LCAO First Principles Treatment of Crystals
-	ifinish=0
+	ifinish=0;ishowprog=1
 	ntmp=floor(nbasisCar/100D0)
 	!$OMP PARALLEL DO SHARED(Sbas,ifinish,ishowprog) PRIVATE(i,ii,j,jj,icell,jcell,kcell,tmp,Sbasadd,dispvec,facreal) schedule(dynamic) NUM_THREADS(nthreads)
 	do i=1,nbasisCar
@@ -196,11 +196,13 @@ else !PBC case
 				end do
 			end do
 		end do
-		!$OMP CRITICAL
-        ifinish=ifinish+1
-		ishowprog=mod(ifinish,ntmp)
-        if (ishowprog==0) call showprog(floor(100D0*ifinish/nbasisCar),100)
-		!$OMP END CRITICAL
+		if (ntmp/=0) then
+			!$OMP CRITICAL
+			ifinish=ifinish+1
+			ishowprog=mod(ifinish,ntmp)
+			if (ishowprog==0) call showprog(floor(100D0*ifinish/nbasisCar),100)
+			!$OMP END CRITICAL
+        end if
 	end do
 	!$OMP END PARALLEL DO
     if (ishowprog/=0) call showprog(100,100)
@@ -461,7 +463,7 @@ if (ifPBC==0) then
 else !PBC case. This is meaningless, dipole operator based on the Berry-phase formula is needed of practical use, see SUBROUTINE tddfpt_dipole_operator in CP2K
 	call walltime(iwalltime1)
 	!Summing up all neighbouring cells. This is valid for analysis for periodic system
-	ifinish=0
+	ifinish=0;ishowprog=1
 	ntmp=floor(nbasisCar/100D0)
 	!$OMP PARALLEL DO SHARED(Dbas,ifinish,ishowprog) PRIVATE(i,ii,j,jj,icell,jcell,kcell,xdiptmp,ydiptmp,zdiptmp,dispvec,facreal,Dbasadd) schedule(dynamic) NUM_THREADS(nthreads)
 	do i=1,nbasisCar
@@ -485,11 +487,13 @@ else !PBC case. This is meaningless, dipole operator based on the Berry-phase fo
 				end do
 			end do
 		end do
-		!$OMP CRITICAL
-        ifinish=ifinish+1
-		ishowprog=mod(ifinish,ntmp)
-        if (ishowprog==0) call showprog(floor(100D0*ifinish/nbasisCar),100)
-		!$OMP END CRITICAL
+		if (ntmp/=0) then
+			!$OMP CRITICAL
+			ifinish=ifinish+1
+			ishowprog=mod(ifinish,ntmp)
+			if (ishowprog==0) call showprog(floor(100D0*ifinish/nbasisCar),100)
+			!$OMP END CRITICAL
+        end if
 	end do
 	!$OMP END PARALLEL DO
     if (ishowprog/=0) call showprog(100,100)

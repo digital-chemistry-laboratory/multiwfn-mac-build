@@ -938,18 +938,21 @@ if (ireadextmapval==0) then !Directly calculate
         end if
         write(*,*)
         
-        ifinish=0
         ndosurvtx=count(elimvtx(:)==0)
-        call showprog(0,nsurvtx)
+        ifinish=0;ishowprog=1
+        call showprog(0,100)
+        ntmp=floor(ndosurvtx/100D0)
 		!$OMP PARALLEL DO SHARED(survtx,ifinish,ishowprog) PRIVATE(icyc) schedule(dynamic) NUM_THREADS(nthreads)
 		do icyc=1,nsurvtx
 			if (elimvtx(icyc)==1) cycle
 			survtx(icyc)%value=calcmapfunc(imapfunc,survtx(icyc)%x,survtx(icyc)%y,survtx(icyc)%z,nHirBecatm,HirBecatm)
-			!$OMP CRITICAL
-            ifinish=ifinish+1
-			ishowprog=mod(ifinish,floor(ndosurvtx/100D0))
-			if (ishowprog==0) call showprog(floor(100D0*ifinish/ndosurvtx),100)
-            !$OMP END CRITICAL
+			if (ntmp/=0) then
+				!$OMP CRITICAL
+				ifinish=ifinish+1
+				ishowprog=mod(ifinish,ntmp)
+				if (ishowprog==0) call showprog(floor(100D0*ifinish/ndosurvtx),100)
+				!$OMP END CRITICAL
+            end if
 		end do
 		!$OMP END PARALLEL DO
 		if (ishowprog/=0) call showprog(100,100)
@@ -2071,7 +2074,7 @@ do while(.true.)
 		write(*,*) "Calculating grid data of mapped function..."
 		if (allocated(cubmattmp)) deallocate(cubmattmp)
         allocate(cubmattmp(nx,ny,nz))
-        ifinish=0
+        ifinish=0;ishowprog=1
         ntmp=floor(ny*nz/100D0)
 		!$OMP PARALLEL DO SHARED(cubmattmp,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
 		do k=1,nz
@@ -2080,11 +2083,13 @@ do while(.true.)
                     call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
 					cubmattmp(i,j,k)=calcmapfunc(imapfunc,tmpx,tmpy,tmpz,nHirBecatm,HirBecatm)
 				end do
-				!$OMP CRITICAL
-				ifinish=ifinish+1
-				ishowprog=mod(ifinish,ntmp)
-				if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-        		!$OMP END CRITICAL
+				if (ntmp/=0) then
+					!$OMP CRITICAL
+					ifinish=ifinish+1
+					ishowprog=mod(ifinish,ntmp)
+					if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+        			!$OMP END CRITICAL
+                end if
 			end do
 		end do
 		!$OMP END PARALLEL DO

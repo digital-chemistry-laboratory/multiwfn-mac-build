@@ -151,7 +151,8 @@ end if
 
 !Start calculation of grid data!!!!!!!!!!!!
 if (infomode==0) call showprog(0,nz*ny)
-ifinish=0
+ifinish=0;ishowprog=1
+ntmp=floor(ny*nz/100D0)
 cubmat=0
 !$OMP PARALLEL DO SHARED(cubmat,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz,densval) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
 do k=1,nz
@@ -178,12 +179,14 @@ do k=1,nz
 			end if
 		end do
 		if (infomode==0) then
-		    !$OMP CRITICAL
-			ifinish=ifinish+1
-			ishowprog=mod(ifinish,ceiling(nz*ny/100D0))
-			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-		    !$OMP END CRITICAL
-		end if
+			if (ntmp/=0) then
+				!$OMP CRITICAL
+				ifinish=ifinish+1
+				ishowprog=mod(ifinish,ntmp)
+				if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+				!$OMP END CRITICAL
+			end if
+        end if
 	end do
 end do
 !$OMP END PARALLEL DO
@@ -861,7 +864,8 @@ else
     allocate(rhocub(nx,ny,nz))
 end if
 write(*,*) "Calculating grid data of electron density..."
-ifinish=0
+ifinish=0;ishowprog=1
+ntmp=floor(ny*nz/100D0)
 !$OMP PARALLEL DO SHARED(rhocub,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz,tmprho) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
 do k=1,nz
 	do j=1,ny
@@ -869,11 +873,13 @@ do k=1,nz
 			call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
 			rhocub(i,j,k)=fdens(tmpx,tmpy,tmpz)
 		end do
-		!$OMP CRITICAL
-        ifinish=ifinish+1
-        ishowprog=mod(ifinish,ceiling(nz*ny/100D0))
-        if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-		!$OMP END CRITICAL
+		if (ntmp/=0) then
+			!$OMP CRITICAL
+			ifinish=ifinish+1
+			ishowprog=mod(ifinish,ntmp)
+			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+			!$OMP END CRITICAL
+        end if
 	end do
 end do
 !$OMP END PARALLEL DO

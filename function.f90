@@ -4377,7 +4377,7 @@ else
         call doinitlibreta(1)
         if (isys==1.and.nESPthreads>12) nESPthreads=12
         write(*,*)
-	    ifinish=0
+	    ifinish=0;ishowprog=1
         ntmp=floor(ngridnum1*ngridnum1/100D0)
         !$OMP PARALLEL DO SHARED(planemat,ifinish,ishowprog) PRIVATE(ii,jj,Cx,Cy,Cz) schedule(dynamic) NUM_THREADS(nESPthreads) collapse(2)
 	    do ii=0,ngridnum1-1
@@ -4386,11 +4386,13 @@ else
 			    Cy=orgy2D+ii*v1y+jj*v2y
 			    Cz=orgz2D+ii*v1z+jj*v2z
 			    planemat(ii+1,jj+1)=eleesp(Cx,Cy,Cz)
-				!$OMP CRITICAL
-				ifinish=ifinish+1
-				ishowprog=mod(ifinish,ntmp)
-				if (ishowprog==0) call showprog(floor(100D0*ifinish/(ngridnum1*ngridnum1)),100)
-        		!$OMP END CRITICAL
+				if (ntmp/=0) then
+					!$OMP CRITICAL
+					ifinish=ifinish+1
+					ishowprog=mod(ifinish,ntmp)
+					if (ishowprog==0) call showprog(floor(100D0*ifinish/(ngridnum1*ngridnum1)),100)
+        			!$OMP END CRITICAL
+                end if
 		    end do
 	    end do
         !$OMP END PARALLEL DO

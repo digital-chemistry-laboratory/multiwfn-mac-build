@@ -126,7 +126,7 @@ else if (thisfilename(inamelen-2:inamelen)=="gbw") then
 			stop
 		end if
 	end if
-else if (index(thisfilename,"POSCAR")/=0) then
+else if (index(thisfilename,"POSCAR")/=0.and.index(thisfilename,".in")==0) then !If file name contains POSCAR while do not have .in or .inp, load as VASP POSCAR
     call readPOSCAR(thisfilename,infomode)
 else if (index(filenameonly,"CHGCAR")/=0.or.index(filenameonly,"CHG")/=0.or.index(filenameonly,"ELFCAR")/=0.or.index(filenameonly,"LOCPOT")/=0) then
     call readVASPgrd(thisfilename,infomode)

@@ -1240,7 +1240,7 @@ call calc_dvol(dvol)
 
 write(*,*) "Calculating Hirshfeld charges..."
 atmpop(:)=0
-ifinish=0
+ifinish=0;ishowprog=1
 ntmp=floor(ny*nz/100D0)
 !$OMP PARALLEL SHARED(atmpop,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz,iatm,atmrho,prorho,atmpop_tmp,ic,jc,kc,icell,jcell,kcell,tvec,atmx,atmy,atmz,dist2,tmprho) NUM_THREADS(nthreads)
 atmpop_tmp(:)=0
@@ -1274,11 +1274,13 @@ do k=1,nz
             prorho=sum(atmrho(:))
             if (prorho>0) atmpop_tmp(:)=atmpop_tmp(:)+atmrho(:)/prorho*cubmat(i,j,k)*dvol
 		end do
-		!$OMP CRITICAL
-		ifinish=ifinish+1
-		ishowprog=mod(ifinish,ntmp)
-		if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-		!$OMP END CRITICAL
+		if (ntmp/=0) then
+			!$OMP CRITICAL
+			ifinish=ifinish+1
+			ishowprog=mod(ifinish,ntmp)
+			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+			!$OMP END CRITICAL
+        end if
 	end do
 end do
 !$OMP END DO
@@ -3547,7 +3549,7 @@ else !Use internal code to evaluate ESP
         if (isys==1.and.nESPthreads>12) nESPthreads=12
     end if
     write(*,*)
-    ifinish=0
+    ifinish=0;ishowprog=1
     call showprog(0,nESPpt)
     ntmp=floor(nESPpt/100D0)
 	!$OMP PARALLEL DO SHARED(ifinish,ESPptval,ishowprog) PRIVATE(ipt) schedule(dynamic) NUM_THREADS(nESPthreads)
@@ -3557,11 +3559,13 @@ else !Use internal code to evaluate ESP
 		else if (iESPtype==2.or.iESPtype==3) then !Do not take nuclear charge into account
 			ESPptval(ipt)=eleesp(ESPpt(1,ipt),ESPpt(2,ipt),ESPpt(3,ipt))
 		end if
-		!$OMP CRITICAL
-		ifinish=ifinish+1
-        ishowprog=mod(ifinish,ntmp)
-        if (ishowprog==0) call showprog(floor(100D0*ifinish/nESPpt),100)
-        !$OMP END CRITICAL
+		if (ntmp/=0) then
+			!$OMP CRITICAL
+			ifinish=ifinish+1
+			ishowprog=mod(ifinish,ntmp)
+			if (ishowprog==0) call showprog(floor(100D0*ifinish/nESPpt),100)
+			!$OMP END CRITICAL
+        end if
 	end do    !$OMP END PARALLEL DO
     if (ishowprog/=0) call showprog(100,100)
 end if
@@ -4086,7 +4090,7 @@ do icyc=1,maxcyc
 	end if
 
 	atmpop(:)=0
-	ifinish=0
+	ifinish=0;ishowprog=1
 	ntmp=floor(ny*nz/100D0)
 	!$OMP PARALLEL SHARED(atmpop,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz,iatm,npt,atmrho,prorho,atmpop_tmp,&
     !$OMP ic,jc,kc,icell,jcell,kcell,tvec,atmx,atmy,atmz,dist2,tmprho) NUM_THREADS(nthreads)
@@ -4122,11 +4126,13 @@ do icyc=1,maxcyc
 				prorho=sum(atmrho(:))
                 if (prorho>0) atmpop_tmp(:)=atmpop_tmp(:)+atmrho(:)/prorho*cubmat(i,j,k)*dvol
 			end do
-			!$OMP CRITICAL
-			ifinish=ifinish+1
-			ishowprog=mod(ifinish,ntmp)
-			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-			!$OMP END CRITICAL
+			if (ntmp/=0) then
+				!$OMP CRITICAL
+				ifinish=ifinish+1
+				ishowprog=mod(ifinish,ntmp)
+				if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+				!$OMP END CRITICAL
+            end if
 		end do
 	end do
 	!$OMP END DO
@@ -4850,7 +4856,7 @@ do icyc=1,maxcyc
 		end do
     
     else !Using evenly distributed grids
-		ifinish=0
+		ifinish=0;ishowprog=1
 		ntmp=floor(ny*nz/100D0)
 		!$OMP PARALLEL SHARED(shpopnew,shsignew,ifinish,ishowprog) PRIVATE(shpopnew_tmp,shsignew_tmp,i,j,k,rho0sh,rho0,tmpx,tmpy,tmpz,tvec, &
 		!$OMP ic,jc,kc,icell,jcell,kcell,iatm,dx,dy,dz,dis,dis2,dis2min,ishell,sigval,tmp,tmp2,tmp3,tmpden,atmdis2min) NUM_THREADS(nthreads)
@@ -4903,11 +4909,13 @@ do icyc=1,maxcyc
 						end do
 					end if
 				end do
-				!$OMP CRITICAL
-				ifinish=ifinish+1
-				ishowprog=mod(ifinish,ntmp)
-				if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-				!$OMP END CRITICAL
+				if (ntmp/=0) then
+					!$OMP CRITICAL
+					ifinish=ifinish+1
+					ishowprog=mod(ifinish,ntmp)
+					if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+					!$OMP END CRITICAL
+                end if
 			end do
 		end do
 		!$OMP END DO

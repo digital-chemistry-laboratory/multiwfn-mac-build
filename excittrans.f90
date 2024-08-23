@@ -1514,7 +1514,8 @@ end if
 write(*,*) "Calculating grid data..."
 call walltime(iwalltime1)
 
-ifinish=0
+ifinish=0;ishowprog=1
+ntmp=floor(ny*nz/100D0)
 !$OMP PARALLEL DO SHARED(ifinish,ishowprog,holegrid,elegrid,transdens,holecross,elecross,magtrdens) &
 !$OMP PRIVATE(i,j,k,tmpx,tmpy,tmpz,orbval,wfnderv,imo,jmo,excwei,iexcitorb,jexcitorb,ileft,jleft,iright,jright,tmpleft,tmpright,idir,jdir,tmpval) &
 !$OMP schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
@@ -1593,11 +1594,13 @@ do k=1,nz
 				end do
 			end do
 		end do
-		!$OMP CRITICAL
-		ifinish=ifinish+1
-		ishowprog=mod(ifinish,ceiling(nz*ny/100D0))
-		if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-		!$OMP END CRITICAL
+		if (ntmp/=0) then
+			!$OMP CRITICAL
+			ifinish=ifinish+1
+			ishowprog=mod(ifinish,ntmp)
+			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+			!$OMP END CRITICAL
+        end if
 	end do
 end do
 !$OMP END PARALLEL DO
@@ -2615,7 +2618,7 @@ else !PBC case, use evenly distributed integration grids
     write(*,"(' Grid spacing of',f6.3,' Bohr is used in integration')") 0.35D0
 	call setgrid_for_PBC(0.35D0,2) !This is fully adequate for crude estimation
 	call calc_dvol(dvol)
-	ifinish=0
+	ifinish=0;ishowprog=1
 	ntmp=floor(ny*nz/100D0)
 	!$OMP PARALLEL SHARED(atmhole,atmele,ifinish,ishowprog) PRIVATE(atmhole_tmp,atmele_tmp,i,j,k,tmpx,tmpy,tmpz,&
     !$OMP icell,jcell,kcell,tvec,iatm,dist2,atmrho,prorho,holeval,eleval) NUM_THREADS(nthreads)
@@ -2649,11 +2652,13 @@ else !PBC case, use evenly distributed integration grids
                     atmele_tmp(:)=atmele_tmp(:)+atmrho(:)/prorho*eleval
                 end if
 			end do
-			!$OMP CRITICAL
-			ifinish=ifinish+1
-			ishowprog=mod(ifinish,ntmp)
-			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-			!$OMP END CRITICAL
+			if (ntmp/=0) then
+				!$OMP CRITICAL
+				ifinish=ifinish+1
+				ishowprog=mod(ifinish,ntmp)
+				if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+				!$OMP END CRITICAL
+            end if
 		end do
 	end do
 	!$OMP END DO

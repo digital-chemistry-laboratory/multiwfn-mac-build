@@ -1807,12 +1807,12 @@ do while(.true.)
             numdiglinex=1
             numdigliney=1
             if (isel==1) then
-                call drawcurve(ptpos(:),ptNICS(:),npt,curvexmin,curvexmax,stepx,curveymin,curveymax,stepy,"show",0D0,0D0,"Shielding (ppm)")
+                call drawcurve(ptpos(:),ptNICS(:),npt,curvexmin,curvexmax,stepx,curveymin,curveymax,stepy,"show",0D0,0D0,"NICS (ppm)")
             else
                 graphformat_old=graphformat
                 graphformat="pdf "
                 call setfil("NICS_1D.pdf") !The file name of saved image file may have been modified, recover to default one
-                call drawcurve(ptpos(:),ptNICS(:),npt,curvexmin,curvexmax,stepx,curveymin,curveymax,stepy,"save",0D0,0D0,"Shielding (ppm)")
+                call drawcurve(ptpos(:),ptNICS(:),npt,curvexmin,curvexmax,stepx,curveymin,curveymax,stepy,"save",0D0,0D0,"NICS (ppm)")
                 write(*,*) "Graphical file has been saved to NICS_1D.pdf in current folder"
                 call setfil("dislin."//trim(graphformat)) !Recover to default one
             end if
@@ -1841,12 +1841,17 @@ do while(.true.)
 		call showcurveminmax(npt,ptpos(:),ptNICS(:),2)
         
     else if (isel==6) then !FiPC-NICS
-		idir=0
-        if (uvec(2)==0.and.uvec(3)==0) idir=1 !X scan
-        if (uvec(1)==0.and.uvec(3)==0) idir=2 !Y scan
-        if (uvec(1)==0.and.uvec(2)==0) idir=3 !Z scan
-        if (idir==0) then
-			write(*,*) "Error: This function is only available when scanning direction is X or Y or Z"
+        if (     abs(uvec(2))<1D-3.and.abs(uvec(3))<1D-3) then
+			idir=1 !X scan
+            write(*,*) "The scanning direction is found to be X"
+        else if (abs(uvec(1))<1D-3.and.abs(uvec(3))<1D-3) then
+			idir=2 !Y scan
+            write(*,*) "The scanning direction is found to be Y"
+        else if (abs(uvec(1))<1D-3.and.abs(uvec(2))<1D-3) then
+			idir=3 !Z scan
+            write(*,*) "The scanning direction is found to be Z"
+        else
+			write(*,"(a)") " Error: This function is only available when scanning direction is X or Y or Z, however, the current scanning direction does not belong to any of them"
             write(*,*) "Press ENTER button to return"
 			read(*,*)
             cycle
@@ -1866,7 +1871,8 @@ do while(.true.)
 			write(10,"(i5,f10.3,2f12.6)") ipt,ptpos(ipt)*b2a,compin(ipt),compout(ipt)
 		end do
 		close(10)
-        write(*,*) "FiPC-NICS.txt has been generated in current folder"
+        write(*,*)
+        write(*,*) "FiPC-NICS.txt has been generated in current folder, meaning of each column:"
         write(*,*) "Column 1: Point index"
         write(*,*) "Column 2: Scanning distance in Angstrom"
         write(*,*) "Column 3: In-plane component of NICS"

@@ -1179,7 +1179,7 @@ else !Using evenly distributed grids for peridic systems
 	call setgrid_for_PBC(spcgrd,2) !This is fully adequate for crude estimation
 	call calc_dvol(dvol)
 	call gen_neigh_GTF !Generate neighbouring GTFs list at reduced grids, for faster evaluation in orbderv
-	ifinish=0
+	ifinish=0;ishowprog=1
 	ntmp=floor(ny*nz/100D0)
 	!$OMP PARALLEL SHARED(atmcomp_tmpsum,ifinish,ishowprog) PRIVATE(atmcomp_tmp,i,j,k,tmpx,tmpy,tmpz,icell,jcell,kcell,tvec,iatm,dist2,atmrho,prorho,orbval) NUM_THREADS(nthreads)
 	atmcomp_tmp(:,:)=0
@@ -1213,11 +1213,13 @@ else !Using evenly distributed grids for peridic systems
 					end do
                 end if
 			end do
-			!$OMP CRITICAL
-			ifinish=ifinish+1
-			ishowprog=mod(ifinish,ntmp)
-			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-			!$OMP END CRITICAL
+			if (ntmp/=0) then
+				!$OMP CRITICAL
+				ifinish=ifinish+1
+				ishowprog=mod(ifinish,ntmp)
+				if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+				!$OMP END CRITICAL
+            end if
 		end do
 	end do
 	!$OMP END DO

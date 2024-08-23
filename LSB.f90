@@ -1957,7 +1957,7 @@ if (itask==1) then !Obtain integral over whole space
 else if (itask==2) then !Calculate grid data and export to ITA.cub in current folder
 	if (ienedens==3) call doinitlibreta(2)
     write(*,"(a)") " Calculating grid data of energy density and its derivatives for actual system..."
-	ifinish=0
+	ifinish=0;ishowprog=1
 	ntmp=floor(ny*nz/100D0)
 	!$OMP PARALLEL DO SHARED(evalcub,egradcub,elaplcub,ifinish,ishowprog) PRIVATE(i,j,k,x,y,z,hess) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
 	do k=1,nz
@@ -1971,11 +1971,13 @@ else if (itask==2) then !Calculate grid data and export to ITA.cub in current fo
 					elaplcub(i,j,k)=hess(1,1)+hess(2,2)+hess(3,3)
 				end if
 			end do
-			!$OMP CRITICAL
-			ifinish=ifinish+1
-			ishowprog=mod(ifinish,ntmp)
-			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-			!$OMP END CRITICAL
+			if (ntmp/=0) then
+				!$OMP CRITICAL
+				ifinish=ifinish+1
+				ishowprog=mod(ifinish,ntmp)
+				if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+				!$OMP END CRITICAL
+            end if
 		end do
 	end do
 	!$OMP END PARALLEL DO
@@ -2002,7 +2004,7 @@ else if (itask==2) then !Calculate grid data and export to ITA.cub in current fo
 			call readinfile(refsysname,1)
 		end if
 		if (ienedens==3) call doinitlibreta(2)
-		ifinish=0
+		ifinish=0;ishowprog=1
 		!$OMP PARALLEL DO SHARED(e0valcub,e0gradcub,ifinish,ishowprog) PRIVATE(i,j,k,x,y,z,hess) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
 		do k=1,nz
 			do j=1,ny
@@ -2014,11 +2016,13 @@ else if (itask==2) then !Calculate grid data and export to ITA.cub in current fo
 						call gencalchessmat(ider,ifunc,x,y,z,e0valcub(i,j,k),e0gradcub(:,i,j,k),hess(:,:),1)
 					end if
 				end do
-				!$OMP CRITICAL
-				ifinish=ifinish+1
-				ishowprog=mod(ifinish,ntmp)
-				if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-				!$OMP END CRITICAL
+				if (ntmp/=0) then
+					!$OMP CRITICAL
+					ifinish=ifinish+1
+					ishowprog=mod(ifinish,ntmp)
+					if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+					!$OMP END CRITICAL
+                end if
 			end do
 		end do
 		!$OMP END PARALLEL DO

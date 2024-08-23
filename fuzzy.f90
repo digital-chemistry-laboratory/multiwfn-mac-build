@@ -2454,7 +2454,7 @@ call calc_dvol(dvol)
 write(*,*)
 write(*,*) "Calculating atomic contributions..."
 atmint(:)=0
-ifinish=0
+ifinish=0;ishowprog=1
 ntmp=floor(ny*nz/100D0)
 !$OMP PARALLEL SHARED(atmint,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz,iatm,atmrho,prorho,atmint_tmp,&
 !$OMP icell,jcell,kcell,tvec,dist2,tmprho,npt) NUM_THREADS(nthreads)
@@ -2490,11 +2490,13 @@ do k=1,nz
             prorho=sum(atmrho(:))
             if (prorho>0) atmint_tmp(:)=atmint_tmp(:)+atmrho(:)/prorho*cubmat(i,j,k)
 		end do
-		!$OMP CRITICAL
-		ifinish=ifinish+1
-		ishowprog=mod(ifinish,ntmp)
-		if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-		!$OMP END CRITICAL
+		if (ntmp/=0) then
+			!$OMP CRITICAL
+			ifinish=ifinish+1
+			ishowprog=mod(ifinish,ntmp)
+			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+			!$OMP END CRITICAL
+        end if
 	end do
 end do
 !$OMP END DO
@@ -2655,7 +2657,7 @@ do ibatch=1,nbatch
     iatmend=min(iatmbeg+natm_per_batch-1,ncenter)
 	write(*,"(/,' Performing batch',i4,' /',i4,', from atom',i6,' to',i6)") ibatch,nbatch,iatmbeg,iatmend
     natmthis=iatmend-iatmbeg+1
-	ifinish=0
+	ifinish=0;ishowprog=1
 	call showprog(0,100)
 	!$OMP PARALLEL SHARED(AOM,AOMb,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz,iatm,atmrho,prorho,&
 	!$OMP icell,jcell,kcell,tvec,dist2,tmprho,npt,AOM_tmp,AOMb_tmp,imo,jmo,MOinit,MOend,orbval,tmpval,wei,idx,icalcorb) NUM_THREADS(nthreads)
@@ -2755,11 +2757,13 @@ do ibatch=1,nbatch
 				end if
             
 			end do
-			!$OMP CRITICAL
-			ifinish=ifinish+1
-			ishowprog=mod(ifinish,ntmp)
-			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-			!$OMP END CRITICAL
+			if (ntmp/=0) then
+				!$OMP CRITICAL
+				ifinish=ifinish+1
+				ishowprog=mod(ifinish,ntmp)
+				if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+				!$OMP END CRITICAL
+            end if
 		end do
 	end do
 	!$OMP END DO

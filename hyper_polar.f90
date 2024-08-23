@@ -2450,7 +2450,7 @@ do while(.true.)
             call dealloall(0)
             write(*,*) "Calculating "//trim(fpath(itime))
             call readinfile(fpath(itime),1)
-            ifinish=0
+            ifinish=0;ishowprog=1
             ntmp=floor(ny*nz/100D0)
             !$OMP PARALLEL DO SHARED(cubmattmp,ifinish,ishowprog) PRIVATE(i,j,k,tmpx,tmpy,tmpz) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
             do k=1,nz
@@ -2459,11 +2459,13 @@ do while(.true.)
 			            call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
 			            cubmattmp(i,j,k)=fdens(tmpx,tmpy,tmpz)
 		            end do
-		            !$OMP CRITICAL
-		            ifinish=ifinish+1
-		            ishowprog=mod(ifinish,ntmp)
-		            if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
-		            !$OMP END CRITICAL
+		            if (ntmp/=0) then
+		                !$OMP CRITICAL
+		                ifinish=ifinish+1
+		                ishowprog=mod(ifinish,ntmp)
+		                if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+		                !$OMP END CRITICAL
+                    end if
 	            end do
             end do
             !$OMP END PARALLEL DO
