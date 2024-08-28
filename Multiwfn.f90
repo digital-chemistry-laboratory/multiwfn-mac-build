@@ -31,14 +31,15 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), update date: 2024-Aug-23"
+write(*,*) "Version 3.8(dev), update date: 2024-Aug-27"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
-write(*,*) "Below paper ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used in your work:"
-write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
-write(*,*) "See ""How to cite Multiwfn.pdf"" in Multiwfn binary package for more information"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
 write(*,*) "Multiwfn English forum: http://sobereva.com/wfnbbs"
 write(*,*) "Multiwfn Chinese forum: http://bbs.keinsci.com/wfn"
+write(*,*) "The following papers ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used:"
+write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
+write(*,*) "         Tian Lu, J. Chem. Phys., 161, 082503 (2024)"
+write(*,*) "See ""How to cite Multiwfn.pdf"" in Multiwfn binary package for more information"
 
 call date_and_time(nowdate,nowtime)
 write(*,"(/,' ( Number of parallel threads:',i4,'  Current date: ',a,'-',a,'-',a,'  Time: ',a,':',a,':',a,' )')") &
