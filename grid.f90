@@ -21,7 +21,7 @@ logical,allocatable :: boundgrd(:,:,:)
 alive=.false.
 if (cubegenpath/=" ".and.ifiletype==1.and.functype==12) then
 	inquire(file=cubegenpath,exist=alive)
-	if (.not.alive) then
+	if (.not.alive.and.cubegenpath/="none") then
 		write(*,"(a)") " Note: Albeit current file type is fch/fchk/chk and ""cubegenpath"" parameter in settings.ini has been defined, &
 		&the cubegen cannot be found, therefore electrostatic potential will still be calculated using internal code of Multiwfn"
 	end if

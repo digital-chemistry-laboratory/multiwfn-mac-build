@@ -262,6 +262,7 @@ do while(.true.)
         if (idispcorr==0) write(*,*) " 3 Set dispersion correction, current: None"
         if (idispcorr==1) write(*,*) " 3 Set dispersion correction, current: DFT-D3"
         if (idispcorr==2) write(*,*) " 3 Set dispersion correction, current: DFT-D3(BJ)"
+        if (idispcorr==3) write(*,*) " 3 Set dispersion correction, current: DFT-D4"
         if (idispcorr==5) write(*,*) " 3 Set dispersion correction, current: rVV10"
     end if
     if (method/="FIST") then
@@ -1052,6 +1053,7 @@ do while(.true.)
         write(*,*) "0 None"
         write(*,*) "1 DFT-D3"
         write(*,*) "2 DFT-D3(BJ)"
+        write(*,*) "3 DFT-D4"
         write(*,*) "5 rVV10"
         read(*,*) idispcorr
     else if (isel==4) then
@@ -2278,12 +2280,13 @@ end if
 !--- Dispersion correction
 if (idispcorr>0.or.method=="BEEFVDW") then
     write(ifileid,"(a)") "      &VDW_POTENTIAL"
-    if (idispcorr==1.or.idispcorr==2) then
+    if (idispcorr==1.or.idispcorr==2.or.idispcorr==3) then
         write(ifileid,"(a)") "        POTENTIAL_TYPE PAIR_POTENTIAL"
         write(ifileid,"(a)") "        &PAIR_POTENTIAL"
-        write(ifileid,"(a)") "          PARAMETER_FILE_NAME dftd3.dat"
+        if (idispcorr/=3) write(ifileid,"(a)") "          PARAMETER_FILE_NAME dftd3.dat"
         if (idispcorr==1) write(ifileid,"(a)") "          TYPE DFTD3"
         if (idispcorr==2) write(ifileid,"(a)") "          TYPE DFTD3(BJ)"
+        if (idispcorr==3) write(ifileid,"(a)") "          TYPE DFTD4"
         !See qs_dispersion_pairpot.F on how to write functional name
         !Special cases are explicitly list here, used to change name, remove RI-, remove _LIBXC, etc.
         if (method=="BP") then
@@ -2315,7 +2318,7 @@ if (idispcorr>0.or.method=="BEEFVDW") then
             write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL "//trim(c80tmp)
         end if
         !write(ifileid,"(a)") "          R_CUTOFF 10.5835442" !Default DFT-D potential range, cutoff will be 2 times this value
-        write(ifileid,"(a)") "          #CALCULATE_C9_TERM T #Calculate C9-related three-body term, more accurate for large system"
+        if (idispcorr/=3) write(ifileid,"(a)") "          #CALCULATE_C9_TERM T #Calculate C9-related three-body term, more accurate for large system"
         write(ifileid,"(a)") "        &END PAIR_POTENTIAL"
     else if (idispcorr==5.or.method=="BEEFVDW") then         
         write(ifileid,"(a)") "        POTENTIAL_TYPE NON_LOCAL"

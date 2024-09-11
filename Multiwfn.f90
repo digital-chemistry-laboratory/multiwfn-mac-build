@@ -31,12 +31,12 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), update date: 2024-Aug-27"
+write(*,*) "Version 3.8(dev), update date: 2024-Sep-10"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
 write(*,*) "Multiwfn English forum: http://sobereva.com/wfnbbs"
 write(*,*) "Multiwfn Chinese forum: http://bbs.keinsci.com/wfn"
-write(*,*) "The following papers ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used:"
+write(*,*) "Both following papers ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used:"
 write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
 write(*,*) "         Tian Lu, J. Chem. Phys., 161, 082503 (2024)"
 write(*,*) "See ""How to cite Multiwfn.pdf"" in Multiwfn binary package for more information"
@@ -68,8 +68,8 @@ else if (isys==2) then !Linux/MacOS
 #endif
     if (c200tmp==" ") write(*,"(/,a)") " Warning: You should set OMP_STACKSIZE environment variable as mentioned in Section 2.1.2 of Multiwfn manual!"
 end if
+!write(*,"(' OpenMP stacksize for each thread: ',f10.2,' MB')") dfloat(ompstacksize)/1024/1024 !Use this if you want to monitor
 !write(*,"(' OpenMP stacksize for each thread: ',f10.2,' MB')") dfloat(KMP_GET_STACKSIZE_S())/1024/1024 !Extended subroutine by Intel compiler
-write(*,"(' OpenMP stacksize for each thread: ',f10.2,' MB')") dfloat(ompstacksize)/1024/1024
 
 !Set number of cores used by calculation of MKL library (e.g. function matmul_blas)
 #if defined(INTEL_MKL)

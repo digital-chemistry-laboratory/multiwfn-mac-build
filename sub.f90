@@ -4568,8 +4568,8 @@ if (if_initlibreta==0) then
 end if
 if (info==1) then
 	write(*,"(/,a)") " NOTE: The ESP evaluation code based on LIBRETA library is being used. &
-	&Please in your work cite both Multiwfn original paper (J. Comput. Chem., 33, 580-592 (2012)) and the paper describing the &
-    &efficient ESP evaluation algorithm adopted by Multiwfn: Phys. Chem. Chem. Phys., 23, 20323 (2021)"
+	&Please cite Multiwfn original papers (J. Comput. Chem., 33, 580-592 (2012) and J. Chem. Phys., 161, 082503 (2024)) and the paper describing the &
+    &efficient ESP evaluation algorithm adopted by Multiwfn (Phys. Chem. Chem. Phys., 23, 20323 (2021))"
 	if (isys==1.and.nthreads>12) then
 		write(*,"(a)") " Warning!!! In Windows system, it is found that the performance of ESP evaluation code may &
 		&severely degrade when more than 12 CPU cores are used, therefore 12 cores are used in the following ESP calculation. &
