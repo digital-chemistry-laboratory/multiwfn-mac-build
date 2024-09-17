@@ -415,11 +415,24 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
             if (imultisel==3) then !Spin-forbidden
                 allexcf=0
             else
-                call loclabel(10,"ABSORPTION SPECTRUM",ifound,0) !Load oscillator strengths
+                call loclabel(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",ifound,0) !Load oscillator strengths
                 call skiplines(10,5)
+                read(10,"(a)") c80tmp
+                if (index(c80tmp,'->')/=0) then
+					iORCAver=6 !>=6.0.x
+                    itmp=0
+                else
+					iORCAver=5 !<=5.0.x
+                end if
+                backspace(10)
                 allexcf=0
 		        do iexc=1,nstates
-                    read(10,*,iostat=ierror) itmp,rnouse,rnouse,tmpval
+					if (iORCAver==5) then
+						read(10,*,iostat=ierror) itmp,rnouse,rnouse,tmpval
+                    else if (iORCAver==6) then
+						itmp=itmp+1
+						read(10,*,iostat=ierror) c80tmp,c80tmp,c80tmp,c80tmp,c80tmp,c80tmp,tmpval
+                    end if
                     if (ierror/=0) exit !For SF-TDDFT, number of states recorded in this field is less than nstates by 1, because one of SF-TDDFT states is viewed as ground state
                     allexcf(itmp)=tmpval
                 end do
