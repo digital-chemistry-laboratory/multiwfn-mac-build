@@ -19,7 +19,7 @@ implicit real*8 (a-h,o-z)
 
 do while(.true.)
     write(*,"(/,a)") " If this module is used in your work, please cite the following paper together with &
-    &Multiwfn original paper (J. Comput. Chem., 33, 580 (2012)), as the methods employed in this module are comprehensively described in this paper:"
+    &Multiwfn original paper (J. Comput. Chem., 33, 580 (2012) and J. Chem. Phys., 161, 082503 (2024)), as the methods employed in this module are comprehensively described in this paper:"
     write(*,"(a)") " Tian Lu, Feiwu Chen, Acta Chimica Sinica, 69, 2393-2406 (2011) http://sioc-journal.cn/Jwk_hxxb/CN/abstract/abstract340458.shtml"
     write(*,*)
 	write(*,*) "       ================ Orbital composition analysis ==============="
@@ -437,7 +437,7 @@ do imo=1,nmo
 	crossint=0D0
 	crossext=0D0 !fragment 1 part of all overlap between fragment 1 and external atoms
 	if (isel==3) allsqr=sum(tmpmat(:,irealmo)**2)
-    if (allsqr==0) cycle !This orbital should be an artificially filled one
+    if (all(CObasa(:,imo)==0)) cycle !This orbital should be an artificially filled one
 	do i=1,size(frag1)
 		ibas=frag1(i)
 		if (isel==1.or.isel==2) floc=floc+tmpmat(ibas,irealmo)**2
