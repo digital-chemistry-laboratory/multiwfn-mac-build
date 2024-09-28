@@ -6831,6 +6831,9 @@ else
 	if (multival==4) multistr="quartet"
 	if (multival==5) multistr="quintet"
 	if (multival==6) multistr="sextet"
+	if (multival==7) multistr="septet"
+	if (multival==8) multistr="octet"
+	if (multival==9) multistr="nonet"
     keyword=trim(keyword)//" precise UHF charge="//trim(chargestr)//' '//multistr
 end if
 

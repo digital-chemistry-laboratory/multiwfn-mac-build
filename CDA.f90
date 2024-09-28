@@ -168,8 +168,8 @@ do ifrag=0,nCDAfrag !Here we first gather basic informations of complex(ifrag=0)
 			atmpos(jatm,3,ifrag)=a(iatm)%z
 		end do
 		nmoCDA(ifrag)=nbasis
-		naelecCDA(ifrag)=naelec
-		nbelecCDA(ifrag)=nbelec
+		naelecCDA(ifrag)=nint(naelec)
+		nbelecCDA(ifrag)=nint(nbelec)
 		write(*,"(' Alpha electrons:',i7,'     Beta electrons:',i7,'     Multiplicity:',i3)") naelecCDA(ifrag),nbelecCDA(ifrag),naelecCDA(ifrag)-nbelecCDA(ifrag)+1
         if (ifrag==0) then
 			call ask_Sbas_PBC !Compatible for periodic case
