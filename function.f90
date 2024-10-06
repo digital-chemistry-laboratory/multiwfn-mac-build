@@ -287,6 +287,8 @@ case (88) !Local dynamic electron correlation function
     userfunc=localcorr(x,y,z,2)
 case (89) !Local nondynamic electron correlation function
     userfunc=localcorr(x,y,z,3)
+case (90) !Fractional occupation number weighted electron density (FOD)
+    userfunc=FODfunc(x,y,z)
 case (91) !Delta-g_inter(Hirsh) defined in IGMH model
     userfunc=delta_g_inter_Hirsh(x,y,z)
 case (92) !vdW potential
@@ -7294,6 +7296,42 @@ end if
 end function
 
 
+
+!!--------- Fractional occupation number weighted electron density (FOD) based on fractionally occupied orbitals
+real*8 function FODfunc(x,y,z)
+implicit real*8 (a-h,o-z)
+real*8 x,y,z,wfnval(nmo)
+FODfunc=0
+call orbderv(1,1,nmo,x,y,z,wfnval)
+if (wfntype==3) then !Closed shell
+	idxHOMO=nint(nelec/2)
+	do imo=1,idxHOMO
+		FODfunc=FODfunc+(2-MOocc(imo))*wfnval(imo)**2
+    end do
+	do imo=idxHOMO+1,nmo
+		FODfunc=FODfunc+MOocc(imo)*wfnval(imo)**2
+    end do
+else if (wfntype==5) then !Open-shell
+	do itmp=nmo,1,-1 !Find the last alpha MO
+		if (MOtype(itmp)==1) exit
+	end do
+    !Alpha part
+	do imo=1,nint(naelec)
+		FODfunc=FODfunc+(1-MOocc(imo))*wfnval(imo)**2
+    end do
+	do imo=nint(naelec)+1,itmp
+		FODfunc=FODfunc+MOocc(imo)*wfnval(imo)**2
+    end do
+    !Beta part
+	do imo=itmp+1,itmp+nint(nbelec)
+		FODfunc=FODfunc+(1-MOocc(imo))*wfnval(imo)**2
+    end do
+	do imo=itmp+nint(nbelec)+1,nmo
+		FODfunc=FODfunc+MOocc(imo)*wfnval(imo)**2
+    end do
+	
+end if
+end function
 
 
 

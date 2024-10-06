@@ -6114,7 +6114,7 @@ do while(.true.)
     write(*,*) "2 RI-BLYP-D3(BJ)/def2-TZVP"
     write(*,*) "3 RI-B3LYP-D3(BJ)/def2-TZVP(-f)     4 RI-B3LYP-D3(BJ)/def2-TZVP"
     write(*,*) "5 RI-wB97M-V/def2-TZVP"
-    write(*,*) "6 RI-PWPB95-D3(BJ)/def2-TZVPP       7 RI-PWPB95-D3(BJ)/def2-QZVPP"
+    write(*,*) "6 RI-PWPB95-D4/def2-TZVPP       7 RI-PWPB95-D4/def2-QZVPP"
     if (iORCAver==1) then
         write(*,*) "6b RI-wB97X-2-D3(BJ)/def2-TZVPP     7b RI-wB97X-2-D3(BJ)/def2-QZVPP"
         write(*,*) "6c RI-revDSD-PBEP86-D4/def2-TZVPP   7c RI-revDSD-PBEP86-D4/def2-QZVPP"
@@ -6338,12 +6338,12 @@ if (idiffuse==0) then
     if (ilevel==3) c200tmp="! B3LYP D3 def2-TZVP(-f) def2/J RIJCOSX"
     if (ilevel==4) c200tmp="! B3LYP D3 def2-TZVP def2/J RIJCOSX"
     if (ilevel==5) c200tmp="! wB97M-V def2-TZVP def2/J RIJCOSX strongSCF"//trim(grd5str)
-    if (ilevel==6) c200tmp="! PWPB95 D3 def2-TZVPP def2/J def2-TZVPP/C RIJCOSX tightSCF"//trim(grd4str) !When RIJCOSX or RIJK is used, the MP2 will also use RI by default
-    if (ilevel==7) c200tmp="! PWPB95 D3 def2-QZVPP def2/J def2-QZVPP/C RIJCOSX tightSCF"//trim(grd4str)
+    if (ilevel==6) c200tmp="! PWPB95 D4 def2-TZVPP def2/J def2-TZVPP/C RIJCOSX tightSCF"//trim(grd4str) !When RIJCOSX or RIJK is used, the MP2 will also use RI by default
+    if (ilevel==7) c200tmp="! PWPB95 D4 def2-QZVPP def2/J def2-QZVPP/C RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==1006) c200tmp="! wB97X-2 D3 def2-TZVPP def2/J def2-TZVPP/C RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==1007) c200tmp="! wB97X-2 D3 def2-QZVPP def2/J def2-QZVPP/C RIJCOSX tightSCF"//trim(grd4str)
-    if (ilevel==1008) c200tmp="! D4 def2-TZVPP def2/J def2-TZVPP/C RIJCOSX tightSCF"//trim(grd4str)
-    if (ilevel==1009) c200tmp="! D4 def2-QZVPP def2/J def2-QZVPP/C RIJCOSX tightSCF"//trim(grd4str)
+    if (ilevel==1008) c200tmp="! revDSD-PBEP86-D4/2021 def2-TZVPP def2/J def2-TZVPP/C RIJCOSX tightSCF"//trim(grd4str)
+    if (ilevel==1009) c200tmp="! revDSD-PBEP86-D4/2021 def2-QZVPP def2/J def2-QZVPP/C RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==8) c200tmp="! DLPNO-CCSD(T) normalPNO RIJK cc-pVTZ cc-pVTZ/JK cc-pVTZ/C tightSCF"
     if (ilevel==9) c200tmp="! DLPNO-CCSD(T) tightPNO RIJK cc-pVTZ cc-pVTZ/JK cc-pVTZ/C tightSCF"
     if (ilevel==10) c200tmp="! CCSD(T) cc-pVTZ tightSCF"
@@ -6365,12 +6365,12 @@ else
     if (ilevel==3) c200tmp="! B3LYP D3 ma-def2-TZVP(-f) autoaux RIJCOSX"
     if (ilevel==4) c200tmp="! B3LYP D3 ma-def2-TZVP autoaux RIJCOSX"
     if (ilevel==5) c200tmp="! wB97M-V ma-def2-TZVP autoaux RIJCOSX strongSCF"//trim(grd5str)
-    if (ilevel==6) c200tmp="! PWPB95 D3 ma-def2-TZVPP autoaux RIJCOSX tightSCF"//trim(grd4str) !When RIJCOSX or RIJK is used, the MP2 will also use RI by default
-    if (ilevel==7) c200tmp="! PWPB95 D3 ma-def2-QZVPP autoaux RIJCOSX tightSCF"//trim(grd4str)
+    if (ilevel==6) c200tmp="! PWPB95 D4 ma-def2-TZVPP autoaux RIJCOSX tightSCF"//trim(grd4str) !When RIJCOSX or RIJK is used, the MP2 will also use RI by default
+    if (ilevel==7) c200tmp="! PWPB95 D4 ma-def2-QZVPP autoaux RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==1006) c200tmp="! wB97X-2 D3 ma-def2-TZVPP autoaux RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==1007) c200tmp="! wB97X-2 D3 ma-def2-QZVPP autoaux RIJCOSX tightSCF"//trim(grd4str)
-    if (ilevel==1008) c200tmp="! D4 ma-def2-TZVPP autoaux RIJCOSX tightSCF"//trim(grd4str)
-    if (ilevel==1009) c200tmp="! D4 ma-def2-QZVPP autoaux RIJCOSX tightSCF"//trim(grd4str)
+    if (ilevel==1008) c200tmp="! revDSD-PBEP86-D4/2021 ma-def2-TZVPP autoaux RIJCOSX tightSCF"//trim(grd4str)
+    if (ilevel==1009) c200tmp="! revDSD-PBEP86-D4/2021 ma-def2-QZVPP autoaux RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==8) c200tmp="! DLPNO-CCSD(T) normalPNO RIJK aug-cc-pVTZ aug-cc-pVTZ/JK aug-cc-pVTZ/C tightSCF"
     if (ilevel==9) c200tmp="! DLPNO-CCSD(T) tightPNO RIJK aug-cc-pVTZ aug-cc-pVTZ/JK aug-cc-pVTZ/C tightSCF"
     if (ilevel==10) c200tmp="! CCSD(T) aug-cc-pVTZ tightSCF"
@@ -6456,7 +6456,7 @@ if (itask==7.or.itask==-7) then
     write(ifileid,"('%pal nprocs',i4,' end')") nprocs
     write(ifileid,"(/,a)") trim(keyword)
     if (ilevel==1006.or.ilevel==1007) call ORCA_DFT_D3_parm(ifileid)
-    if (ilevel==1008.or.ilevel==1009) call ORCA_revDSD_PBEP86_D4_parm(ifileid)
+    !if (ilevel==1008.or.ilevel==1009) call ORCA_revDSD_PBEP86_D4_parm(ifileid)
     write(ifileid,"(a,i9)") "%maxcore",maxcore
     write(ifileid,"('* xyz',2i4)") netcharge,multi
     do i=1,ncenter
@@ -6471,7 +6471,7 @@ if (itask==7.or.itask==-7) then
         write(ifileid,"(/,a)") "$new_job"
         write(ifileid,"(a)") trim(keyword)//" Pmodel" !Use Pmodel to regenerate new initial guess rather than use the previous wavefunction
         if (ilevel==1006.or.ilevel==1007) call ORCA_DFT_D3_parm(ifileid)
-        if (ilevel==1008.or.ilevel==1009) call ORCA_revDSD_PBEP86_D4_parm(ifileid)
+        !if (ilevel==1008.or.ilevel==1009) call ORCA_revDSD_PBEP86_D4_parm(ifileid)
         write(ifileid,"(a,i9)") "%maxcore",maxcore
         write(ifileid,"('* xyz',2i4)") netcharge,multi
         do i=1,ncenter
@@ -6496,7 +6496,7 @@ if (itask==7.or.itask==-7) then
             write(ifileid,"(/,a)") "$new_job"
             write(ifileid,"(a)") trim(keyword)//" Pmodel" !Use Pmodel to regenerate new initial guess rather than use the previous wavefunction
             if (ilevel==1006.or.ilevel==1007) call ORCA_DFT_D3_parm(ifileid)
-            if (ilevel==1008.or.ilevel==1009) call ORCA_revDSD_PBEP86_D4_parm(ifileid)
+            !if (ilevel==1008.or.ilevel==1009) call ORCA_revDSD_PBEP86_D4_parm(ifileid)
             write(ifileid,"(a,i9)") "%maxcore",maxcore
             write(ifileid,"('* xyz',2i4)") netcharge,multi
             do i=1,ncenter
@@ -6544,7 +6544,7 @@ end if
 
 !Write additional D3 parameter or functional definition
 if (ilevel==1006.or.ilevel==1007) call ORCA_DFT_D3_parm(ifileid)
-if (ilevel==1008.or.ilevel==1009) call ORCA_revDSD_PBEP86_D4_parm(ifileid)
+!if (ilevel==1008.or.ilevel==1009) call ORCA_revDSD_PBEP86_D4_parm(ifileid)
 
 !Write task specific information
 if (itask==5) then !Calculate Hessian for optTS
@@ -6667,30 +6667,30 @@ write(ifileid,"(a)") "D3S8 0.0"
 write(ifileid,"(a)") "D3A2 7.795"
 write(ifileid,"(a)") "end"
 end subroutine
-!Write functional definition for revDSD-PBEP86-D4
+!Write functional definition for revDSD-PBEP86-D4. This is no longer needed, as ORCA 6 already supports revDSD-PBEP86-D4/2021 keyword
 !See https://www.compchem.me/revdsd-pbep86-functional
-subroutine ORCA_revDSD_PBEP86_D4_parm(ifileid)
-integer ifileid
-write(ifileid,"(a)") "%method"
-write(ifileid,"(a)") "   Exchange X_PBE"
-write(ifileid,"(a)") "   Correlation C_P86"
-write(ifileid,"(a)") "   ScalHFX 0.69"
-write(ifileid,"(a)") "   ScalDFX 0.31"
-write(ifileid,"(a)") "   ScalGGAC 0.4210"
-write(ifileid,"(a)") "   ScalLDAC 0.4210"
-write(ifileid,"(a)") "   ScalMP2C 1.0"
-write(ifileid,"(a)") "   LDAOpt C_VWN5"
-write(ifileid,"(a)") "   D3S6 0.5132"
-write(ifileid,"(a)") "   D3S8 0.0"
-write(ifileid,"(a)") "   D3A1 0.44"
-write(ifileid,"(a)") "   D3A2 3.60"
-write(ifileid,"(a)") "end"
-write(ifileid,"(a)") "%mp2"
-write(ifileid,"(a)") "   DoSCS true"
-write(ifileid,"(a)") "   PS 0.5922"
-write(ifileid,"(a)") "   PT 0.0636"
-write(ifileid,"(a)") "end"
-end subroutine
+!subroutine ORCA_revDSD_PBEP86_D4_parm(ifileid)
+!integer ifileid
+!write(ifileid,"(a)") "%method"
+!write(ifileid,"(a)") "   Exchange X_PBE"
+!write(ifileid,"(a)") "   Correlation C_P86"
+!write(ifileid,"(a)") "   ScalHFX 0.69"
+!write(ifileid,"(a)") "   ScalDFX 0.31"
+!write(ifileid,"(a)") "   ScalGGAC 0.4210"
+!write(ifileid,"(a)") "   ScalLDAC 0.4210"
+!write(ifileid,"(a)") "   ScalMP2C 1.0"
+!write(ifileid,"(a)") "   LDAOpt C_VWN5"
+!write(ifileid,"(a)") "   D3S6 0.5132"
+!write(ifileid,"(a)") "   D3S8 0.0"
+!write(ifileid,"(a)") "   D3A1 0.44"
+!write(ifileid,"(a)") "   D3A2 3.60"
+!write(ifileid,"(a)") "end"
+!write(ifileid,"(a)") "%mp2"
+!write(ifileid,"(a)") "   DoSCS true"
+!write(ifileid,"(a)") "   PS 0.5922"
+!write(ifileid,"(a)") "   PT 0.0636"
+!write(ifileid,"(a)") "end"
+!end subroutine
 
 
 

@@ -4488,7 +4488,7 @@ else if (wfntype==2) then !RO
 	    if (nint(MOocc(idxHOMOb))==2) exit
     end do
 else
-    !write(*,"(a)") " Note: Unable to determine HOMO index because this is not a single-determinant wavefunction"
+    write(*,"(/,a)") " Note: Unable to determine HOMO index because this is not a single-determinant wavefunction"
 end if
 end subroutine
 

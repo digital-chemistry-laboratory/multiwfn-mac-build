@@ -15,6 +15,7 @@ do while(.true.)
     write(*,*) "7 Geometry operation on the present system"
     write(*,*) "8 Plot surface distance projection map"
     write(*,*) "9 Determine Fermi level"
+    write(*,*) "10 Calculate fractional occupation number weighted electron density (FOD)"
 	read(*,*) isel
 	if (isel==0) then
 		return
