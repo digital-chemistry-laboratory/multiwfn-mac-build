@@ -3408,13 +3408,14 @@ if (iORCAout==1) then
 	isTDA=0
 	if (ispectrum==3.or.ispectrum==4) call loclabel(10,"ORCA sTD",isTDA) !When plotting UV-Vis or ECD, check if this is a sTDA or sTD-DFT calculation
 	if (isTDA==0) then !Regular calculation
-		if (ispectrum==1.or.ispectrum==2) then !IR, Raman
+		if (ispectrum==1.or.ispectrum==2.or.ispectrum==5) then !IR, Raman
 			if (ispectrum==1) call loclabel(10,"IR SPECTRUM")
 			if (ispectrum==2) call loclabel(10,"RAMAN SPECTRUM")
-			call loclabel(10," Mode    freq (cm**-1)",ifound,0)
-			if (ifound==1) then !ORCA 4
+			if (ispectrum==5) call loclabel(10,"VCD-Intensity")
+			call loclabel(10," Mode    freq (cm**-1)",ioldformat,0)
+			if (ioldformat==1) then !ORCA 4
 				read(10,*);read(10,*)
-			else !ORCA 5
+			else !ORCA >=5
 				call loclabel(10," Mode   freq  ",ifound,1)
 				read(10,*);read(10,*);read(10,*)
 			end if
@@ -3429,18 +3430,19 @@ if (iORCAout==1) then
                 return
             end if
 			allocate(datax(numdata),str(numdata),FWHM(numdata))
-			if (ispectrum==1) call loclabel(10,"IR SPECTRUM",ifound,1)
-			if (ispectrum==2) call loclabel(10,"RAMAN SPECTRUM",ifound,1)
-			call loclabel(10,"Mode    freq (cm**-1)",ifound,0)
-			if (ifound==1) then !ORCA 4
+			if (ispectrum==1) call loclabelfinal(10,"IR SPECTRUM",nfound)
+			if (ispectrum==2) call loclabelfinal(10,"RAMAN SPECTRUM",nfound)
+			if (ispectrum==5) call loclabelfinal(10,"VCD-Intensity",nfound)
+			if (ioldformat==1) then !ORCA 4
+                call loclabel(10," Mode    freq (cm**-1)",ifound,0)
 				read(10,*);read(10,*)
-			else !ORCA 5
-				call loclabel(10," Mode   freq  ",ifound,1)
+			else !ORCA >=5
+				if (ispectrum==1.or.ispectrum==2) call loclabel(10," Mode   freq  ",ifound,0)
 				read(10,*);read(10,*);read(10,*)
 			end if
-			!The IR data under T**2 is in KM/mole
 			do i=1,numdata
 				read(10,*) c80tmp,datax(i),str(i)
+                write(*,*) c80tmp,datax(i),str(i)
 			end do
 			FWHM=8D0
 		else if (ispectrum==3.or.ispectrum==4) then !UV-Vis, ECD
@@ -3454,9 +3456,11 @@ if (iORCAout==1) then
                 if (nfound>1) write(*,"(a)") " Note: Excited state information was outputted by ORCA multiple times, the finally outputted ones will be loaded"
 				allocate(datax(numdata),str(numdata),FWHM(numdata))
 				if (ispectrum==3) then
-					call loclabel(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",ifound,0)
+					!call loclabel(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",ifound,0)
+                    call loclabelfinal(10,"  ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",nfound) !Two spaces before the label make sure it will not locate to SOC corrected part
                 else if (ispectrum==4) then
-					call loclabel(10,"CD SPECTRUM",ifound,0)
+					!call loclabel(10,"CD SPECTRUM",ifound,0)
+                    call loclabelfinal(10,"  CD SPECTRUM",nfound) !ORCA doesn't distinguish rotatory strength forms before 6.0, since ORCA 6, this way will load velocity form, which is good
                 end if
 				call skiplines(10,5)
                 read(10,"(a)") c80tmp
@@ -3486,9 +3490,28 @@ if (iORCAout==1) then
                     if (ierror/=0) exit !For SF-TDDFT, number of states recorded in this field is less than nstates by 1, because one of SF-TDDFT states is viewed as ground state
                     datax(itmp)=t1
                     str(itmp)=t2
-                    if (iUVdir/=0.and.ispectrum==3) then
-						str(itmp)=2D0/3D0*tmp*datax(itmp)/au2cm
-                    end if
+					if (iUVdir/=0.and.ispectrum==3) then
+						xdipsq=xdip**2
+						ydipsq=ydip**2
+						zdipsq=zdip**2
+						if (iUVdir==1) then
+							tmp=xdipsq
+						else if (iUVdir==2) then
+							tmp=ydipsq
+						else if (iUVdir==3) then
+							tmp=zdipsq
+						else if (iUVdir==4) then
+							tmp=xdipsq+ydipsq
+						else if (iUVdir==5) then
+							tmp=xdipsq+zdipsq
+						else if (iUVdir==6) then
+							tmp=ydipsq+zdipsq
+						else if (iUVdir==7) then
+							tmpvec=UVdirvec/dsqrt(sum(UVdirvec**2))
+							tmp=tmpvec(1)**2*xdipsq+tmpvec(2)**2*ydipsq+tmpvec(3)**2*zdipsq
+						end if
+						str(i)=2D0/3D0*tmp*datax(i)/au2cm
+					end if
 				end do
 				call loclabel(10,"SOC CORRECTED ABSORPTION",ifound,0)
 				if (ifound==1) then
@@ -3499,7 +3522,8 @@ if (iORCAout==1) then
 						numdata=4*numdata !If root=n, then there will be n singlet states and 3n triplet sublevels
 						deallocate(datax,str,FWHM)
 						allocate(datax(numdata),str(numdata),FWHM(numdata))
-						if (ispectrum==4) call loclabel(10,"CD SPECTRUM",ifound,0)
+						!if (ispectrum==4) call loclabel(10,"CD SPECTRUM",ifound,0)
+                        if (ispectrum==4) call loclabelfinal(10,"SOC CORRECTED CD SPECTRUM",nfound)
 						call skiplines(10,5)
 						do i=1,numdata
 							if (iORCAver==5) then
@@ -3512,23 +3536,33 @@ if (iORCAout==1) then
 									str(i)=tmp4
 								end if
                             else if (iORCAver==6) then
-								read(10,*) c80tmp,c80tmp,c80tmp,c80tmp,datax(i),c80tmp,str(i)
+								if (ispectrum==3) then
+									read(10,*) c80tmp,c80tmp,c80tmp,c80tmp,datax(i),c80tmp,str(i),D2sqr,xdipnorm,ydipnorm,zdipnorm
+                                else if (ispectrum==4) then
+									read(10,*) c80tmp,c80tmp,c80tmp,c80tmp,datax(i),c80tmp,str(i)
+                                end if
                             end if
 							if (iUVdir/=0.and.ispectrum==3) then
-								backspace(10)
-                                read(10,"(a)") c200tmp
-                                i1=strcharpos(c200tmp,'(',1)+1
-                                i2=strcharpos(c200tmp,')',1)-1
-                                read(c200tmp(i1:i2),*) xdipr,xdipi !Real and imaginary parts of transition dipole moment in X
-                                xdipsq=xdipr**2+xdipi**2
-                                i1=strcharpos(c200tmp,'(',2)+1
-                                i2=strcharpos(c200tmp,')',2)-1
-                                read(c200tmp(i1:i2),*) ydipr,ydipi !Real and imaginary parts of transition dipole moment in Y
-                                ydipsq=ydipr**2+ydipi**2
-                                i1=strcharpos(c200tmp,'(',3)+1
-                                i2=strcharpos(c200tmp,')',3)-1
-                                read(c200tmp(i1:i2),*) zdipr,zdipi !Real and imaginary parts of transition dipole moment in Z
-                                zdipsq=zdipr**2+zdipi**2
+								if (iORCAver==6) then
+									xdipsq=xdipnorm**2
+									ydipsq=ydipnorm**2
+									zdipsq=zdipnorm**2
+                                else
+									backspace(10)
+									read(10,"(a)") c200tmp
+									i1=strcharpos(c200tmp,'(',1)+1
+									i2=strcharpos(c200tmp,')',1)-1
+									read(c200tmp(i1:i2),*) xdipr,xdipi !Real and imaginary parts of transition dipole moment in X
+									xdipsq=xdipr**2+xdipi**2
+									i1=strcharpos(c200tmp,'(',2)+1
+									i2=strcharpos(c200tmp,')',2)-1
+									read(c200tmp(i1:i2),*) ydipr,ydipi !Real and imaginary parts of transition dipole moment in Y
+									ydipsq=ydipr**2+ydipi**2
+									i1=strcharpos(c200tmp,'(',3)+1
+									i2=strcharpos(c200tmp,')',3)-1
+									read(c200tmp(i1:i2),*) zdipr,zdipi !Real and imaginary parts of transition dipole moment in Z
+									zdipsq=zdipr**2+zdipi**2
+                                end if
 								if (iUVdir==1) then
 									tmp=xdipsq
 								else if (iUVdir==2) then
@@ -3548,6 +3582,28 @@ if (iORCAout==1) then
 								str(i)=2D0/3D0*tmp*datax(i)/au2cm
 							end if
 						end do
+                    else
+						if (iORCAver==6) then !>=6.0.x. Because in this case ORCA also outputs S to T transitions and mixed with S to S together, we need to load all of them, 2*numdata
+							deallocate(datax,str,FWHM)
+                            numdata=numdata*2
+							allocate(datax(numdata),str(numdata),FWHM(numdata))
+							if (ispectrum==3) then
+								call loclabelfinal(10,"  ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",nfound)
+							else if (ispectrum==4) then
+								call loclabelfinal(10,"  CD SPECTRUM",nfound)
+							end if
+							call skiplines(10,5)
+							datax=0;str=0
+							do i=1,numdata
+								if (ispectrum==3) then !t1: wavenumber, t2: f, t3: D2
+									read(10,*,iostat=ierror) c80tmp,c80tmp,c80tmp,c80tmp,t1,rnouse,t2,t3,xdip,ydip,zdip
+								else if (ispectrum==4) then !t1: wavenumber, t2: R
+									read(10,*,iostat=ierror) c80tmp,c80tmp,c80tmp,c80tmp,t1,rnouse,t2
+								end if
+								datax(i)=t1
+								str(i)=t2
+							end do
+                        end if
 					end if
 				end if
             else !Should be (DLPNO-)(ST)EOM-CCSD or others

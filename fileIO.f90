@@ -1706,7 +1706,7 @@ read(10,*) c40tmp,c40tmp,loadcharge,loadmulti
 ncenter=0
 do while(.true.)
 	read(10,"(a)",iostat=ierror) c200tmp
-	if (index(c200tmp,'*')/=0) exit
+	if (index(c200tmp,'*')/=0.or.index(c200tmp,'end')/=0) exit
 	if (index(c200tmp,':')/=0) cycle !Ignore ghost atom
 	ncenter=ncenter+1
 end do
@@ -6127,7 +6127,7 @@ do while(.true.)
     if (idiffuse==0) write(*,*) "13 DLPNO-CCSD(T)/CBS with tightPNO and RIJK (def2-TZVPP->QZVPP extrapolation)"
     write(*,*) "14 CCSD(T)/CBS (cc-pVTZ->QZ extrapolation)"
     write(*,*) "20 sTD-DFT based on RI-wB97X-D3/def2-SV(P) orbitals"
-    write(*,*) "21 TDA-DFT RI-PBE0/def2-SV(P) with riints_disk (much faster than 22)"
+    !write(*,*) "21 TDA-DFT RI-PBE0/def2-SV(P) with riints_disk (much faster than 22)" !riints_disk no longer supported by ORCA 6
     write(*,*) "22 TDDFT RI-PBE0/def2-SV(P)"
     write(*,*) "23 TDDFT RI-RSX-QIDH/def2-TZVP     231 TDDFT RI-DSD-PBEP86/def2-TZVP"
     write(*,*) "24 EOM-CCSD/cc-pVTZ                 25 STEOM-DLPNO-CCSD/def2-TZVP"
