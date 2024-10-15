@@ -1060,10 +1060,11 @@ do while(.true.)
 	call updatenelec !Update the number of electrons
 	imodwfn=1
 	if (any(MOocc/=int(MOocc))) then
-		if (wfntype==0) then
-			wfntype=3 !RHF-> Restricted multiconfiguration wavefunction
+		if (wfntype==0.or.wfntype==2) then
+            if (wfntype==2) MOtype=0
+			wfntype=3 !RHF/ROHF-> Restricted multiconfiguration wavefunction
 			write(*,"(a)") " Note: Now the wavefunction is recognized as a restricted multiconfiguration wavefunction"
-		else if (wfntype==1.or.wfntype==2) then !UHF/ROHF-> Unrestricted multiconfiguration wavefunction
+		else if (wfntype==1) then !UHF-> Unrestricted multiconfiguration wavefunction
 			wfntype=4
 			write(*,"(a)") " Note: Now the wavefunction is recognized as an unrestricted multiconfiguration wavefunction"
 		end if
