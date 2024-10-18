@@ -6119,18 +6119,18 @@ do while(.true.)
         write(*,*) "6b RI-wB97X-2-D3(BJ)/def2-TZVPP     7b RI-wB97X-2-D3(BJ)/def2-QZVPP"
         write(*,*) "6c RI-revDSD-PBEP86-D4/def2-TZVPP   7c RI-revDSD-PBEP86-D4/def2-QZVPP"
     end if
-    write(*,*) "8 DLPNO-CCSD(T)/cc-pVTZ with normalPNO and RIJK"
-    write(*,*) "9 DLPNO-CCSD(T)/cc-pVTZ with tightPNO and RIJK"
+    write(*,*) "8 DLPNO-CCSD(T)/def2-TZVPP with normalPNO and RIJCOSX"
+    write(*,*) "9 DLPNO-CCSD(T)/def2-TZVPP with tightPNO and RIJCOSX"
     write(*,*) "10 CCSD(T)/cc-pVTZ"
     write(*,*) "11 CCSD(T)-F12/cc-pVDZ-F12 with RI"
     write(*,*) "12 Approximated CCSD(T)/CBS with help of MP2 (cc-pVTZ->QZ extrapolation)"
-    if (idiffuse==0) write(*,*) "13 DLPNO-CCSD(T)/CBS with tightPNO and RIJK (def2-TZVPP->QZVPP extrapolation)"
+    if (idiffuse==0) write(*,*) "13 DLPNO-CCSD(T)/CBS with RIJCOSX & tightPNO (def2-TZVPP->QZVPP extrapolation)"
     write(*,*) "14 CCSD(T)/CBS (cc-pVTZ->QZ extrapolation)"
     write(*,*) "20 sTD-DFT based on RI-wB97X-D3/def2-SV(P) orbitals"
     !write(*,*) "21 TDA-DFT RI-PBE0/def2-SV(P) with riints_disk (much faster than 22)" !riints_disk no longer supported by ORCA 6
     write(*,*) "22 TDDFT RI-PBE0/def2-SV(P)"
     write(*,*) "23 TDDFT RI-RSX-QIDH/def2-TZVP     231 TDDFT RI-DSD-PBEP86/def2-TZVP"
-    write(*,*) "24 EOM-CCSD/cc-pVTZ                 25 STEOM-DLPNO-CCSD/def2-TZVP"
+    write(*,*) "24 EOM-CCSD/cc-pVTZ                 25 STEOM-DLPNO-CCSD/def2-TZVP(-f)"
     read(*,"(a)") c80tmp
     if (c80tmp=="1b") then
         ilevel=1001
@@ -6338,18 +6338,18 @@ if (idiffuse==0) then
     if (ilevel==3) c200tmp="! B3LYP D3 def2-TZVP(-f) def2/J RIJCOSX"
     if (ilevel==4) c200tmp="! B3LYP D3 def2-TZVP def2/J RIJCOSX"
     if (ilevel==5) c200tmp="! wB97M-V def2-TZVP def2/J RIJCOSX strongSCF"//trim(grd5str)
-    if (ilevel==6) c200tmp="! PWPB95 D4 def2-TZVPP def2/J def2-TZVPP/C RIJCOSX tightSCF"//trim(grd4str) !When RIJCOSX or RIJK is used, the MP2 will also use RI by default
+    if (ilevel==6) c200tmp="! PWPB95 D4 def2-TZVPP def2/J def2-TZVPP/C RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==7) c200tmp="! PWPB95 D4 def2-QZVPP def2/J def2-QZVPP/C RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==1006) c200tmp="! wB97X-2 D3 def2-TZVPP def2/J def2-TZVPP/C RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==1007) c200tmp="! wB97X-2 D3 def2-QZVPP def2/J def2-QZVPP/C RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==1008) c200tmp="! revDSD-PBEP86-D4/2021 def2-TZVPP def2/J def2-TZVPP/C RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==1009) c200tmp="! revDSD-PBEP86-D4/2021 def2-QZVPP def2/J def2-QZVPP/C RIJCOSX tightSCF"//trim(grd4str)
-    if (ilevel==8) c200tmp="! DLPNO-CCSD(T) normalPNO RIJK cc-pVTZ cc-pVTZ/JK cc-pVTZ/C tightSCF"
-    if (ilevel==9) c200tmp="! DLPNO-CCSD(T) tightPNO RIJK cc-pVTZ cc-pVTZ/JK cc-pVTZ/C tightSCF"
+    if (ilevel==8) c200tmp="! DLPNO-CCSD(T) normalPNO RIJCOSX def2-TZVPP def2/J def2-TZVPP/C tightSCF"
+    if (ilevel==9) c200tmp="! DLPNO-CCSD(T) tightPNO RIJCOSX def2-TZVPP def2/J def2-TZVPP/C tightSCF"
     if (ilevel==10) c200tmp="! CCSD(T) cc-pVTZ tightSCF"
     if (ilevel==11) c200tmp="! CCSD(T)-F12/RI cc-pVDZ-F12 cc-pVDZ-F12-CABS cc-pVTZ/C tightSCF"
     if (ilevel==12) c200tmp="! ExtrapolateEP2(3/4,cc,MP2) tightSCF"
-    if (ilevel==13) c200tmp="! DLPNO-CCSD(T) tightPNO Extrapolate(3/4,def2) RIJK def2/JK tightSCF"
+    if (ilevel==13) c200tmp="! DLPNO-CCSD(T) tightPNO Extrapolate(3/4,def2) tightSCF"
     if (ilevel==14) c200tmp="! CCSD(T) Extrapolate(3/4,cc) tightSCF"
     if (ilevel==20) c200tmp="! wB97X-D3 def2-SV(P) def2/J RIJCOSX"
     if (ilevel==21) c200tmp="! PBE0 def2-SV(P) def2/J def2-SVP/C RIJCOSX tightSCF"//trim(grd4str)
@@ -6357,7 +6357,7 @@ if (idiffuse==0) then
     if (ilevel==23) c200tmp="! RSX-QIDH def2-TZVP def2/J def2-TZVP/C RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==231) c200tmp="! DSD-PBEP86 def2-TZVP def2/J def2-TZVP/C RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==24) c200tmp="! EOM-CCSD cc-pVTZ tightSCF"
-    if (ilevel==25) c200tmp="! STEOM-DLPNO-CCSD RIJK def2-TZVP def2/JK def2-TZVP/C tightSCF"
+    if (ilevel==25) c200tmp="! STEOM-DLPNO-CCSD RIJCOSX def2-TZVP(-f) def2/J def2-TZVP/C tightSCF"
 else
     if (ilevel==1) c200tmp="! B97-3c"
     if (ilevel==1001) c200tmp="! r2SCAN-3c"
@@ -6365,19 +6365,18 @@ else
     if (ilevel==3) c200tmp="! B3LYP D3 ma-def2-TZVP(-f) autoaux RIJCOSX"
     if (ilevel==4) c200tmp="! B3LYP D3 ma-def2-TZVP autoaux RIJCOSX"
     if (ilevel==5) c200tmp="! wB97M-V ma-def2-TZVP autoaux RIJCOSX strongSCF"//trim(grd5str)
-    if (ilevel==6) c200tmp="! PWPB95 D4 ma-def2-TZVPP autoaux RIJCOSX tightSCF"//trim(grd4str) !When RIJCOSX or RIJK is used, the MP2 will also use RI by default
+    if (ilevel==6) c200tmp="! PWPB95 D4 ma-def2-TZVPP autoaux RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==7) c200tmp="! PWPB95 D4 ma-def2-QZVPP autoaux RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==1006) c200tmp="! wB97X-2 D3 ma-def2-TZVPP autoaux RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==1007) c200tmp="! wB97X-2 D3 ma-def2-QZVPP autoaux RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==1008) c200tmp="! revDSD-PBEP86-D4/2021 ma-def2-TZVPP autoaux RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==1009) c200tmp="! revDSD-PBEP86-D4/2021 ma-def2-QZVPP autoaux RIJCOSX tightSCF"//trim(grd4str)
-    if (ilevel==8) c200tmp="! DLPNO-CCSD(T) normalPNO RIJK aug-cc-pVTZ aug-cc-pVTZ/JK aug-cc-pVTZ/C tightSCF"
-    if (ilevel==9) c200tmp="! DLPNO-CCSD(T) tightPNO RIJK aug-cc-pVTZ aug-cc-pVTZ/JK aug-cc-pVTZ/C tightSCF"
+    if (ilevel==8) c200tmp="! DLPNO-CCSD(T) normalPNO RIJCOSX ma-def2-TZVPP autoaux tightSCF"
+    if (ilevel==9) c200tmp="! DLPNO-CCSD(T) tightPNO RIJCOSX ma-def2-TZVPP autoaux tightSCF"
     if (ilevel==10) c200tmp="! CCSD(T) aug-cc-pVTZ tightSCF"
     if (ilevel==11) c200tmp="! CCSD(T)-F12/RI cc-pVDZ-F12 cc-pVDZ-F12-CABS cc-pVTZ/C"
     if (ilevel==12) c200tmp="! ExtrapolateEP2(3/4,aug-cc,MP2) tightSCF"
-    !This is unavailable when diffuse function is requested
-    !if (ilevel==13) c200tmp="! DLPNO-CCSD(T) tightPNO Extrapolate(3/4,def2) RIJK def2/JK tightSCF
+    !if (ilevel==13) c200tmp="! DLPNO-CCSD(T) tightPNO Extrapolate(3/4,def2) tightSCF !This is unavailable when diffuse function is requested
     if (ilevel==14) c200tmp="! CCSD(T) Extrapolate(3/4,aug-cc) tightSCF"
     if (ilevel==20) c200tmp="! wB97X-D3 ma-def2-SV(P) autoaux RIJCOSX"
     if (ilevel==21) c200tmp="! PBE0 ma-def2-SV(P) autoaux RIJCOSX tightSCF"//trim(grd4str)
@@ -6385,7 +6384,7 @@ else
     if (ilevel==23) c200tmp="! RSX-QIDH ma-def2-TZVP autoaux RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==231) c200tmp="! DSD-PBEP86 ma-def2-TZVP autoaux RIJCOSX tightSCF"//trim(grd4str)
     if (ilevel==24) c200tmp="! EOM-CCSD aug-cc-pVTZ tightSCF"
-    if (ilevel==25) c200tmp="! STEOM-DLPNO-CCSD RIJK ma-def2-TZVP autoaux tightSCF"
+    if (ilevel==25) c200tmp="! STEOM-DLPNO-CCSD RIJCOSX ma-def2-TZVP(-f) autoaux tightSCF"
     
     if (ilevel==1.or.ilevel==11) then
         write(*,*) "Error: Diffuse functions cannot be added to this level!"
@@ -6435,7 +6434,7 @@ else if (itask==8) then !NMR
 else
     keyword=trim(c200tmp)
 end if
-keyword=trim(keyword)//" noautostart miniprint nopop"
+keyword=trim(keyword)//" noautostart miniprint"
 
 if (loadcharge==-99) then !Not loaded from input file
     netcharge=nint(sum(a%charge)-nelec)
@@ -6477,15 +6476,15 @@ if (itask==7.or.itask==-7) then
         do i=1,ncenter
 	        if ((itime==1.and.any(CPfrag2==i)).or.(itime==2.and.any(CPfrag1==i))) then
                 if (atmbasname(i)==" ") then
-        	            write(ifileid,"(a,':',1x,3f14.8)") a(i)%name,a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a
+                    write(ifileid,"(a,':',1x,3f14.8)") a(i)%name,a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a
                 else    
-        	            write(ifileid,"(a,':',1x,3f14.8,a)") a(i)%name,a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a," newGTO """//trim(atmbasname(i))//""" end"
+                    write(ifileid,"(a,':',1x,3f14.8,a)") a(i)%name,a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a," newGTO """//trim(atmbasname(i))//""" end"
                 end if
             else
                 if (atmbasname(i)==" ") then
-        	            write(ifileid,"(a,1x,3f14.8)") a(i)%name,a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a
+                    write(ifileid,"(a,1x,3f14.8)") a(i)%name,a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a
                 else
-        	            write(ifileid,"(a,1x,3f14.8,a)") a(i)%name,a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a," newGTO """//trim(atmbasname(i))//""" end"
+                    write(ifileid,"(a,1x,3f14.8,a)") a(i)%name,a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a," newGTO """//trim(atmbasname(i))//""" end"
                 end if
             end if
         end do
@@ -6593,26 +6592,26 @@ else if (itask==6) then !MD
 end if
 if (ilevel==20) then
     write(ifileid,"(a)") "%tddft"
-    write(ifileid,"(a)") "Mode sTDDFT"
-    write(ifileid,"(a)") "Ethresh 7.0"
-    write(ifileid,"(a)") "PThresh 1e-4"
-    write(ifileid,"(a)") "PTLimit 30"
-    write(ifileid,"(a)") "triplets false" !When "triplets true", more excited states will be calculated
-    write(ifileid,"(a)") "maxcore 6000" !sTDDFT only support serial mode, therefore more memory could be assigned
+    write(ifileid,"(a)") "  Mode sTDDFT"
+    write(ifileid,"(a)") "  Ethresh 7.0"
+    write(ifileid,"(a)") "  PThresh 1e-4"
+    write(ifileid,"(a)") "  PTLimit 30"
+    write(ifileid,"(a)") "  triplets false" !When "triplets true", more excited states will be calculated
+    write(ifileid,"(a)") "  maxcore 6000" !sTDDFT only support serial mode, therefore more memory could be assigned
     write(ifileid,"(a)") "end"
 else if (ilevel==21) then
     write(ifileid,"(a)") "%tddft"
-    write(ifileid,"(a)") "nroots 10"
-    write(ifileid,"(a)") "mode riints_disk"
+    write(ifileid,"(a)") "  nroots 10"
+    write(ifileid,"(a)") "  mode riints_disk"
     write(ifileid,"(a)") "end"
 else if (ilevel==22.or.ilevel==23.or.ilevel==231) then
     write(ifileid,"(a)") "%tddft"
-    write(ifileid,"(a)") "nroots 10"
-    write(ifileid,"(a)") "TDA false"
+    write(ifileid,"(a)") "  nroots 10"
+    write(ifileid,"(a)") "  TDA false"
     write(ifileid,"(a)") "end"
 else if (ilevel==24.or.ilevel==25) then
     write(ifileid,"(a)") "%mdci"
-    write(ifileid,"(a)") "nroots 3"
+    write(ifileid,"(a)") "  nroots 3"
     write(ifileid,"(a)") "end"
 end if
 
@@ -6653,7 +6652,7 @@ do i=1,ncenter
 end do
 write(ifileid,*) "*"
 close(ifileid)
-write(*,"(a)") " ORCA input file has been exported to "//trim(outname)//", You should properly check it and modify keywords"
+write(*,"(a)") " ORCA input file has been exported to "//trim(outname)//", you should properly check it and modify keywords"
 end subroutine
 
 !Write external DFT-D3(BJ) parameter for wB97X-2
@@ -6661,10 +6660,10 @@ subroutine ORCA_DFT_D3_parm(ifileid)
 integer ifileid
 write(ifileid,"(a)") "# DFT-D3(BJ) parameter for wB97X-2, see SI of PCCP, 20, 23175 (2018)"
 write(ifileid,"(a)") "%method"
-write(ifileid,"(a)") "D3S6 0.547"
-write(ifileid,"(a)") "D3A1 3.520"
-write(ifileid,"(a)") "D3S8 0.0"
-write(ifileid,"(a)") "D3A2 7.795"
+write(ifileid,"(a)") "  D3S6 0.547"
+write(ifileid,"(a)") "  D3A1 3.520"
+write(ifileid,"(a)") "  D3S8 0.0"
+write(ifileid,"(a)") "  D3A2 7.795"
 write(ifileid,"(a)") "end"
 end subroutine
 !Write functional definition for revDSD-PBEP86-D4. This is no longer needed, as ORCA 6 already supports revDSD-PBEP86-D4/2021 keyword

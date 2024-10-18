@@ -3772,7 +3772,11 @@ end if
 !Fill lower triangle part
 do imo=1,nmo
 	do jmo=imo+1,nmo
-		MOdipint(:,jmo,imo)=MOdipint(:,imo,jmo)
+		if (idiptype==1) then
+			MOdipint(:,jmo,imo)=MOdipint(:,imo,jmo)
+        else if (idiptype==2) then
+			MOdipint(:,jmo,imo)=-MOdipint(:,imo,jmo)
+        end if
 	end do
 end do
 call walltime(iwalltime2)
@@ -3843,6 +3847,11 @@ if (isel==3) then
 	end do
 end if
 
+!write(*,*) statedip
+!do imo=1,nmo
+!write(*,"(i6,3f12.8)") imo,MOdipint(:,imo,imo)
+!end do
+
 if (isel<=3) then
 	write(*,*) "Stage 3: Calculating transition dipole moment between excited states..."
 else if (isel==4) then
@@ -3871,7 +3880,7 @@ do iexc=1,nstates
 					if (imo==jmo.and.lmo/=kmo) then
 						tdvec(:)=tdvec(:)+wei*MOdipint(:,lmo,kmo)
 					else if (imo/=jmo.and.lmo==kmo) then
-						tdvec(:)=tdvec(:)-wei*MOdipint(:,jmo,imo)
+						tdvec(:)=tdvec(:)-wei*MOdipint(:,jmo,imo) !The order of j,i is correct here and important in the case of transition magnetic dipole moment
 					else if (imo==jmo.and.lmo==kmo) then
 						tdvec(:)=tdvec(:)+wei*(statedip(:)-MOdipint(:,imo,imo)+MOdipint(:,lmo,lmo))
 					end if
@@ -5094,7 +5103,7 @@ end if
 deallocate(tmparr,tmpmat)
 
 !! Below codes are used to check transition properties based on transition density matrix and corresponding integral matrix
-!Check transition eletric dipole moment. The result is correct when iTDMtype==1, see above
+!Check transition electric dipole moment. The result is correct when iTDMtype==1, see above
 ! 		if (.not.allocated(Dbas)) call genDbas_curr
 ! 		Teledipx=sum(tdmata*Dbas(1,:,:))
 ! 		Teledipy=sum(tdmata*Dbas(2,:,:))
