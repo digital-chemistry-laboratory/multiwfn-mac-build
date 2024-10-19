@@ -3978,20 +3978,22 @@ else !Not all states have the same spin, 50-50 with singlet ground state is assu
     else if (idiptype==2) then
 		write(iout,"(' Transition magnetic dipole moment between singlet states (a.u.):')")
     end if
-	write(iout,*) "  i        j          X             Y             Z         Diff.(eV)"
+	write(iout,*) "  i        j          X             Y             Z         Diff.(eV)  Osc.str."
     !Output S0 state
-    write(iout,"(a,' -- ',a,3f14.7,f12.4)") allexclab(0),allexclab(0),statedip(:),0D0
+    write(iout,"(a,' -- ',a,3f14.7,f12.4,f12.5)") allexclab(0),allexclab(0),statedip(:),0D0
     !Output between S0 and various singlet excited states
 	do iexc=1,nstates
 		if (allexcmulti(iexc)/=1) cycle
-		write(iout,"(a,' -- ',a,3f14.7,f12.4)") allexclab(0),allexclab(iexc),tdvecmat(:,0,iexc),allexcene(iexc)
+        oscillstr=2D0/3D0*allexcene(iexc)/au2eV*sum(tdvecmat(:,0,iexc)**2)
+		write(iout,"(a,' -- ',a,3f14.7,f12.4,f12.5)") allexclab(0),allexclab(iexc),tdvecmat(:,0,iexc),allexcene(iexc),oscillstr
 	end do
     if (iGSESonly==0) then
 		!Output between various singlet excited states
 		do iexc=1,nstates
 			do jexc=iexc,nstates
+				oscillstr=2D0/3D0*abs(allexcene(jexc)-allexcene(iexc))/au2eV*sum(tdvecmat(:,iexc,jexc)**2)
 				if (allexcmulti(iexc)==1.and.allexcmulti(jexc)==1) &
-				write(iout,"(a,' -- ',a,3f14.7,f12.4)") allexclab(iexc),allexclab(jexc),tdvecmat(:,iexc,jexc),abs(allexcene(jexc)-allexcene(iexc))
+				write(iout,"(a,' -- ',a,3f14.7,f12.4,f12.5)") allexclab(iexc),allexclab(jexc),tdvecmat(:,iexc,jexc),abs(allexcene(jexc)-allexcene(iexc)),oscillstr
 			end do
 		end do
 		!Output between various triplet excited states
@@ -4000,11 +4002,12 @@ else !Not all states have the same spin, 50-50 with singlet ground state is assu
 		else if (idiptype==2) then
 			write(iout,"(/,' Transition magnetic dipole moment between triplet states (a.u.):')")
 		end if
-		write(iout,*) "  i        j          X             Y             Z         Diff.(eV)"
+		write(iout,*) "  i        j          X             Y             Z         Diff.(eV)  Osc.str."
 		do iexc=1,nstates
 			do jexc=iexc,nstates
+				oscillstr=2D0/3D0*abs(allexcene(jexc)-allexcene(iexc))/au2eV*sum(tdvecmat(:,iexc,jexc)**2)
 				if (allexcmulti(iexc)==3.and.allexcmulti(jexc)==3) &
-				write(iout,"(a,' -- ',a,3f14.7,f12.4)") allexclab(iexc),allexclab(jexc),tdvecmat(:,iexc,jexc),abs(allexcene(jexc)-allexcene(iexc))
+				write(iout,"(a,' -- ',a,3f14.7,f12.4,f12.5)") allexclab(iexc),allexclab(jexc),tdvecmat(:,iexc,jexc),abs(allexcene(jexc)-allexcene(iexc)),oscillstr
 			end do
 		end do
 		write(iout,"(/,' Excitation energies (eV):')")
