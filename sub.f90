@@ -2271,7 +2271,8 @@ use defvar
 use functions
 implicit real*8 (a-h,o-z)
 real*8 inx,iny,inz
-real*8 eigvecmat(3,3),eigval(3),elegrad(3),elehess(3,3),funcgrad(3),funchess(3,3),tmparr(3,1),tmpmat(3,3),tmpgrad1(3),tmpgrad2(3)
+real*8 eigvecmat(3,3),eigval(3),elegrad(3),elehess(3,3),funcgrad(3),funchess(3,3),stresstensor(3,3)
+real*8 tmparr(3,1),tmpmat(3,3),tmpgrad1(3),tmpgrad2(3)
 integer ifuncsel,ifileid
 
 if (allocated(b)) then !If loaded file contains wavefuntion information
@@ -2396,20 +2397,33 @@ write(ifileid,"(' Total:',E18.10)") funchess(1,1)+funchess(2,2)+funchess(3,3)
 write(ifileid,*)
 write(ifileid,*) "Hessian matrix:"
 write(ifileid,"(3E18.10)") funchess
-!call diagmat(funchess,eigvecmat,eigval,300,1D-12)
-call diagsymat(funchess,eigvecmat,eigval,idiagok) !More robust
+call diagsymat(funchess,eigvecmat,eigval,idiagok)
 if (idiagok/=0) write(*,*) "Note: Diagonization of Hessian matrix failed!"
 write(ifileid,"(' Eigenvalues of Hessian:',3E18.10)") eigval(1:3)
 write(ifileid,*) "Eigenvectors (columns) of Hessian:"
 write(ifileid,"(3E18.10)") ((eigvecmat(i,j),j=1,3),i=1,3)
 write(ifileid,"(' Determinant of Hessian:',E18.10)") detmat(funchess)
-if (ifuncsel==1) then !Output ellipticity for rho
-	call sort(eigval)
-	eigmax=eigval(3)
-	eigmed=eigval(2)
-	eigmin=eigval(1)
-	write(ifileid,"(a,f12.6)") " Ellipticity of electron density:",eigmin/eigmed-1
-	write(ifileid,"(a,f12.6)") " eta index:",abs(eigmin)/eigmax
+
+if (ifuncsel==1) then
+	!Output ellipticity for rho
+	call sort(eigval) !Sort eigenvalues from low to high
+	write(ifileid,"(a,f12.6)") " Ellipticity of electron density:",eigval(1)/eigval(2)-1
+	write(ifileid,"(a,f12.6)") " eta index:",abs(eigval(1))/eigval(3)
+	write(ifileid,"(a,f12.6)") " Stiffness:",abs(eigval(2))/eigval(3)
+    
+	!Output stress tensor and related quantities
+    call stress_tensor(inx,iny,inz,stresstensor)
+    write(ifileid,*)
+	write(ifileid,*) "Stress tensor:"
+	write(ifileid,"(3E18.10)") stresstensor
+	call diagsymat(stresstensor,eigvecmat,eigval,idiagok)
+	if (idiagok/=0) write(*,*) "Note: Diagonization of Hessian matrix failed!"
+	write(ifileid,"(' Eigenvalues of stress tensor:',3E18.10)") eigval(1:3)
+	write(ifileid,*) "Eigenvectors (columns) of stress tensor:"
+	write(ifileid,"(3E18.10)") ((eigvecmat(i,j),j=1,3),i=1,3)
+	call sort(eigval) !Sort eigenvalues from low to high
+	write(ifileid,"(a,f12.6)") " Stress tensor stiffness:",abs(eigval(1))/abs(eigval(3))
+	write(ifileid,"(a,f12.6)") " Stress tensor polarizability:",abs(eigval(3))/abs(eigval(1))
 end if
 end subroutine
 

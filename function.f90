@@ -333,6 +333,12 @@ case (113) !Total charge of the energy components defined by SBL (steric + elect
     userfunc = stericcharge(x,y,z) + elestatcharge(x,y,z) + quantumcharge(x,y,z)
 case (114) !Pauli kinetic energy density
     userfunc = KED(x,y,z,iKEDsel) - weizsacker(x,y,z)
+case (115) !Stiffness
+    userfunc = densellip(x,y,z,3)
+case (116) !Stress tensor stiffness
+    userfunc = stress_stiffness(x,y,z)
+case (117) !Stress tensor polarizability
+    userfunc = 1D0/stress_stiffness(x,y,z)
 case (200) !Random number of [0,1£©
 	call RANDOM_NUMBER(userfunc)
 case (802:807)
@@ -409,7 +415,7 @@ end function
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !! Calculate wavefunction value of a range of orbitals and their derivatives at a given point, up to third-order
 !! istart and iend is the range of the orbitals will be calculated, to calculate all orbitals, use 1,nmo
-!! runtype=1: value  =2: value+dx/y/z  =3: value+dxx/yy/zz(diagonal of hess)  =4: value+dx/y/z+Hessian  
+!! runtype=1: value  =2: value+dx/y/z  =3: value+dxx/yy/zz (diagonal of hess)  =4: value+dx/y/z+Hessian  
 !!        =5: value+dx/y/z+hess+3-order derivative tensor 
 subroutine orbderv(runtype,istart,iend,x,y,z,wfnval,grad,hess,tens3)
 real*8 x,y,z,wfnval(nmo)
@@ -4986,7 +4992,7 @@ end function
 
 
 
-!!-------- Calculate ellipticity of electron density (itype=1) or eta (itype=2)
+!!-------- Calculate electron density ellipticity (itype=1), eta index (itype=2), stiffness (itype=3)
 real*8 function densellip(x,y,z,itype)
 use util
 integer itype
@@ -4994,13 +5000,12 @@ real*8 x,y,z,dens,grad(3),hess(3,3),eigval(3),eigvecmat(3,3)
 call calchessmat_dens(2,x,y,z,dens,grad,hess)
 call diagmat(hess,eigvecmat,eigval,300,1D-12)
 call sort(eigval)
-eigmax=eigval(3)
-eigmed=eigval(2)
-eigmin=eigval(1)
 if (itype==1) then
-	densellip=eigmin/eigmed-1
-else
-	densellip=abs(eigmin)/eigmax
+	densellip=eigval(1)/eigval(2)-1
+else if (itype==2) then
+	densellip=abs(eigval(1))/eigval(3)
+else if (itype==3) then
+	densellip=abs(eigval(2))/eigval(3)
 end if
 end function
 
@@ -7332,6 +7337,47 @@ else if (wfntype==5) then !Open-shell
 	
 end if
 end function
+
+
+
+!!--------- Calculate stress tensor
+subroutine stress_tensor(x,y,z,mat)
+real*8 x,y,z,mat(3,3),wfnval(nmo),grad(3,nmo),hess(3,3,nmo)
+
+call orbderv(4,1,nmo,x,y,z,wfnval,grad,hess)
+mat=0
+do imo=1,nmo
+    if (MOocc(imo)==0) cycle
+    do i=1,3
+        do j=i,3
+            !tmpval = grad(i,imo)*grad(j,imo) + grad(j,imo)*grad(i,imo) - hess(i,j,imo)*wfnval(imo) - wfnval(imo)*hess(i,j,imo)
+            tmpval = 2*grad(i,imo)*grad(j,imo) - 2*hess(i,j,imo)*wfnval(imo) !This is valid because only real wavefunction is processed
+            mat(i,j)=mat(i,j)+MOocc(imo)*tmpval
+        end do
+    end do
+end do
+mat(2,1)=mat(1,2)
+mat(3,1)=mat(1,3)
+mat(3,2)=mat(2,3)
+mat=-mat/4
+end subroutine
+
+
+
+!!--------- Calculate stress tensor stiffness
+real*8 function stress_stiffness(x,y,z)
+real*8 x,y,z,mat(3,3),eigval(3),eigvecmat(3,3)
+call stress_tensor(x,y,z,mat)
+call diagsymat(mat,eigvecmat,eigval,idiagok)
+call sort(eigval) !Sort eigenvalues from low to high
+stress_stiffness=abs(eigval(1))/abs(eigval(3))
+end function
+
+
+
+
+
+
 
 
 
