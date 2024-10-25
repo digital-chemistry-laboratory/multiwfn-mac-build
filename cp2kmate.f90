@@ -4693,7 +4693,7 @@ do while(.true.)
 	            end do
             end do
         end if
-        if (ispin==0.or.ispin==2) then
+        if (iopsh==1.and.(ispin==0.or.ispin==2)) then
             do imo=1,nallorbB !Cycle each orbital
                 ene=eneallb(imo,ikp)+eneshift
 	            do ipt=1,npt !Cycle each point of DOS curve
