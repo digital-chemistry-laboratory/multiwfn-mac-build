@@ -601,8 +601,8 @@ do while(.true.)
 		if (allocated(cubmat)) then
 			write(*,"(a)") " Note: There has been a grid data in the memory, please select generating the basins by which manner"
 			write(*,*) "0 Return"
-			write(*,*) "1: Generate the basins by selecting a real space function"
-			write(*,*) "2: Generate the basins by using the grid data stored in memory"
+			write(*,*) "1 Generate the basins by selecting a real space function"
+			write(*,*) "2 Generate the basins by using the grid data stored in memory"
             if (ifiletype==7.or.ifiletype==8) write(*,*) "3: Same as 2, and perform analysis as three-dimension periodic system" !Can be used if grid data is loaded from input file
 			read(*,*) isourcedata
             if (isourcedata==3) then

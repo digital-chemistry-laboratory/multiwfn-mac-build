@@ -299,7 +299,6 @@ else if (isel==9) then
 		write(*,*) "Input path for exporting file, e.g. C:\ltwd.mkl"
 		read(*,"(a)") c200tmp
 		call outmkl(c200tmp,10)
-		write(*,*) "Exporting .mkl file finished!"
 	end if
 else if (isel==10) then
 	call outgjf_wrapper

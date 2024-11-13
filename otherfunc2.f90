@@ -1710,7 +1710,7 @@ end subroutine
 subroutine elecorridx
 use defvar
 real*8 occ(nmo),I_ND,I_D,I_T
-write(*,*) "Citation: Phys. Chem. Chem. Phys., 18, 24015 (2016)"
+write(*,*) "See Section 4.A.7 of Multiwfn manual for details"
 I_ND=0
 I_D=0
 if (wfntype==3) then
@@ -2786,7 +2786,7 @@ do while(.true.)
 	end if
 end do
     
-if (isel==1) then
+if (isel==1) then !Interatomic interaction analysis based on atomic overlap matrix (AOM)
     write(*,*) "Input the path of the file containing AOM, e.g. C:\AOM.txt"
     write(*,*) "If press ENTER button directly, AOM.txt in current folder will be loaded"
     read(*,"(a)") c200tmp
@@ -2836,7 +2836,7 @@ if (isel==1) then
     close(10)
     write(*,*) "AOMs of the two atoms have been successfully loaded"
 
-else if (isel==2) then
+else if (isel==2) then !Interbasin interaction analysis based on basin overlap matrix (BOM)
     write(*,*) "Input the path of the file containing BOM, e.g. C:\BOM.txt"
     write(*,*) "If press ENTER button directly, BOM.txt in current folder will be loaded"
     read(*,"(a)") c200tmp
@@ -2888,7 +2888,7 @@ else if (isel==2) then
     close(10)
     write(*,*) "BOMs of the two basins have been successfully loaded"
     
-else if (isel==3) then !Interfragment analysis, building FOM based on loaded AOMs
+else if (isel==3) then !Interfragment interaction analysis based on the fragment overlap matrix (FOM) constructed from AOM
     write(*,*) "Input the path of the file containing AOM, e.g. C:\AOM.txt"
     write(*,*) "If press ENTER button directly, AOM.txt in current folder will be loaded"
     read(*,"(a)") c200tmp
@@ -2975,7 +2975,7 @@ else if (isel==3) then !Interfragment analysis, building FOM based on loaded AOM
     close(10)
     write(*,*) "Fragment overlap matrices have been successfully constructed!"
 
-else if (isel==4) then !Interfragment analysis, directly load FOMs
+else if (isel==4) then !Interfragment interaction analysis based on FOM directly provided in FOM.txt
 	inquire(file="FOM.txt",exist=alive)
     if (alive.eqv..false.) then
 		write(*,"(a)") " Cannot find FOM.txt in current folder. &
@@ -2990,8 +2990,8 @@ else if (isel==4) then !Interfragment analysis, directly load FOMs
 		c200tmp="FOM.txt"
     end if
     open(10,file=c200tmp,status="old")
+    allocate(FOM1(idxHOMO,idxHOMO),FOM2(idxHOMO,idxHOMO))
     if (wfntype==0) then !Closed-shell
-		allocate(FOM1(idxHOMO,idxHOMO),FOM2(idxHOMO,idxHOMO))
 		write(*,*) "Loading FOM of fragment 1..."
 		call readmatgau(10,FOM1(:,:),1,"f14.8",6,5)
 		write(*,*) "Loading FOM of fragment 2..."
@@ -3021,9 +3021,13 @@ write(*,*) "Generating natural adaptive orbitals (NAdOs)..."
 
 !Deal with closed-shell case or alpha part of unrestricted wavefunction
 allocate(BODmat(idxHOMO,idxHOMO))
-if (isel==1) BODmat=matmul(AOM1,AOM2)+matmul(AOM2,AOM1)
-if (isel==2) BODmat=matmul(BOM1,BOM2)+matmul(BOM2,BOM1)
-if (isel==3.or.isel==4) BODmat=matmul(FOM1,FOM2)+matmul(FOM2,FOM1)
+if (isel==1) then
+	BODmat=matmul(AOM1,AOM2)+matmul(AOM2,AOM1)
+else if (isel==2) then
+	BODmat=matmul(BOM1,BOM2)+matmul(BOM2,BOM1)
+else if (isel==3.or.isel==4) then
+	BODmat=matmul(FOM1,FOM2)+matmul(FOM2,FOM1)
+end if
 allocate(eigvecmat(idxHOMO,idxHOMO),eigvalarr(idxHOMO))
 call diagsymat(BODmat,eigvecmat,eigvalarr,istat)
 CObasa(:,1:idxHOMO)=matmul(CObasa(:,1:idxHOMO),eigvecmat)
@@ -3048,9 +3052,13 @@ end if
 if (wfntype==1) then !Deal with beta part of unrestricted wavefunction
     !nborb is the number of occupied beta orbitals
     allocate(BODmatb(nborb,nborb))
-    if (isel==1) BODmatb=matmul(AOM1b,AOM2b)+matmul(AOM2b,AOM1b)
-    if (isel==2) BODmatb=matmul(BOM1b,BOM2b)+matmul(BOM2b,BOM1b)
-    if (isel==3.or.isel==4) BODmatb=matmul(FOM1b,FOM2b)+matmul(FOM2b,FOM1b)
+    if (isel==1) then
+		BODmatb=matmul(AOM1b,AOM2b)+matmul(AOM2b,AOM1b)
+    else if (isel==2) then
+		BODmatb=matmul(BOM1b,BOM2b)+matmul(BOM2b,BOM1b)
+    else if (isel==3.or.isel==4) then
+		BODmatb=matmul(FOM1b,FOM2b)+matmul(FOM2b,FOM1b)
+    end if
     deallocate(eigvecmat,eigvalarr)
     allocate(eigvecmat(nborb,nborb),eigvalarr(nborb))
     call diagsymat(BODmatb,eigvecmat,eigvalarr,istat)

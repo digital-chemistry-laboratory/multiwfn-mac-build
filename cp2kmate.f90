@@ -3172,7 +3172,7 @@ if (itask==3.or.itask==4.or.itask==5.or.itask==6.or.itask==7.or.itask==8.or.itas
         write(ifileid,"(a)") "    &OPTIMIZE_BAND"
         write(ifileid,"(a)") "      OPTIMIZE_END_POINTS F #If also optimizing the end points of the band"
         write(ifileid,"(a)") "      &DIIS #Parameters of optimizing band via DIIS method"
-        write(ifileid,"(a)") "        MAX_STEPS 100 #Maximum number of optimization steps"
+        write(ifileid,"(a)") "        MAX_STEPS 300 #Maximum number of optimization steps"
         write(ifileid,"(a)") "        MAX_STEPSIZE 2.0 #Maximum stepsize used for the line search, may be reduced to stabilize line search for difficult initial geometries"
         write(ifileid,"(a)") "      &END DIIS"
         write(ifileid,"(a)") "    &END OPTIMIZE_BAND"

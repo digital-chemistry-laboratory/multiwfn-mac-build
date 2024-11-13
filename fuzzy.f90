@@ -2739,14 +2739,14 @@ do ibatch=1,nbatch
             
 				!Calculate Beta part for UHF,U-post-HF
 				if ((wfntype==1.or.wfntype==4).and.nmatsizeb>0) then
+					MOinit=iendalpha+1
+					MOend=iendalpha+nmatsizeb
                     call orbderv(1,MOinit,MOend,tmpx,tmpy,tmpz,orbval)
 					do idx=1,natmthis
 						iatm=iatmbeg+idx-1
 						if (atmdolist(iatm).eqv..false.) cycle !Skip atoms that do not need to calculate to reduce cost
 						wei=atmrho(iatm)/prorho
 						if (wei<thres) cycle
-						MOinit=iendalpha+1
-						MOend=iendalpha+nmatsizeb
 						do jmo=MOinit,MOend
 							tmpval=orbval(jmo)*wei
 							do imo=jmo,MOend

@@ -339,6 +339,8 @@ case (116) !Stress tensor stiffness
     userfunc = stress_stiffness(x,y,z)
 case (117) !Stress tensor polarizability
     userfunc = 1D0/stress_stiffness(x,y,z)
+case (118) !Stress tensor ellipticity
+    userfunc = stress_ellipticity(x,y,z)
 case (200) !Random number of [0,1£©
 	call RANDOM_NUMBER(userfunc)
 case (802:807)
@@ -7316,7 +7318,7 @@ if (wfntype==3) then !Closed shell
 	do imo=idxHOMO+1,nmo
 		FODfunc=FODfunc+MOocc(imo)*wfnval(imo)**2
     end do
-else if (wfntype==5) then !Open-shell
+else if (wfntype==4) then !Open-shell
 	do itmp=nmo,1,-1 !Find the last alpha MO
 		if (MOtype(itmp)==1) exit
 	end do
@@ -7334,7 +7336,6 @@ else if (wfntype==5) then !Open-shell
 	do imo=itmp+nint(nbelec)+1,nmo
 		FODfunc=FODfunc+MOocc(imo)*wfnval(imo)**2
     end do
-	
 end if
 end function
 
@@ -7374,6 +7375,15 @@ stress_stiffness=abs(eigval(1))/abs(eigval(3))
 end function
 
 
+
+!!-------- Calculate stress tensor ellipticity. See http://sobereva.com/wfnbbs/viewtopic.php?pid=4667
+real*8 function stress_ellipticity(x,y,z)
+real*8 x,y,z,mat(3,3),eigval(3),eigvecmat(3,3)
+call stress_tensor(x,y,z,mat)
+call diagsymat(mat,eigvecmat,eigval,idiagok)
+call sort(eigval) !Sort eigenvalues from low to high
+stress_ellipticity=abs(eigval(1))/abs(eigval(2))-1
+end function
 
 
 

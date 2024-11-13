@@ -1020,7 +1020,8 @@ do while(.true.)
 	write(*,*) "Note:"
 	write(*,"(a)") " You can also input for example ""+1.1"" ""-1.1"" ""*1.1"" ""/1.1"" to add, minus, multiply and divide the occupation numbers by 1.1"
 	write(*,"(a)") " To recover the initial occupation numbers, input ""i"""
-	write(*,"(a)") " To generate occupation state for calculating odd electron density, input ""odd"""
+	write(*,"(a)") " To generate occupancy state for calculating odd electron density, input ""odd"""
+	write(*,"(a)") " To generate occupancy state for calculating FOD, input ""fod"""
 	read(*,"(a)") c1000tmp
 	if (index(c1000tmp,"odd")/=0) then
 		if (wfntype==3) then
@@ -1041,6 +1042,41 @@ do while(.true.)
 			write(*,"(a)") " Error: This function is usable only when the wavefunction is represented in terms of spatial (spinless) natural orbitals"
             write(*,*) "Press ENTER button to return"
             read(*,*)
+        end if
+	else if (index(c1000tmp,"fod")/=0) then
+        fodnum=0
+		if (wfntype==3) then
+			idxHOMO=nint(nelec/2)
+			do iorbidx=1,numorbsel
+				iorb=orbarr(iorbidx)
+                if (iorb<=idxHOMO) MOocc(iorb)=2-MOocc(iorb)
+				fodnum=fodnum+MOocc(iorb)
+			end do
+        else
+			do itmp=nmo,1,-1 !Find the last alpha MO
+				if (MOtype(itmp)==1) exit
+			end do
+			do iorbidx=1,numorbsel
+				iorb=orbarr(iorbidx)
+                if (iorb<=itmp) then !Alpha
+					if (iorb<=nint(naelec)) MOocc(iorb)=1-MOocc(iorb)
+                else !Beta
+					if (iorb<=nint(nbelec)) MOocc(iorb)=1-MOocc(iorb)
+                end if
+				fodnum=fodnum+MOocc(iorb)
+			end do
+        end if
+        write(*,*) "Done!"
+		if (nEDFprims/=0) then
+			deallocate(b_EDF,CO_EDF,nEDFelecatm)
+			nEDFprims=0
+			nEDFelec=0
+			write(*,"(/,a)") " NOTE: EDF information has been removed to avoid their unexpected influence on subsequent calculation of electron density (corresponding to FOD in the present context)"
+		end if
+        if (numorbsel==nmo) then
+			write(*,"(a,f12.6)") " N_FOD is",fodnum
+        else
+			write(*,"(a,f12.6)") " Sum of occupation numbers of selected orbitals:",fodnum
         end if
 	else if (index(c1000tmp,"i")/=0) then
 		MOocc(orbarr(1:numorbsel))=MOocc_org(orbarr(1:numorbsel))

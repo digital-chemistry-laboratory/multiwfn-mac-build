@@ -6465,7 +6465,7 @@ if (itask==7.or.itask==-7) then
             write(ifileid,"(a,1x,3f14.8,a)") a(i)%name,a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a," newGTO """//trim(atmbasname(i))//""" end"
         end if
     end do
-    write(ifileid,*) "*"
+    write(ifileid,"(a)") "*"
     do itime=1,2
         write(ifileid,"(/,a)") "$new_job"
         write(ifileid,"(a)") trim(keyword)//" Pmodel" !Use Pmodel to regenerate new initial guess rather than use the previous wavefunction
@@ -6488,7 +6488,7 @@ if (itask==7.or.itask==-7) then
                 end if
             end if
         end do
-        write(ifileid,*) "*"
+        write(ifileid,"(a)") "*"
     end do
     if (itask==-7) then
         do itime=1,2
@@ -6503,7 +6503,7 @@ if (itask==7.or.itask==-7) then
                     write(ifileid,"(a,1x,3f14.8)") a(i)%name,a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a
                 end if
             end do
-            write(ifileid,*) "*"
+            write(ifileid,"(a)") "*"
         end do
     end if
     close(ifileid)
@@ -6650,7 +6650,7 @@ do i=1,ncenter
         	write(ifileid,"(a,1x,3f14.8,a)") a(i)%name,a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a," newGTO """//trim(atmbasname(i))//""" end"
     end if
 end do
-write(ifileid,*) "*"
+write(ifileid,"(a)") "*"
 close(ifileid)
 write(*,"(a)") " ORCA input file has been exported to "//trim(outname)//", you should properly check it and modify keywords"
 end subroutine
@@ -7934,6 +7934,12 @@ character(len=4) irrep(nmo)
 
 write(*,*) "Will the generated .mkl file be used for ORCA? (y/n)"
 read(*,*) selectyn
+if (selectyn=='y'.and.any(bastype>=5)) then
+	write(*,*) "Error: Some basis functions are Cartesian type, however, ORCA only supports spherical-harmonic basis functions"
+    write(*,*) "Press ENTER button to return"
+    read(*,*)
+    return
+end if
 write(*,*) "Exporting, please wait..."
 
 open(ifileid,file=outname,status="replace")
@@ -8045,6 +8051,7 @@ if (wfntype==1.or.wfntype==4) then !Open shell
 end if
 
 close(ifileid)
+write(*,*) "Exporting .mkl file finished!"
 end subroutine
 
 
