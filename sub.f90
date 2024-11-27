@@ -1061,7 +1061,7 @@ do while(.true.)
                 if (iorb<=itmp) then !Alpha
 					if (iorb<=nint(naelec)) MOocc(iorb)=1-MOocc(iorb)
                 else !Beta
-					if (iorb<=nint(nbelec)) MOocc(iorb)=1-MOocc(iorb)
+					if (iorb-itmp<=nint(nbelec)) MOocc(iorb)=1-MOocc(iorb)
                 end if
 				fodnum=fodnum+MOocc(iorb)
 			end do
