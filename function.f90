@@ -7421,9 +7421,9 @@ if (allocated(b)) then
 	else
 		write(*,*) "8 Electrostatic potential from nuclear charges"
 	end if
-	if (ELFLOL_type==0) write(*,*) "9 Electron Localization Function (ELF)"
-	if (ELFLOL_type==1) write(*,*) "9 Electron Localization Function (ELF) defined by Tsirelson" 
-	if (ELFLOL_type==2) write(*,*) "9 Electron Localization Function (ELF) defined by Tian Lu" 
+	if (ELFLOL_type==0) write(*,*) "9 Electron localization function (ELF)"
+	if (ELFLOL_type==1) write(*,*) "9 Electron localization function (ELF) defined by Tsirelson" 
+	if (ELFLOL_type==2) write(*,*) "9 Electron localization function (ELF) defined by Tian Lu" 
 	if (ELFLOL_type==0) write(*,*) "10 Localized orbital locator (LOL)"
 	if (ELFLOL_type==1) write(*,*) "10 Localized orbital locator (LOL) defined by Tsirelson" 
 	if (ELFLOL_type==2) write(*,*) "10 Localized orbital locator (LOL) defined by Tian Lu" 

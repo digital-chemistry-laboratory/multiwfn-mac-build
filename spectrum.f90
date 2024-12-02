@@ -3449,19 +3449,19 @@ if (iORCAout==1) then
 			call loclabelfinal(10,"Number of roots to be determined",nfound)
             if (nfound>=1) then !TDDFT/TDA-DFT
 				read(10,"(50x,i7)") numdata
+				call loclabel(10,"Entering triplet calculation",itriplet)
+                if (itriplet==1) numdata=numdata*2
 				if (imode==1) then !Have obtained number of data, return
 					close(10)
 					return
 				end if
-                if (nfound>1) write(*,"(a)") " Note: Excited state information was outputted by ORCA multiple times, the finally outputted ones will be loaded"
 				allocate(datax(numdata),str(numdata),FWHM(numdata))
 				if (ispectrum==3) then
-					!call loclabel(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",ifound,0)
                     call loclabelfinal(10,"  ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",nfound) !Two spaces before the label make sure it will not locate to SOC corrected part
                 else if (ispectrum==4) then
-					!call loclabel(10,"CD SPECTRUM",ifound,0)
                     call loclabelfinal(10,"  CD SPECTRUM",nfound) !ORCA doesn't distinguish rotatory strength forms before 6.0, since ORCA 6, this way will load velocity form, which is good
                 end if
+                if (nfound>1) write(*,"(a)") " Note: Excited state information was outputted by ORCA multiple times, the finally outputted ones will be loaded"
 				call skiplines(10,5)
                 read(10,"(a)") c80tmp
                 if (index(c80tmp,'->')/=0) then
@@ -3515,6 +3515,7 @@ if (iORCAout==1) then
 				end do
 				call loclabel(10,"SOC CORRECTED ABSORPTION",ifound,0)
 				if (ifound==1) then
+					numdata=numdata/2 !Because of itriplet==1, numdata has been doubled, now recover it to number of singlet states
 					write(*,"(a)") " Spin-orbit coupling corrected spectra information was found, &
 					&would you like to plot this kind of spectrum instead of the one without correction? (y/n)"
 					read(*,*) ctest
@@ -3522,7 +3523,6 @@ if (iORCAout==1) then
 						numdata=4*numdata !If root=n, then there will be n singlet states and 3n triplet sublevels
 						deallocate(datax,str,FWHM)
 						allocate(datax(numdata),str(numdata),FWHM(numdata))
-						!if (ispectrum==4) call loclabel(10,"CD SPECTRUM",ifound,0)
                         if (ispectrum==4) call loclabelfinal(10,"SOC CORRECTED CD SPECTRUM",nfound)
 						call skiplines(10,5)
 						do i=1,numdata

@@ -13,6 +13,7 @@ integer,allocatable :: attconvold(:),realattconv(:),usercluslist(:),tmparr(:)
 character basinfilename*200,selectyn,c80tmp*80,ctmp1*20,ctmp2*20,ctmp3*20,ctmp4*20,c2000tmp*2000,c200tmp*200
 real*8 :: threslowvalatt=1D-5
 real*8,allocatable :: tmparrf(:)
+logical alive1,alive2
 ishowattlab=1
 ishowatmlab=0
 ishowatt=1
@@ -33,6 +34,7 @@ do while(.true.)
 	write(*,*) "-10 Return to main menu"
 	if (numatt>0) write(*,*) "-6 Set parameter for attractor clustering or manually perform clustering"
 	if (numatt==0) write(*,*) "-6 Set parameter for attractor clustering"
+    if (numatt>0) write(*,*) "-45 Export attractor information and cube file of present grid data"
 	if (numatt>0) write(*,*) "-5 Export basins as cube file"
 	if (numatt>0) write(*,*) "-4 Export attractors as pdb/pqr/txt/gjf file"
 	if (numatt>0) write(*,*) "-3 Show information of attractors"
@@ -139,6 +141,9 @@ do while(.true.)
 			end if
 		end do
 	
+	else if (isel==-45) then !Export attractors+basins and cube file of present grid data
+		call export_basinana_info
+		
 	else if (isel==-5) then !Output cube file for basins for visualizing interbasin surface
 		write(*,"(a)") " Inputting e.g. 4,6-9,15,17 will output these basins to individual basin[index].cub files to current folder"
 		write(*,"(a)") " Inputting ""a"" will output basin.cub in current folder, whose value corresponds to basin index"
@@ -596,6 +601,26 @@ do while(.true.)
 		textheigh=ioldtextheigh
 		
 	else if (isel==1) then !Regenerate basins and relocate attractors
+		!When previously exported basinana.txt and basinana.cub are available, directly load rather than regenerate
+		inquire(file="basinana.cub",exist=alive1)
+		inquire(file="basinana.txt",exist=alive2)
+		if ((alive1.eqv..true.).and.(alive2.eqv..true.)) then
+			write(*,*) "basinana.txt and basinana.cub are found in current folder, &
+            directly load attractors&basins information and grid data from them? (y/n)"
+            read(*,*) selectyn
+            if (selectyn=='y') then
+				call load_basinana_info
+				!Set range for looping over grids. For isolated case, grids at boundary should be ignored to avoid move outside
+				if (ifPBC==0) then
+					ixlow=2;iylow=2;izlow=2
+					ixup=nx-1;iyup=ny-1;izup=nz-1
+				else
+					ixlow=1;iylow=1;izlow=1
+					ixup=nx;iyup=ny;izup=nz
+				end if
+				cycle
+            end if
+        end if
 		!Preparing grid data for partitioning basins
 		isourcedata=1
 		if (allocated(cubmat)) then
@@ -1495,7 +1520,7 @@ end subroutine
 
 
 
-!!------- Update real attractors' properties (average value, xyz, the number of members)
+!!------- Update real properties of attractors (average value, xyz, the number of members)
 subroutine updaterealattprop
 use defvar
 use basinintmod
@@ -2041,6 +2066,7 @@ end do
     basinvdwvol=basinvdwvol+basinvdwvolpriv
 !$OMP end CRITICAL
 !$OMP END PARALLEL
+if (ifinish<nz-2) call showprog(nz-2,nz-2)
 call calc_dvol(dvol)
 intval=intval*dvol
 basinvol=basinvol*dvol !Basin volume
@@ -4931,6 +4957,7 @@ end subroutine
 
 
 
+
 !!-------- Find outermost minimum of spherically averaged ELF for current system
 !Mainly used to construct ELFcore_r in subroutine assignELFbasinlab
 subroutine get_ELF_outer_minimum
@@ -4965,6 +4992,7 @@ end subroutine
 
 
 
+
 !!--------- Generate core electron density grid data, store to corerhogrid(:,:,:)
 subroutine getcorerhogrid
 use defvar
@@ -4995,4 +5023,101 @@ call dealloEDF
 !open(12,file="corerhogrid.cub",status="replace")
 !call outcube(corerhogrid,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,12)
 !close(12)
+end subroutine
+
+
+
+
+!!---------- Export attractor/basin information as basinana.txt and grid data as basinana.cub in current folder
+subroutine export_basinana_info
+use defvar
+use basinintmod
+implicit real*8 (a-h,o-z)
+
+write(*,*) "Exporting present grid data to basinana.cub in current folder..."
+open(10,file="basinana.cub",status="replace")
+call outcube(cubmat,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
+close(10)
+write(*,*) "Done!"
+
+write(*,*) "Exporting attractors to basinana.txt in current folder..."
+open(10,file="basinana.txt",status="replace")
+write(10,"('ifuncbasin',i5)") ifuncbasin
+write(10,"('numatt',i10)") numatt
+write(10,"('numrealatt',i10)") numrealatt
+write(10,*) "#Pristine attractors (ix,iy,iz,x,y,z,value)"
+do iatt=1,numatt
+	write(10,"(3i5,4E16.8)") attgrid(:,iatt),attxyz(:,iatt),attval(iatt)
+end do
+write(10,*) "#Real attractors (x,y,z,value)"
+do irealatt=1,numrealatt
+	write(10,"(4E16.8)") realattxyz(:,irealatt),realattval(irealatt)
+end do
+write(10,*) "#Number of pristine attractors that each real attractor has"
+do irealatt=1,numrealatt
+	write(10,"(12i6)") nrealatthas(irealatt)
+end do
+write(10,*) "#Conversion table from real attractors to pristine attractors"
+do irealatt=1,numrealatt
+	write(10,"(12i6)") realatttable(irealatt,1:nrealatthas(irealatt))
+end do
+write(10,*) "#Conversion table from pristine attractors to real attractors"
+do iatt=1,numatt
+	write(10,"(12i6)") attconv(iatt)
+end do
+write(10,*) "#Correspondence between every grid and basin index (gridbas)"
+write(10,"(15i5)") (((gridbas(i,j,k),i=1,nx),j=1,ny),k=1,nz)
+write(10,*) "#If grid is interbasin (interbasgrid)"
+write(10,"(30L)") (((interbasgrid(i,j,k),i=1,nx),j=1,ny),k=1,nz)
+close(10)
+write(*,*) "Done!"
+end subroutine
+
+
+
+
+!!---------- Load attractor/basin information from basinana.txt and grid data from basinana.cub in current folder
+subroutine load_basinana_info
+use defvar
+use basinintmod
+implicit real*8 (a-h,o-z)
+character c80tmp*80
+
+if (allocated(cubmat)) deallocate(cubmat)
+write(*,*) "Loading grid data from basinana.cub..."
+call readcube("basinana.cub",1,0)
+write(*,*) "Loading finished!"
+
+call deallo_basinana(0)
+write(*,*) "Loading attractors and basins information from basinana.txt..."
+open(10,file="basinana.txt",status="old")
+read(10,*) c80tmp,ifuncbasin
+read(10,*) c80tmp,numatt
+read(10,*) c80tmp,numrealatt
+allocate(attgrid(3,numatt),attxyz(3,numatt),attval(numatt),attconv(numatt)) !Pristine attractors
+allocate(nrealatthas(numrealatt),realattxyz(3,numrealatt),realattval(numrealatt),realatttable(numrealatt,numatt)) !Real attractors
+allocate(gridbas(nx,ny,nz),interbasgrid(nx,ny,nz))
+
+read(10,*) !Pristine attractors (ix,iy,iz,x,y,z,value)
+do iatt=1,numatt
+	read(10,"(3i5,4E16.8)") attgrid(:,iatt),attxyz(:,iatt),attval(iatt)
+end do
+read(10,*) !Real attractors (x,y,z,value)
+do irealatt=1,numrealatt
+	read(10,"(4E16.8)") realattxyz(:,irealatt),realattval(irealatt)
+end do
+read(10,*) !Number of pristine attractors that each real attractor has
+read(10,*) nrealatthas(1:numrealatt)
+read(10,*) !Conversion table from real attractors to pristine attractors
+do irealatt=1,numrealatt
+	read(10,*) realatttable(irealatt,1:nrealatthas(irealatt))
+end do
+read(10,*) !Conversion table from pristine attractors to real attractors"
+read(10,*) attconv(1:numatt)
+read(10,*) !Correspondence between every grid and basin index (gridbas)"
+read(10,*) (((gridbas(i,j,k),i=1,nx),j=1,ny),k=1,nz)
+read(10,*) !If grid is interbasin (interbasgrid)"
+read(10,*) (((interbasgrid(i,j,k),i=1,nx),j=1,ny),k=1,nz)
+close(10)
+write(*,*) "Loading finished!"
 end subroutine

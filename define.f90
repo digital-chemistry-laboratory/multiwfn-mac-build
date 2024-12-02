@@ -576,15 +576,15 @@ real*8 :: basinsphsize=0 !Size of spheres for showing basins
 integer :: ishowbasinmethod=1 !=1 Show entire basin in GUI, =2: Only show rho>0.001 region
 integer,allocatable :: gridbas(:,:,:) !Each grid belongs to which basin(attractor). -2=Boundary grids, -1=Traveled to boundary grid, 0=Unassigned, x=basin index
 integer :: numatt=0 !The number of pristine attractors after near-grid method
-integer :: numrealatt=0 !The number of actual attractors (the ones left after clustering)
+integer :: numrealatt=0 !The number of actual(real) attractors (the ones left after clustering)
 integer,allocatable :: attgrid(:,:) !attgrid(1/2/3,i)=(ix/iy/iz) of the grid that the ith pristine attractor attributes to
 real*8,allocatable :: attval(:) !Value of pristine attractors
 real*8,allocatable :: attxyz(:,:) !attxyz(1:3,numatt). XYZ coordinate of pristine attractors 
-integer,allocatable :: attconv(:) !Attractor conversion list. If attconv(i)=j, means attractor i is belong to actual attractor j. -1 and 0 is also included
+integer,allocatable :: attconv(:) !Attractor conversion list. If attconv(i)=j, means pristine attractor i is belong to actual attractor j. -1 and 0 is also included
 integer,allocatable :: nrealatthas(:) !nrealatthas(i)=m means actual attractor i has m pristine attractors
 integer,allocatable :: realatttable(:,:) !realatttable(i,j)=k means the jth member of the ith actual attractor is pristine attractor k
-real*8,allocatable :: realattval(:),realattxyz(:,:) !Value and xyz coordinate of actual attractors. For the ones having multiple pristine attractors, these arrays record average value
-logical,allocatable :: interbasgrid(:,:,:) !.true. means this is a boundary grid, else it is a internal grid
+real*8,allocatable :: realattval(:),realattxyz(:,:) !Value and XYZ coordinate of actual attractors. For those having multiple pristine attractors, these arrays record average value
+logical,allocatable :: interbasgrid(:,:,:) !.true. means this is a boundary grid, else it is an internal grid
 logical,allocatable :: grdposneg(:,:,:) !.true. means the value at this grid is positive, .false. means negative. Used in "basinana" and "generatebasin"
 real*8,allocatable :: BOM(:,:,:),BOMb(:,:,:) !Basin overlap matrix of total/alpha and BOM of beta. The first two sizes are number of occupied orbitals, the last is numrealatt
 real*8,allocatable :: corerhogrid(:,:,:) !Grid data of core electron density, has same grid setting as cubmat
