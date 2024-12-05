@@ -3839,15 +3839,15 @@ if (iCP2K==1) then
 			if (ispectrum==2) read(10,*) !Skip IR line
 			do itmp=1,iread
 				if (itmp==1) then
-					read(10,"(22x)",advance="no")
+					read(10,"(20x)",advance="no")
 					idxmode=inow
                 else if (itmp==2) then
 					backspace(10)
-					read(10,"(43x)",advance="no")
+					read(10,"(36x)",advance="no")
 					idxmode=inow+1
                 else if (itmp==3) then
 					backspace(10)
-					read(10,"(64x)",advance="no")
+					read(10,"(56x)",advance="no")
 					idxmode=inow+2
                 end if
                 read(10,*,iostat=ierror) str(idxmode)
@@ -3861,9 +3861,11 @@ if (iCP2K==1) then
                         write(*,"(a)") "Hint: If you request CP2K to export .mol (Molden) file containing vibrational information, &
                         &you can find the intensity in [INT] field. The value to be inputted here should be that in [INT] multiplied by 974.85541. &
                         &Alternatively, you can directly use the .mol file as input file" 
+                    else if (ispectrum==2) then
+						write(*,*) "If it is the case, please manually input the Raman activity, e.g. 89.64"
                     end if
-                    if (ispectrum==2) write(*,*) "If it is the case, please manually input the Raman activity, e.g. 89.64"
                     read(*,*) str(idxmode)
+					backspace(10)
                 end if
             end do
 			if (ilackdata<=3) exit
