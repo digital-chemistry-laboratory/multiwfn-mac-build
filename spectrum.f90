@@ -132,7 +132,7 @@ PVSnterm(:)=0
 write(*,*) "Select type of the spectrum to plot"
 write(*,*) " 1:IR  2:Raman (or pre-resonance Raman)  3:UV-Vis  4:ECD  5:VCD  6:ROA  7:NMR"
 write(*,*) "-3: Directional UV-Vis"
-write(*,*) " 0: Predicting color based on UV-Vis spectrum"
+write(*,*) " 0: Predicting color based on the UV-Vis spectrum recorded in text file"
 read(*,*) ispectrum
 if (ispectrum==-3) then
 	ispectrum=3

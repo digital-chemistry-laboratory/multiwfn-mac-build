@@ -2903,11 +2903,11 @@ end subroutine
 !!-------- Deallocate EDF related information
 subroutine dealloEDF
 use defvar
-if (nEDFprims/=0) then
-	deallocate(CO_EDF,b_EDF,nEDFelecatm)
-	nEDFprims=0
-	nEDFelec=0
-end if
+nEDFprims=0
+nEDFelec=0
+if (allocated(CO_EDF)) deallocate(CO_EDF)
+if (allocated(b_EDF)) deallocate(b_EDF)
+if (allocated(nEDFelecatm)) deallocate(nEDFelecatm)
 end subroutine
 
 
