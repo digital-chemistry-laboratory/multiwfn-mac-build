@@ -2145,9 +2145,9 @@ do itype=1,ntype
             a(iatm)%y=Cart(2)
             a(iatm)%z=Cart(3)
         else if (icoord==1) then !Cartesian coordinate
-            a(iatm)%x=xtmp/b2a
-            a(iatm)%y=ytmp/b2a
-            a(iatm)%z=ztmp/b2a
+            a(iatm)%x=xtmp/b2a*sclfac
+            a(iatm)%y=ytmp/b2a*sclfac
+            a(iatm)%z=ztmp/b2a*sclfac
         end if
     end do
     !Assign element index
