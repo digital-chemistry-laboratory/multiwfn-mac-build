@@ -2324,7 +2324,8 @@ if (.not.alive) then
 	return
 else
 	if (allocated(cubmattmp)) deallocate(cubmattmp)
-	call readcubetmp("basin.cub",1,inconsis)
+    write(*,*) "Loading basin.cub in current folder..."
+	call readcubetmp("basin.cub",2,inconsis)
 	if (inconsis==1) then
 		write(*,*) "Error: The grid setting of basin.cub is inconsistent with present grid data"
 		return

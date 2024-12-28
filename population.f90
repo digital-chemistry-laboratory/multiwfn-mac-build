@@ -21,7 +21,7 @@ implicit real*8 (a-h,o-z)
 character c2000tmp*2000,c80tmp*80
 character :: MPApath*200=" "
 
-write(*,*) "There is a nice reference comprehensively introducing atomic charges:"
+write(*,*) "NOTE: There is a review comprehensively introducing various atomic charges:"
 write(*,*) "Tian Lu, Qinxue Chen, Partial Charges, In Exploring Chemical Concepts Through Theory and Computation. &
 &WILEY-VCH GmbH: Weinheim (2024); pp. 161-187. DOI: 10.1002/9783527843435.ch6"
 if (ifragcontri==1) then
@@ -1248,7 +1248,7 @@ atmpop_tmp(:)=0
 do k=1,nz
 	do j=1,ny
 		do i=1,nx
-			if (cubmat(i,j,k)<1D-10) cycle
+			if (abs(cubmat(i,j,k))<1D-11) cycle !Note that the electron density around core produced by VASP PAW calculation can be negative, so use abs()
 			call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
             atmrho(:)=0
             call getpointcell(tmpx,tmpy,tmpz,ic,jc,kc)
@@ -4099,7 +4099,7 @@ do icyc=1,maxcyc
 	do k=1,nz
 		do j=1,ny
 			do i=1,nx
-				if (cubmat(i,j,k)<1D-11) cycle
+				if (abs(cubmat(i,j,k)<1D-11)) cycle !Note that the electron density around core produced by VASP PAW calculation can be negative, so use abs()
 				call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
 				atmrho(:)=0
 				call getpointcell(tmpx,tmpy,tmpz,ic,jc,kc)
@@ -4618,6 +4618,12 @@ if (any(a%index>86)) then
     read(*,*)
     return
 end if
+if (imode==2.and.any(cubmat<0)) then
+	write(*,"(a)") " Warning: Negative electron density has been found on some grids! In this case MBIS result will be inaccurate. &
+    Note that negative electron density at core region can be caused by PAW calculation of VASP, if it is the present case, please consider not to use PAW or use other method to calculate atomic charges"
+    write(*,*) "Press ENTER button to continue"
+    read(*,*)
+end if
 
 do while(.true.)
     write(*,*)
@@ -4866,7 +4872,7 @@ do icyc=1,maxcyc
 		do k=1,nz
 			do j=1,ny
 				do i=1,nx
-					if (cubmat(i,j,k)<1D-10) cycle
+					if (cubmat(i,j,k)<1D-11) cycle !VASP PAW density is intrinsically incompatible with MBIS because of negative density around core. However, ignoring negative density can make calculation still feasible though inaccurate
 					rho0sh(:,:)=0 !Record {rho_0_Ai} at present grid, namely density of shell i of atom A at this integration point, constructed by Eq. 7 of MBIS paper
 					rho0=0 !rho_0, namely reference density at this integration point, constructed by Eq. 6 of MBIS paper
 					call getgridxyz(i,j,k,tmpx,tmpy,tmpz)

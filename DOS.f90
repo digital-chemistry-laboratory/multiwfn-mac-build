@@ -1123,7 +1123,7 @@ else if (isel==0.or.isel==10) then
                         end if
  						!Calculate overlap population or COHP
 						if (idoOPDOS==1.or.iCOHP==1) then
-							if (nfragDOS(1)==0.and.nfragDOS(2)==0) then !calculate OPDOS or COHP between nearest atoms
+							if (nfragDOS(1)==0.and.nfragDOS(2)==0) then !Calculate OPDOS or COHP between nearest atoms
 								tmpval=0
 								do iatm=1,ncenter
 									call nearest_atom(iatm,iclose)
