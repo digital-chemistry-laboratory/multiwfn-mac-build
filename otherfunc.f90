@@ -410,19 +410,27 @@ f2name="function 2"
 if (iwork==1) then !NCI
 	iselfunc1=15
 	iselfunc2=13
+    write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
+    write(*,*) "  Original paper of NCI: J. Am. Chem. Soc., 132, 6498 (2010)"
+	write(*,"(a)") "   A nice comprehensive review: Tian Lu, Qinxue Chen, Visualization Analysis of &
+	&Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
 else if (iwork==2) then !NCI based on promolecular approximation
 	iselfunc1=16
 	iselfunc2=14
+    write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
+    write(*,*) "  Original paper of NCI: J. Am. Chem. Soc., 132, 6498 (2010)"
+	write(*,"(a)") "   A nice comprehensive review: Tian Lu, Qinxue Chen, Visualization Analysis of &
+	&Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
 else if (iwork==4) then !IRI
 	iselfunc1=15
 	iuserfunc_old=iuserfunc
 	iselfunc2=100
 	iuserfunc=99
-    write(*,*) "NOTE: Please cite original paper of IRI along with Multiwfn original paper:"
-    write(*,"(a)") " Tian Lu, Qinxue Chen, Interaction Region Indicator (IRI): A Simple Real Space Function &
-    &Clearly Revealing Both Chemical Bonds and Weak Interactions, Chemistry-Methods, 1, 231-239 (2021) DOI: 10.1002/cmtd.202100007"
-    write(*,"(a,/)") " Review article: Tian Lu, Qinxue Chen, Visualization Analysis of &
-    &Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
+    write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
+    write(*,"(a)") "  Original paper of IRI: Tian Lu, Qinxue Chen, Interaction Region Indicator (IRI): A Simple Real Space Function &
+    &Clearly Revealing Both Chemical Bonds and Weak Interactions, Chemistry-Methods, 1, 231-239 (2021) DOI: 10.1002/cmtd.202100007"   
+	write(*,"(a)") "  A nice comprehensive review: Tian Lu, Qinxue Chen, Visualization Analysis of &
+	&Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
 else if (iwork==5) then !DORI
 	iselfunc1=15
 	iuserfunc_old=iuserfunc

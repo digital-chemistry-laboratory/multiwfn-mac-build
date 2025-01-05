@@ -257,8 +257,8 @@ do while(.true.)
     else
         write(*,"(a,f7.3,' %',a)") "  1 Choose theoretical method, current: "//trim(method)//" with HFX of",PBEh_HFX,trim(c80tmp)
     end if
-    if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB".and.method/="FIST") write(*,*) " 2 Choose basis set and pseudopotential, current: "//trim(basname(ibas))
-    if (index(method,"MP2")==0.and.index(method,"RPA")==0.and.index(method,"GW")==0.and.method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB".and.method/="BEEFVDW".and.method/="FIST") then
+    if (method(1:3)/="GFN".and.method/="PM6".and.method/="SCC-DFTB".and.method/="FIST") write(*,*) " 2 Choose basis set and pseudopotential, current: "//trim(basname(ibas))
+    if (index(method,"MP2")==0.and.index(method,"RPA")==0.and.index(method,"GW")==0.and.method(1:3)/="GFN".and.method/="PM6".and.method/="SCC-DFTB".and.method/="BEEFVDW".and.method/="FIST") then
         if (idispcorr==0) write(*,*) " 3 Set dispersion correction, current: None"
         if (idispcorr==1) write(*,*) " 3 Set dispersion correction, current: DFT-D3"
         if (idispcorr==2) write(*,*) " 3 Set dispersion correction, current: DFT-D3(BJ)"
@@ -921,7 +921,7 @@ do while(.true.)
             write(*,*) "17 BEEF-vdW                  18 HLE17 (via LibXC)"
             write(*,*) "20 RI-MP2     21 RI-SCS-MP2    22 RI-(EXX+RPA)@PBE"
             write(*,*) "25 RI-B2PLYP  26 RI-B2GP-PLYP  27 RI-DSD-BLYP  28 RI-revDSD-PBEP86 with ADMM"
-            write(*,*) "30 GFN1-xTB   40 PM6           50 SCC-DFTB + disp. corr."
+            write(*,*) "30 GFN1-xTB   31 GFN0-xTB      40 PM6      50 SCC-DFTB + disp. corr."
             write(*,*) "60 GW@BHandHLYP with ADMM      61 GW@MN15L"
             write(*,*) "80 PBEh      -80 PBEh with ADMM  (customize HFX composition)"
             write(*,*) "100 FIST module (molecular mechanics)"
@@ -1003,9 +1003,10 @@ do while(.true.)
                 if (index(method,"GW")/=0) ibas=22 !Change to QZ level because slow basis set convergence feature of GW
             end if
             if (isel2==30) method="GFN1-xTB"
+            if (isel2==31) method="GFN0-xTB"
             if (isel2==40) method="PM6"
             if (isel2==50) method="SCC-DFTB"
-            if (index(method,"ADMM")/=0.or.isel2==30.or.isel2==40.or.isel2==50) idiagOT=2 !When ADMM is used, OT is suggested to be used. OT is suggested for GFN-xTB, PM6, SCC-DFTB dealing with large system
+            if (index(method,"ADMM")/=0.or.isel2==30.or.isel2==40.or.isel2==50) idiagOT=2 !When ADMM is used, OT is suggested to be used. OT is suggested for GFN1-xTB, PM6, SCC-DFTB dealing with large systems
             if (isel2==40) imixing=1
             if (index(method,"SCAN")/=0) then
                 write(*,"(a)") " NOTE: If you are using CP2K >=9.1, in the generated CP2K input file, it is suggested to replace &
@@ -1475,7 +1476,7 @@ if (istructfile==0) then
 end if
 
 !---- &KIND
-if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB".and.method/="FIST") then !Semi-empirical methods and forcefield do not need to define these
+if (method(1:3)/="GFN".and.method/="PM6".and.method/="SCC-DFTB".and.method/="FIST") then !Semi-empirical methods and forcefield do not need to define these
     ntime=1
     if (itask==11) ntime=2 !For BSSE task, the second time write same kinds but with _ghost suffix
     do itime=1,ntime
@@ -1652,7 +1653,7 @@ else
 
 !---- &DFT
 write(ifileid,"(/,a)") "  &DFT"
-if (method/="GFN1-xTB".and.method/="PM6".and.method/="SCC-DFTB") then
+if (method(1:3)/="GFN".and.method/="PM6".and.method/="SCC-DFTB") then
     if (ibas<0) then
         write(ifileid,"(a)") "    BASIS_SET_FILE_NAME  GTH_BASIS_SETS"
     else if (ibas<=5) then
@@ -1784,10 +1785,11 @@ if (method=="GFN1-xTB") then
     write(ifileid,"(a)") "      &xTB"
     if (PBCdir/="NONE") write(ifileid,"(a)") "        DO_EWALD T" !Default is Coulomb way to calculate electrostatic interaction
     write(ifileid,"(a)") "        CHECK_ATOMIC_CHARGES F #xTB calculation often crashes without setting this to false"
-    write(ifileid,"(a)") "        &PARAMETER"
-    write(ifileid,"(a)") "          DISPERSION_PARAMETER_FILE dftd3.dat"
-    write(ifileid,"(a)") "          PARAM_FILE_NAME xTB_parameters"
-    write(ifileid,"(a)") "        &END PARAMETER"
+    write(ifileid,"(a)") "      &END xTB"
+else if (method=="GFN0-xTB") then
+    write(ifileid,"(a)") "      METHOD xTB"
+    write(ifileid,"(a)") "      &xTB"
+    write(ifileid,"(a)") "        GFN_TYPE 0"
     write(ifileid,"(a)") "      &END xTB"
 else if (method=="PM6") then
     write(ifileid,"(a)") "      METHOD PM6"
@@ -1808,7 +1810,7 @@ else if (method=="SCC-DFTB") then
     write(ifileid,"(a)") "          UFF_FORCE_FIELD  uff_table"
     write(ifileid,"(a)") "        &END PARAMETER"
     write(ifileid,"(a)") "      &END DFTB"
-else if (iGAPW==1.or.itask==15.or.allocated(XASatm)) then !XAS always need GAPW
+else if (iGAPW==1.or.itask==15.or.allocated(XASatm)) then !XAS always needs GAPW
     write(ifileid,"(a)") "      METHOD GAPW"
 else !GPW with GTH pseudopotential
     if (iLRIGPW==1) then
@@ -1940,7 +1942,7 @@ if (index(method,"ADMM")/=0) then !Use ADMM
 end if
 
 !---- &XC
-if (method=="PM6".or.method=="GFN1-xTB".or.method=="SCC-DFTB") goto 100
+if (method=="PM6".or.method(1:3)=="GFN".or.method=="SCC-DFTB") goto 100
 write(ifileid,"(a)") "    &XC"
 if (index(method,"LIBXC")/=0) then
     write(ifileid,"(a)") "      &XC_FUNCTIONAL"
@@ -1984,7 +1986,7 @@ if (index(method,"LIBXC")/=0) then
         end if
     end if
     write(ifileid,"(a)") "      &END XC_FUNCTIONAL"
-else if (method=="GFN1-xTB".or.method=="PM6".or.method=="SCC-DFTB") then
+else if (method(1:3)=="GFN".or.method=="PM6".or.method=="SCC-DFTB") then
     continue
 else if (index(method,"PBE0")/=0) then
     write(ifileid,"(a)") "      &XC_FUNCTIONAL"
@@ -2349,7 +2351,7 @@ write(ifileid,"(a)") "    &END XC"
 100 continue
 
 !--- &MGRID
-if (method=="GFN1-xTB".or.method=="PM6".or.method=="SCC-DFTB") then
+if (method(1:3)=="GFN".or.method=="PM6".or.method=="SCC-DFTB") then
     continue !Semi-empirical methods do not need to set CUTOFF
 else
     write(ifileid,"(a)") "    &MGRID"
@@ -2378,84 +2380,88 @@ if (iLSSCF==1) then !&LS_SCF
     write(ifileid,"(a)") "    &END LS_SCF"
 else !&SCF
     write(ifileid,"(a)") "    &SCF"
-    if (iconvtest==1) then
-        write(ifileid,"(a)") "      MAX_SCF 1"
-    else
-        if (idiagOT==1) then !Diagonalization
-            write(ifileid,"(a)") "      MAX_SCF 128"
-        else !OT, usually use more cycles
-            if (iouterSCF==0) write(ifileid,"(a)") "      MAX_SCF 200 #Should be set to a small value (e.g. 20) if enabling outer SCF"
-            if (iouterSCF==1) write(ifileid,"(a)") "      MAX_SCF 25 #Maximum number of steps of inner SCF"
-        end if
-    end if
-    if (imixing==1) then
-        write(ifileid,"(a)") "      MAX_DIIS 7 #Maximum number of DIIS vectors to be used" !The default 4 is too small
-        write(ifileid,"(a)") "      EPS_DIIS 0.3 #Threshold on the convergence to start using DIAG/DIIS" !The default 0.1 is too small
-    end if
-    if (iouterSCF==0) then
-        write(ifileid,"(a,1PE8.1,a)") "      EPS_SCF",eps_scf," #Convergence threshold of density matrix during SCF"
-    else if (iouterSCF==1) then
-        write(ifileid,"(a,1PE8.1,a)") "      EPS_SCF",eps_scf," #Convergence threshold of density matrix of inner SCF"
-    end if
-    !if (method=="GFN1-xTB".or.method=="PM6") write(ifileid,"(a)") "      SCF_GUESS MOPAC" !Seems they benefit from this
-    if (iHFX==1) then
-        write(ifileid,"(a)") "      SCF_GUESS RESTART #Use wavefunction from WFN_RESTART_FILE_NAME file as initial guess"
-    else
-        write(ifileid,"(a)") "#     SCF_GUESS RESTART #Use wavefunction from WFN_RESTART_FILE_NAME file as initial guess"
-    end if
-    write(ifileid,"(a)") "#     IGNORE_CONVERGENCE_FAILURE #Continue calculation even if SCF not converged, works for version >= 2024.1"
-    if (idiagOT==1) then
-        write(ifileid,"(a)") "      &DIAGONALIZATION"
-        write(ifileid,"(a)") "        ALGORITHM STANDARD #Algorithm for diagonalization"
-        write(ifileid,"(a)") "      &END DIAGONALIZATION"
-    else if (idiagOT==2) then
-        write(ifileid,"(a)") "      &OT"
-        if (method=="GFN1-xTB".or.method=="PM6".or.method=="SCC-DFTB") then !Semi-empirical cannot use FULL_KINETIC. For large system FULL_SINGLE_INVERSE is the only good choice
-            write(ifileid,"(a)") "        PRECONDITIONER FULL_SINGLE_INVERSE"
+    if (method/="GFN0-xTB") then !GFN0-xTB doesn't involve SCF iterations
+        if (iconvtest==1) then
+            write(ifileid,"(a)") "      MAX_SCF 1"
         else
-            if (ncenter<300.or.iGAPW==1.or.itask==15) then !GAPW (XAS task implies it) should use FULL_ALL even if the system is large, because it converges much better than FULL_KINETIC according to my test and suggestion by Hutter 
-                write(ifileid,"(a)") "        PRECONDITIONER FULL_ALL #Usually best but expensive for large system. Cheaper: FULL_SINGLE_INVERSE and FULL_KINETIC"
-            else !GPW for large systems, using FULL_ALL will cause too high cost at the first step
-                write(ifileid,"(a)") "        PRECONDITIONER FULL_KINETIC #FULL_SINGLE_INVERSE is also worth to try. FULL_ALL is better but quite expensive for large system"
+            if (idiagOT==1) then !Diagonalization
+                write(ifileid,"(a)") "      MAX_SCF 128"
+            else !OT, usually use more cycles
+                if (iouterSCF==0) write(ifileid,"(a)") "      MAX_SCF 200 #Should be set to a small value (e.g. 20) if enabling outer SCF"
+                if (iouterSCF==1) write(ifileid,"(a)") "      MAX_SCF 25 #Maximum number of steps of inner SCF"
             end if
         end if
-        write(ifileid,"(a)") "        MINIMIZER DIIS #CG is worth to consider in difficult cases" !BROYDEN in fact can also be used, but quite poor!
-        write(ifileid,"(a)") "        LINESEARCH 2PNT #1D line search algorithm for CG. 2PNT is default. 3PNT is more expensive but may be better. GOLD is best but very expensive"
-        if (nCDFTgroup>0.or.ibas==13.or.ibas==14.or.ibas==15) then
-            write(ifileid,"(a)") "        ALGORITHM IRAC #Algorithm of OT. Can be STRICT (default) or IRAC" !For CDFT, this is much easier to converge than the default STRICT when lambda>0; For pob, often IRAC converges more smoothly
-        else
-            write(ifileid,"(a)") "        ALGORITHM STRICT #Algorithm of OT. Can be STRICT (default) or IRAC"
+        if (imixing==1) then
+            write(ifileid,"(a)") "      MAX_DIIS 7 #Maximum number of DIIS vectors to be used" !The default 4 is too small
+            write(ifileid,"(a)") "      EPS_DIIS 0.3 #Threshold on the convergence to start using DIAG/DIIS" !The default 0.1 is too small
         end if
-        write(ifileid,"(a)") "      &END OT"
         if (iouterSCF==0) then
-            write(ifileid,"(a)") "      #Uncomment following lines can enable outer SCF, important for difficult convergence case"
-            write(ifileid,"(a)") "      #&OUTER_SCF"
-            write(ifileid,"(a)") "      #  MAX_SCF 20 #Maximum number of steps of outer SCF"
-            write(ifileid,"(a,1PE8.1,a)") "      #  EPS_SCF",eps_scf," #Convergence threshold of outer SCF"
-            write(ifileid,"(a)") "      #&END OUTER_SCF"
+            write(ifileid,"(a,1PE8.1,a)") "      EPS_SCF",eps_scf," #Convergence threshold of density matrix during SCF"
         else if (iouterSCF==1) then
-            write(ifileid,"(a)") "      &OUTER_SCF"
-            write(ifileid,"(a)") "        MAX_SCF 20 #Maximum number of steps of outer SCF"
-            write(ifileid,"(a,1PE8.1,a)") "        EPS_SCF",eps_scf," #Convergence threshold of outer SCF"
-            write(ifileid,"(a)") "      &END OUTER_SCF"
+            write(ifileid,"(a,1PE8.1,a)") "      EPS_SCF",eps_scf," #Convergence threshold of density matrix of inner SCF"
+        end if
+        !if (method=="GFN1-xTB".or.method=="PM6") write(ifileid,"(a)") "      SCF_GUESS MOPAC" !Seems they benefit from this
+        if (iHFX==1) then
+            write(ifileid,"(a)") "      SCF_GUESS RESTART #Use wavefunction from WFN_RESTART_FILE_NAME file as initial guess"
+        else
+            write(ifileid,"(a)") "#     SCF_GUESS RESTART #Use wavefunction from WFN_RESTART_FILE_NAME file as initial guess"
+        end if
+        write(ifileid,"(a)") "#     IGNORE_CONVERGENCE_FAILURE #Continue calculation even if SCF not converged, works for version >= 2024.1"
+        if (idiagOT==1) then
+            write(ifileid,"(a)") "      &DIAGONALIZATION"
+            write(ifileid,"(a)") "        ALGORITHM STANDARD #Algorithm for diagonalization"
+            write(ifileid,"(a)") "      &END DIAGONALIZATION"
+        else if (idiagOT==2) then
+            write(ifileid,"(a)") "      &OT"
+            if (method(1:3)=="GFN".or.method=="PM6".or.method=="SCC-DFTB") then !Semi-empirical cannot use FULL_KINETIC. For large system FULL_SINGLE_INVERSE is the only good choice
+                write(ifileid,"(a)") "        PRECONDITIONER FULL_SINGLE_INVERSE"
+            else
+                if (ncenter<300.or.iGAPW==1.or.itask==15) then !GAPW (XAS task implies it) should use FULL_ALL even if the system is large, because it converges much better than FULL_KINETIC according to my test and suggestion by Hutter 
+                    write(ifileid,"(a)") "        PRECONDITIONER FULL_ALL #Usually best but expensive for large system. Cheaper: FULL_SINGLE_INVERSE and FULL_KINETIC"
+                else !GPW for large systems, using FULL_ALL will cause too high cost at the first step
+                    write(ifileid,"(a)") "        PRECONDITIONER FULL_KINETIC #FULL_SINGLE_INVERSE is also worth to try. FULL_ALL is better but quite expensive for large system"
+                end if
+            end if
+            write(ifileid,"(a)") "        MINIMIZER DIIS #CG is worth to consider in difficult cases" !BROYDEN in fact can also be used, but quite poor!
+            write(ifileid,"(a)") "        LINESEARCH 2PNT #1D line search algorithm for CG. 2PNT is default. 3PNT is more expensive but may be better. GOLD is best but very expensive"
+            if (nCDFTgroup>0.or.ibas==13.or.ibas==14.or.ibas==15) then
+                write(ifileid,"(a)") "        ALGORITHM IRAC #Algorithm of OT. Can be STRICT (default) or IRAC" !For CDFT, this is much easier to converge than the default STRICT when lambda>0; For pob, often IRAC converges more smoothly
+            else
+                write(ifileid,"(a)") "        ALGORITHM STRICT #Algorithm of OT. Can be STRICT (default) or IRAC"
+            end if
+            write(ifileid,"(a)") "      &END OT"
+            if (iouterSCF==0) then
+                write(ifileid,"(a)") "      #Uncomment following lines can enable outer SCF, important for difficult convergence case"
+                write(ifileid,"(a)") "      #&OUTER_SCF"
+                write(ifileid,"(a)") "      #  MAX_SCF 20 #Maximum number of steps of outer SCF"
+                write(ifileid,"(a,1PE8.1,a)") "      #  EPS_SCF",eps_scf," #Convergence threshold of outer SCF"
+                write(ifileid,"(a)") "      #&END OUTER_SCF"
+            else if (iouterSCF==1) then
+                write(ifileid,"(a)") "      &OUTER_SCF"
+                write(ifileid,"(a)") "        MAX_SCF 20 #Maximum number of steps of outer SCF"
+                write(ifileid,"(a,1PE8.1,a)") "        EPS_SCF",eps_scf," #Convergence threshold of outer SCF"
+                write(ifileid,"(a)") "      &END OUTER_SCF"
+            end if
         end if
     end if
     !Case of using diagonalization
     if (idiagOT==1) then
-        !--- &SCF \ &MIXING
-        write(ifileid,"(a)") "      &MIXING #How to mix old and new density matrices"
-        if (imixing==1) then !PM6 and only use this
-            write(ifileid,"(a)") "        METHOD DIRECT_P_MIXING"
-            write(ifileid,"(a)") "        ALPHA 0.4 #Default. Mixing 40% of new density matrix with the old one"
-        else if (imixing==2) then
-            write(ifileid,"(a)") "        METHOD BROYDEN_MIXING #PULAY_MIXING is also a good alternative"
-            write(ifileid,"(a)") "        ALPHA 0.4 #Default. Mixing 40% of new density matrix with the old one"
-            write(ifileid,"(a)") "        NBROYDEN 8 #Default is 4. Number of previous steps stored for the actual mixing scheme" !Equivalent to NBUFFER
-        else if (imixing==3) then
-            write(ifileid,"(a)") "        METHOD PULAY_MIXING #BROYDEN_MIXING is also a good alternative"
-            write(ifileid,"(a)") "        NPULAY 8 #Default is 4. Number of previous steps stored for the actual mixing scheme" !Equivalent to NBUFFER
+        if (method/="GFN0-xTB") then !GFN0-xTB doesn't involve SCF iterations
+            !--- &SCF \ &MIXING
+            write(ifileid,"(a)") "      &MIXING #How to mix old and new density matrices"
+            if (imixing==1) then !PM6 and only use this
+                write(ifileid,"(a)") "        METHOD DIRECT_P_MIXING"
+                write(ifileid,"(a)") "        ALPHA 0.4 #Default. Mixing 40% of new density matrix with the old one"
+            else if (imixing==2) then
+                write(ifileid,"(a)") "        METHOD BROYDEN_MIXING #PULAY_MIXING is also a good alternative"
+                write(ifileid,"(a)") "        ALPHA 0.4 #Default. Mixing 40% of new density matrix with the old one"
+                write(ifileid,"(a)") "        NBROYDEN 8 #Default is 4. Number of previous steps stored for the actual mixing scheme" !Equivalent to NBUFFER
+            else if (imixing==3) then
+                write(ifileid,"(a)") "        METHOD PULAY_MIXING #BROYDEN_MIXING is also a good alternative"
+                write(ifileid,"(a)") "        NPULAY 8 #Default is 4. Number of previous steps stored for the actual mixing scheme" !Equivalent to NBUFFER
+            end if
+            write(ifileid,"(a)") "      &END MIXING"
         end if
-        write(ifileid,"(a)") "      &END MIXING"
         !--- &SCF \ &SMEAR
         if (ismear==1) then
             write(ifileid,"(a)") "      &SMEAR"

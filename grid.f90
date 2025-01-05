@@ -413,8 +413,14 @@ else
         read(*,"(a)") c80tmp
         read(c80tmp,*) extdist
         if (index(c80tmp,'A')/=0) extdist=extdist/b2a
-        write(*,*) "Input grid spacing in Bohr, e.g. 0.2"
-        read(*,*) dx
+        write(*,*) "Input grid spacing in Bohr, e.g. 0.15"
+        write(*,*) "If pressing ENTER button directly, 0.2 will be used"
+        read(*,"(a)") c80tmp
+        if (c80tmp/=" ") then
+			read(c80tmp,*) dx
+        else
+			dx=0.2D0
+        end if
         dy=dx;dz=dx
         orgx=minval(a(selatm(1:nselatm))%x)-extdist
         orgy=minval(a(selatm(1:nselatm))%y)-extdist

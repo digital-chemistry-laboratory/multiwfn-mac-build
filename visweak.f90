@@ -3,23 +3,25 @@ subroutine visweak_main
 use defvar
 implicit real*8 (a-h,o-z)
 
-write(*,"(a)") " Review article of most functions in this module, please consider to cite:"
+write(*,"(a)") " Review article of most functions in this module:"
 write(*,"(a)") " Tian Lu and Qinxue Chen, Visualization Analysis of Weak Interactions in Chemical Systems. &
 &In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) http://dx.doi.org/10.1016/B978-0-12-821978-2.00076-3"
 do while(.true.)
 	write(*,*)
 	write(*,*) "           ============ Visual study of weak interaction ============ "
-	write(*,*) "0 Return"
-	write(*,*) "1 NCI analysis (also known as RDG analysis. JACS, 132, 6498)"
-	write(*,*) "2 NCI analysis based on promolecular density (JACS, 132, 6498)"
-	write(*,*) "3 Averaged NCI analysis (NCI analysis for multiple frames. JCTC, 9, 2226)"
-	write(*,*) "4 Interaction region indicator (IRI) analysis (Chemistry-Methods, 1, 231)"
-	write(*,*) "5 DORI analysis (JCTC, 10, 3745)"
-	write(*,*) "6 Visualization of van der Waals potential (JMM, 26, 315)"
-	write(*,*) "9 Becke/Hirshfeld surface analysis (CrystEngComm, 11, 19)"
-	write(*,*) "10 IGM analysis based on promolecular density (PCCP, 19, 17928)"
-	write(*,"(a)") " 11 IGM analysis based on Hirshfeld partition of molecular density (IGMH) (JCC, 43, 539)"
-	write(*,*) "12 Averaged IGM analysis (aIGM)"
+	write(*,*) " 0 Return"
+	write(*,*) " 1 NCI analysis (also known as RDG analysis)"
+	write(*,*) " 2 NCI analysis based on promolecular density"
+	write(*,*) " 3 aNCI: Averaged NCI analysis"
+	write(*,*) " 4 IRI: Interaction region indicator analysis (Chemistry-Methods, 1, 231)"
+	write(*,*) " 5 DORI analysis"
+	write(*,*) " 6 Visualization of van der Waals potential (JMM, 26, 315)"
+	write(*,*) " 9 Becke/Hirshfeld surface analysis"
+	write(*,*) " 10 IGM analysis"
+	write(*,*) "-10 mIGM: Modified IGM analysis"
+	write(*,"(a)") "  11 IGMH: IGM analysis based on Hirshfeld partition of molecular density (JCC, 43, 539)"
+	write(*,*) " 12 aIGM: Averaged IGM analysis"
+	write(*,*) "-12 amIGM: Averaged mIGM analysis"
 	read(*,*) isel
     
 	if ((isel==1.or.isel==4.or.isel==5.or.isel==11).and.(.not.allocated(b))) then
@@ -51,10 +53,14 @@ do while(.true.)
 		read(*,*)
 	else if (isel==10) then
 		call IGM(1)
+	else if (isel==-10) then
+		call IGM(-1)
 	else if (isel==11) then
 		call IGM(2)
 	else if (isel==12) then
-		call aIGM
+		call aIGM(1)
+	else if (isel==-12) then
+		call aIGM(-1)
 	end if
 end do
 end subroutine
@@ -73,6 +79,12 @@ real*8,allocatable :: avgdens(:,:,:),avggrad(:,:,:,:),avghess(:,:,:,:,:)
 real*8,allocatable :: avgRDG(:,:,:),avgsl2r(:,:,:),thermflu(:,:,:)
 real*8,allocatable :: scatterx(:),scattery(:)
 
+write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
+write(*,*) "  Original paper of aNCI: J. Chem. Theory Comput., 9, 2226 (2013)"
+write(*,"(a)") "   A nice comprehensive review: Tian Lu, Qinxue Chen, Visualization Analysis of &
+&Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
+
+write(*,*)
 write(*,*) "Input range of the frames to be analyzed, e.g. 150,400 means 150~400 frames"
 write(*,*) "Note: The frame index starts from 1"
 read(*,*) ifpsstart,ifpsend
@@ -336,6 +348,7 @@ end subroutine
 !! ----------- Independent Gradient Model (IGM) analysis based on promolecular density -----------
 !!------------------------------------------------------------------------------------------------
 !iIGMtype=1: Based on promolecular approximation (original IGM)
+!iIGMtype=-1: modified IGM (mIGM), namely based on Hirshfeld partition of promolecular density
 !iIGMtype=2: Based on Hirshfeld partition of actual density (IGMH)
 subroutine IGM(iIGMtype)
 use functions
@@ -360,22 +373,26 @@ real*8,allocatable :: IBSIWmat(:,:)
 !write(*,*) "Citation: Phys. Chem. Chem. Phys., 19, 17928 (2017)"
 write(*,*) "Note: Atomic unit is used for all outputs of this function"
 
-
+write(*,*)
 if (iIGMtype==1) then
-	write(*,*) "***** Please cite following papers in your work *****"
+	write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
+    write(*,*) "  Original paper of IGM:"
     write(*,*) "Phys. Chem. Chem. Phys., 19, 17928 (2017)"
+    write(*,*) "  Implementation of IGM in Multiwfn:"
     write(*,*) "J. Comput. Chem., 43, 539 (2022) DOI: 10.1002/jcc.26812"
-    write(*,"(a)") " Review article: Tian Lu, Qinxue Chen, Visualization Analysis of &
-    &Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
+else if (iIGMtype==-1) then !mIGM
+	write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
+    write(*,*) "J. Comput. Chem., 43, 539 (2022) DOI: 10.1002/jcc.26812"
 else if (iIGMtype==2) then
 	write(*,*)
-	write(*,*) "***** Please cite this introductory paper of IGMH *****"
+	write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
+    write(*,*) "  Original paper of IGMH:"
     write(*,*) "Tian Lu, Qinxue Chen, J. Comput. Chem., 43, 539 (2022) DOI: 10.1002/jcc.26812"
-    write(*,*) "An erratum to the IGMH paper is also suggested to cite together:"
+    write(*,*) "  Erratum to the IGMH paper:"
     write(*,*) "Tian Lu, Qinxue Chen, ChemRxiv (2022) DOI: 10.26434/chemrxiv-2022-g1m34"
-    write(*,"(a)") " Review article: Tian Lu, Qinxue Chen, Visualization Analysis of &
-    &Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
 end if
+write(*,"(a)") "   A nice comprehensive review: Tian Lu, Qinxue Chen, Visualization Analysis of &
+&Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
 
 !----- Define fragments
 write(*,*)
@@ -427,13 +444,13 @@ do iatm=1,ncenter
 end do
 deallocate(tmpidx1)
 
-if (iIGMtype==1) then
+if (abs(iIGMtype)==1) then
     isl2r=2
     if (allocated(b)) then
 	    write(*,"(a)") " Your input file contains wavefunction information, which kind of sign(lambda2)rho would you like to use?"
 	    write(*,*) "1 sign(lambda2)rho based on actual electron density"
 	    write(*,*) "2 sign(lambda2)rho based on promolecular density"
-        write(*,*) "Note: 1 is more accurate but more expensive"
+        write(*,*) "Note: 1 is more accurate and ideal but more expensive"
 	    read(*,*) isl2r
     end if
 else if (iIGMtype==2) then
@@ -462,15 +479,15 @@ do k=1,nz
 	do j=1,ny
 		do i=1,nx
             call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
-			if (isl2r==1) then
-                if (iIGMtype==1) then
+			if (isl2r==1) then !sign(lambda2)rho based on actual electron density
+                if (abs(iIGMtype)==1) then
 				    sl2r(i,j,k)=signlambda2rho(tmpx,tmpy,tmpz)
                 else
                     !Store density and gradient to "rhogrid" and "gradgrid", which will be passed into IGMgrad_Hirsh, thus avoiding recalculate them later
                     !This treatment is not applied to IGM, because it is quite cheap and often employed for quite large system, this strategy will double memory consuming
                     call signlambda2rho_RDG(tmpx,tmpy,tmpz,sl2r(i,j,k),RDG,rhogrid(i,j,k),gradgrid(:,i,j,k))
                 end if
-			else
+			else !sign(lambda2)rho based on promolecular density
 				sl2r(i,j,k)=signlambda2rho_prodens(tmpx,tmpy,tmpz)
 			end if
 		end do
@@ -487,7 +504,8 @@ end do
 if (ishowprog/=0) call showprog(100,100)
 
 write(*,*) "Calculating delta-g, delta-g_inter and delta-g_intra..."
-ifinish=0;ishowprog=1
+ifinish=0
+ishowprog=1
 dg_inter=0
 ntmp=floor(ny*nz/100D0)
 !$OMP PARALLEL DO SHARED(ifinish,ishowprog,dg,dg_inter) PRIVATE(i,j,k,tmpx,tmpy,tmpz,grad,gradnorm,IGM_gradnorm,IGM_gradnorm_inter,gradtmp) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
@@ -498,6 +516,8 @@ do k=1,nz
 			!Calculate gradient vector and IGM gradient norm of whole system and get dg
 			if (iIGMtype==1) then
                 call IGMgrad_promol(tmpx,tmpy,tmpz,allatm,grad,IGM_gradnorm)
+            else if (iIGMtype==-1) then
+                call IGMgrad_Hirshpromol(tmpx,tmpy,tmpz,allatm,grad,IGM_gradnorm)
             else if (iIGMtype==2) then
                 call IGMgrad_Hirsh(tmpx,tmpy,tmpz,allatm,grad,IGM_gradnorm,rhogrid(i,j,k),gradgrid(:,i,j,k))
             end if
@@ -508,9 +528,11 @@ do k=1,nz
 			IGM_gradnorm_inter=0
 			do ifrag=1,nIGMfrag
                 if (iIGMtype==1) then
-				    call IGMgrad_promol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),IGM_gradnorm)
+				    call IGMgrad_promol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),IGM_gradnorm) !The IGM_gradnorm given here is useless
+                else if (iIGMtype==-1) then
+				    call IGMgrad_Hirshpromol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),IGM_gradnorm) !The IGM_gradnorm given here is useless
                 else if (iIGMtype==2) then
-				    call IGMgrad_Hirsh(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),IGM_gradnorm,rhogrid(i,j,k),gradgrid(:,i,j,k))
+				    call IGMgrad_Hirsh(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),IGM_gradnorm,rhogrid(i,j,k),gradgrid(:,i,j,k)) !The IGM_gradnorm given here is useless
                 end if
                 grad=grad+gradtmp
                 IGM_gradnorm=dsqrt(sum(gradtmp**2))
@@ -673,6 +695,11 @@ do while (.true.)
 		write(*,*) "Done!"
         
 	else if (isel==6) then !Calculate and print atomic and atomic pair dg indices as well as IBSIW
+		if (iIGMtype==-1) then
+			write(*,*) "Error: This function does not support mIGM yet"
+			cycle
+		end if
+        
 		if (nIGMfrag==2) then
 			ifrag=1
 			jfrag=2
@@ -1051,13 +1078,16 @@ end subroutine
 
 
 !!-------- Averaged IGM
-subroutine aIGM
+!iIGMtype=1: aIGM   =-1: amIGM
+!iIGMtype=3 (obsolete): Calculate averaged (regular/IGM) density gradient first, then calculate aIGM
+subroutine aIGM(iIGMtype)
 use defvar
 use util
 use GUI
 use functions
 implicit real*8 (a-h,o-z)
-real*8 gradtmp(3),grad_inter(3),IGM_gradnorm_inter
+real*8 gradtmp(3),grad_inter(3),IGM_gradnorm_inter,atmgrad(3),rhoarr(200)
+integer iIGMtype
 integer,allocatable :: IGMfrag(:,:),IGMfragsize(:) !Definition of each fragment used in IGM, and the number of atoms in each fragment
 real*8,allocatable :: frag_grad(:,:,:,:,:) !frag_grad(1:3,nx,ny,nz,nfrag), gradient vector of each fragment at every point
 real*8,allocatable :: dg_inter(:,:,:)
@@ -1065,28 +1095,52 @@ real*8,allocatable :: dg_inter(:,:,:)
 real*8,allocatable :: avgdens(:,:,:),avggrad(:,:,:,:),avghess(:,:,:,:,:)
 real*8,allocatable :: avgRDG(:,:,:),thermflu(:,:,:),avgsl2r(:,:,:)
 real*8,allocatable :: scatterx(:),scattery(:)
-character c2000tmp*2000
+character c2000tmp*2000,selectyn
 
+write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
+write(*,"(a)") "   Original paper of aIGM: Tian Lu, Qinxue Chen, Visualization Analysis of &
+&Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
+
+write(*,*)
 write(*,*) "How many fragments will be defined? e.g. 2"
 write(*,"(a)") " Note: At least two fragments should be defined"
 read(*,*) nIGMfrag
 allocate(IGMfrag(nIGMfrag,ncenter),IGMfragsize(nIGMfrag))
 do ifrag=1,nIGMfrag
 	write(*,"(a,i3,a)") " Input atom indices for fragment",ifrag,", e.g. 3,5-8,15-20"
+	if (ifrag==nIGMfrag) write(*,"(a)") " Note: If input ""c"", the atoms complementary to already defined fragments will be selected"
 	read(*,"(a)") c2000tmp
-    call str2arr(c2000tmp,IGMfragsize(ifrag),IGMfrag(ifrag,:))
+	if (index(c2000tmp,'c')/=0) then
+		IGMfragsize(ifrag)=0
+		do iatm=1,ncenter
+			if (all(IGMfrag(1:ifrag-1,:)/=iatm)) then
+				IGMfragsize(ifrag)=IGMfragsize(ifrag)+1
+                IGMfrag(ifrag,IGMfragsize(ifrag))=iatm
+            end if
+        end do
+        write(*,"(i5,a,i3)") IGMfragsize(ifrag)," atoms have been selected as fragment",ifrag
+	else
+		call str2arr(c2000tmp,IGMfragsize(ifrag),IGMfrag(ifrag,:))
+	end if
 end do
 
-write(*,*) "Input range of the frames to be analyzed, e.g. 150,400 means 150~400 frames"
+write(*,*) "Input range of the frames to be analyzed, e.g. 150,400 means from 150 to 400 frames"
 write(*,*) "Note: The frame index starts from 1"
 read(*,*) ifpsstart,ifpsend
 nfps=ifpsend-ifpsstart+1
 write(*,"(' Selected',i8,' frames, frames from',i8,' to',i8,' will be processed',/)") nfps,ifpsstart,ifpsend
 
-write(*,*) "Choose form of aIGM, see Section 3.23.9 of manual for detail"
-write(*,"(a)") " 1 Calculate averaged regular and IGM types of electron density gradient first, then calculate aIGM"
-write(*,*) "2 Calculate IGM as usual for each frame, then take average to obtain aIGM"
-read(*,*) iIGMform
+iaIGM_PBC=0
+if (ifPBC>0) then
+	if (iIGMtype==1) then
+		write(*,*) "Consider periodicity in aIGM analysis? (y/n)"
+        write(*,"(a)") " Note: Considering periodicity will increase cost evidently. If the region of interest is not close to the boundary, you can safely ignore periodicity"
+        read(*,*) selectyn
+        if (selectyn=='y') iaIGM_PBC=1
+    else if (iIGMtype==-1) then
+		write(*,"(a)") " Warning: mIGM doesn't consider periodicity. If the region of interest is not close to the boundary, you can safely ignore this warning"
+    end if
+end if
 
 call setgrid(0,igridsel)
 
@@ -1101,13 +1155,78 @@ allocate(avgRDG(nx,ny,nz),avgsl2r(nx,ny,nz))
 call avg_RDG_sl2r(avgdens,avggrad,avghess,avgRDG,avgsl2r) !RDG is a byproduct
 deallocate(avggrad,avghess) !Will not be used further, so release its memory
 
-if (iIGMform==1) then !Calculate averaged (regular/IGM) density gradient first, then calculate aIGM
+if (abs(iIGMtype)==1) then !Calculate IGM/mIGM for each frame, then take average
+    allocate(dg_inter(nx,ny,nz))
+    open(10,file=filename,status="old")
+    write(*,*) "Calculating grid data of averaged IGM..."
+    dg_inter=0
+    
+    !Generate radial proatomic density multiplied by switching function for every element, used in aIGM
+    !Doesn't work well. If decrease isovalue to reveal very weak interaction regions, strong interaction isosurface still becomes quite buldge
+    !call aIGM_elemraddens
+    
+    do ifps=1,ifpsend
+	    !call readxyz(filename,1,0)
+	    call readxyztrj(10)
+	    if (ifps<ifpsstart) cycle
+        call showprog(ifps,nfps)
+        !$OMP PARALLEL DO SHARED(dg_inter) PRIVATE(i,j,k,ifrag,gradtmp,grad_inter,IGM_gradnorm_inter,tmpx,tmpy,tmpz,&
+        !$OMP iatmidx,iatm, rx,ry,rz,rx2,ry2,rz2,r2,iele,r,rhoarr,npt,der1r,der1rdr) schedule(dynamic) NUM_THREADS(nthreads)
+        do k=1,nz
+	        do j=1,ny
+		        do i=1,nx
+					call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
+                    grad_inter=0
+                    IGM_gradnorm_inter=0
+                    do ifrag=1,nIGMfrag
+                        if (iIGMtype==-1) then !amIGM without consideration of PBC
+							call IGMgrad_Hirshpromol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),rnouse)
+                        else if (iIGMtype==1.and.iaIGM_PBC==0) then !aIGM without consideration of PBC. Use specialized code rather than IGMgrad_promol to save cost
+							gradtmp=0D0 !Gradient vector of promolecular electron density in this fragment
+							do iatmidx=1,IGMfragsize(ifrag)
+								iatm=IGMfrag(ifrag,iatmidx)
+								iele=a(iatm)%index
+								rx=tmpx-a(iatm)%x
+								ry=tmpy-a(iatm)%y
+								rz=tmpz-a(iatm)%z
+								rx2=rx*rx
+								ry2=ry*ry
+								rz2=rz*rz
+								r2=rx2+ry2+rz2
+								if (r2>atmrhocut2(iele)) cycle
+								r=dsqrt(r2)
+								call genatmraddens(iele,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids
+								!rhoarr(:)=elemraddens(:,iele)
+								!npt=elemraddens_npt(iele)
+								call lagintpol(atmradpos(1:npt),rhoarr(1:npt),npt,r,rhotmp,der1r,der2r,2) !Atomic density and its gradient obtained via Lagrangian interpolation density
+								if (r/=0) then
+									der1rdr=der1r/r
+									gradtmp(1)=gradtmp(1)+der1rdr*rx
+									gradtmp(2)=gradtmp(2)+der1rdr*ry
+									gradtmp(3)=gradtmp(3)+der1rdr*rz
+								end if
+							end do
+                        else if (iIGMtype==1.and.iaIGM_PBC==1) then !aIGM with consideration of PBC
+							call IGMgrad_promol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),rnouse)
+                        end if
+                        grad_inter(:)=grad_inter(:)+gradtmp(:)
+                        IGM_gradnorm_inter=IGM_gradnorm_inter+dsqrt(sum(gradtmp**2))
+                    end do
+                    dg_inter(i,j,k)=dg_inter(i,j,k) + IGM_gradnorm_inter-dsqrt(sum(grad_inter**2))
+		        end do
+	        end do
+        end do
+        !$OMP END PARALLEL DO
+    end do
+    close(10)
+    dg_inter=dg_inter/nfps
+    
+else if (iIGMtype==3) then !Obsolete. Calculate averaged (regular/IGM) density gradient first, then calculate aIGM
     allocate(dg_inter(nx,ny,nz),frag_grad(3,nx,ny,nz,nIGMfrag))
     open(10,file=filename,status="old")
     write(*,*) "Calculating grid data of averaged density gradient of each fragment..."
     frag_grad=0
     do ifps=1,ifpsend
-	    !call readxyz(filename,1,0)
 	    call readxyztrj(10)
 	    if (ifps<ifpsstart) cycle
         call showprog(ifps,nfps)
@@ -1142,38 +1261,7 @@ if (iIGMform==1) then !Calculate averaged (regular/IGM) density gradient first, 
                 dg_inter(i,j,k)=IGM_gradnorm_inter-dsqrt(sum(grad_inter**2))
 	        end do
         end do
-    end do
-    
-else if (iIGMform==2) then !Calculate IGM for each frame, then take average to obtain aIGM
-    allocate(dg_inter(nx,ny,nz))
-    open(10,file=filename,status="old")
-    write(*,*) "Calculating grid data of averaged IGM..."
-    dg_inter=0
-    do ifps=1,ifpsend
-	    !call readxyz(filename,1,0)
-	    call readxyztrj(10)
-	    if (ifps<ifpsstart) cycle
-        call showprog(ifps,nfps)
-        !$OMP PARALLEL DO SHARED(dg_inter) PRIVATE(i,j,k,ifrag,gradtmp,grad_inter,IGM_gradnorm_inter,tmpx,tmpy,tmpz) schedule(dynamic) NUM_THREADS(nthreads)
-        do k=1,nz
-	        do j=1,ny
-		        do i=1,nx
-					call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
-                    grad_inter=0
-                    IGM_gradnorm_inter=0
-                    do ifrag=1,nIGMfrag
-                        call IGMgrad_promol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),rnouse)
-                        grad_inter=grad_inter+gradtmp
-                        IGM_gradnorm_inter=IGM_gradnorm_inter+dsqrt(sum(gradtmp**2))
-                    end do
-                    dg_inter(i,j,k)=dg_inter(i,j,k) + IGM_gradnorm_inter-dsqrt(sum(grad_inter**2))
-		        end do
-	        end do
-        end do
-        !$OMP END PARALLEL DO
-    end do
-    close(10)
-    dg_inter=dg_inter/nfps
+    end do    
 end if
 
 call walltime(iwalltime2)

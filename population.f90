@@ -4099,7 +4099,7 @@ do icyc=1,maxcyc
 	do k=1,nz
 		do j=1,ny
 			do i=1,nx
-				if (abs(cubmat(i,j,k)<1D-11)) cycle !Note that the electron density around core produced by VASP PAW calculation can be negative, so use abs()
+				if (abs(cubmat(i,j,k))<1D-11) cycle !Note that the electron density around core produced by VASP PAW calculation can be negative, so use abs()
 				call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
 				atmrho(:)=0
 				call getpointcell(tmpx,tmpy,tmpz,ic,jc,kc)

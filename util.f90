@@ -2612,10 +2612,6 @@ end function
 !close(10)
 !close(11)
 !close(12)
-
-
-
-
 end module
 
 

@@ -40,7 +40,7 @@ do while(.true.)
 	tetravol2=0D0
 	tetravol3=0D0
 	write(*,*)
-	write(*,"(a)") " NOTE: If this module is used in your research, please cite both the Multiwfn original paper and below paper, &
+	write(*,"(a)") " NOTE: If this module is used in your research, please cite both the Multiwfn original papers (those shown when Multiwfn boots up) and the following paper, &
 	&the latter detailedly described the underlying algorithm employed in this module"
 	write(*,"(a)") " Tian Lu, Feiwu Chen, Quantitative analysis of molecular surface based on improved Marching Tetrahedra algorithm, &
 	&J. Mol. Graph. Model., 38, 314-323 (2012)"

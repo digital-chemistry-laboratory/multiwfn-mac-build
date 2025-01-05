@@ -3691,7 +3691,7 @@ subroutine calchessmat_prodens(xin,yin,zin,elerho,elegrad,elehess)
 use util
 real*8 elerho,xin,yin,zin
 real*8,optional :: elegrad(3),elehess(3,3)
-real*8 posarr(200),rhoarr(200),tvec(3)
+real*8 rhoarr(200),tvec(3)
 elerho=0D0
 derx=0D0
 dery=0D0
@@ -3825,7 +3825,7 @@ end subroutine
 !  0 is best default choice because most accurate and not expensive. However its definition is truncated at finite distance, so if density at more distant region is needed, use -1(accurate) or -2 (cheaper)
 real*8 function eleraddens(iele,r,itype)
 integer iele,itype
-real*8 r,posarr(200),rhoarr(200),atomcoeff(10),atomexp(10)
+real*8 r,rhoarr(200),atomcoeff(10),atomexp(10)
 
 eleraddens=0
 if (iele==0) return !Bq atom
@@ -3923,8 +3923,8 @@ call IGMgrad_promol(x,y,z,fragatm,grad,IGM_gradnorm)
 delta_g_promol=IGM_gradnorm-dsqrt(sum(grad**2))
 end function
 
-!!----- Calculate gradient or Independent Gradient Model (IGM) gradient for specific fragment based on promolecular density
-!grad(1:3): Returned usual gradient vector;  IGM_grad: Returned IGM type of gradient norm
+!!----- Calculate gradient or IGM gradient for a fragment based on promolecular density
+!grad(1:3): Returned usual gradient vector; IGM_grad: Returned IGM type of gradient norm
 !Only the atoms in "atmlist" will be taken into account
 subroutine IGMgrad_promol(x,y,z,atmlist,grad,IGM_gradnorm)
 real*8 x,y,z,atmgrad(3),grad(3),IGM_gradnorm
@@ -3941,39 +3941,70 @@ end subroutine
 !!------ Calculate density and gradient of atom "iatm" in free state fully using built-in density
 !Only atomic density obtained via Lagrangian interpolation density is used
 subroutine proatmgrad(iatm,x,y,z,rho,grad)
-real*8 posarr(200),rhoarr(200),rho,grad(3),tvec(3)
+real*8 rhoarr(200),rho,grad(3),tvec(3)
 iele=a(iatm)%index
 rho=0
 grad=0
-call getpointcell(x,y,z,ic,jc,kc)
-do icell=ic-PBCnx,ic+PBCnx
-    do jcell=jc-PBCny,jc+PBCny
-        do kcell=kc-PBCnz,kc+PBCnz
-            call tvec_PBC(icell,jcell,kcell,tvec)
-            !rx=a(iatm)%x+tvec(1)-x !Wrong code, older than 2022-Sep-18
-            !ry=a(iatm)%y+tvec(2)-y
-            !rz=a(iatm)%z+tvec(3)-z
-            rx=x-tvec(1)-a(iatm)%x
-            ry=y-tvec(2)-a(iatm)%y
-            rz=z-tvec(3)-a(iatm)%z
-            rx2=rx*rx
-            ry2=ry*ry
-            rz2=rz*rz
-            r2=rx2+ry2+rz2
-            r=dsqrt(r2)
-            if (r>atmrhocut(iele)) cycle
-            call genatmraddens(iele,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids
-            call lagintpol(atmradpos(1:npt),rhoarr(1:npt),npt,r,rhotmp,der1r,der2r,2)
-            rho=rho+rhotmp
-            if (r/=0) then
-                der1rdr=der1r/r
-                grad(1)=grad(1)+der1rdr*rx
-                grad(2)=grad(2)+der1rdr*ry
-                grad(3)=grad(3)+der1rdr*rz
-            end if
-        end do
-    end do
-end do
+!Two codes for efficiency consideration
+if (ifPBC==0) then !Isolated case
+	rx=x-a(iatm)%x
+	ry=y-a(iatm)%y
+	rz=z-a(iatm)%z
+	rx2=rx*rx
+	ry2=ry*ry
+	rz2=rz*rz
+	r2=rx2+ry2+rz2
+	if (r2<atmrhocut2(iele)) then
+		r=dsqrt(r2)
+		call genatmraddens(iele,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids
+        
+  !      do ipt=1,npt
+		!	!rhoarr(ipt)=rhoarr(ipt)*switch_Gauss(atmradpos(ipt),1*vdwr(iele))
+	 !       rhoarr(ipt)=rhoarr(ipt)*switch_erf(atmradpos(ipt),0.5D0*vdwr(iele),1D0)
+		!end do
+        
+		call lagintpol(atmradpos(1:npt),rhoarr(1:npt),npt,r,rhotmp,der1r,der2r,2)
+		rho=rho+rhotmp
+		if (r/=0) then
+			der1rdr=der1r/r
+			grad(1)=grad(1)+der1rdr*rx
+			grad(2)=grad(2)+der1rdr*ry
+			grad(3)=grad(3)+der1rdr*rz
+		end if
+	end if
+else !Periodic case
+	call getpointcell(x,y,z,ic,jc,kc)
+	do icell=ic-PBCnx,ic+PBCnx
+		do jcell=jc-PBCny,jc+PBCny
+			do kcell=kc-PBCnz,kc+PBCnz
+				call tvec_PBC(icell,jcell,kcell,tvec)
+				!rx=a(iatm)%x+tvec(1)-x !Wrong code, older than 2022-Sep-18
+				!ry=a(iatm)%y+tvec(2)-y
+				!rz=a(iatm)%z+tvec(3)-z
+				rx=x-tvec(1)-a(iatm)%x
+				ry=y-tvec(2)-a(iatm)%y
+				rz=z-tvec(3)-a(iatm)%z
+				rx2=rx*rx
+				ry2=ry*ry
+				rz2=rz*rz
+				r2=rx2+ry2+rz2
+				if (r2>atmrhocut2(iele)) cycle
+				r=dsqrt(r2)
+				call genatmraddens(iele,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids
+				call lagintpol(atmradpos(1:npt),rhoarr(1:npt),npt,r,rhotmp,der1r,der2r,2)
+            
+				rho=rho+rhotmp
+				if (r/=0) then
+					der1rdr=der1r/r
+					grad(1)=grad(1)+der1rdr*rx
+					grad(2)=grad(2)+der1rdr*ry
+					grad(3)=grad(3)+der1rdr*rz
+				end if
+			end do
+		end do
+	end do
+end if
+
 end subroutine
 
 
@@ -4000,7 +4031,7 @@ end function
 
 
 
-!!----- Calculate gradient and IGM gradient of a specific fragment using Hirshfeld partition to yield involved atomic densities and gradients
+!!----- Calculate gradient and IGM gradient of a fragment using IGMH definition, namely using Hirshfeld partition of real density
 !The fragment is defined by "atmlist" array
 !realrhoin and realgradin are real density and gradient of current system. If any of them is not passed in, they will be directly calculated. &
 ! This design is used to avoid recalculate these expensive data if they are already available
@@ -4013,7 +4044,7 @@ real*8 realrho,realgrad(3),hess(3,3)
 real*8 prorho,prograd(3)
 real*8 atmprorho(ncenter),atmprograd(3,ncenter)
 real*8 atmgrad(3),Hirshwei(ncenter)
-real*8 posarr(200),rhoarr(200)
+real*8 rhoarr(200)
 real*8,optional :: realrhoin,realgradin(3)
 
 !Obtain real density and gradient of the system
@@ -4065,14 +4096,51 @@ do i=1,size(atmlist)
         end if
         !atmgrad(idir)=t1+t2+t3 !Mathematically correct free-state atomic gradient but poor effect for IGMH. Older than 2022-Sep-18
         atmgrad(idir)=t1-t2-t3 !IGMH-type "special free-state atomic gradient
-        !if (iatm==1.and.idir==3) write(11,"(2f16.10)") t1,t2+t3
-        !if (iatm==2.and.idir==3) write(12,"(2f16.10)") t1,t2+t3
-        !if (iatm==2.and.idir==2) write(13,"(2f16.10)") t1,t2+t3
     end do
     
-    rho=rho+atmrho
+    !rho=rho+atmrho !Useless
 	grad=grad+atmgrad(:)
 	IGM_gradnorm=IGM_gradnorm+dsqrt(sum(atmgrad(:)**2))
+end do
+end subroutine
+
+
+
+
+!!----- Calculate gradient and IGM gradient of a fragment using mIGM definition, namely using Hirshfeld partition of promolecular density
+!The fragment is defined by "atmlist" array
+subroutine IGMgrad_Hirshpromol(x,y,z,atmlist,grad,IGM_gradnorm)
+implicit real*8 (a-h,o-z)
+real*8 x,y,z
+integer atmlist(:)
+real*8 grad(3),IGM_gradnorm
+real*8 prorho,prograd(3)
+real*8 atmprorho(ncenter),atmprograd(3,ncenter),atmgrad(3)
+
+!Obtain density and gradient of all atoms in their isolated states
+do iatm=1,ncenter
+    call proatmgrad(iatm,x,y,z,atmprorho(iatm),atmprograd(:,iatm))
+end do
+!Calculate promolecular density and gradient of current system
+prorho=sum(atmprorho(:))
+do idir=1,3
+    prograd(idir)=sum(atmprograd(idir,:))
+end do
+
+grad=0D0
+IGM_gradnorm=0D0
+do idx=1,size(atmlist)
+    iatm=atmlist(idx)
+    !Atomic gradient partitioned by Hirshfeld
+    do idir=1,3
+		if (prorho==0) then
+			atmgrad(idir)=-atmprograd(idir,iatm)
+        else
+			atmgrad(idir)=2*atmprorho(iatm)/prorho*prograd(idir) - atmprograd(idir,iatm)
+        end if
+    end do
+	grad=grad+atmgrad
+	IGM_gradnorm=IGM_gradnorm+dsqrt(sum(atmgrad**2))
 end do
 end subroutine
 
