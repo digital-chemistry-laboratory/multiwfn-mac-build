@@ -3,6 +3,7 @@
 !---------------------------------------------------------------------
 subroutine deloc_aromat
 implicit real*8 (a-h,o-z)
+character c80tmp*80
 do while(.true.)
 	write(*,*)
 	write(*,*) "   ================ Delocalization and aromaticity analyses ==============="
@@ -14,6 +15,7 @@ do while(.true.)
     write(*,*) " 4 NICS_ZZ for non-planar or tilted system"
     write(*,*) " 5 ELF-sigma/pi and LOL-sigma/pi"
     write(*,*) " 6 Harmonic oscillator measure of aromaticity (HOMA) and Bird indices"
+    write(*,*) " 6a HOMAc (reparameterized HOMA)   6b HOMER (HOMA for excited states)"
     write(*,*) " 7 Shannon aromaticity index"
     write(*,*) " 8 Para-delocalization index (PDI)"
     write(*,*) " 9 Aromatic fluctuation index (FLU) and FLU-pi"
@@ -22,61 +24,68 @@ do while(.true.)
     write(*,*) "12 Properties of ring critical point"
     write(*,*) "13 NICS-1D scan curve map, integral NICS (INICS) and FiPC-NICS"
     write(*,*) "14 NICS-2D scan plane map"
-    read(*,*) isel
-    if (isel==0) then
-		return
-    else if (isel==1) then
-        call ask_Sbas_PBC
-		call multicenter(2)
-	else if (isel==-1) then
-		call multicenterNAO
-	else if (isel==2) then
-		call AV1245
-	else if (isel==3) then
-		call ICSS
-	else if (isel==4) then
-		call NICS_ZZ
-	else if (isel==5) then
-		write(*,"(a)") " Multiwfn is able to analyze ELF-sigma/pi and LOL-sigma/pi in different ways, such as plotting plane and isosurface maps, &
-        &performing topology analysis to obtain bifurcation value, etc., which rely on different main functions. Please check &
-        &Section 4.4.9, 4.5.3 and 4.100.22 of manunal for example of realizing these analyses."
-        write(*,*) "Press ENTER button to continue"
-        read(*,*)
-	else if (isel==6) then
-		call HOMA_Bird
-	else if (isel==7) then
-		write(*,"(a)") " To realize this analysis, you should use topology analysis module (main function 2), see Section 3.14.6 of manual &
-        &for introduction and Section 4.2.1 for practical example."
-        write(*,*) "Press ENTER button to continue"
-        read(*,*)
-	else if (isel==8) then
-		write(*,"(a)") " To realize this analysis, you should use fuzzy analysis module (main function 15), see Section 3.18.6 of manual &
-        &for introduction and Section 4.15.2 for practical example."
-        write(*,*) "Press ENTER button to continue"
-        read(*,*)
-	else if (isel==9) then
-		write(*,"(a)") " To realize this analysis, you should use fuzzy analysis module (main function 15), see Section 3.18.7 of manual &
-        &for introduction and Section 4.15.2 for practical example."
-        write(*,*) "Press ENTER button to continue"
-        read(*,*)
-	else if (isel==10) then
-		write(*,"(a)") " To realize this analysis, you should use fuzzy analysis module (main function 15), see Section 3.18.9 of manual &
-        &for introduction and Section 4.15.2 for practical example."
-        write(*,*) "Press ENTER button to continue"
-        read(*,*)
-	else if (isel==11) then
-		write(*,"(a)") " To realize this analysis, you should use fuzzy analysis module (main function 15), see Section 3.18.11 of manual for detail."
-        write(*,*) "Press ENTER button to continue"
-        read(*,*)
-	else if (isel==12) then
-		write(*,"(a)") " To realize this analysis, you should use topology analysis module (main function 2), see Section 3.14.6 of manual &
-        &for introduction and Section 4.2.1 for practical example."
-        write(*,*) "Press ENTER button to continue"
-        read(*,*)
-	else if (isel==13) then
-		call NICS_1D
-	else if (isel==14) then
-		call study2dim(1,0,0)
+    read(*,"(a)") c80tmp
+    if (c80tmp=="6a") then
+		call HOMA_reparm(1)
+    else if (c80tmp=="6b") then
+		call HOMA_reparm(2)
+    else
+		read(c80tmp,*) isel
+		if (isel==0) then
+			return
+		else if (isel==1) then
+			call ask_Sbas_PBC
+			call multicenter(2)
+		else if (isel==-1) then
+			call multicenterNAO
+		else if (isel==2) then
+			call AV1245
+		else if (isel==3) then
+			call ICSS
+		else if (isel==4) then
+			call NICS_ZZ
+		else if (isel==5) then
+			write(*,"(a)") " Multiwfn is able to analyze ELF-sigma/pi and LOL-sigma/pi in different ways, such as plotting plane and isosurface maps, &
+			&performing topology analysis to obtain bifurcation value, etc., which rely on different main functions. Please check &
+			&Section 4.4.9, 4.5.3 and 4.100.22 of manunal for example of realizing these analyses."
+			write(*,*) "Press ENTER button to continue"
+			read(*,*)
+		else if (isel==6) then
+			call HOMA_Bird
+		else if (isel==7) then
+			write(*,"(a)") " To realize this analysis, you should use topology analysis module (main function 2), see Section 3.14.6 of manual &
+			&for introduction and Section 4.2.1 for practical example."
+			write(*,*) "Press ENTER button to continue"
+			read(*,*)
+		else if (isel==8) then
+			write(*,"(a)") " To realize this analysis, you should use fuzzy analysis module (main function 15), see Section 3.18.6 of manual &
+			&for introduction and Section 4.15.2 for practical example."
+			write(*,*) "Press ENTER button to continue"
+			read(*,*)
+		else if (isel==9) then
+			write(*,"(a)") " To realize this analysis, you should use fuzzy analysis module (main function 15), see Section 3.18.7 of manual &
+			&for introduction and Section 4.15.2 for practical example."
+			write(*,*) "Press ENTER button to continue"
+			read(*,*)
+		else if (isel==10) then
+			write(*,"(a)") " To realize this analysis, you should use fuzzy analysis module (main function 15), see Section 3.18.9 of manual &
+			&for introduction and Section 4.15.2 for practical example."
+			write(*,*) "Press ENTER button to continue"
+			read(*,*)
+		else if (isel==11) then
+			write(*,"(a)") " To realize this analysis, you should use fuzzy analysis module (main function 15), see Section 3.18.11 of manual for detail."
+			write(*,*) "Press ENTER button to continue"
+			read(*,*)
+		else if (isel==12) then
+			write(*,"(a)") " To realize this analysis, you should use topology analysis module (main function 2), see Section 3.14.6 of manual &
+			&for introduction and Section 4.2.1 for practical example."
+			write(*,*) "Press ENTER button to continue"
+			read(*,*)
+		else if (isel==13) then
+			call NICS_1D
+		else if (isel==14) then
+			call study2dim(1,0,0)
+		end if
     end if
 end do
 end subroutine
@@ -413,7 +422,7 @@ end if
 
 do while(.true.)
 	write(*,*)
-	write(*,*) "           ------------- HOMA / Bird aromaticity index -------------"
+	call menutitle("HOMA / Bird aromaticity index",10,1)
 	write(*,*) "-1 Return"
 	write(*,*) "0 Start calculation for HOMA!"
 	write(*,*) "1 Adjust parameters for HOMA calculation"
@@ -424,7 +433,7 @@ do while(.true.)
 	if (isel==-1) then
 		exit
 	else if (isel==0) then
-		write(*,*) "Current reference bond length (Angstrom) and sigma parameters:"
+		write(*,"(a)") " Current reference bond length (Angstrom) and sigma (Angstrom^-2) parameters:"
 		do iref=1,nelesupp
 			do jref=iref,nelesupp
 				if (HOMArefbond(iref,jref)/=-1) write(*,"(' ',a,a,a,a,2f12.4)") ind2name(iref),'-',ind2name(jref),':',HOMArefbond(iref,jref),HOMAsigma(iref,jref)
@@ -432,10 +441,10 @@ do while(.true.)
 		end do
 		write(*,*)
 		do while(.true.)
-			write(*,*) "Input indices of the atoms involved in the ring, e.g. 1,5,6,7,8,12"
+			write(*,"(a)") " Input indices of the atoms according to bonding relationship in the ring, e.g. 1,5,6,7,8,12"
 			write(*,*) "(Input q can return)"
 			read(*,"(a)") c200inp
-			if (c200inp=='q'.or.c200inp=='Q') exit
+			if (c200inp=='q') exit
 			call str2arr(c200inp,numHOMAatm,HOMAatm)
 			HOMAval=1D0
             write(*,*)
@@ -461,7 +470,7 @@ do while(.true.)
 			write(*,*)
 		end do
 	else if (isel==1) then
-		write(*,*) "Current reference bond length (in Angstrom) and sigma paramters:"
+		write(*,"(a)") " Current reference bond length (Angstrom) and sigma (Angstrom^-2) parameters:"
 		do iref=1,nelesupp
 			do jref=iref,nelesupp
 				if (HOMArefbond(iref,jref)/=-1) write(*,"(' ',a,a,a,a,2f12.5)") ind2name(iref),'- ',ind2name(jref),':',HOMArefbond(iref,jref),HOMAsigma(iref,jref)
@@ -472,7 +481,7 @@ do while(.true.)
 			write(*,"(a)") " e.g. 6,7,1.334,93.52 means set reference bond length and sigma for C-N to 1.334 Angstrom and 93.52 respectively"
 			write(*,*) "(Input q can return)"
 			read(*,"(a)") C200inp
-			if (C200inp(1:1)=='q'.or.C200inp(1:1)=='Q') exit
+			if (C200inp(1:1)=='q') exit
 			read(C200inp,*) itmp,jtmp,refbondtmp,sigmatmp
 			HOMArefbond(itmp,jtmp)=refbondtmp
 			HOMArefbond(jtmp,itmp)=refbondtmp
@@ -497,10 +506,10 @@ do while(.true.)
 		end do
 		write(*,*)
 		do while(.true.)
-			write(*,*) "Input indices of the atoms involved, e.g. 1,5,6,7,8,12"
+			write(*,"(a)") " Input indices of the atoms according to bonding relationship in the ring, e.g. 1,5,6,7,8,12"
 			write(*,*) "(Input q can return)"
 			read(*,"(a)") c200inp
-			if (c200inp=='q'.or.c200inp=='Q') exit
+			if (c200inp=='q') exit
 			call str2arr(c200inp,numBirdatm,Birdatm)
 			if (BirdVref(numBirdatm)==-1) then
 				write(*,*) "Error: Missing reference V parameter for this number of centers!"
@@ -513,7 +522,7 @@ do while(.true.)
 				if (iidx==numBirdatm) jidx=1
 				iatm=Birdatm(iidx) !Actual atom index in present system
 				jatm=Birdatm(jidx)
-				iatmeleidx=a(iatm)%index !Index in periodic table
+				iatmeleidx=a(iatm)%index !Element index in periodic table
 				jatmeleidx=a(jatm)%index
 				Birdanow=Birda(iatmeleidx,jatmeleidx)
 				Birdbnow=Birdb(iatmeleidx,jatmeleidx)
@@ -545,7 +554,7 @@ do while(.true.)
 			write(*,"(a)") " e.g. 6,7,6.941,2.205 means set a and b parameters for C-N to 6.941 and 2.205 respectively"
 			write(*,*) "(Input q can return)"
 			read(*,"(a)") C200inp
-			if (C200inp(1:1)=='q'.or.C200inp(1:1)=='Q') exit
+			if (C200inp(1:1)=='q') exit
 			read(C200inp,*) itmp,jtmp,Birdatmp,Birdbtmp
 			Birda(itmp,jtmp)=Birdatmp
 			Birda(jtmp,itmp)=Birda(itmp,jtmp)
@@ -568,6 +577,90 @@ do while(.true.)
 end do
 end subroutine
 
+
+
+
+!------------------------------------------------------------------------
+!------- Reparameterized HOMA (HOMAc and HOMER) aromaticity index -------
+!------------------------------------------------------------------------
+!itype=1: HOMAc   =2: HOMER
+subroutine HOMA_reparm(itype)
+use defvar
+use util
+implicit real*8 (a-h,o-z)
+integer :: numHOMAatm=6,HOMAatm(1000)
+real*8 :: refbond(nelesupp,nelesupp)=-1D0,sigma(nelesupp,nelesupp)=0D0,HOMAval
+character C200tmp*200,label*5
+
+!Table 1 of HOMAc original paper
+if (itype==1) then !HOMAc
+	refbond(6,6)=1.392D0
+	refbond(6,7)=1.333D0
+	refbond(7,6)=refbond(6,7)
+	refbond(6,8)=1.315D0
+	refbond(8,6)=refbond(6,8)
+	refbond(7,7)=1.318D0
+	sigma(6,6)=153.37D0
+	sigma(6,7)=111.83D0
+	sigma(7,6)=sigma(6,7)
+	sigma(6,8)=335.16D0
+	sigma(8,6)=sigma(6,8)
+	sigma(7,7)=98.99D0
+    label="HOMAc"
+	call menutitle("HOMAc (HOMA based on computational bonds)",10,1)
+else if (itype==2) then !HOMER
+	refbond(6,6)=1.437D0
+	refbond(6,7)=1.390D0
+	refbond(7,6)=refbond(6,7)
+	refbond(6,8)=1.379D0
+	refbond(8,6)=refbond(6,8)
+	refbond(7,7)=1.375D0
+	sigma(6,6)=950.74D0
+	sigma(6,7)=506.43D0
+	sigma(7,6)=sigma(6,7)
+	sigma(6,8)=164.96D0
+	sigma(8,6)=sigma(6,8)
+	sigma(7,7)=187.36D0
+    label="HOMER"
+	call menutitle("HOMER (Harmonic Oscillator Model of Excited-state aRomaticity)",10,1)
+end if
+
+write(*,"(a)") " Reference bond length (Angstrom) and sigma parameters (Angstrom^-2) defined by "//label//":"
+do iref=1,nelesupp
+	do jref=iref,nelesupp
+		if (refbond(iref,jref)/=-1) write(*,"(' ',a,a,a,a,2f12.4)") ind2name(iref),'-',ind2name(jref),':',refbond(iref,jref),sigma(iref,jref)
+	end do
+end do
+do while(.true.)
+	write(*,*)
+	write(*,"(a)") " Input indices of the atoms according to bonding relationship in the ring, e.g. 1,5,6,7,8,12"
+	write(*,*) "(Input q can exit)"
+	read(*,"(a)") C200tmp
+	if (C200tmp=='q') exit
+	call str2arr(C200tmp,numHOMAatm,HOMAatm)
+	HOMAval=1D0
+    write(*,*)
+	write(*,*) "        Atom pair         Contribution  Bond length(Angstrom)"
+	do iidx=1,numHOMAatm
+		jidx=iidx+1
+		if (iidx==numHOMAatm) jidx=1
+		iatm=HOMAatm(iidx) !Actual atom index in present system
+		jatm=HOMAatm(jidx)
+		iatmeleidx=a(iatm)%index !Element index in periodic table
+		jatmeleidx=a(jatm)%index
+		refbondlen=refbond(iatmeleidx,jatmeleidx)
+		refsigma=sigma(iatmeleidx,jatmeleidx)
+		if (refbondlen==-1D0) then
+			write(*,"(' Error: Missing reference parameter for ',a,'-',a)") ind2name(iatmeleidx),ind2name(jatmeleidx)
+			exit
+		end if
+		paircontri=-refsigma/numHOMAatm*(refbondlen-atomdist(iatm,jatm,1)*b2a)**2
+		write(*,"(i5,'(',a,')  --',i5,'(',a,'):',f15.6,f16.6)") iatm,ind2name(iatmeleidx),jatm,ind2name(jatmeleidx),paircontri,atomdist(iatm,jatm,1)*b2a
+		HOMAval=HOMAval+paircontri
+		if (iidx==numHOMAatm) write(*,"(1x,a,f12.6)") label//" value is",HOMAval
+	end do
+end do
+end subroutine
 
 
 

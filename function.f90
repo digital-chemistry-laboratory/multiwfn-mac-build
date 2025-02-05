@@ -3956,13 +3956,11 @@ if (ifPBC==0) then !Isolated case
 	r2=rx2+ry2+rz2
 	if (r2<atmrhocut2(iele)) then
 		r=dsqrt(r2)
-		call genatmraddens(iele,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids
-        
+		call genatmraddens(iele,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids   
   !      do ipt=1,npt
 		!	!rhoarr(ipt)=rhoarr(ipt)*switch_Gauss(atmradpos(ipt),1*vdwr(iele))
 	 !       rhoarr(ipt)=rhoarr(ipt)*switch_erf(atmradpos(ipt),0.5D0*vdwr(iele),1D0)
 		!end do
-        
 		call lagintpol(atmradpos(1:npt),rhoarr(1:npt),npt,r,rhotmp,der1r,der2r,2)
 		rho=rho+rhotmp
 		if (r/=0) then
@@ -4121,27 +4119,25 @@ real*8 atmprorho(ncenter),atmprograd(3,ncenter),atmgrad(3)
 do iatm=1,ncenter
     call proatmgrad(iatm,x,y,z,atmprorho(iatm),atmprograd(:,iatm))
 end do
-!Calculate promolecular density and gradient of current system
+
+!Calculate promolecular density
 prorho=sum(atmprorho(:))
-do idir=1,3
-    prograd(idir)=sum(atmprograd(idir,:))
-end do
 
 grad=0D0
 IGM_gradnorm=0D0
-do idx=1,size(atmlist)
-    iatm=atmlist(idx)
-    !Atomic gradient partitioned by Hirshfeld
-    do idir=1,3
-		if (prorho==0) then
-			atmgrad(idir)=-atmprograd(idir,iatm)
-        else
-			atmgrad(idir)=2*atmprorho(iatm)/prorho*prograd(idir) - atmprograd(idir,iatm)
-        end if
-    end do
-	grad=grad+atmgrad
-	IGM_gradnorm=IGM_gradnorm+dsqrt(sum(atmgrad**2))
-end do
+if (prorho/=0) then
+	!Calculate gradient of promolecular density
+	do idir=1,3
+		prograd(idir)=sum(atmprograd(idir,:))
+	end do
+    !Calculate gradient and IGM gradient of this fragment
+	do idx=1,size(atmlist)
+		iatm=atmlist(idx)
+		atmgrad(:)=2*atmprorho(iatm)/prorho*prograd(:) - atmprograd(:,iatm)
+		grad=grad+atmgrad
+		IGM_gradnorm=IGM_gradnorm+dsqrt(sum(atmgrad**2))
+	end do
+end if
 end subroutine
 
 

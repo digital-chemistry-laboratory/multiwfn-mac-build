@@ -1077,7 +1077,7 @@ end subroutine
 
 
 
-!!-------- Averaged IGM
+!!-------- Averaged IGM/mIGM. Supports PBC
 !iIGMtype=1: aIGM   =-1: amIGM
 !iIGMtype=3 (obsolete): Calculate averaged (regular/IGM) density gradient first, then calculate aIGM
 subroutine aIGM(iIGMtype)
@@ -1090,7 +1090,7 @@ real*8 gradtmp(3),grad_inter(3),IGM_gradnorm_inter,atmgrad(3),rhoarr(200)
 integer iIGMtype
 integer,allocatable :: IGMfrag(:,:),IGMfragsize(:) !Definition of each fragment used in IGM, and the number of atoms in each fragment
 real*8,allocatable :: frag_grad(:,:,:,:,:) !frag_grad(1:3,nx,ny,nz,nfrag), gradient vector of each fragment at every point
-real*8,allocatable :: dg_inter(:,:,:)
+real*8,allocatable :: dg_inter(:,:,:),TFI_IGM(:,:,:)
 !The first index of avggrad and the first two indices of avghess correspond to components of gradient and Hessian, respectively
 real*8,allocatable :: avgdens(:,:,:),avggrad(:,:,:,:),avghess(:,:,:,:,:)
 real*8,allocatable :: avgRDG(:,:,:),thermflu(:,:,:),avgsl2r(:,:,:)
@@ -1100,6 +1100,11 @@ character c2000tmp*2000,selectyn
 write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
 write(*,"(a)") "   Original paper of aIGM: Tian Lu, Qinxue Chen, Visualization Analysis of &
 &Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
+
+if (iIGMtype==1) then
+	write(*,*)
+	write(*,"(a)") " Warning: amIGM is a significantly better choice than aIGM! Please consider to use amIGM instead"
+end if
 
 write(*,*)
 write(*,*) "How many fragments will be defined? e.g. 2"
@@ -1124,23 +1129,12 @@ do ifrag=1,nIGMfrag
 	end if
 end do
 
+write(*,*)
 write(*,*) "Input range of the frames to be analyzed, e.g. 150,400 means from 150 to 400 frames"
 write(*,*) "Note: The frame index starts from 1"
 read(*,*) ifpsstart,ifpsend
 nfps=ifpsend-ifpsstart+1
 write(*,"(' Selected',i8,' frames, frames from',i8,' to',i8,' will be processed',/)") nfps,ifpsstart,ifpsend
-
-iaIGM_PBC=0
-if (ifPBC>0) then
-	if (iIGMtype==1) then
-		write(*,*) "Consider periodicity in aIGM analysis? (y/n)"
-        write(*,"(a)") " Note: Considering periodicity will increase cost evidently. If the region of interest is not close to the boundary, you can safely ignore periodicity"
-        read(*,*) selectyn
-        if (selectyn=='y') iaIGM_PBC=1
-    else if (iIGMtype==-1) then
-		write(*,"(a)") " Warning: mIGM doesn't consider periodicity. If the region of interest is not close to the boundary, you can safely ignore this warning"
-    end if
-end if
 
 call setgrid(0,igridsel)
 
@@ -1158,15 +1152,15 @@ deallocate(avggrad,avghess) !Will not be used further, so release its memory
 if (abs(iIGMtype)==1) then !Calculate IGM/mIGM for each frame, then take average
     allocate(dg_inter(nx,ny,nz))
     open(10,file=filename,status="old")
-    write(*,*) "Calculating grid data of averaged IGM..."
+    if (iIGMtype==1) write(*,*) "Calculating grid data of averaged IGM..."
+    if (iIGMtype==-1) write(*,*) "Calculating grid data of averaged mIGM..."
     dg_inter=0
     
-    !Generate radial proatomic density multiplied by switching function for every element, used in aIGM
+    !Generate radial proatomic density multiplied by switching function for every element (store to elemraddens), used in aIGM
     !Doesn't work well. If decrease isovalue to reveal very weak interaction regions, strong interaction isosurface still becomes quite buldge
     !call aIGM_elemraddens
     
     do ifps=1,ifpsend
-	    !call readxyz(filename,1,0)
 	    call readxyztrj(10)
 	    if (ifps<ifpsstart) cycle
         call showprog(ifps,nfps)
@@ -1179,35 +1173,10 @@ if (abs(iIGMtype)==1) then !Calculate IGM/mIGM for each frame, then take average
                     grad_inter=0
                     IGM_gradnorm_inter=0
                     do ifrag=1,nIGMfrag
-                        if (iIGMtype==-1) then !amIGM without consideration of PBC
-							call IGMgrad_Hirshpromol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),rnouse)
-                        else if (iIGMtype==1.and.iaIGM_PBC==0) then !aIGM without consideration of PBC. Use specialized code rather than IGMgrad_promol to save cost
-							gradtmp=0D0 !Gradient vector of promolecular electron density in this fragment
-							do iatmidx=1,IGMfragsize(ifrag)
-								iatm=IGMfrag(ifrag,iatmidx)
-								iele=a(iatm)%index
-								rx=tmpx-a(iatm)%x
-								ry=tmpy-a(iatm)%y
-								rz=tmpz-a(iatm)%z
-								rx2=rx*rx
-								ry2=ry*ry
-								rz2=rz*rz
-								r2=rx2+ry2+rz2
-								if (r2>atmrhocut2(iele)) cycle
-								r=dsqrt(r2)
-								call genatmraddens(iele,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids
-								!rhoarr(:)=elemraddens(:,iele)
-								!npt=elemraddens_npt(iele)
-								call lagintpol(atmradpos(1:npt),rhoarr(1:npt),npt,r,rhotmp,der1r,der2r,2) !Atomic density and its gradient obtained via Lagrangian interpolation density
-								if (r/=0) then
-									der1rdr=der1r/r
-									gradtmp(1)=gradtmp(1)+der1rdr*rx
-									gradtmp(2)=gradtmp(2)+der1rdr*ry
-									gradtmp(3)=gradtmp(3)+der1rdr*rz
-								end if
-							end do
-                        else if (iIGMtype==1.and.iaIGM_PBC==1) then !aIGM with consideration of PBC
-							call IGMgrad_promol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),rnouse)
+                        if (iIGMtype==-1) then !amIGM
+							call IGMgrad_Hirshpromol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),rnouse) !Supports PBC
+                        else if (iIGMtype==1) then !aIGM 
+							call IGMgrad_promol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),rnouse) !Supports PBC
                         end if
                         grad_inter(:)=grad_inter(:)+gradtmp(:)
                         IGM_gradnorm_inter=IGM_gradnorm_inter+dsqrt(sum(gradtmp**2))
@@ -1283,6 +1252,9 @@ do while (.true.)
 	write(*,"(a)") " 3 Output averaged delta-g_inter and sign(lambda2)*rho to avgdg_inter.cub and avgsl2r.cub in current folder, respectively"
 	write(*,"(a)") " 4 Output averaged RDG to avgRDG.cub in current folder"
 	write(*,"(a)") " 5 Compute thermal fluctuation index (TFI) and export to thermflu.cub in current folder"
+    !I found the effect of mapping TFI onto dg_inter isosurface is poor (two sides of isosurface show very different color), so hidden these options
+	!if (iIGMtype==1) write(*,*) "6 Compute TFI(aIGM) and export to TFI_aIGM.cub in current folder"
+	!if (iIGMtype==-1) write(*,*) "6 Compute TFI(amIGM) and export to TFI_amIGM.cub in current folder"
 	!write(*,"(a)") " 7 Evaluate contribution of atomic pairs and atoms to interfragment interaction (atom and atomic pair delta-g indices as well as IBSIW index)"
 	read(*,*) isel
     
@@ -1324,6 +1296,7 @@ do while (.true.)
 		write(10,"(2E16.8)") ((( avgsl2r(i,j,k),dg_inter(i,j,k),k=1,nz),j=1,ny),i=1,nx)
 		close(10)
 		write(*,"(a)") " Done! Columns 1 and 2 correspond to averaged sign(lambda2)rho and delta-g_inter, respectively"
+        
     else if (isel==3) then
         write(*,*) "Exporting averaged delta-g_inter to avgdg_inter.cub..."
         open(10,file="avgdg_inter.cub",status="replace")
@@ -1335,14 +1308,74 @@ do while (.true.)
 		call outcube(avgsl2r,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
 		close(10)
         write(*,*) "Done!"
+        
     else if (isel==4) then
         write(*,*) "Exporting averaged RDG to avgRDG.cub..."
         open(10,file="avgRDG.cub",status="replace")
 		call outcube(avgRDG,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
 		close(10)
         write(*,*) "Done!"
+        
     else if (isel==5) then
         call calcexport_TFI(avgdens,ifpsstart,ifpsend)
+        
+    else if (isel==6) then
+		if (iIGMtype==1) write(*,*) "Calculating grid data of TFI(aIGM)..."
+		if (iIGMtype==-1) write(*,*) "Calculating grid data of TFI(amIGM)..."
+		allocate(TFI_IGM(nx,ny,nz))
+        TFI_IGM=0
+    
+		open(10,file=filename,status="old")
+		do ifps=1,ifpsend
+			call readxyztrj(10)
+			if (ifps<ifpsstart) cycle
+			call showprog(ifps,nfps)
+			!$OMP PARALLEL DO SHARED(TFI_IGM) PRIVATE(i,j,k,ifrag,gradtmp,grad_inter,IGM_gradnorm_inter,tmpx,tmpy,tmpz) schedule(dynamic) NUM_THREADS(nthreads)
+			do k=1,nz
+				do j=1,ny
+					do i=1,nx
+						call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
+						grad_inter=0
+						IGM_gradnorm_inter=0
+						do ifrag=1,nIGMfrag
+							if (iIGMtype==-1) then !amIGM
+								call IGMgrad_Hirshpromol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),rnouse) !Supports PBC
+							else if (iIGMtype==1) then !aIGM 
+								call IGMgrad_promol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),rnouse) !Supports PBC
+							end if
+							grad_inter(:)=grad_inter(:)+gradtmp(:)
+							IGM_gradnorm_inter=IGM_gradnorm_inter+dsqrt(sum(gradtmp**2))
+						end do
+						TFI_IGM(i,j,k)=TFI_IGM(i,j,k) + ( IGM_gradnorm_inter-dsqrt(sum(grad_inter**2)) - dg_inter(i,j,k) )**2
+					end do
+				end do
+			end do
+			!$OMP END PARALLEL DO
+		end do
+		close(10)
+        
+        do k=1,nz
+			do j=1,ny
+				do i=1,nx
+					if (dg_inter(i,j,k)/=0) then
+						TFI_IGM(i,j,k)=dsqrt(TFI_IGM(i,j,k)/nfps)/dg_inter(i,j,k)
+					else
+						TFI_IGM(i,j,k)=0D0
+					end if
+				end do
+			end do
+		end do
+        if (iIGMtype==1) then
+			write(*,*) "Exporting TFI(aIGM) to TFI-aIGM.cub..."
+			open(10,file="TFI-aIGM.cub",status="replace")
+        else if (iIGMtype==-1) then
+			write(*,*) "Exporting TFI(amIGM) to TFI-amIGM.cub..."
+			open(10,file="TFI-amIGM.cub",status="replace")
+        end if
+		call outcube(TFI_IGM,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
+		close(10)
+        write(*,*) "Done!"
+		deallocate(TFI_IGM)
     end if
 end do
 
