@@ -838,7 +838,7 @@ use util
 implicit real*8 (a-h,o-z)
 integer atmlist(ncenter),iIGMtype
 real*8 atmpairdg(ncenter,ncenter),IBSImat(ncenter,ncenter),IBSIfrag
-real*8 :: refval_IGM=0.410297D0,refval_IGMH=0.500791D0 !They were calculated under perfect grid by setting reference value as 1.0
+real*8 :: refval_IGM=0.558245D0,refval_IGMH=0.566653D0,refval_mIGM=0.439922D0 !Calculated under perfect grid for H2 at 0.74144 Angstrom, namely IBSI value obtained with reference value of 1.0
 real*8 :: distprintthres=3.5D0
 character c2000tmp*2000
 
@@ -846,7 +846,6 @@ natmlist=ncenter
 forall(i=1:ncenter) atmlist(i)=i
 
 write(*,*)
-write(*,*) "Citation: J. Phys. Chem. A, 124, 1850 (2020)"
 if (allocated(b)) then
     iIGMtype=2
     refval=refval_IGMH
@@ -863,8 +862,9 @@ do while(.true.)
     write(*,*) "           ---------- Intrinsic bond strength index (IBSI) ----------"
     write(*,*) "0 Return"
     write(*,*) "1 Start calculation"
-    if (iIGMtype==1) write(*,*) "2 Toggle type of IGM, current: IGM based on promolecular approximation"
-    if (iIGMtype==2) write(*,*) "2 Toggle type of IGM, current: IGM based on Hirshfeld partition (IGMH)"
+    if (iIGMtype==1) write(*,*) "2 Set type of IGM, current: IGM based on promolecular approximation"
+    if (iIGMtype==2) write(*,"(a)") " 2 Set type of IGM, current: IGM based on Hirshfeld partition of electron density (IGMH)"
+    if (iIGMtype==-1) write(*,*) "2 Set type of IGM, current: Modified IGM (mIGM)"
     if (natmlist==ncenter) then
         write(*,*) "3 Input the range of the atoms to be taken into account, current: all"
     else
@@ -876,7 +876,11 @@ do while(.true.)
     if (isel==0) then
         return
     else if (isel==2) then
-        if (iIGMtype==1) then
+		write(*,*) " 1 IGM based on promolecular approximation (original IGM)"
+		write(*,*) " 2 IGM based on Hirshfeld partition of electron density (IGMH)"
+		write(*,*) "-1 Modified IGM (mIGM)"
+        read(*,*) iIGMtype
+        if (iIGMtype==2) then
             if (.not.allocated(b)) then
                 write(*,"(a)") " Error: Your input file does not contain wavefunction information, &
                 &therefore only the IGM based on promolecular approximation can be used"
@@ -884,13 +888,14 @@ do while(.true.)
                 read(*,*)
                 cycle
             end if
-            iIGMtype=2
             refval=refval_IGMH
             write(*,"(a)") " Note: The current reference value corresponds to H2 in &
             &experimental structure (0.74144 Ang) with density generated at B3LYP/6-311G** level"
-        else if (iIGMtype==2) then
-            iIGMtype=1
+        else if (iIGMtype==1) then
             refval=refval_IGM
+            write(*,"(a)") " Note: The current reference value corresponds to H2 in experimental structure (0.74144 Ang)"
+        else if (iIGMtype==-1) then
+            refval=refval_mIGM
             write(*,"(a)") " Note: The current reference value corresponds to H2 in experimental structure (0.74144 Ang)"
         end if
     else if (isel==3) then

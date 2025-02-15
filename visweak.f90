@@ -348,7 +348,7 @@ end subroutine
 !! ----------- Independent Gradient Model (IGM) analysis based on promolecular density -----------
 !!------------------------------------------------------------------------------------------------
 !iIGMtype=1: Based on promolecular approximation (original IGM)
-!iIGMtype=-1: modified IGM (mIGM), namely based on Hirshfeld partition of promolecular density
+!iIGMtype=-1: Modified IGM (mIGM), namely based on Hirshfeld partition of promolecular density
 !iIGMtype=2: Based on Hirshfeld partition of actual density (IGMH)
 subroutine IGM(iIGMtype)
 use functions
@@ -514,11 +514,11 @@ do k=1,nz
 		do i=1,nx
             call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
 			!Calculate gradient vector and IGM gradient norm of whole system and get dg
-			if (iIGMtype==1) then
+			if (iIGMtype==1) then !IGM
                 call IGMgrad_promol(tmpx,tmpy,tmpz,allatm,grad,IGM_gradnorm)
-            else if (iIGMtype==-1) then
+            else if (iIGMtype==-1) then !mIGM
                 call IGMgrad_Hirshpromol(tmpx,tmpy,tmpz,allatm,grad,IGM_gradnorm)
-            else if (iIGMtype==2) then
+            else if (iIGMtype==2) then !IGMH
                 call IGMgrad_Hirsh(tmpx,tmpy,tmpz,allatm,grad,IGM_gradnorm,rhogrid(i,j,k),gradgrid(:,i,j,k))
             end if
             gradnorm=dsqrt(sum(grad**2))
@@ -695,11 +695,6 @@ do while (.true.)
 		write(*,*) "Done!"
         
 	else if (isel==6) then !Calculate and print atomic and atomic pair dg indices as well as IBSIW
-		if (iIGMtype==-1) then
-			write(*,*) "Error: This function does not support mIGM yet"
-			cycle
-		end if
-        
 		if (nIGMfrag==2) then
 			ifrag=1
 			jfrag=2
@@ -904,7 +899,7 @@ end subroutine
 
 
 !!------ Calculate atomic pair delta-g index of atomic pairs between two lists atmlist1 and atmlist2
-! iIGMtype=1: IGM based on promolecular approximation; =2: IGM based on Hirshfeld partition (IGMH)
+! iIGMtype=1: IGM; =2: IGM based on Hirshfeld partition (IGMH); iIGMtype=-1: mIGM
 subroutine calcatmpairdg(iIGMtype,natm1,atmlist1,natm2,atmlist2,atmpairdg)
 use defvar
 use util
@@ -921,7 +916,7 @@ real*8 prorho,prograd(3),realrho,realgrad(3),hess(3,3),Hirshwei(ncenter)
 if (ifPBC>0) then
     write(*,*)
 	write(*,"(a)") " Warning: This function currently does not fully support periodic systems. &
-    &To use it for periodic system, the atoms of interest should far from boundary"
+    &To use it for a periodic system, the atoms of interest should be far from box boundary!"
     write(*,*)
 end if
 
@@ -930,8 +925,9 @@ iapprox=1 !Enable use approximation to accelerate calculation
 nradpot_bk=radpot
 nsphpot_bk=sphpot
 write(*,*) "Please select grid for integrating the delta-g_pair functions"
-!IGMH has higher requirement on integration grid since distribution region is narrow
+!IGMH and mIGM have higher requirement on integration grid since distribution region is narrow
 if (iIGMtype==2) write(*,*) "Note: Option 1 is deprecated since numerical accuracy is too low for IGMH"
+if (iIGMtype==-1) write(*,*) "Note: Option 1 is deprecated since numerical accuracy is too low for mIGM"
 write(*,*) "1 Medium quality (radial=30, angular=110. Cost=1.0 x)"
 write(*,*) "2 High quality (radial=40, angular=170. Cost=2.1 x)"
 write(*,*) "3 Ultrafine quality (radial=60, angular=302. Cost=5.5 x)"
@@ -993,19 +989,21 @@ do icen=1,ncenter
 		rnowx=gridatm(ipt)%x
         rnowy=gridatm(ipt)%y
         rnowz=gridatm(ipt)%z
-        if (iIGMtype==1) then !Using promolecular approximation
+        
+        !Calculate gradient of every isolated atom (atmgrad)
+        if (iIGMtype==1) then !IGM
             !Calculate atomic gradient in this grid if it is involved in either atmlist1 or atmlist2
             do iatm=1,ncenter
                 if (any(atmlist1==iatm).or.any(atmlist2==iatm)) then
-                    call proatmgrad(iatm,rnowx,rnowy,rnowz,atmrho(iatm),atmgrad(:,iatm))
+                    call proatmgrad(1,iatm,rnowx,rnowy,rnowz,atmrho(iatm),atmgrad(:,iatm))
                 end if
             end do
-        else if (iIGMtype==2) then !Using Hirshfeld partition
-            !Calculate molecular density and its gradient. This is major overhead (>80%)
+        else if (iIGMtype==2) then !IGMH
+            !Calculate molecular density and its gradient. This is the major overhead (>80%)
             call calchessmat_dens(1,rnowx,rnowy,rnowz,realrho,realgrad,hess)
             !Calculate atom density and gradient in free state
             do iatm=1,ncenter
-                if (iapprox==1) then !Ignore atom farther than 64 Bohr from current point, this is quite safe
+                if (iapprox==1) then !Ignore atom farther than 8 Bohr from current point, this is quite safe
                     tmp=(rnowx-a(iatm)%x)**2+(rnowy-a(iatm)%y)**2+(rnowz-a(iatm)%z)**2
                     if (tmp>64) then
                         atmprorho(iatm)=0
@@ -1013,7 +1011,7 @@ do icen=1,ncenter
                         cycle
                     end if
                 end if
-                call proatmgrad(iatm,rnowx,rnowy,rnowz,atmprorho(iatm),atmprograd(:,iatm))
+                call proatmgrad(1,iatm,rnowx,rnowy,rnowz,atmprorho(iatm),atmprograd(:,iatm))
             end do
             !Calculate promolecular density and gradient of molecule
             prorho=sum(atmprorho(:))
@@ -1044,7 +1042,36 @@ do icen=1,ncenter
                     end do
                 end if
             end do
+        else if (iIGMtype==-1) then !mIGM
+            !Calculate atom density and gradient in free state
+            do iatm=1,ncenter
+                if (iapprox==1) then !Ignore atom farther than 8 Bohr from current point, this is quite safe
+                    tmp=(rnowx-a(iatm)%x)**2+(rnowy-a(iatm)%y)**2+(rnowz-a(iatm)%z)**2
+                    if (tmp>64) then
+                        atmprorho(iatm)=0
+                        atmprograd(:,iatm)=0
+                        cycle
+                    end if
+                end if
+                call proatmgrad(2,iatm,rnowx,rnowy,rnowz,atmprorho(iatm),atmprograd(:,iatm))
+            end do
+            !Calculate promolecular density and gradient of molecule
+            prorho=sum(atmprorho(:))
+            do idir=1,3
+                prograd(idir)=sum(atmprograd(idir,:))
+            end do
+			!Calculate gradient of atomic density partitioned by Hirshfeld
+            do iatm=1,ncenter
+                if (any(atmlist1==iatm).or.any(atmlist2==iatm)) then
+					if (prorho==0) then
+						atmgrad(:,iatm)= -atmprograd(:,iatm)
+                    else
+						atmgrad(:,iatm)=2*atmprorho(iatm)/prorho*prograd(:) - atmprograd(:,iatm)
+                    end if
+                end if
+			end do
         end if
+        
         !Calculate atomic pair delta-g matrix contributed by this point
         do itmp=1,natm1
             iatm=atmlist1(itmp)
@@ -1086,16 +1113,18 @@ use util
 use GUI
 use functions
 implicit real*8 (a-h,o-z)
-real*8 gradtmp(3),grad_inter(3),IGM_gradnorm_inter,atmgrad(3),rhoarr(200)
+real*8 gradtmp(3),grad_inter(3),IGM_gradnorm_inter,vec1(3),vec2(3)
 integer iIGMtype
 integer,allocatable :: IGMfrag(:,:),IGMfragsize(:) !Definition of each fragment used in IGM, and the number of atoms in each fragment
 real*8,allocatable :: frag_grad(:,:,:,:,:) !frag_grad(1:3,nx,ny,nz,nfrag), gradient vector of each fragment at every point
 real*8,allocatable :: dg_inter(:,:,:),TFI_IGM(:,:,:)
+logical,allocatable :: dogrid(:,:,:)
 !The first index of avggrad and the first two indices of avghess correspond to components of gradient and Hessian, respectively
 real*8,allocatable :: avgdens(:,:,:),avggrad(:,:,:,:),avghess(:,:,:,:,:)
 real*8,allocatable :: avgRDG(:,:,:),thermflu(:,:,:),avgsl2r(:,:,:)
 real*8,allocatable :: scatterx(:),scattery(:)
 character c2000tmp*2000,selectyn
+real*8 prorho,prograd(3),atmprorho(ncenter),atmprograd(3,ncenter),atmgrad(3),atomcoeff(10),atomexp(10)
 
 write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
 write(*,"(a)") "   Original paper of aIGM: Tian Lu, Qinxue Chen, Visualization Analysis of &
@@ -1148,6 +1177,8 @@ write(*,"(a)") " Calculating averaged RDG and averaged sign(lambda2)*rho..."
 allocate(avgRDG(nx,ny,nz),avgsl2r(nx,ny,nz))
 call avg_RDG_sl2r(avgdens,avggrad,avghess,avgRDG,avgsl2r) !RDG is a byproduct
 deallocate(avggrad,avghess) !Will not be used further, so release its memory
+call walltime(iwalltime2)
+write(*,"(' Calculation took up wall clock time until now',i10,' s')") iwalltime2-iwalltime1
 
 if (abs(iIGMtype)==1) then !Calculate IGM/mIGM for each frame, then take average
     allocate(dg_inter(nx,ny,nz))
@@ -1156,32 +1187,113 @@ if (abs(iIGMtype)==1) then !Calculate IGM/mIGM for each frame, then take average
     if (iIGMtype==-1) write(*,*) "Calculating grid data of averaged mIGM..."
     dg_inter=0
     
-    !Generate radial proatomic density multiplied by switching function for every element (store to elemraddens), used in aIGM
-    !Doesn't work well. If decrease isovalue to reveal very weak interaction regions, strong interaction isosurface still becomes quite buldge
-    !call aIGM_elemraddens
+    !Prescreening grids. If a grid is within scaled vdW radius of any atom of fragment 1, then this grid will be calculated. 
+    !This treatment can safely reduce certain computational cost if scale factor is set to 2
+    if (amIGMvdwscl/=0) then
+		write(*,"(a,f6.2)") " Prescreening grids with amIGMvdwscl parameter:",amIGMvdwscl
+		allocate(dogrid(nx,ny,nz))
+		dogrid=.false.
+		do k=1,nz
+			do j=1,ny
+				do i=1,nx
+					call getgridxyz(i,j,k,vec1(1),vec1(2),vec1(3))
+					do idx=1,IGMfragsize(1)
+						iatm=IGMfrag(1,idx)
+						vec2(1)=a(iatm)%x
+						vec2(2)=a(iatm)%y
+						vec2(3)=a(iatm)%z
+						call nearest_dist(vec1,vec2,dist)
+						if (dist < amIGMvdwscl*vdwr(a(iatm)%index)) then
+							dogrid(i,j,k)=.true.
+							exit
+						end if
+					end do
+				end do
+			end do
+		end do
+        write(*,"(' Percent of screened grids:',f10.2,'%')") dfloat(count(dogrid.eqv..false.))/(nx*ny*nz)*100
+    end if
     
+    !Loop frames
     do ifps=1,ifpsend
 	    call readxyztrj(10)
 	    if (ifps<ifpsstart) cycle
         call showprog(ifps,nfps)
-        !$OMP PARALLEL DO SHARED(dg_inter) PRIVATE(i,j,k,ifrag,gradtmp,grad_inter,IGM_gradnorm_inter,tmpx,tmpy,tmpz,&
-        !$OMP iatmidx,iatm, rx,ry,rz,rx2,ry2,rz2,r2,iele,r,rhoarr,npt,der1r,der1rdr) schedule(dynamic) NUM_THREADS(nthreads)
+        !$OMP PARALLEL DO SHARED(dg_inter) PRIVATE(i,j,k,ifrag,gradtmp,grad_inter,IGM_gradnorm_inter,tmpx,tmpy,tmpz,tmpval,&
+        !$OMP idx,iatm,atmprorho,atmprograd,prorho,prograd,idir,&
+        !$OMP rx,ry,rz,rx2,ry2,rz2,r,r2,iele,nSTO,atomcoeff,atomexp,iSTO,tmp,term) schedule(dynamic) NUM_THREADS(nthreads)
         do k=1,nz
 	        do j=1,ny
 		        do i=1,nx
+					if (amIGMvdwscl/=0) then
+						if (dogrid(i,j,k).eqv..false.) cycle
+                    end if
 					call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
                     grad_inter=0
                     IGM_gradnorm_inter=0
-                    do ifrag=1,nIGMfrag
-                        if (iIGMtype==-1) then !amIGM
-							call IGMgrad_Hirshpromol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),rnouse) !Supports PBC
-                        else if (iIGMtype==1) then !aIGM 
-							call IGMgrad_promol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),rnouse) !Supports PBC
+                    if (iIGMtype==1) then !aIGM
+						do ifrag=1,nIGMfrag
+							call IGMgrad_promol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),tmpval)
+							grad_inter(:)=grad_inter(:)+gradtmp(:)
+							IGM_gradnorm_inter=IGM_gradnorm_inter+dsqrt(sum(gradtmp**2))
+						end do
+                    else !amIGM
+						!  In fact, one can simply replacing "IGMgrad_promol" in above code by "IGMgrad_Hirshpromol" to realize amIGM
+						!However, the cost is high, because proatomic density for all atoms will be evaluated in this subroutine when looping each fragment
+						!So, in the following code, promolecular is calculated first, and record proatomic gradient at the same time
+                    
+						!Obtain density and gradient of all atoms in their isolated states
+                        atmprorho=0
+                        atmprograd=0
+						do iatm=1,ncenter
+							!call proatmgrad(2,iatm,tmpx,tmpy,tmpz,atmprorho(iatm),atmprograd(:,iatm))
+							!The following code is equivalent to the above line, while more efficient
+							rx=tmpx-a(iatm)%x
+							ry=tmpy-a(iatm)%y
+							rz=tmpz-a(iatm)%z
+							rx2=rx*rx
+							ry2=ry*ry
+							rz2=rz*rz
+							r2=rx2+ry2+rz2
+							iele=a(iatm)%index
+							if (r2<atmrhocutsqr_1En5(iele)) then
+								r=dsqrt(r2)
+								call genatmraddens_STOfitparm(iele,nSTO,atomcoeff,atomexp)
+								do iSTO=1,nSTO
+									term=atomcoeff(iSTO)*dexp(-r*atomexp(iSTO))
+									atmprorho(iatm)=atmprorho(iatm)+term
+									if (r/=0) then
+										tmp=term*atomexp(iSTO)/r
+										atmprograd(1,iatm)=atmprograd(1,iatm)-tmp*rx
+										atmprograd(2,iatm)=atmprograd(2,iatm)-tmp*ry
+										atmprograd(3,iatm)=atmprograd(3,iatm)-tmp*rz
+									end if
+								end do
+							end if
+						end do
+                        
+						prorho=sum(atmprorho(:))
+						!Cycle fragments
+                        if (prorho/=0) then
+							!Calculate gradient of promolecular density
+							do idir=1,3
+								prograd(idir)=sum(atmprograd(idir,:))
+							end do
+							do ifrag=1,nIGMfrag
+								!Calculate gradient and IGM gradient of this fragment in the mIGM way
+                                gradtmp=0
+								do idx=1,IGMfragsize(ifrag)
+									iatm=IGMfrag(ifrag,idx)
+									atmgrad(:)=2*atmprorho(iatm)/prorho*prograd(:) - atmprograd(:,iatm)
+									gradtmp=gradtmp+atmgrad
+								end do
+								grad_inter(:)=grad_inter(:)+gradtmp(:)
+								IGM_gradnorm_inter=IGM_gradnorm_inter+dsqrt(sum(gradtmp**2))
+							end do
                         end if
-                        grad_inter(:)=grad_inter(:)+gradtmp(:)
-                        IGM_gradnorm_inter=IGM_gradnorm_inter+dsqrt(sum(gradtmp**2))
-                    end do
-                    dg_inter(i,j,k)=dg_inter(i,j,k) + IGM_gradnorm_inter-dsqrt(sum(grad_inter**2))
+                    end if
+                    
+                    dg_inter(i,j,k)=dg_inter(i,j,k) + IGM_gradnorm_inter - dsqrt(sum(grad_inter**2))
 		        end do
 	        end do
         end do
@@ -1190,7 +1302,7 @@ if (abs(iIGMtype)==1) then !Calculate IGM/mIGM for each frame, then take average
     close(10)
     dg_inter=dg_inter/nfps
     
-else if (iIGMtype==3) then !Obsolete. Calculate averaged (regular/IGM) density gradient first, then calculate aIGM
+else if (iIGMtype==3) then !Obsolete, result is poor. Calculate averaged (regular/IGM) density gradient first, then calculate aIGM
     allocate(dg_inter(nx,ny,nz),frag_grad(3,nx,ny,nz,nIGMfrag))
     open(10,file=filename,status="old")
     write(*,*) "Calculating grid data of averaged density gradient of each fragment..."

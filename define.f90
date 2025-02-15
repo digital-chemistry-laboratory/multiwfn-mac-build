@@ -176,14 +176,24 @@ real*8 :: YWTatomexp(18,3)=reshape((/ & !Corresponding exponent of YWTatom, the 
 0.5288D0,0.3379D0,0.1912D0,0.139D0,0.1059D0,0.0884D0,0.0767D0,0.0669D0,0.0608D0,0.0549D0,0.0496D0,0.0449D0,0.0411D0,0.0382D0,0.0358D0,0.0335D0,0.0315D0,0.0296D0, &
 1.0D0,1.0D0,0.9992D0,0.6945D0,0.53D0,0.548D0,0.4532D0,0.3974D0,0.3994D0,0.3447D0,0.2511D0,0.215D0,0.1874D0,0.1654D0,0.1509D0,0.1369D0,0.1259D0,0.1168D0, &
 1.0D0,1.0D0,1.0D0,1.0D0,1.0D0,1.0D0,1.0D0,1.0D0,1.0D0,1.0D0,1.0236D0,0.7753D0,0.5962D0,0.6995D0,0.5851D0,0.5149D0,0.4974D0,0.4412D0 /),(/18,3/))
-!The largest distance of radial density of every element in atmraddens.f90, used to truncate calculation for saving time
-real*8 :: atmrhocut(0:nelesupp)=(/14D0,7.80D0,5.89D0,14.37D0,11.30D0,10.10D0,8.20D0,7.08D0,6.75D0,6.16D0,5.64D0,15.33D0,12.70D0,12.70D0,10.68D0,9.57D0,9.08D0,8.20D0,7.80D0,16.38D0,&
+!The largest distance (Bohr) of non-zero radial density of every element in atmraddens.f90, used to truncate calculation for saving time
+real*8 :: atmrhocut(0:nelesupp)=(/ 14D0,7.80D0,5.89D0,14.37D0,11.30D0,10.10D0,8.20D0,7.08D0,6.75D0,6.16D0,5.64D0,15.33D0,12.70D0,12.70D0,10.68D0,9.57D0,9.08D0,8.20D0,7.80D0,16.38D0,&
 14.37D0,14.37D0,14.37D0,13.50D0,13.50D0,13.50D0,12.70D0,12.70D0,11.97D0,11.97D0,11.30D0,13.50D0,11.97D0,10.68D0,10.68D0,10.10D0,9.08D0,16.38D0,&
 15.33D0,14.37D0,14.37D0,13.50D0,11.97D0,14.37D0,12.70D0,12.70D0,9.57D0,12.70D0,11.97D0,14.37D0,12.70D0,11.97D0,11.30D0,10.68D0,10.10D0,17.53D0,&
 16.38D0,15.33D0,15.33D0,15.33D0,15.33D0,15.33D0,15.33D0,15.33D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,11.97D0,11.97D0,&
 11.97D0,11.97D0,12.70D0,11.97D0,11.30D0,11.30D0,11.30D0,14.37D0,12.70D0,11.30D0,11.30D0,10.68D0,10.10D0,17.53D0,15.33D0,14.37D0,14.37D0,14.37D0,&
 15.33D0,15.33D0,14.37D0,14.37D0,13.50D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,14.37D0,12.70D0,(14D0,i=104,nelesupp) /)
-real*8 atmrhocut2(0:nelesupp) !Square of atmrhocut, generate when Multiwfn boots up
+real*8 atmrhocutsqr(0:nelesupp) !Square of atmrhocut, generate when Multiwfn boots up
+!The distance (Bohr) of cutting radial density at 1E-5 a.u. for every element in atmraddens.f90, used to truncate calculation for saving time
+real*8 :: atmrhocut_1En5(0:nelesupp)=(/ 14D0,&
+5.317D0, 4.167D0, 8.622D0, 7.267D0, 6.707D0, 5.977D0, 5.351D0, 5.009D0, 4.645D0, 4.304D0, 8.863D0, 8.071D0, 8.235D0, 7.506D0, 6.847D0, &
+6.497D0, 6.115D0, 5.753D0, 9.881D0, 9.214D0, 9.163D0, 8.920D0, 8.703D0, 8.216D0, 8.383D0, 8.142D0, 7.959D0, 7.780D0, 7.737D0, 7.527D0, &
+8.243D0, 7.731D0, 7.221D0, 6.971D0, 6.636D0, 6.307D0,10.191D0, 9.608D0, 9.477D0, 9.237D0, 8.446D0, 8.140D0, 8.728D0, 8.059D0, 8.020D0, &
+6.519D0, 7.959D0, 7.821D0, 8.536D0, 8.071D0, 7.677D0, 7.458D0, 7.147D0, 6.815D0,10.659D0,10.204D0, 9.644D0, 9.559D0, 9.827D0, 9.750D0, &
+9.676D0, 9.609D0, 9.545D0, 9.204D0, 9.386D0, 9.314D0, 9.250D0, 9.188D0, 9.129D0, 9.070D0, 8.850D0, 8.639D0, 8.508D0, 8.355D0, 8.282D0, &
+8.047D0, 7.790D0, 7.375D0, 7.272D0, 7.330D0, 8.674D0, 8.209D0, 7.741D0, 7.524D0, 7.227D0, 6.939D0,10.524D0,10.104D0, 9.687D0, 9.247D0, &
+9.399D0, 9.701D0, 9.618D0, 9.387D0, 9.327D0, 9.032D0, 9.163D0, 9.099D0, 9.033D0, 8.966D0, 8.906D0, 8.850D0, 8.619D0,(14D0,i=104,nelesupp) /)
+real*8 atmrhocutsqr_1En5(0:nelesupp) !Square of atmrhocut_1En5, generate when Multiwfn boots up
 
 !Standard atomic weight. Computed from abundance and isotope masses, the data was obtained from https://physics.nist.gov/cgi-bin/Compositions/stand_alone.pl?ele=&ascii=ascii2&isotype=all
 !For radioactive elements, the mass corresponds to longest-living isotope
@@ -468,7 +478,7 @@ character :: lastfile*200="",gaupath*200="",cubegenpath*200="",formchkpath*200="
 integer :: RDG_addminimal=1,ELF_addminimal=1,num1Dpoints=3000,atomdenscut=1,nprevorbgrid=120000,paircorrtype=3,pairfunctype=1,srcfuncmode=1
 integer :: ELFLOL_type=0,ipolarpara=0,iALIEdecomp=0,iskipnuc=0,ivdwprobe=6
 integer :: nKEDmax=24
-real*8 :: laplfac=1D0,uservar=0,uservar2=0,orbwei_delta=0.1D0
+real*8 :: laplfac=1D0,uservar=0,uservar2=0,orbwei_delta=0.1D0,amIGMvdwscl=2D0
 real*8 :: RDG_maxrho=0.05D0,RDGprodens_maxrho=0.1D0,IRI_rhocut=5D-5,aug1D=1.5D0,aug2D=4.5D0,aug3D=6D0,radcut=10D0,cfgcrossthres=0.01D0
 real*8 :: refx=0D0,refy=0D0,refz=0D0
 real*8 :: pleA=0D0,pleB=0D0,pleC=0D0,pleD=0D0 !!ABCD of the plane defined by main function 1000, used for special aims

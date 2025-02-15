@@ -1261,7 +1261,7 @@ do k=1,nz
                             atmy=a(iatm)%y+tvec(2)
                             atmz=a(iatm)%z+tvec(3)
                             dist2=(atmx-tmpx)**2+(atmy-tmpy)**2+(atmz-tmpz)**2
-                            if (dist2>atmrhocut2(a(iatm)%index)) then
+                            if (dist2>atmrhocutsqr(a(iatm)%index)) then
                                 cycle
                             else
                                 tmprho=eleraddens(a(iatm)%index,dsqrt(dist2),0)
@@ -4112,7 +4112,7 @@ do icyc=1,maxcyc
 								atmy=a(iatm)%y+tvec(2)
 								atmz=a(iatm)%z+tvec(3)
 								dist2=(atmx-tmpx)**2+(atmy-tmpy)**2+(atmz-tmpz)**2
-								if (dist2>atmrhocut2(a(iatm)%index)) then
+								if (dist2>atmrhocutsqr(a(iatm)%index)) then
 									cycle
 								else
 									npt=atmradnpt(iatm)
@@ -4832,7 +4832,7 @@ do icyc=1,maxcyc
 					dy = gridatm(ipt)%y - a(jatm)%y
 					dz = gridatm(ipt)%z - a(jatm)%z
 					dis2 = dx*dx + dy*dy + dz*dz
-                    if (ignorefar==1.and.dis2>atmrhocut2(a(jatm)%index)) cycle !My tested showed that this reduce cost nearly half, while accuracy lost is negligible
+                    if (ignorefar==1.and.dis2>atmrhocutsqr(a(jatm)%index)) cycle !My tested showed that this reduce cost nearly half, while accuracy lost is negligible
                     dis=dsqrt(dis2)
 					do ishell=1,mshell(jatm)
 						sigval = shsig(ishell,jatm)
@@ -4850,7 +4850,7 @@ do icyc=1,maxcyc
 						dy = gridatm(ipt)%y - a(jatm)%y
 						dz = gridatm(ipt)%z - a(jatm)%z
 						dis2 = dx*dx + dy*dy + dz*dz
-						if (ignorefar==1.and.dis2>atmrhocut2(a(jatm)%index)) cycle !My tested showed that this reduce cost nearly half, while accuracy lost is negligible (<0.0004)
+						if (ignorefar==1.and.dis2>atmrhocutsqr(a(jatm)%index)) cycle !My tested showed that this reduce cost nearly half, while accuracy lost is negligible (<0.0004)
                         dis=dsqrt(dis2)
 						do ishell=1,mshell(jatm)
 							shpopnew(ishell,jatm) = shpopnew(ishell,jatm) + tmpden*rho0sh(ishell,jatm)/rho0 !Eq. 18 of MBIS paper
@@ -4888,7 +4888,7 @@ do icyc=1,maxcyc
 									dz=a(iatm)%z+tvec(3)-tmpz
 									dis2=dx*dx+dy*dy+dz*dz
                                     if (dis2<atmdis2min(iatm)) atmdis2min(iatm)=dis2
-									if (dis2>atmrhocut2(a(iatm)%index)) cycle !Ignore atoms that do not contribute notably to present grid
+									if (dis2>atmrhocutsqr(a(iatm)%index)) cycle !Ignore atoms that do not contribute notably to present grid
                                     dis=dsqrt(dis2)
 									do ishell=1,mshell(iatm)
 										sigval = shsig(ishell,iatm)

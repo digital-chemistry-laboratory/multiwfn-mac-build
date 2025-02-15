@@ -3933,15 +3933,21 @@ grad=0D0
 IGM_gradnorm=0D0
 do i=1,size(atmlist)
     iatm=atmlist(i)
-    call proatmgrad(iatm,x,y,z,atmrho,atmgrad)
+    call proatmgrad(2,iatm,x,y,z,atmrho,atmgrad)
 	grad=grad+atmgrad
 	IGM_gradnorm=IGM_gradnorm+dsqrt(sum(atmgrad**2))
 end do
 end subroutine
+
+
+
 !!------ Calculate density and gradient of atom "iatm" in free state fully using built-in density
-!Only atomic density obtained via Lagrangian interpolation density is used
-subroutine proatmgrad(iatm,x,y,z,rho,grad)
-real*8 rhoarr(200),rho,grad(3),tvec(3)
+!itype=1: Lagrangian interpolation density is used
+!itype=2: Tian Lu's STO fitted density is used. Accuracy is slightly poorer than 1 but much faster
+subroutine proatmgrad(itype,iatm,x,y,z,rho,grad)
+real*8 rhoarr(200),rho,grad(3),tvec(3),atomcoeff(10),atomexp(10)
+integer itype
+
 iele=a(iatm)%index
 rho=0
 grad=0
@@ -3954,21 +3960,31 @@ if (ifPBC==0) then !Isolated case
 	ry2=ry*ry
 	rz2=rz*rz
 	r2=rx2+ry2+rz2
-	if (r2<atmrhocut2(iele)) then
+	if (r2<atmrhocutsqr(iele)) then
 		r=dsqrt(r2)
-		call genatmraddens(iele,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids   
-  !      do ipt=1,npt
-		!	!rhoarr(ipt)=rhoarr(ipt)*switch_Gauss(atmradpos(ipt),1*vdwr(iele))
-	 !       rhoarr(ipt)=rhoarr(ipt)*switch_erf(atmradpos(ipt),0.5D0*vdwr(iele),1D0)
-		!end do
-		call lagintpol(atmradpos(1:npt),rhoarr(1:npt),npt,r,rhotmp,der1r,der2r,2)
-		rho=rho+rhotmp
-		if (r/=0) then
-			der1rdr=der1r/r
-			grad(1)=grad(1)+der1rdr*rx
-			grad(2)=grad(2)+der1rdr*ry
-			grad(3)=grad(3)+der1rdr*rz
-		end if
+        if (itype==1) then
+			call genatmraddens(iele,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids
+			call lagintpol(atmradpos(1:npt),rhoarr(1:npt),npt,r,rhotmp,der1r,der2r,2)
+			rho=rho+rhotmp
+            if (r/=0) then
+				der1rdr=der1r/r
+				grad(1)=grad(1)+der1rdr*rx
+				grad(2)=grad(2)+der1rdr*ry
+				grad(3)=grad(3)+der1rdr*rz
+            end if
+        else
+            call genatmraddens_STOfitparm(iele,nSTO,atomcoeff,atomexp)
+			do iSTO=1,nSTO
+				term=atomcoeff(iSTO)*dexp(-r*atomexp(iSTO))
+				rho=rho+term
+				if (r/=0) then
+					tmp=term*atomexp(iSTO)/r
+					grad(1)=grad(1)-tmp*rx
+					grad(2)=grad(2)-tmp*ry
+					grad(3)=grad(3)-tmp*rz
+                end if
+            end do
+        end if
 	end if
 else !Periodic case
 	call getpointcell(x,y,z,ic,jc,kc)
@@ -3986,18 +4002,31 @@ else !Periodic case
 				ry2=ry*ry
 				rz2=rz*rz
 				r2=rx2+ry2+rz2
-				if (r2>atmrhocut2(iele)) cycle
+				if (r2>atmrhocutsqr(iele)) cycle
 				r=dsqrt(r2)
-				call genatmraddens(iele,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids
-				call lagintpol(atmradpos(1:npt),rhoarr(1:npt),npt,r,rhotmp,der1r,der2r,2)
-            
-				rho=rho+rhotmp
-				if (r/=0) then
-					der1rdr=der1r/r
-					grad(1)=grad(1)+der1rdr*rx
-					grad(2)=grad(2)+der1rdr*ry
-					grad(3)=grad(3)+der1rdr*rz
-				end if
+				if (itype==1) then
+					call genatmraddens(iele,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids
+					call lagintpol(atmradpos(1:npt),rhoarr(1:npt),npt,r,rhotmp,der1r,der2r,2)
+					rho=rho+rhotmp
+					if (r/=0) then
+						der1rdr=der1r/r
+						grad(1)=grad(1)+der1rdr*rx
+						grad(2)=grad(2)+der1rdr*ry
+						grad(3)=grad(3)+der1rdr*rz
+					end if
+                else
+					call genatmraddens_STOfitparm(iele,nSTO,atomcoeff,atomexp)
+					do iSTO=1,nSTO
+						term=atomcoeff(iSTO)*dexp(-r*atomexp(iSTO))
+						rho=rho+term
+						if (r/=0) then
+							tmp=term*atomexp(iSTO)/r
+							grad(1)=grad(1)-tmp*rx
+							grad(2)=grad(2)-tmp*ry
+							grad(3)=grad(3)-tmp*rz
+						end if
+					end do
+                end if
 			end do
 		end do
 	end do
@@ -4055,7 +4084,7 @@ end if
 
 !Obtain density and gradient of all atoms in their isolated states
 do iatm=1,ncenter
-    call proatmgrad(iatm,x,y,z,atmprorho(iatm),atmprograd(:,iatm))
+    call proatmgrad(1,iatm,x,y,z,atmprorho(iatm),atmprograd(:,iatm))
 end do
 
 !Calculate promolecular density and gradient of current system
@@ -4117,7 +4146,7 @@ real*8 atmprorho(ncenter),atmprograd(3,ncenter),atmgrad(3)
 
 !Obtain density and gradient of all atoms in their isolated states
 do iatm=1,ncenter
-    call proatmgrad(iatm,x,y,z,atmprorho(iatm),atmprograd(:,iatm))
+    call proatmgrad(2,iatm,x,y,z,atmprorho(iatm),atmprograd(:,iatm))
 end do
 
 !Calculate promolecular density

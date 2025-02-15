@@ -2472,7 +2472,7 @@ do k=1,nz
                         call tvec_PBC(icell,jcell,kcell,tvec)
                         do iatm=1,ncenter
                             dist2=(a(iatm)%x+tvec(1)-tmpx)**2+(a(iatm)%y+tvec(2)-tmpy)**2+(a(iatm)%z+tvec(3)-tmpz)**2
-                            if (dist2>atmrhocut2(a(iatm)%index)) then
+                            if (dist2>atmrhocutsqr(a(iatm)%index)) then
                                 cycle
                             else
                                 if (ipartition==3) then !Hirshfeld, using bulit-in atomic radial density to interpolate
@@ -2675,7 +2675,7 @@ do ibatch=1,nbatch
 							call tvec_PBC(icell,jcell,kcell,tvec)
 							do iatm=1,ncenter
 								dist2=(a(iatm)%x+tvec(1)-tmpx)**2+(a(iatm)%y+tvec(2)-tmpy)**2+(a(iatm)%z+tvec(3)-tmpz)**2
-								if (dist2>atmrhocut2(a(iatm)%index)) then
+								if (dist2>atmrhocutsqr(a(iatm)%index)) then
 									cycle
 								else
 									if (ipartition==3) then !Hirshfeld, using built-in atomic radial density to interpolate

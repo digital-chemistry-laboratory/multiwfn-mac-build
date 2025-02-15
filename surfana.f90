@@ -1928,8 +1928,11 @@ do while(.true.)
                 fragareanonpol=fragareanonpol+tmparea
             end if
 		end do
-		fragsurvar=fragsurvar/fragsurarea
-		fragsurvar(:,1)=fragsurvar(:,2)+fragsurvar(:,3)
+		fragsurvar(:,2:3)=fragsurvar(:,2:3)/fragsurarea(:,2:3)
+ 		do ifrag=1,nsurfrag
+			if (fragsurarea(ifrag,2)>0) fragsurvar(ifrag,1)=fragsurvar(ifrag,1)+fragsurvar(ifrag,2)
+			if (fragsurarea(ifrag,3)>0) fragsurvar(ifrag,1)=fragsurvar(ifrag,1)+fragsurvar(ifrag,3)
+ 		end do
 		fragsurchgsep=fragsurchgsep/fragsurarea(:,1)
         fragpolaridx=fragpolaridx/fragsurarea(1,1)
 		!Print atomic values

@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), update date: 2025-Feb-4"
+write(*,*) "Version 3.8(dev), update date: 2025-Feb-14"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
 write(*,*) "Multiwfn English forum: http://sobereva.com/wfnbbs"
@@ -174,7 +174,8 @@ forall (i=1:nfragatm_org) fragatm_org(i)=i
 
 
 !!-------- Call some routines only once
-atmrhocut2(:)=atmrhocut(:)**2
+atmrhocutsqr(:)=atmrhocut(:)**2
+atmrhocutsqr_1En5(:)=atmrhocut_1En5(:)**2
 !Generate coordinate of atomic radial positions, which corresponds to atmraddens(:)
 call genatmradpos(atmradpos(:))
 !Convert prebuilt radii from Angstrom to Bohr. But some radii such as radii_hugo will remain unchanged since it is recorded as Bohr
@@ -254,7 +255,6 @@ end if
 
 
 !Special treatment and test new code
-
 
 !!!--------------------- Now everything start ---------------------!!!
 do while(.true.) !Main loop

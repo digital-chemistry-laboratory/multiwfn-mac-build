@@ -14,6 +14,25 @@
 !	write(*,"(i5,f12.2)") iele,atmradpos(npt)
 !end do
     
+!  The code used to generate global variable "atmradcut_1En5":
+!subroutine determine_atmradcut_1En5
+!use defvar
+!use functions
+!implicit real*8 (a-h,o-z)
+!character c1000tmp*1000
+!do iele=1,103
+!    r=0
+!    do while(.true.)
+!        r=r+0.001D0
+!        if (eleraddens(iele,r,0)<1E-5) then
+!            !write(*,*) iele,r*b2a,atmrhocut(iele)*b2a
+!            write(*,"(f6.3,'D0,')",advance="no") r
+!            exit
+!        end if
+!    end do
+!end do
+!end subroutine
+    
 !----- Generate radial position array (shared by all elements) using Becke transform
 subroutine genatmradpos(posarr)
 real*8 posarr(200)

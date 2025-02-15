@@ -1172,7 +1172,6 @@ if (ifPBC==0) then !Using atomic-center grids
 
 else !Using evenly distributed grids for peridic systems
 	!call walltime(iwalltime1)
-	atmrhocut2(:)=atmrhocut(:)**2
     if (igrid==0) spcgrd=0.35D0
     if (igrid==1) spcgrd=0.25D0
     if (info==1) write(*,"(' Grid spacing of',f6.3,' Bohr is used in integration')") spcgrd
@@ -1196,7 +1195,7 @@ else !Using evenly distributed grids for peridic systems
 							call tvec_PBC(icell,jcell,kcell,tvec)
 							do iatm=1,ncenter
 								dist2=(a(iatm)%x+tvec(1)-tmpx)**2+(a(iatm)%y+tvec(2)-tmpy)**2+(a(iatm)%z+tvec(3)-tmpz)**2
-								if (dist2>atmrhocut2(a(iatm)%index)) then
+								if (dist2>atmrhocutsqr(a(iatm)%index)) then
 									cycle
 								else
 									atmrho(iatm)=atmrho(iatm)+eleraddens(a(iatm)%index,dsqrt(dist2),0)
