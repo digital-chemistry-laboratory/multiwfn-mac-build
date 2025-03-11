@@ -53,7 +53,7 @@ integer :: nfragatm=0,nfragatm_org=0 !Number of elements of fragatm and fragatm_
 integer,allocatable :: fragatm(:),fragatm_org(:) !Store the index of atoms in fragment, used in various routines like setpromol. has no relationship with frag1/frag2. fragatm_org is used to backup fragatm during custom operation
 integer,allocatable :: frag1(:),frag2(:) !These two fragments are only used for bond order analysis/composition analysis etc., store index of basis functions or atoms. Their size just fit their content
 integer nfrag1,nfrag2 !Current size of frag1 and frag2, they should identical to size(frag1) and size(frag2)
-integer :: ncustommap=0,imodwfn=0 !if 1, means occupation number or orbital type or basis function information have been modified
+integer :: ncustommap=0,imodwfn=0 !if 1, means occupation number or orbital type or basis function information has been modified
 integer :: iorbsel=1 !Which orbital is selected, and its value will be calculated by fmo and calchessmat_mo
 integer :: iorbsel2=0 !Which orbital will be plotted together with iorbsel in plane map
 integer :: iorbvis=0 !The index of the orbital selected in main function 0

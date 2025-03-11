@@ -2401,24 +2401,24 @@ end if
 
 write(ifileid,*)
 if (ifuncsel==1) then
-	write(ifileid,*) "Note: Below information are for electron density"
+	write(ifileid,*) "Note: Below information is for electron density"
 	funchess=elehess
 	funcgrad=elegrad
 else
 	if (ifuncsel==3) then
-        write(ifileid,*) "Note: Below information are for Laplacian of electron density"
+        write(ifileid,*) "Note: Below information is for Laplacian of electron density"
 	else if (ifuncsel==4) then
-        write(ifileid,*) "Note: Below information are for value of orbital wavefunction"
+        write(ifileid,*) "Note: Below information is for value of orbital wavefunction"
 	else if (ifuncsel==9) then
-        write(ifileid,*) "Note: Below information are for electron localization function"
+        write(ifileid,*) "Note: Below information is for electron localization function"
 	else if (ifuncsel==10) then
-        write(ifileid,*) "Note: Below information are for localized orbital locator"
+        write(ifileid,*) "Note: Below information is for localized orbital locator"
 	else if (ifuncsel==12) then
-        write(ifileid,*) "Note: Below information are for total ESP"
+        write(ifileid,*) "Note: Below information is for total ESP"
 	else if (ifuncsel==100) then
-        write(ifileid,*) "Note: Below information are for user-defined real space function"
+        write(ifileid,*) "Note: Below information is for user-defined real space function"
 	else
-        write(ifileid,"(a,i4)") " Note: Below information are for real space function",ifuncsel
+        write(ifileid,"(a,i4)") " Note: Below information is for real space function",ifuncsel
     end if
 	call gencalchessmat(2,ifuncsel,inx,iny,inz,funcvalue,funcgrad,funchess)
 end if
@@ -4539,7 +4539,8 @@ else if (wfntype==2) then !RO
 	    if (nint(MOocc(idxHOMOb))==2) exit
     end do
 else
-    write(*,"(/,a)") " Note: Unable to determine HOMO index because this is not a single-determinant wavefunction"
+    write(*,"(/,a)") " Note: Unable to determine HOMO index because this is not a single-determinant wavefunction. &
+    Perhaps the current wavefunction file records natural orbitals, or smearing is enabled when generating this file"
 end if
 end subroutine
 

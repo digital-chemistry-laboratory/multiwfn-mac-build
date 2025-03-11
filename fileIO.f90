@@ -127,7 +127,8 @@ else if (thisfilename(inamelen-2:inamelen)=="gbw") then
 		end if
 	end if
 else if (index(thisfilename,"POSCAR")/=0.and.index(thisfilename,".in")==0) then !If file name contains POSCAR while do not have .in or .inp, load as VASP POSCAR
-    call readPOSCAR(thisfilename,infomode)
+    write(*,"(a)") " Because the input file name contains ""POSCAR"", this file will be loaded as the POSCAR file of VASP"
+	call readPOSCAR(thisfilename,infomode)
 else if (index(filenameonly,"CHGCAR")/=0.or.index(filenameonly,"CHG")/=0.or.index(filenameonly,"ELFCAR")/=0.or.index(filenameonly,"LOCPOT")/=0) then
     call readVASPgrd(thisfilename,infomode)
 else !Plain text file
@@ -2099,18 +2100,14 @@ cellv3=cellv3*sclfac/b2a
 ifPBC=3
 
 !Test how many types
-read(10,*)
 read(10,"(a)") c200tmp
-call numdatastr(c200tmp,ntype)
-if (ntype>0) then !Element name is explicitly given
+read(c200tmp,*,iostat=ierror) i
+if (ierror/=0) then !Element name is explicitly given
     backspace(10)
-    backspace(10)
+	call numdatastr(c200tmp,ntype)
     read(10,*) atype(1:ntype) !Read element names
     read(10,*) anum(1:ntype) !Read number of atoms of each type
 else !Element name is not explicitly given
-    backspace(10)
-    backspace(10)
-    read(10,"(a)") c200tmp
     call numdatastr(c200tmp,ntype)
     read(c200tmp,*) anum(1:ntype)
     write(*,*) "Element name is not explicitly given in POSCAR, please manually input"
@@ -2754,7 +2751,7 @@ if (chartemp(1:11)==" ALPHA SPIN".or.chartemp(1:11)==" alpha spin") then
 		end do
 		if (name2(itmplen-1:itmplen)=="37".or.name2(itmplen-1:itmplen)=="39") read(10,*) MOocc(nbasis+1:nbasis+nNAOs)
 	else
-		write(*,*) "Warning: Beta-spin information are not found in this file!"
+		write(*,*) "Warning: Beta-spin information was not found in this file!"
 		write(*,*)
 	end if
 	naelec=sum(MOocc(1:nbasis))
@@ -3989,7 +3986,7 @@ do iwfxtime=1,nwfxtime
 	deallocate(EDFCOtmp,EDFexptmp,EDFtypetmp)
 	close(10)
 end do
-write(*,*) "The EDF information have been loaded"
+write(*,*) "The EDF information has been loaded"
 end subroutine
 
 
@@ -5799,7 +5796,7 @@ open(ifileid,file=outgjfname,status="replace")
 !Determine net charge and spin multiplicity
 if (loadcharge==-99) then !Not loaded from input file
     netcharge=nint(sum(a%charge)-nelec)
-    if (nelec==0) netcharge=0 !nelec==0 means no electron informations, e.g. pdb file
+    if (nelec==0) netcharge=0 !nelec==0 means no electron information, e.g. pdb file
 else
     netcharge=loadcharge
 end if
@@ -5987,7 +5984,7 @@ if (allocated(CObasa)) then
 	if (selectyn=='y'.or.selectyn=='Y') ioutguess=1
 end if
 netcharge=nint(sum(a%charge)-nelec)
-if (nelec==0) netcharge=0 !nelec==0 means no electron informations, e.g. pdb file
+if (nelec==0) netcharge=0 !nelec==0 means no electron information, e.g. pdb file
 mult=nint(naelec-nbelec)+1
 iopsh=0
 if (mult/=1.or.wfntype==1.or.wfntype==4) iopsh=1
@@ -6438,7 +6435,7 @@ keyword=trim(keyword)//" noautostart miniprint"
 
 if (loadcharge==-99) then !Not loaded from input file
     netcharge=nint(sum(a%charge)-nelec)
-    if (nelec==0) netcharge=0 !nelec==0 means no electron informations, e.g. pdb file
+    if (nelec==0) netcharge=0 !nelec==0 means no electron information, e.g. pdb file
 else
     netcharge=loadcharge
 end if
@@ -6699,7 +6696,7 @@ use defvar
 character(len=*) outname
 open(ifileid,file=outname,status="replace")
 netcharge=nint(sum(a%charge)-nelec)
-if (nelec==0) netcharge=0 !nelec==0 means no electron informations, e.g. pdb file
+if (nelec==0) netcharge=0 !nelec==0 means no electron information, e.g. pdb file
 write(ifileid,"(a,i3)") "charge",netcharge
 write(ifileid,"(a)") "GEOMETRY"
 do i=1,ncenter
@@ -6817,7 +6814,7 @@ if (isolv==1) then
 end if
 
 netcharge=nint(sum(a%charge)-nelec)
-if (nelec==0) netcharge=0 !nelec==0 means no electron informations, e.g. pdb file
+if (nelec==0) netcharge=0 !nelec==0 means no electron information, e.g. pdb file
 write(chargestr,"(i4)") netcharge
 chargestr=adjustl(chargestr)
 multival=nint(naelec-nbelec)+1
@@ -7023,7 +7020,7 @@ else if (isel==2.or.isel==3) then !Single point, optimization
     end do
     
     netcharge=nint(sum(a%charge)-nelec)
-    if (nelec==0) netcharge=0 !nelec==0 means no electron informations, e.g. pdb file
+    if (nelec==0) netcharge=0 !nelec==0 means no electron information, e.g. pdb file
     multi=nint(naelec-nbelec)+1
     
     !Write molecular geometry
@@ -7118,7 +7115,7 @@ use defvar
 character(len=*) outname
 open(ifileid,file=outname,status="replace")
 netcharge=nint(sum(a%charge)-nelec)
-if (nelec==0) netcharge=0 !nelec==0 means no electron informations, e.g. pdb file
+if (nelec==0) netcharge=0 !nelec==0 means no electron information, e.g. pdb file
 write(ifileid,"(a)") "basis=cc-pVDZ"
 write(ifileid,"(a)") "calc=CCSDT(Q)"
 write(ifileid,"(a,i2)") "charge=",netcharge
@@ -7142,7 +7139,7 @@ use defvar
 character(len=*) outname
 open(ifileid,file=outname,status="replace")
 netcharge=nint(sum(a%charge)-nelec)
-if (nelec==0) netcharge=0 !nelec==0 means no electron informations, e.g. pdb file
+if (nelec==0) netcharge=0 !nelec==0 means no electron information, e.g. pdb file
 write(ifileid,"(a)") "mol"
 do i=1,ncenter
 	write(ifileid,"(a,1x,3f14.8)") a(i)%name,a(i)%x*b2a,a(i)%y*b2a,a(i)%z*b2a
@@ -7164,7 +7161,7 @@ use defvar
 character(len=*) outname
 open(ifileid,file=outname,status="replace")
 netcharge=nint(sum(a%charge)-nelec)
-if (nelec==0) netcharge=0 !nelec==0 means no electron informations, e.g. pdb file
+if (nelec==0) netcharge=0 !nelec==0 means no electron information, e.g. pdb file
 write(ifileid,"(a)") "angstrom"
 write(ifileid,"(a)") "geometry={"
 do i=1,ncenter
@@ -7187,7 +7184,7 @@ use defvar
 character(len=*) outname
 open(ifileid,file=outname,status="replace")
 netcharge=nint(sum(a%charge)-nelec)
-if (nelec==0) netcharge=0 !nelec==0 means no electron informations, e.g. pdb file
+if (nelec==0) netcharge=0 !nelec==0 means no electron information, e.g. pdb file
 write(ifileid,"(a)") "&GATEWAY"
 write(ifileid,"(a)") "Coord"
 write(ifileid,"(i5)") ncenter
@@ -7244,7 +7241,7 @@ use defvar
 character(len=*) dalname,molname
 character tmpstr*5,c20tmp*20,c20tmp2*20
 netcharge=nint(sum(a%charge)-nelec)
-if (nelec==0) netcharge=0 !nelec==0 means no electron informations, e.g. pdb file
+if (nelec==0) netcharge=0 !nelec==0 means no electron information, e.g. pdb file
 if (dalname/=" ") then
 	open(ifileid,file=dalname,status="replace")
 	write(ifileid,"(a)") "**DALTON INPUT"

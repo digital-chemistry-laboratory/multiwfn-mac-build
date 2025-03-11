@@ -76,7 +76,7 @@ fragfilename=" "
 ! fragfilename(1)="examples\CDA\COBH3\CO.fch"
 ! fragfilename(2)="examples\CDA\COBH3\BH3.fch"
 
-do ifrag=0,nCDAfrag !Here we first gather basic informations of complex(ifrag=0) and fragments(ifrag>0)
+do ifrag=0,nCDAfrag !Here we first gather basic information of complex(ifrag=0) and fragments(ifrag>0)
 	if (ifrag==0) then
 		fragfilename(ifrag)=filename !The file loaded when Multiwfn boots up
 		write(*,*) "Loading basic information of complex... Please wait"
@@ -1167,7 +1167,7 @@ do while(.true.)
 			write(*,*)
 			if (iout==10) then
 				close(10)
-				write(*,*) "Done! Information have been output to CDA.txt in current folder"
+				write(*,*) "Done! Information has been output to CDA.txt in current folder"
 				write(*,*)
 			end if
 		end do

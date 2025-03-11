@@ -378,7 +378,7 @@ do while(.true.)
 					end do
 				end do
 				close(10)
-				write(*,*) "Done, path information have been saved to paths.txt in current folder"
+				write(*,*) "Done, path information has been saved to paths.txt in current folder"
 				write(*,"(a)") " Units are in Bohr. The first line corresponds to the number of paths"
 				
 			else if (isel2==5) then
@@ -403,7 +403,7 @@ do while(.true.)
 						end do
 					end do
 					close(10)
-					write(*,*) "Done, path information have been recovered from the file"
+					write(*,*) "Done, path information has been recovered from the file"
 				end if
 				
 			else if (isel2==6.or.isel2==-6) then
@@ -605,7 +605,7 @@ do while(.true.)
 						read(10,*) nouse,CPpos(:,icp),CPtype(icp)
 					end do
 					close(10)
-					write(*,*) "Done, CP information have been retrieved from the file"
+					write(*,*) "Done, CP information has been retrieved from the file"
 				end if
 			else if (isel2==6.or.isel2==-6) then
 				open(10,file="CPs.pdb",status="replace")
@@ -634,7 +634,7 @@ do while(.true.)
 						if (CPtype_tmp(icp)==4) write(10,"(a6,i5,1x,a4,1x,a3, 1x,a1,i4,4x,3f8.3,2f6.2,10x,a2)") "HETATM",icp,' '//"F "//' ',"CPS",'A',CP_tmp_idx(icp),CPpos_tmp(:,icp)*b2a,1.0,0.0,"F "
 					end do
                 end if
-				write(*,*) "Done, CP information have been saved to CPs.pdb in current folder"
+				write(*,*) "Done, CP information has been saved to CPs.pdb in current folder"
 				write(*,*) "Note: Element C/N/O/F correspond to (3,-3)/(3,-1)/(3,+1)/(3,+3), respectively"
                 if (isel2==-6) write(*,"(a)") " For image CPs at cell boundary, their residue index corresponds to index of unique CP"
 				close(10)

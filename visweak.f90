@@ -82,10 +82,13 @@ real*8,allocatable :: scatterx(:),scattery(:)
 write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
 write(*,*) "  Original paper of aNCI: J. Chem. Theory Comput., 9, 2226 (2013)"
 write(*,"(a)") "   A nice comprehensive review: Tian Lu, Qinxue Chen, Visualization Analysis of &
-&Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
+&Weak Interactions in Chemical Systems. In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
 
 write(*,*)
-write(*,*) "Input range of the frames to be analyzed, e.g. 150,400 means 150~400 frames"
+write(*,"(a)") " NOTE: amIGM is the significantly better choice than aNCI! Please consider to use amIGM instead"
+
+write(*,*)
+write(*,*) "Input range of the frames to be analyzed, e.g. 150,400 means 150 to 400 frames"
 write(*,*) "Note: The frame index starts from 1"
 read(*,*) ifpsstart,ifpsend
 nfps=ifpsend-ifpsstart+1
@@ -392,7 +395,7 @@ else if (iIGMtype==2) then
     write(*,*) "Tian Lu, Qinxue Chen, ChemRxiv (2022) DOI: 10.26434/chemrxiv-2022-g1m34"
 end if
 write(*,"(a)") "   A nice comprehensive review: Tian Lu, Qinxue Chen, Visualization Analysis of &
-&Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
+&Weak Interactions in Chemical Systems. In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
 
 !----- Define fragments
 write(*,*)
@@ -1128,11 +1131,11 @@ real*8 prorho,prograd(3),atmprorho(ncenter),atmprograd(3,ncenter),atmgrad(3),ato
 
 write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
 write(*,"(a)") "   Original paper of aIGM: Tian Lu, Qinxue Chen, Visualization Analysis of &
-&Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
+&Weak Interactions in Chemical Systems. In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
 
 if (iIGMtype==1) then
 	write(*,*)
-	write(*,"(a)") " Warning: amIGM is a significantly better choice than aIGM! Please consider to use amIGM instead"
+	write(*,"(a)") " Warning: amIGM is the significantly better choice than aIGM! Please consider to use amIGM instead"
 end if
 
 write(*,*)

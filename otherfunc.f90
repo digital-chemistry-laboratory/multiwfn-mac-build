@@ -413,14 +413,14 @@ if (iwork==1) then !NCI
     write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
     write(*,*) "  Original paper of NCI: J. Am. Chem. Soc., 132, 6498 (2010)"
 	write(*,"(a)") "   A nice comprehensive review: Tian Lu, Qinxue Chen, Visualization Analysis of &
-	&Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
+	&Weak Interactions in Chemical Systems. In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
 else if (iwork==2) then !NCI based on promolecular approximation
 	iselfunc1=16
 	iselfunc2=14
     write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
     write(*,*) "  Original paper of NCI: J. Am. Chem. Soc., 132, 6498 (2010)"
 	write(*,"(a)") "   A nice comprehensive review: Tian Lu, Qinxue Chen, Visualization Analysis of &
-	&Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
+	&Weak Interactions in Chemical Systems. In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
 else if (iwork==4) then !IRI
 	iselfunc1=15
 	iuserfunc_old=iuserfunc
@@ -430,7 +430,7 @@ else if (iwork==4) then !IRI
     write(*,"(a)") "  Original paper of IRI: Tian Lu, Qinxue Chen, Interaction Region Indicator (IRI): A Simple Real Space Function &
     &Clearly Revealing Both Chemical Bonds and Weak Interactions, Chemistry-Methods, 1, 231-239 (2021) DOI: 10.1002/cmtd.202100007"   
 	write(*,"(a)") "  A nice comprehensive review: Tian Lu, Qinxue Chen, Visualization Analysis of &
-	&Weak Interactions in Chemical Systems DOI: 10.1016/B978-0-12-821978-2.00076-3"
+	&Weak Interactions in Chemical Systems. In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
 else if (iwork==5) then !DORI
 	iselfunc1=15
 	iuserfunc_old=iuserfunc
@@ -4288,7 +4288,7 @@ do i=1,nfrag
 	end if
 end do
 if (iopsh==1) nmo_all=nmoa_all+nmob_all
-if (isamebas==1) then !These information are identical for all fragments, just take those of the last fragment
+if (isamebas==1) then !This information is identical for all fragments, just take those of the last fragment
 	ncenter_all=ncenter
 	nprims_all=nprims
 	nshell_all=nshell

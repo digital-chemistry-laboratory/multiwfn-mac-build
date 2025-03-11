@@ -2003,7 +2003,7 @@ do while(.true.)
             write(*,*) "Atom list:"
 		    call showcoordA(0)
         else
-			write(*,"(a)") " Note: There are more than 300 atoms, so their information are not shown here now. &
+			write(*,"(a)") " Note: There are more than 300 atoms, so their information is not shown here now. &
             &To print, in the manu bar please select ""Tools"" - ""Print XYZ coordinates"""
         end if
         call drawmolgui

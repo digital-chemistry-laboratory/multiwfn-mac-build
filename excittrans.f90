@@ -132,7 +132,7 @@ end subroutine
 !=============== Load and show basic information of all excited states
 !ioutinfo=1: Output summary  =0: Do not output summary
 !Loaded content: Total number of states, as well as spin multiplicity, energy, the number of MO pairs of each excited state
-!If these information have already been loaded previously, then this routine only show summary
+!If this information has already been loaded previously, then this routine only show summary
 subroutine loadallexcinfo(ioutinfo)
 use defvar
 use excitinfo
@@ -439,7 +439,7 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
             end if
         else if (iORCAsTD==1) then !sTDA or sTDDFT
             !If triplets=true, at least for ORCA 4.2, singlet and triplets are not outputted with clear labels, and transition strengths are always zero
-            !In this case their information are loaded together
+            !In this case their information is loaded together
 		    allexcmulti=1
             if (wfntype==0) then
                 call loclabel(10,"calculate triplets",ifound)
@@ -635,7 +635,7 @@ end subroutine
 
 
 !================ Load details of all excited states
-!If information have already been loaded previously, they will not be loaded again
+!If information has already been loaded previously, they will not be loaded again
 !Loaded content: MO index, excitation direction, determinant coefficient
 !ioutinfo=1: Output summary  =0: Do not output summary  =2: Print nothing
 subroutine loadallexccoeff(ioutinfo)
