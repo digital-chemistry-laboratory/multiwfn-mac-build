@@ -6399,6 +6399,10 @@ if (abs(itask)==7.and.isolv/=0) then
 end if
 
 !Generate keywords
+if ((itask==2.or.itask==3.or.itask==4.or.itask==5.or.itask==8).and.index(c200tmp,"strongSCF")/=0) then !Remove strongSCF when tightSCF is needed
+	itmp=index(c200tmp,"strongSCF")
+    c200tmp(itmp:)=" "
+end if
 if (itask==2) then !opt task uses tightSCF by default
     keyword=trim(c200tmp)//" opt"
     if (ilevel==22.and.idiffuse==0) keyword=trim(keyword)//" def2-SVP/C" !RI-TDDFT opt must use /C
