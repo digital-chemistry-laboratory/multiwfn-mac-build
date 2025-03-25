@@ -4052,7 +4052,7 @@ use defvar
 use util
 implicit real*8 (a-h,o-z)
 character(len=*) name
-character c80*80,c80tmp*80,symtmp*10
+character c80*80,c80tmp*80,c200tmp*200,symtmp*10
 integer,allocatable :: shelltype(:),shellcon(:),shell2atom(:) !The definition of shelltype is identical to .fch
 integer :: s2f(-5:5,21)=0 !Give shell type & orbital index to get functype
 real*8,allocatable :: primexp(:),concoeff(:)
@@ -4164,10 +4164,14 @@ call loclabel(10,"[Atoms]",ifound) !Return to [Atoms]
 if (ifound==0) call loclabel(10,"[ATOMS]",ifound)
 read(10,"(a)") c80
 !NOTICE: molden input file has a severe drawback, namely atomic charge is not explicitly recorded, this will be problematic when ECP is used
-!In Multiwfn, atomic index is determined according to atomic name, while "atom number" column is read as atomic charge. Therefore, if you already konw
+!In Multiwfn, atomic index is determined according to atomic name, while "atom number" column is read as atomic charge. Therefore, if you already know
 !current file have used ECP, then you can open the file and manually change the atomic number to atomic charge.
 do iatm=1,ncenter
-	read(10,*) c80,nouse,a(iatm)%charge,a(iatm)%x,a(iatm)%y,a(iatm)%z
+	read(10,"(a)") c200tmp
+	read(c200tmp,*,iostat=ierror) c80,nouse,a(iatm)%charge,a(iatm)%x,a(iatm)%y,a(iatm)%z
+    if (ierror/=0) then
+        read(c200tmp,*) c80,nouse,c80tmp,a(iatm)%x,a(iatm)%y,a(iatm)%z
+    end if
 	call lc2uc(c80(1:1)) !Convert to upper case
 	call uc2lc(c80(2:2)) !Convert to lower case
 	do i=0,nelesupp
@@ -4287,7 +4291,9 @@ read(10,*)
 do while(.true.)
 	read(10,*) iatm
 	do while(.true.)
-		read(10,*) c80,ncon
+		read(10,"(a)") c200tmp
+		if (c200tmp==" ") exit !This atom does not carry any basis function
+		read(c200tmp,*) c80,ncon
 		nshell=nshell+1
 		iaddnprmsh=0
 		do ish=1,ncon
@@ -4319,7 +4325,9 @@ read(10,*)
 do while(.true.)
 	read(10,*) iatm
 	do while(.true.)
-		read(10,*) c80,ncon
+		read(10,"(a)") c200tmp
+		if (c200tmp==" ") exit !This atom does not carry any basis function
+		read(c200tmp,*) c80,ncon
 		ishell=ishell+1
 		shell2atom(ishell)=iatm
 		!Determine shell type of basis function, here we first assume they are all Cartesian type
@@ -7935,7 +7943,7 @@ character(len=4) irrep(nmo)
 
 write(*,*) "Will the generated .mkl file be used for ORCA? (y/n)"
 read(*,*) selectyn
-if (selectyn=='y'.and.any(bastype>=5)) then
+if (selectyn=='y'.and.any(bastype(1:nbasis)>=5)) then
 	write(*,*) "Error: Some basis functions are Cartesian type, however, ORCA only supports spherical-harmonic basis functions"
     write(*,*) "Press ENTER button to return"
     read(*,*)
