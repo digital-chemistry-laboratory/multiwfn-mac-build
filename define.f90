@@ -299,6 +299,7 @@ integer :: nbasis=0,nbasisCar=0,nshell=0,nprimshell=0 !The number of basis (actu
 integer :: nindbasis=0 !Number of independent basis functions. Can directly load from fch and mwfn. For other case like molden, nindbasis keeps 0, means undetermined
 integer,allocatable :: shtype(:),shtypeCar(:),shcon(:),shcen(:) !Type, contraction degree and attributed center of a basis shell
 real*8,allocatable :: primshexp(:),primshcoeff(:) !Exponent and contraction coefficient of a primitive shell
+   !Note: Sizes of basshell, bascen, etc. may be larger than the number of actual basis functions, because they are initially allocated for Cartesian basis functions, which may have larger number
 integer,allocatable :: basshell(:) !The ith element is the shell index that the ith basis attributed to
 integer,allocatable :: bascen(:),bastype(:) !Center/type of basis, definition is the same as GTF
 integer,allocatable :: basstart(:),basend(:) !The ith element means the basis from where to where is attributed to the ith atom. If any of them is 0, that means this atom does not have basis function

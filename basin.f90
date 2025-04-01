@@ -4684,7 +4684,7 @@ character c80tmp*80,c200tmp*200,c10000tmp*10000
 integer :: basinnatm(numrealatt) !=-1: Core basin, =n: n-synapatic basin
 integer :: basinatm(20,numrealatt) !basinatm(1:abs(basinnatm(i)),i): Atom indices of basin i
 integer :: tmparr(20),arrtmp(numrealatt)
-real*8 :: basinpop(numrealatt),basinvol(numrealatt),basinpop_priv(numrealatt),basinvol_priv(numrealatt) !Population and volume of basins
+real*8 :: basinpop(-1:numrealatt),basinvol(-1:numrealatt),basinpop_priv(-1:numrealatt),basinvol_priv(-1:numrealatt) !Population and volume of basins
 integer :: basinidx(numrealatt) !Record indices of sorted basins according to basin label
 !ELFcore_r(i) is the radius (Bohr) of outermost ELF minimum of isolate atom of element i, manually determined for atomic wavefunctions in http://sobereva.com/235
 !A few transition metals have this radius even smaller than 1.0, may be due to ELF is inadequate to &

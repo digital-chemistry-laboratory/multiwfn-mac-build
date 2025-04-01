@@ -23,7 +23,7 @@ do while(.true.)
 	write(*,*) "-1 Return"
 	write(*,*) "0 Save the present wavefunction to new.wfn file in current folder"
 	if (allocated(CObasa)) then
-		write(*,*) "1 List all GTFs                    2 List all basis function"
+		write(*,*) "1 List all GTFs                    2 List all basis functions"
 	else
 		write(*,*) "1 List all GTFs"
 	end if

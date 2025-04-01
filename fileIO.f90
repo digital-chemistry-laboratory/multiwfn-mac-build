@@ -1493,6 +1493,32 @@ do i=1,ncenter
     call elename2idx(a(i)%name,a(i)%index)
 end do
 
+call loclabel(10,"$periodic",ifound)
+if (ifound==1) then
+	read(10,*) c80tmp,ifPBC
+	call loclabel(10,"$lattice",ifound)
+	if (ifound==1) then
+		read(10,*)
+        cellv1=0
+        cellv2=0
+        cellv3=0
+        if (ifPBC==1) then !On X axis
+			read(10,*) cellv1(1)
+        else if (ifPBC==2) then !On xy plane
+			read(10,*) cellv1(1:2)
+			read(10,*) cellv2(1:2)
+        else if (ifPBC==3) then
+			read(10,*) cellv1
+			read(10,*) cellv2
+			read(10,*) cellv3
+        end if
+    else !Turbomole can also use $cell to record cell information by specifying cell lengths and angles, but this is not supported here
+		write(*,*) "Error: Unable to find ""$lattice"", now program exit"
+        read(*,*)
+        stop
+	end if
+end if
+
 close(10)
 
 a%charge=a%index
@@ -7251,16 +7277,98 @@ end subroutine
 subroutine outDaltoninp(dalname,molname,ifileid)
 use defvar
 character(len=*) dalname,molname
-character tmpstr*5,c20tmp*20,c20tmp2*20
+character tmpstr*5,c20tmp*20,c20tmp2*20,selectyn
+real*8 tmparr(nbasis),CObasa_reorder(nbasis,nbasis)
+integer ioutfmt
+integer reorder_d(5),reorder_f(7),reorder_g(9),reorder_h(11)
+
 netcharge=nint(sum(a%charge)-nelec)
 if (nelec==0) netcharge=0 !nelec==0 means no electron information, e.g. pdb file
 if (dalname/=" ") then
+	if (allocated(CObasa)) then
+		write(*,*) "Basis function information is currently available, do you want to also write orbital expansion coefficients &
+        into the .dal file, which can then be used as initial guess? (y/n)"
+        read(*,*) selectyn
+        if (selectyn=='y'.or.selectyn=='Y') then
+			if (any(bastype(1:nbasis)>=5)) then
+				write(*,*) "Error: Some basis functions are Cartesian type, however, only spherical-harmonic basis functions are supported"
+				write(*,*) "Press ENTER button to return"
+				read(*,*)
+				return
+			end if
+			write(*,*) "Choose the format of the coefficients to write:"
+            write(*,"(a)") " 1 Using 4F18.14 format, which can be loaded without modifying Dalton source code; but &
+            if a coefficient is very large, it cannot be properly written and loaded."
+            write(*,"(a)") " 2 Using 4E20.12, which can properly record any coefficient, but you need to &
+            modify ""DALTON/sirius/sirgp.F"" in DALTON source code folder, replacing ""PFMT = '(4F18.14)'"" with ""PFMT = '(4E20.12)'"", and then recompile."
+            read(*,*) ioutfmt
+			!Note: Order of pure shells of Dalton is D-2/-1/0/+1/+2, etc. Need conversion to CObasa_reorder
+			reorder_d(1:5)=(/ 5,3,1,2,4 /) !Mapping D0/+1/-1/+2/-2 to D-2/-1/0/+1/+2
+			reorder_f(1:7)=(/ 7,5,3,1,2,4,6 /) !Mapping F0/+1/-1/+2/-2/+3/-3 to F-3/-2/-1/0/+1/+2/+3
+			reorder_g(1:9)=(/ 9,7,5,3,1,2,4,6,8 /) !Mapping G0/+1/-1/+2/-2/+3/-3/+4/-4 to G-4/-3/-2/-1/0/+1/+2/+3/+4
+			reorder_h(1:11)=(/ 11,9,7,5,3,1,2,4,6,8,10 /) !Mapping H0/+1/-1/+2/-2/+3/-3/+4/-4/+5/-5 to G-5/-4/-3/-2/-1/0/+1/+2/+3/+4/+5
+			ibas=1
+			do while(.true.)
+				if (bastype(ibas)>=0) then !S,P
+                    CObasa_reorder(ibas,:)=CObasa(ibas,:)
+                    ibas=ibas+1
+                else if (bastype(ibas)>=-5.and.bastype(ibas)<=-1) then !D
+					do itmp=1,5
+						CObasa_reorder(ibas+itmp-1,:)=CObasa(ibas+reorder_d(itmp)-1,:)
+                    end do
+                    ibas=ibas+5
+                else if (bastype(ibas)>=-12.and.bastype(ibas)<=-6) then !F
+					do itmp=1,7
+						CObasa_reorder(ibas+itmp-1,:)=CObasa(ibas+reorder_f(itmp)-1,:)
+                    end do
+                    ibas=ibas+7
+                else if (bastype(ibas)>=-21.and.bastype(ibas)<=-13) then !G
+					do itmp=1,9
+						CObasa_reorder(ibas+itmp-1,:)=CObasa(ibas+reorder_g(itmp)-1,:)
+                    end do
+                    ibas=ibas+9
+                else if (bastype(ibas)>=-32.and.bastype(ibas)<=-22) then !H
+					do itmp=1,11
+						CObasa_reorder(ibas+itmp-1,:)=CObasa(ibas+reorder_h(itmp)-1,:)
+                    end do
+                    ibas=ibas+11
+                end if
+                if (ibas>nbasis) exit
+            end do
+        end if
+    end if
 	open(ifileid,file=dalname,status="replace")
 	write(ifileid,"(a)") "**DALTON INPUT"
 	write(ifileid,"(a)") ".RUN WAVE FUNCTIONS"
 	write(ifileid,"(a)") "**WAVE FUNCTIONS"
 	write(ifileid,"(a)") ".DFT"
 	write(ifileid,"(a)") " B3LYPg"
+    if (selectyn=='y'.or.selectyn=='Y') then
+		write(ifileid,"(a)") "*ORBITAL"
+		write(ifileid,"(a)") ".MOSTART"
+		write(ifileid,"(a)") " FORM18"
+		write(ifileid,"(a)") "**MOLORB (Punched by Multiwfn)"
+        !Note that the order of basis functions is dependent of occurrence order of atom types, which is considered here
+        do imo=1,nmo
+			itmp=0
+            ibas=1
+			do iele=1,nelesupp
+				do iatm=1,ncenter
+					if (a(iatm)%index==iele) then
+						itmp=itmp+1
+                        nbastmp=basend(iatm)-basstart(iatm)+1
+						tmparr(ibas:ibas+nbastmp-1)=CObasa_reorder(basstart(iatm):basend(iatm),imo)
+                        ibas=ibas+nbastmp
+					end if
+				end do
+			end do
+			if (ioutfmt==1) then
+				write(ifileid,"(4F18.14)") tmparr
+			else
+				write(ifileid,"(4E20.12)") tmparr
+			end if
+        end do
+    end if
 	write(ifileid,"(a)") "**END OF INPUT"
 	close(ifileid)
 	write(*,"(a)") " Exporting .dal file finished! It corresponds to single point task using B3LYPg functional"
