@@ -7278,9 +7278,10 @@ subroutine outDaltoninp(dalname,molname,ifileid)
 use defvar
 character(len=*) dalname,molname
 character tmpstr*5,c20tmp*20,c20tmp2*20,selectyn
-real*8 tmparr(nbasis),CObasa_reorder(nbasis,nbasis)
+real*8 tmparr(nbasis),CObasa_reorder(nbasis,nbasis),CObasa_reordertmp(nbasis,nbasis)
 integer ioutfmt
-integer reorder_d(5),reorder_f(7),reorder_g(9),reorder_h(11)
+integer reorder_d_sph(5),reorder_f_sph(7),reorder_g_sph(9),reorder_h_sph(11)
+integer reorder_d_car(6),reorder_f_car(10),reorder_g_car(15),reorder_h_car(21)
 
 netcharge=nint(sum(a%charge)-nelec)
 if (nelec==0) netcharge=0 !nelec==0 means no electron information, e.g. pdb file
@@ -7290,8 +7291,10 @@ if (dalname/=" ") then
         into the .dal file, which can then be used as initial guess? (y/n)"
         read(*,*) selectyn
         if (selectyn=='y'.or.selectyn=='Y') then
+			!Although in the following code, the order of Cartesian shell is properly converted, finally I decide not to support
+			!Because for >=D shell, the normalization rule of Cartesian basis function in Dalton is strange, which alters the coefficients that should be written
 			if (any(bastype(1:nbasis)>=5)) then
-				write(*,*) "Error: Some basis functions are Cartesian type, however, only spherical-harmonic basis functions are supported"
+				write(*,"(a)") " Error: Some basis functions are Cartesian type, however, only spherical-harmonic basis functions are supported by this function"
 				write(*,*) "Press ENTER button to return"
 				read(*,*)
 				return
@@ -7303,38 +7306,90 @@ if (dalname/=" ") then
             modify ""DALTON/sirius/sirgp.F"" in DALTON source code folder, replacing ""PFMT = '(4F18.14)'"" with ""PFMT = '(4E20.12)'"", and then recompile."
             read(*,*) ioutfmt
 			!Note: Order of pure shells of Dalton is D-2/-1/0/+1/+2, etc. Need conversion to CObasa_reorder
-			reorder_d(1:5)=(/ 5,3,1,2,4 /) !Mapping D0/+1/-1/+2/-2 to D-2/-1/0/+1/+2
-			reorder_f(1:7)=(/ 7,5,3,1,2,4,6 /) !Mapping F0/+1/-1/+2/-2/+3/-3 to F-3/-2/-1/0/+1/+2/+3
-			reorder_g(1:9)=(/ 9,7,5,3,1,2,4,6,8 /) !Mapping G0/+1/-1/+2/-2/+3/-3/+4/-4 to G-4/-3/-2/-1/0/+1/+2/+3/+4
-			reorder_h(1:11)=(/ 11,9,7,5,3,1,2,4,6,8,10 /) !Mapping H0/+1/-1/+2/-2/+3/-3/+4/-4/+5/-5 to G-5/-4/-3/-2/-1/0/+1/+2/+3/+4/+5
+			reorder_d_sph(1:5)=(/ 5,3,1,2,4 /) !Mapping D0/+1/-1/+2/-2 to D-2/-1/0/+1/+2
+			reorder_f_sph(1:7)=(/ 7,5,3,1,2,4,6 /) !Mapping F0/+1/-1/+2/-2/+3/-3 to F-3/-2/-1/0/+1/+2/+3
+			reorder_g_sph(1:9)=(/ 9,7,5,3,1,2,4,6,8 /) !Mapping G0/+1/-1/+2/-2/+3/-3/+4/-4 to G-4/-3/-2/-1/0/+1/+2/+3/+4
+			reorder_h_sph(1:11)=(/ 11,9,7,5,3,1,2,4,6,8,10 /) !Mapping H0/+1/-1/+2/-2/+3/-3/+4/-4/+5/-5 to G-5/-4/-3/-2/-1/0/+1/+2/+3/+4/+5
+            !Mapping XX,YY,ZZ,XY,XZ,YZ to &
+            !        XX,XY,XZ,YY,YZ,ZZ
+            reorder_d_car(1:6)=(/ 1,4,5,2,6,3 /) 
+            !Mapping XXX,YYY,ZZZ,XXY,XXZ, YYZ,XYY,XZZ,YZZ,XYZ to &
+            !        XXX,XXY,XXZ,XYY,XYZ, XZZ,YYY,YYZ,YZZ,ZZZ
+            reorder_f_car(1:10)=(/ 1,4,5,7,10,8,2,6,9,3 /) 
+            !Mapping ZZZZ,YZZZ,YYZZ,YYYZ,YYYY, XZZZ,XYZZ,XYYZ,XYYY,XXZZ, XXYZ,XXYY,XXXZ,XXXY,XXXX to &
+            !        XXXX,XXXY,XXXZ,XXYY,XXYZ, XXZZ,XYYY,XYYZ,XYZZ,XZZZ, YYYY,YYYZ,YYZZ,YZZZ,ZZZZ
+            reorder_g_car(1:15)=(/ 15,14,13,12,11, 10,9,8,7,6, 5,4,3,2,1 /) 
+            !Mapping ZZZZZ,YZZZZ,YYZZZ,YYYZZ,YYYYZ, YYYYY,XZZZZ,XYZZZ,XYYZZ,XYYYZ, XYYYY,XXZZZ,XXYZZ,XXYYZ,XXYYY, XXXZZ,XXXYZ,XXXYY,XXXXZ,XXXXY, XXXXX to &
+            !        XXXXX,XXXXY,XXXXZ,XXXYY,XXXYZ, XXXZZ,XXYYY,XXYYZ,XXYZZ,XXZZZ, XYYYY,XYYYZ,XYYZZ,XYZZZ,XZZZZ, YYYYY,YYYYZ,YYYZZ,YYZZZ,YZZZZ, ZZZZZ
+            reorder_h_car(1:21)=(/ 21,20,19,18,17,16,15,14,13,12,11,10,9,8,7,6,5,4,3,2,1 /) 
 			ibas=1
 			do while(.true.)
 				if (bastype(ibas)>=0) then !S,P
                     CObasa_reorder(ibas,:)=CObasa(ibas,:)
                     ibas=ibas+1
-                else if (bastype(ibas)>=-5.and.bastype(ibas)<=-1) then !D
+                else if (bastype(ibas)>=-5.and.bastype(ibas)<=-1) then !D spherical
 					do itmp=1,5
-						CObasa_reorder(ibas+itmp-1,:)=CObasa(ibas+reorder_d(itmp)-1,:)
+						CObasa_reorder(ibas+itmp-1,:)=CObasa(ibas+reorder_d_sph(itmp)-1,:)
                     end do
                     ibas=ibas+5
-                else if (bastype(ibas)>=-12.and.bastype(ibas)<=-6) then !F
+                else if (bastype(ibas)>=5.and.bastype(ibas)<=10) then !D Cartesian
+					do itmp=1,6
+						CObasa_reorder(ibas+itmp-1,:)=CObasa(ibas+reorder_d_car(itmp)-1,:)
+                    end do
+                    ibas=ibas+6
+                else if (bastype(ibas)>=-12.and.bastype(ibas)<=-6) then !F spherical
 					do itmp=1,7
-						CObasa_reorder(ibas+itmp-1,:)=CObasa(ibas+reorder_f(itmp)-1,:)
+						CObasa_reorder(ibas+itmp-1,:)=CObasa(ibas+reorder_f_sph(itmp)-1,:)
                     end do
                     ibas=ibas+7
-                else if (bastype(ibas)>=-21.and.bastype(ibas)<=-13) then !G
+                else if (bastype(ibas)>=11.and.bastype(ibas)<=20) then !F Cartesian
+					do itmp=1,10
+						CObasa_reorder(ibas+itmp-1,:)=CObasa(ibas+reorder_f_car(itmp)-1,:)
+                    end do
+                    ibas=ibas+10
+                else if (bastype(ibas)>=-21.and.bastype(ibas)<=-13) then !G spherical
 					do itmp=1,9
-						CObasa_reorder(ibas+itmp-1,:)=CObasa(ibas+reorder_g(itmp)-1,:)
+						CObasa_reorder(ibas+itmp-1,:)=CObasa(ibas+reorder_g_sph(itmp)-1,:)
                     end do
                     ibas=ibas+9
-                else if (bastype(ibas)>=-32.and.bastype(ibas)<=-22) then !H
+                else if (bastype(ibas)>=21.and.bastype(ibas)<=35) then !G Cartesian
+					do itmp=1,15
+						CObasa_reorder(ibas+itmp-1,:)=CObasa(ibas+reorder_g_car(itmp)-1,:)
+                    end do
+                    ibas=ibas+15
+                else if (bastype(ibas)>=-32.and.bastype(ibas)<=-22) then !H spherical
 					do itmp=1,11
-						CObasa_reorder(ibas+itmp-1,:)=CObasa(ibas+reorder_h(itmp)-1,:)
+						CObasa_reorder(ibas+itmp-1,:)=CObasa(ibas+reorder_h_sph(itmp)-1,:)
                     end do
                     ibas=ibas+11
+                else if (bastype(ibas)>=36.and.bastype(ibas)<=56) then !H Cartesian
+					do itmp=1,21
+						CObasa_reorder(ibas+itmp-1,:)=CObasa(ibas+reorder_h_car(itmp)-1,:)
+                    end do
+                    ibas=ibas+21
                 end if
                 if (ibas>nbasis) exit
             end do
+            !Reorder shell according to angular moment. In Dalton, shells in each atom are always in S, P, D, F... sequence
+            CObasa_reordertmp=CObasa_reorder
+            itmp=0
+            do iatm=1,ncenter !Loop atoms
+				do iang=0,5 !Loop angular moment from S to H
+					do ibas=basstart(iatm),basend(iatm)
+						itype=bastype(ibas)
+						if ((iang==0.and.itype==1) .or. (iang==1.and.itype>=2.and.itype<=4) .or. (iang==2.and.itype>=-5.and.itype<=-1) &
+                        .or. (iang==3.and.itype>=-12.and.itype<=-6) .or. (iang==4.and.itype>=-21.and.itype<=-13) .or. (iang==5.and.itype>=-32.and.itype<=-22)) then
+                        itmp=itmp+1
+                        CObasa_reorder(itmp,:)=CObasa_reordertmp(ibas,:)
+                        end if
+                    end do
+					write(*,*) iatm,iang,itmp
+				end do
+            end do
+            if (wfntype==1.or.wfntype==4) then
+				write(*,"(/,a)") " Warning: Dalton is unable to perform unrestricted calculation, while present wavefunction is unrestricted. &
+				&Only alpha orbitals are written to .dal file"
+            end if
         end if
     end if
 	open(ifileid,file=dalname,status="replace")
@@ -7349,7 +7404,7 @@ if (dalname/=" ") then
 		write(ifileid,"(a)") " FORM18"
 		write(ifileid,"(a)") "**MOLORB (Punched by Multiwfn)"
         !Note that the order of basis functions is dependent of occurrence order of atom types, which is considered here
-        do imo=1,nmo
+        do imo=1,nbasis
 			itmp=0
             ibas=1
 			do iele=1,nelesupp
@@ -7386,7 +7441,11 @@ write(c20tmp,"(i5)") natmtype
 c20tmp=adjustl(c20tmp)
 write(c20tmp2,"(i5)") netcharge
 c20tmp2=adjustl(c20tmp2)
-write(ifileid,"(a,a,a,a)") "Atomtypes=",trim(c20tmp)," Angstrom Nosymmetry charge=",trim(c20tmp2)
+if (selectyn=='n'.or.isphergau==1) then
+	write(ifileid,"(a,a,a,a)") "Atomtypes=",trim(c20tmp)," Angstrom Nosymmetry charge=",trim(c20tmp2)
+else
+	write(ifileid,"(a,a,a,a,' Cartesian')") "Atomtypes=",trim(c20tmp)," Angstrom Nosymmetry charge=",trim(c20tmp2)
+end if
 do iele=1,nelesupp
 	natmthis=count(a%index==iele)
 	if (natmthis>0) then	

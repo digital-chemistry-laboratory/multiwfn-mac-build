@@ -31,19 +31,20 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), update date: 2025-Mar-31"
+write(*,*) "Version 3.8(dev), update date: 2025-Apr-5"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
 write(*,*) "Multiwfn English forum: http://sobereva.com/wfnbbs"
 write(*,*) "Multiwfn Chinese forum: http://bbs.keinsci.com/wfn"
-write(*,*) "Both following papers ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used:"
-write(*,*) "         Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580-592 (2012)"
-write(*,*) "         Tian Lu, J. Chem. Phys., 161, 082503 (2024)"
-write(*,*) "See ""How to cite Multiwfn.pdf"" in Multiwfn binary package for more information"
 
 call date_and_time(nowdate,nowtime)
-write(*,"(/,' ( Number of parallel threads:',i4,'  Current date: ',a,'-',a,'-',a,'  Time: ',a,':',a,':',a,' )')") &
+write(*,"(' ( Number of parallel threads:',i4,'  Current date: ',a,'-',a,'-',a,'  Time: ',a,':',a,':',a,' )')") &
 nthreads,nowdate(1:4),nowdate(5:6),nowdate(7:8),nowtime(1:2),nowtime(3:4),nowtime(5:6)
+write(*,*)
+write(*,*) "Both following papers ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used:"
+write(*,*) " Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580 (2012) DOI: 10.1002/jcc.22885"
+write(*,*) " Tian Lu, J. Chem. Phys., 161, 082503 (2024) DOI: 10.1063/5.0216272"
+write(*,*) "See ""How to cite Multiwfn.pdf"" in Multiwfn binary package for more information"
 
 
 !!-------- Set up hardware resource information
@@ -81,10 +82,10 @@ call mkl_set_num_threads(nthreads)
 write(*,*)
 if (trim(filename)==" ") then !Haven't defined filename variable
 	call mylover(lovername)
-	write(*,"(a,a,a)") " Input file path, for example E:\",trim(lovername),".wfn"
-	write(*,*) "(.mwfn/wfn/wfx/fch/molden/pdb/xyz/mol2/cif/cub... see Section 2.5 of manual)"
-	write(*,"(a)") " Hint: Pressing ENTER button directly can select file in a GUI window. To reload the file last time used, simply input the letter ""o"". &
-	&Input such as ?miku.fch can open the miku.fch in the same folder as the file last time used."
+	write(*,"(a,a,a)") " Now input file path, for example, E:\",trim(lovername),".mwfn"
+	write(*,*) "(.wfn/wfn/wfx/fch/molden/pdb/xyz/mol2/cif/cub... see Section 2.5 of manual)"
+	write(*,"(a)") " Hint: Pressing ENTER button directly can select a file in a GUI window. To reload the past file, inputting ""o"". &
+	&Input such as ?miku.fch can open the miku.fch in the same folder as the past file"
 	do while(.true.)
 		read(*,"(a)") filename
 		if (filename=='o') then
