@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), update date: 2025-Apr-5"
+write(*,*) "Version 3.8(dev), update date: 2025-Apr-13"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
 write(*,*) "Multiwfn English forum: http://sobereva.com/wfnbbs"
@@ -256,6 +256,7 @@ end if
 
 
 !Special treatment and test new code
+!call denspolar_excit
 
 !!!--------------------- Now everything start ---------------------!!!
 do while(.true.) !Main loop

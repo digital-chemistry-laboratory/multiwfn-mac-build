@@ -78,6 +78,7 @@ do while(.true.)
 	write(*,*) "14 Calculate lambda index to characterize electron excitation (JCP,128,044118)"
 	write(*,*) "15 Print major MO transitions in all excited states"
 	write(*,*) "16 Charge-transfer spectrum (CTS) analysis (Carbon,187,78)"
+    write(*,*) "17 Electron density polarization analysis based on electron excitations"
 
 	read(*,*) isel
 	if (isel==-1) then
@@ -121,6 +122,8 @@ do while(.true.)
         call majorMOtrans
     else if (isel==16) then
         call CTspectrum
+    else if (isel==17) then
+        call denspolar_excit
 	end if
 end do
 end subroutine
@@ -154,9 +157,9 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
 		if (ifiletype==10) then
 			excitfilename=filename
 		else
-			write(*,"(a)") " Please input path of Gaussian/ORCA output file or plain text file, electron excitation information will be loaded from this file"
+			write(*,"(a)") " Input path of Gaussian/ORCA/CP2K output file or plain text file, electron excitation information will be loaded from this file, see Section 3.21.A of manual for detail"
 			write(*,*) "e.g. C:\lovelive\sunshine\yosoro.out"
-            if (ifiletype==1.or.ifiletype==9.or.ifiletype==14) write(*,"(a)") " Hint: If pressing ENTER button directly, the file with identical name as input file but &
+            if (ifiletype==1.or.ifiletype==9.or.ifiletype==14) write(*,"(a)") " Hint: If pressing ENTER button directly, the file with same name as input file but &
             &with .out or .log suffix will be loaded"
 			do while(.true.)
 				read(*,"(a)") excitfilename
@@ -1398,7 +1401,7 @@ end subroutine
 
 
 
-!============= A interface used to select an excited state 
+!============= The interface used to select an excited state 
 subroutine selexcit(istate)
 use excitinfo
 integer istate
@@ -6359,6 +6362,7 @@ end subroutine
 
 
 
+
 !!--------- Calculate hole and electron at a point
 !If a coefficient has magnitude less than skipthres (e.g. 0.01), then this configuration will be skipped
 !This code uses the same calculation method as subroutine hole_electron, but removed irrelevant codes
@@ -6439,4 +6443,271 @@ end if
 
 hole=hole+holecross
 ele=ele+elecross
+end subroutine
+
+
+
+
+!!----------- Calculate grid data of transition density of specific excited state
+!istate is the index of the excited state. transdens is the grid data
+subroutine calc_transdens(istate,transdens)
+use defvar
+use excitinfo
+use functions
+implicit real*8 (a-h,o-z)
+integer istate
+real*8 transdens(nx,ny,nz),orbval(nmo)
+
+call loadexccoeff(istate,0)    
+transdens=0
+ifinish=0
+ishowprog=1
+ntmp=floor(ny*nz/100D0)
+!$OMP PARALLEL DO SHARED(ifinish,ishowprog,transdens) &
+!$OMP PRIVATE(i,j,k,tmpx,tmpy,tmpz,orbval,imo,jmo,iexcitorb) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
+do k=1,nz
+	do j=1,ny
+		do i=1,nx
+			call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
+			call orbderv(1,1,nmo,tmpx,tmpy,tmpz,orbval)
+			do iexcitorb=1,excnorb
+				imo=orbleft(iexcitorb)
+				jmo=orbright(iexcitorb)
+				transdens(i,j,k)=transdens(i,j,k)+exccoeff(iexcitorb)*orbval(imo)*orbval(jmo)
+			end do
+		end do
+		if (ntmp/=0) then
+			!$OMP CRITICAL
+			ifinish=ifinish+1
+			ishowprog=mod(ifinish,ntmp)
+			if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+			!$OMP END CRITICAL
+		end if
+	end do
+end do
+!$OMP END PARALLEL DO
+if (ishowprog/=0) call showprog(100,100)
+if (wfntype==0.or.wfntype==3) then !For closed-shell wavefunction, the weights are normalized to 0.5 (or say the orbitals are doubly occupied), so correct it
+	transdens=transdens*2
+end if
+end subroutine
+
+
+
+    
+!!-------- Electron density polarization analysis based on electron excitations
+subroutine denspolar_excit
+use defvar
+use excitinfo
+use util
+use GUI
+implicit real*8 (a-h,o-z)
+integer nchg !Number of point charges
+real*8,allocatable :: chgx(:),chgy(:),chgz(:),chgval(:) !XYZ coordinate (Bohr) and value (e) of point charges
+real*8,allocatable :: extpot(:,:,:),transdens(:,:,:),denspolar(:,:,:)
+real*8,allocatable :: intval(:),E2(:),ck(:),ck_abs(:) !Various terms and contribution of excited states
+integer,allocatable :: maplist(:)
+character c80tmp*80
+
+if (ifPBC/=0) then
+	write(*,*) "Error: Periodic system is not supported!"
+    write(*,*) "Press ENTER button to return"
+    read(*,*)
+    return
+end if
+if (.not.allocated(CObasa)) then
+	write(*,*) "Error: The input file does not contain basis function information!"
+	write(*,"(a)") " Please carefully read Section 3.21 of manual to make clear which kinds of input files could be used!"
+	write(*,*) "Press ENTER button to exit"
+	read(*,*)
+	return
+end if
+
+write(*,*)
+call menutitle("Electron density polarization analysis based on electron excitations",10,2)
+
+write(*,*) "Input number of point charges to place. e.g. 3"
+write(*,*) "If pressing ENTER button directly, only one point charge will be placed"
+read(*,"(a)") c80tmp
+if (c80tmp==" ") then
+    nchg=1
+else
+    read(c80tmp,*) nchg
+end if
+allocate(chgx(nchg),chgy(nchg),chgz(nchg),chgval(nchg))
+
+do ichg=1,nchg
+    write(*,"(a,i5)") " Input X,Y,Z (in Angstrom) and value (in e) of point charge",ichg
+    write(*,*) "For example, 0.2,-0.13,3,0.05"
+    read(*,*) chgx(ichg),chgy(ichg),chgz(ichg),chgval(ichg)
+end do
+!chgx(1)=0.00001900D0
+!chgy(1)=-4.13786800D0
+!chgz(1)=0
+!chgval(1)=-0.1D0
+chgx=chgx/b2a
+chgy=chgy/b2a
+chgz=chgz/b2a
+
+write(*,*) "Placed point charges:"
+do ichg=1,nchg
+    write(*,"(i5,'   X=',f10.5,'   Y=',f10.5,'   Z=',f10.5,' Angstrom, Q=',f10.5,' e')") ichg,chgx(ichg)*b2a,chgy(ichg)*b2a,chgz(ichg)*b2a,chgval(ichg)
+end do
+
+write(*,*)
+call setgridfixspc
+
+allocate(extpot(nx,ny,nz),transdens(nx,ny,nz),denspolar(nx,ny,nz))
+if (allocated(cubmat)) deallocate(cubmat)
+allocate(cubmat(nx,ny,nz))
+
+write(*,*)
+call loadallexcinfo(1)
+
+allocate(intval(nstates),ck(nstates),ck_abs(nstates),E2(nstates),maplist(nstates))
+call gen_GTFuniq(1) !Generate unique GTFs, for faster evaluation
+call calc_dvol(dvol)
+
+call walltime(iwalltime1)
+
+write(*,*) "Calculating grid data of external potential..."
+extpot=0
+do k=1,nz
+	do j=1,ny
+		do i=1,nx
+			call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
+            do ichg=1,nchg
+				tmpr=dsqrt( (tmpx-chgx(ichg))**2 + (tmpy-chgy(ichg))**2 + (tmpz-chgz(ichg))**2 )
+				extpot(i,j,k)=extpot(i,j,k)-chgval(ichg)/tmpr !Beware that electron carries negative charge, so it is -chgval(ichg)/tmpr rather than chgval(ichg)/tmpr
+            end do
+		end do
+	end do
+end do
+
+!Loop excited states
+denspolar=0
+do istate=1,nstates
+    write(*,"(a,i5,'...')") " Calculating excited state",istate
+    call calc_transdens(istate,transdens)
+    intval(istate)=sum(transdens*extpot)*dvol
+    ck(istate)=intval(istate)/(-allexcene(istate)/au2eV)
+    E2(istate)=ck(istate)**2 *(-allexcene(istate)/au2eV)
+    denspolar=denspolar+2*ck(istate)*transdens
+end do
+
+call del_GTFuniq !Destory unique GTF informtaion
+call walltime(iwalltime2)
+write(*,"(' Calculation took up wall clock time',i10,' s',/)") iwalltime2-iwalltime1
+
+write(*,*) "Excited state contributions:"
+!write(*,*) " State #    Exc. Ene (Ha)      Int(a.u.)             c_k"
+!do istate=1,nstates
+!	write(*,"(i8,f16.6,2(1PE20.8))") istate,allexcene(istate)/au2eV,intval(istate),ck(istate)
+!end do
+write(*,*) " State #    Exc. Ene (Ha)       c_k          E2(kJ/mol)"
+do istate=1,nstates
+	write(*,"(i8,f16.6,2f16.8)") istate,allexcene(istate)/au2eV,ck(istate),E2(istate)*au2kJ
+end do
+
+ck_abs=abs(ck)
+forall(i=1:nstates) maplist(i)=i
+call sortr8(ck_abs,"abs",maplist)
+write(*,*)
+write(*,*) "Excited state contributions sorted by |c_k|:"
+!write(*,*) " State #    Exc. Ene (Ha)      Int(a.u.)             c_k"
+!do istate=nstates,1,-1
+!	write(*,"(i8,f16.6,2(1PE20.8))") maplist(istate),allexcene(maplist(istate))/au2eV,intval(maplist(istate)),ck(maplist(istate))
+!end do
+write(*,*) " State #    Exc. Ene (Ha)       c_k          E2(kJ/mol)"
+do istate=nstates,1,-1
+	write(*,"(i8,f16.6,2f16.8)") maplist(istate),allexcene(maplist(istate))/au2eV,ck(maplist(istate)),E2(maplist(istate))*au2kJ
+end do
+
+write(*,*)
+totalE2=sum(E2)
+write(*,"(' Total E2:',f12.6,' eV',' (',f10.4,' kJ/mol)')") totalE2*au2eV,totalE2*au2kJ
+write(*,"(' Integral of density polarization:',1PE18.8)") sum(denspolar)*dvol
+write(*,"(' Amount of electrons polarized:',f12.8)") sum(abs(denspolar))*dvol/2
+
+!Place point charges as Bq for visualization
+deallocate(a)
+ncenter=ncenter+nchg
+allocate(a(ncenter))
+a(1:ncenter_org)=a_org(:)
+do ichg=1,nchg
+    a(ncenter_org+ichg)%name="Bq"
+    a(ncenter_org+ichg)%index=0
+    a(ncenter_org+ichg)%charge=0
+    a(ncenter_org+ichg)%x=chgx(ichg)
+    a(ncenter_org+ichg)%y=chgy(ichg)
+    a(ncenter_org+ichg)%z=chgz(ichg)
+end do
+
+do while(.true.)
+	write(*,*)
+	call menutitle("Post-processing menu",10,1)
+	write(*,*) "0 Return"
+    write(*,*) "1 Visualize isosurface of density polarization"
+    write(*,*) "2 Visualize isosurface of transition density of an excited state"
+    write(*,*) "3 Visualize isosurface of external potential"
+    write(*,*) "10 Export grid data of density polarization"
+    write(*,*) "11 Export grid data of transition density of an excited state"
+    write(*,*) "12 Export grid data of external potential"
+    read(*,*) isel
+    if (isel==0) then
+        deallocate(a)
+        ncenter=ncenter_org
+        allocate(a(ncenter))
+        a=a_org
+		return
+    else if (isel==1) then
+	 	cubmat=denspolar
+	 	sur_value=1E-4
+        drawisosurgui_lowlim=0
+        drawisosurgui_highlim=0.003D0
+        drawisosurgui_SWGSTP=5E-5
+        isosur1style=1
+		call drawisosurgui(1)
+    else if (isel==2) then
+		write(*,*) "Input the index of the excited state of interest, e.g. 8"
+        read(*,*) istate
+        call calc_transdens(istate,transdens)
+	 	cubmat=transdens
+	 	sur_value=2E-3
+		drawisosurgui_lowlim=0
+		drawisosurgui_highlim=0.1D0
+        drawisosurgui_SWGSTP=5E-4
+		isosur1style=1
+		call drawisosurgui(1)
+    else if (isel==3) then
+	 	cubmat=extpot
+	 	sur_value=0.1D0
+        drawisosurgui_lowlim=-10
+        drawisosurgui_highlim=10
+        drawisosurgui_SWGSTP=0.01D0
+        isosur1style=1
+		call drawisosurgui(1)
+    else if (isel==10) then
+		write(*,*) "Exporting denspolar.cub, please wait..."
+		open(10,file="denspolar.cub",status="replace")
+		call outcube(denspolar,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
+		close(10)
+		write(*,*) "Done! Density polarization has been exported to denspolar.cub in current folder"
+    else if (isel==11) then
+		write(*,*) "Input the index of the excited state of interest, e.g. 8"
+        read(*,*) istate
+        call calc_transdens(istate,transdens)
+		write(*,*) "Exporting transdens.cub, please wait..."
+		open(10,file="transdens.cub",status="replace")
+		call outcube(transdens,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
+		close(10)
+		write(*,*) "Done! Transition density has been exported to transdens.cub in current folder"
+    else if (isel==12) then
+		write(*,*) "Exporting extpot.cub, please wait..."
+		open(10,file="extpot.cub",status="replace")
+		call outcube(extpot,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
+		close(10)
+		write(*,*) "Done! External potential has been exported to extpot.cub in current folder"
+    end if
+end do
 end subroutine

@@ -533,11 +533,11 @@ call wgbut(idisright,"Show cell",ishowcell,idisshowcell)
 if (ifPBC==0) call swgatt(idisshowcell,"INACTIVE","STATUS")
 call swgstp(drawisosurgui_SWGSTP) !Use smaller step size of scale bar than default
 if (sur_value>drawisosurgui_highlim) then !Do not let sur_value exceed axis range
-	call wgscl(idisright,"Isosurface value",drawisosurgui_lowlim,drawisosurgui_highlim,drawisosurgui_highlim,4,idisisosurscl)
+	call wgscl(idisright,"Isosurface value",drawisosurgui_lowlim,drawisosurgui_highlim,drawisosurgui_highlim,5,idisisosurscl)
 else if (sur_value<drawisosurgui_lowlim) then
-	call wgscl(idisright,"Isosurface value",drawisosurgui_lowlim,drawisosurgui_highlim,drawisosurgui_lowlim,4,idisisosurscl)
+	call wgscl(idisright,"Isosurface value",drawisosurgui_lowlim,drawisosurgui_highlim,drawisosurgui_lowlim,5,idisisosurscl)
 else
-	call wgscl(idisright,"Isosurface value",drawisosurgui_lowlim,drawisosurgui_highlim,sur_value,4,idisisosurscl)
+	call wgscl(idisright,"Isosurface value",drawisosurgui_lowlim,drawisosurgui_highlim,sur_value,5,idisisosurscl)
 end if
 if (imodlayout<=1) then
 	call SWGSTP(0.05D0)
@@ -1838,7 +1838,7 @@ if (GUI_mode==1) then
 	call GWGSCL(id,sur_value_orb)
 else if (GUI_mode==3) then
 	call GWGSCL(id,sur_value)
-	write(temp,"(f8.3)") sur_value
+	write(temp,"(f10.5)") sur_value
 	call SWGTXT(idisscrval,temp)
 end if
 call drawmol
