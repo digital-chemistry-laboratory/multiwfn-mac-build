@@ -3838,19 +3838,17 @@ if (iCP2K==1) then
             !Read IR/Raman intensities
 			if (ispectrum==2) read(10,*) !Skip IR line
 			do itmp=1,iread
+				read(10,"(a)") c80tmp
 				if (itmp==1) then
-					read(10,"(20x)",advance="no")
 					idxmode=inow
+					read(c80tmp(22:),*,iostat=ierror) str(idxmode)
                 else if (itmp==2) then
-					backspace(10)
-					read(10,"(36x)",advance="no")
 					idxmode=inow+1
+					read(c80tmp(36:),*,iostat=ierror) str(idxmode)
                 else if (itmp==3) then
-					backspace(10)
-					read(10,"(56x)",advance="no")
 					idxmode=inow+2
+					read(c80tmp(57:),*,iostat=ierror) str(idxmode)
                 end if
-                read(10,*,iostat=ierror) str(idxmode)
                 if (ierror/=0) then
 					if (ispectrum==1) write(*,"(a,i6,a)") " Error: Cannot properly load IR intensity of mode",idxmode,"!"
 					if (ispectrum==2) write(*,"(a,i6,a)") " Error: Cannot properly load Raman activity of mode",idxmode,"!"

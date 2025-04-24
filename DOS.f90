@@ -525,9 +525,6 @@ else if (isel==-7) then
 		ishowOPDOScurve=0
 		ishowOPDOSline=0
 		ishowCOHPline=1
-  !      call ask_Sbas_PBC
-		!call symmortho(0)
-  !      write(*,*) "Done!"
         if (.not.allocated(FmatA)) then
 			do while(.true.)
 				write(*,*)
@@ -561,7 +558,7 @@ else if (isel==-7) then
         if (ifPBC>0) then
 			write(*,*)
 			write(*,*) "Do you want to perform Lowdin orthonormalization? (y/n)"
-			write(*,"(a)") " Note: For periodic systems calculated with minimal basis set, choosing ""y"" will lead to more meaningful result"
+			write(*,"(a)") " Note: For periodic systems calculated with a minimal basis set, choosing ""y"" will lead to more meaningful result"
 			read(*,*) c80tmp
 			if (c80tmp=='y'.or.c80tmp=='Y') then
 				call ask_Sbas_PBC !Sbas is needed in transformation to orthonormal basis

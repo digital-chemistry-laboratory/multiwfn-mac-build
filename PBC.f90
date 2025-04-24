@@ -621,6 +621,7 @@ do itime=1,2
     if (itime==1) then
         ncenter_tmp=ncenter+nadd
         if (allocated(a_tmp)) deallocate(a_tmp)
+        if (allocated(a_tmp_idx)) deallocate(a_tmp_idx)
         allocate(a_tmp(ncenter_tmp),a_tmp_idx(ncenter_tmp))
         a_tmp(1:ncenter)=a(1:ncenter)
         forall(i=1:ncenter) a_tmp_idx(i)=i
