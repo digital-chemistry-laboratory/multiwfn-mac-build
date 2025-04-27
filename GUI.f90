@@ -1,5 +1,239 @@
+!!------------------- Mouse rotate module, only use on Windows x64 system
+!Link user32.lib
+!Written by Yujie Liu, 2025-04-08
+!http://bbs.keinsci.com/thread-52873-1-1.html
+#ifdef _WIN32
+	!Use Intel fortran ifwin
+#	ifdef __INTEL_COMPILER
+		module mouse_rotate_mod
+		implicit none
+    
+		contains
+			subroutine mouse_rotate(id)
+				use defvar
+				use plot
+				use IFWIN
+				integer(WORD) :: startX = 0, startY = 0 !Mouse position
+				logical :: isDragging = .false.   !Mouse dragging status
+				integer, intent(in) :: id
+				type(T_MSG) :: current_msg 
+				integer(WORD) :: currentX, currentY, delx, dely
+				real*8 :: yvutemp
+				integer(HANDLE) :: active_window
+				integer(BOOL) :: dummy1
+				integer(HANDLE) :: dummy2
+				character tmpstr*20
+        
+				active_window = GetActiveWindow()
+				if (active_window == NULL) return
+				dummy2 = SetCapture(active_window)
+        
+				do while (.true.)
+					if (PeekMessage(current_msg, active_window, 0, 0, PM_REMOVE) == TRUE) then
+						dummy1 = TranslateMessage(current_msg)
+						dummy2 = DispatchMessage(current_msg)
+                
+						select case (current_msg%message)
+						case (WM_LBUTTONDOWN)
+							startX = LOWORD(int(current_msg%lParam,kind=4))  !Sobereva modification
+							startY = HIWORD(int(current_msg%lParam,kind=4))  !Sobereva modification
+							isDragging = .true.
+                
+						case (WM_MOUSEMOVE)
+							if (isDragging) then
+								currentX = LOWORD(int(current_msg%lParam,kind=4))  !Sobereva modification
+								currentY = HIWORD(int(current_msg%lParam,kind=4))  !Sobereva modification
+								delx = currentX - startX
+								dely = currentY - startY
+                        
+								if (abs(delx) > 5 .or. abs(dely) > 5) then
+									startX = currentX
+									startY = currentY
+
+									!Plot actions
+									XVU = XVU + delx * 0.3
+									yvutemp = YVU + dely * 0.3
+									if (yvutemp >= -90D0 .and. yvutemp < 90D0) YVU = yvutemp
+									if (GUI_mode/=2) then
+										call drawmol
+									else if (GUI_mode==2) then
+										call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+										write(tmpstr,"(f8.2)") XVU
+										call SWGTXT(idissetplaneXVU,tmpstr)
+										write(tmpstr,"(f8.2)") YVU
+										call SWGTXT(idissetplaneYVU,tmpstr)
+									end if
+								end if
+							end if
+                
+						case (WM_LBUTTONUP)
+							if (ReleaseCapture() == TRUE) isDragging = .false.
+							return
+
+						end select
+					else
+						call Sleep(1)
+					end if
+				end do
+			end subroutine mouse_rotate
+		end module mouse_rotate_mod
+
+#	else !Use general C binding
+		module mouse_rotate_mod
+			use, intrinsic :: iso_c_binding
+			implicit none
+    
+			type, bind(c) :: POINT
+				integer(c_long) :: x, y
+			end type
+    
+			type, bind(c) :: MSG
+				integer(c_intptr_t) :: hwnd
+				integer(c_int) :: message
+				integer(c_intptr_t) :: wParam ! should 8 bytes on x64
+				integer(c_intptr_t) :: lParam ! should 8 bytes on x64
+				integer(c_int) :: time
+				type(POINT) :: pt
+			end type
+    
+			interface
+				function SetCapture(hWnd) bind(c, name='SetCapture')
+					use iso_c_binding
+					integer(c_intptr_t) :: SetCapture
+					integer(c_intptr_t), value :: hWnd
+				end function
+        
+				function ReleaseCapture() bind(c, name='ReleaseCapture')
+					use iso_c_binding
+					logical(c_bool) :: ReleaseCapture
+				end function
+        
+				function  GetActiveWindow() bind(c, name='GetActiveWindow')
+					use iso_c_binding
+					integer(c_intptr_t) :: GetActiveWindow
+				end function
+        
+				function PeekMessage(lpMsg, hWnd, wMsgFilterMin, wMsgFilterMax, wRemoveMsg) bind(c, name='PeekMessageA')
+					use iso_c_binding
+					import :: MSG
+					logical(c_bool) :: PeekMessage
+					type(MSG) :: lpMsg
+					integer(c_intptr_t), value :: hWnd
+					integer(c_int), value :: wMsgFilterMin, wMsgFilterMax, wRemoveMsg
+				end function
+        
+				function TranslateMessage(lpMsg) bind(c, name='TranslateMessage')
+					use iso_c_binding
+					import :: MSG
+					logical(c_bool) :: TranslateMessage
+					type(MSG) :: lpMsg
+				end function
+        
+				function DispatchMessage(lpMsg) bind(c, name='DispatchMessageA')
+					use iso_c_binding
+					import :: MSG
+					integer(c_intptr_t) :: DispatchMessage
+					type(MSG) :: lpMsg
+				end function
+        
+				subroutine Sleep(dwMilliseconds) bind(c, name='Sleep')
+					use iso_c_binding
+					integer(c_int), value :: dwMilliseconds
+				end subroutine
+			end interface
+    
+			! message codes
+			integer, parameter :: WM_LBUTTONDOWN = 513  !0x0201
+			integer, parameter :: WM_LBUTTONUP = 514    !0x0202
+			integer, parameter :: WM_MOUSEMOVE = 512    !0x0200
+			integer, parameter :: WM_KILLFOCUS = 8      !0x0008
+			integer, parameter :: PM_REMOVE = 1         !0x0001
+    
+		contains
+    
+			subroutine mouse_rotate(id)
+				use defvar
+				use plot
+				integer :: startX = 0, startY = 0 ! mouse position
+				logical :: isDragging = .false.   ! mouse dragging status
+				integer, intent(in) :: id
+				type(MSG) :: current_msg 
+				integer :: currentX, currentY, delx, dely
+				real*8 :: yvutemp
+				integer(c_intptr_t) :: active_window
+				logical(c_bool) :: dummy1
+				integer(c_intptr_t) :: dummy2
+				character tmpstr*20
+        
+				active_window = GetActiveWindow()
+				if (active_window == 0) return
+				dummy2 = SetCapture(active_window)
+        
+				do while (.true.)
+					if (PeekMessage(current_msg, active_window, 0, 0, PM_REMOVE)) then
+						dummy1 = TranslateMessage(current_msg)
+						dummy2 = DispatchMessage(current_msg)
+                
+						select case (current_msg%message)
+						case (WM_LBUTTONDOWN)
+							startX = iand(current_msg%lParam, 65535_8)
+							startY = iand(ishft(current_msg%lParam, -16), 65535_8)
+							isDragging = .true.
+                
+						case (WM_MOUSEMOVE)
+							if (isDragging) then
+								currentX = iand(current_msg%lParam, 65535_8)
+								currentY = iand(ishft(current_msg%lParam, -16), 65535_8)
+								delx = currentX - startX
+								dely = currentY - startY
+                        
+								if (abs(delx) > 5 .or. abs(dely) > 5) then
+									startX = currentX
+									startY = currentY
+
+									!Plot actions
+									XVU = XVU + delx * 0.3
+									yvutemp = YVU + dely * 0.3
+									if (yvutemp >= -90D0 .and. yvutemp < 90D0) YVU = yvutemp
+									if (GUI_mode/=2) then
+										call drawmol
+									else if (GUI_mode==2) then
+										call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+										write(tmpstr,"(f8.2)") XVU
+										call SWGTXT(idissetplaneXVU,tmpstr)
+										write(tmpstr,"(f8.2)") YVU
+										call SWGTXT(idissetplaneYVU,tmpstr)
+									end if
+								end if
+							end if
+                
+						case (WM_LBUTTONUP)
+							if (ReleaseCapture()) isDragging = .false.
+							return
+
+						end select
+					else
+						call Sleep(1)
+					end if
+				end do
+			end subroutine mouse_rotate
+		end module mouse_rotate_mod
+#	endif
+#endif
+
+    
+    
+    
+    
+    
+    
+    
+!!----------------- module for GUI
 module GUI
 use plot
+#ifdef _WIN32
+	use mouse_rotate_mod
+#endif
 implicit real*8 (a-h,o-z)
 !Used for sharing dislin id between various GUI routines
 integer iatm1text,iatm2text,iatm3text,iatm4text,igeomresult
@@ -252,6 +486,9 @@ else if ((isys==1.and.imodlayout==1).or.isys==2) then !Use different layout for 
     end if
 end if
 
+#ifdef _WIN32
+	call SWGCBK(idisgraph,mouse_rotate) !Make system rotatable by dragging mouse
+#endif
 call SWGCBK(idisorbinfo,showorbinfo1)
 if ((wfntype==0.or.wfntype==1.or.wfntype==2).and.allocated(CObasa)) then
 	call SWGCBK(idisorbinfo2,showorbinfo2)
@@ -404,6 +641,9 @@ else if (isavepic==0) then
 	write(tmpstring,"(f8.2)") YVU
 	call WGLAB(idisright,"Vertical angle:",idisYVU)
 	call WGTXT(idisright,tmpstring,idissetplaneYVU)
+#	ifdef _WIN32
+    call SWGCBK(idisgraph,mouse_rotate) !Make system rotatable by dragging mouse
+#	endif
 	call SWGCBK(idisreturn,GUIreturn)
 	call SWGCBK(idisrotleft,rotleft)
 	call SWGCBK(idisrotright,rotright)
@@ -551,6 +791,9 @@ call SWGSTP(3D0)
 call wgscl(idisright,"Size of atomic labels",0D0,200D0,38D0,0,idislabelsize)
 CALL SWGSPC(4D0,0.5D0) !Reset the default widget spacing
 
+#ifdef _WIN32
+	call SWGCBK(idisgraph,mouse_rotate) !Make system rotatable by dragging mouse
+#endif
 if (iallowsetstyle==1) then
 	call SWGCBK(idisisosur1solid,setisosur1solid)
 	call SWGCBK(idisisosur1mesh,setisosur1line)
@@ -708,6 +951,9 @@ call SWGSTP(2D0)
 call wgscl(idisright,"Size of labels",20D0,100D0,textheigh,0,idislabelsize)
 call SWGSTP(0.05D0)
 call wgscl(idisright,"Ratio of CP size",0D0,2.5D0,ratioCPsphere,2,idisCPsize)
+#ifdef _WIN32
+	call SWGCBK(idisgraph,mouse_rotate) !Make system rotatable by dragging mouse
+#endif
 call SWGCBK(idissetangle,setviewangle)
 call SWGCBK(idissetcamrot,setcamrot)
 call SWGCBK(idissetzoom,setzoom)
@@ -812,6 +1058,9 @@ call SWGSTP(0.02D0)
 call wgscl(idisright,"Radius of bonds",0D0,0.5D0,bondradius,2,idisbondradius)
 call SWGSTP(2D0)
 call wgscl(idisright,"Size of labels",0D0,80D0,textheigh,0,idislabelsize)
+#ifdef _WIN32
+	call SWGCBK(idisgraph,mouse_rotate) !Make system rotatable by dragging mouse
+#endif
 call SWGCBK(idissetangle,setviewangle)
 call SWGCBK(idissetcamrot,setcamrot)
 call SWGCBK(idissetzoom,setzoom)
@@ -933,6 +1182,9 @@ else if (isys==2) then
 end if
 
 !Widget response
+#ifdef _WIN32
+	call SWGCBK(idisgraph,mouse_rotate) !Make system rotatable by dragging mouse
+#endif
 call SWGCBK(idissetangle,setviewangle)
 call SWGCBK(idissetcamrot,setcamrot)
 call SWGCBK(idissetzoom,setzoom)
@@ -1054,6 +1306,9 @@ else if (isys==2) then
 end if
 call SWGLIS(idisdomainplot,idrawdomainidx+1)
 !Widget response
+#ifdef _WIN32
+	call SWGCBK(idisgraph,mouse_rotate) !Make system rotatable by dragging mouse
+#endif
 call SWGCBK(idissetangle,setviewangle)
 call SWGCBK(idissetcamrot,setcamrot)
 call SWGCBK(idissetzoom,setzoom)
@@ -1184,6 +1439,9 @@ write(ngridstr,"(i11)") ngrid
 call WGLAB(idisright,"Number of points:",idisnptlab)
 call WGLAB(idisright,ngridstr,idisnpt)
 
+#ifdef _WIN32
+	call SWGCBK(idisgraph,mouse_rotate) !Make system rotatable by dragging mouse
+#endif
 call SWGCBK(idissetangle,setviewangle)
 call SWGCBK(idissetzoom,setzoom)
 call SWGCBK(idisortho,setorthoview)
@@ -1255,6 +1513,9 @@ call wgscl(idisright,"Ratio of atomic size",0D0,5D0,1D0,2,idisatmsize)
 call SWGSTP(2D0)
 call wgscl(idisright,"Size of labels",0D0,80D0,textheigh,0,idislabelsize)
 
+#ifdef _WIN32
+	call SWGCBK(idisgraph,mouse_rotate) !Make system rotatable by dragging mouse
+#endif
 call SWGCBK(idissetangle,setviewangle)
 call SWGCBK(idissetzoom,setzoom)
 call SWGCBK(idisortho,setorthoview)
