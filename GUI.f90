@@ -15,10 +15,12 @@
 				use IFWIN
 				integer(WORD) :: startX = 0, startY = 0 !Mouse position
 				logical :: isDragging = .false.   !Mouse dragging status
+				logical :: isCtrlPressed = .false.   !Mouse dragging status
 				integer, intent(in) :: id
 				type(T_MSG) :: current_msg 
+                INTEGER :: wParam
 				integer(WORD) :: currentX, currentY, delx, dely
-				real*8 :: yvutemp
+				real*8 :: yvutemp,ZVUtmp
 				integer(HANDLE) :: active_window
 				integer(BOOL) :: dummy1
 				integer(HANDLE) :: dummy2
@@ -38,7 +40,8 @@
 							startX = LOWORD(int(current_msg%lParam,kind=4))  !Sobereva modification
 							startY = HIWORD(int(current_msg%lParam,kind=4))  !Sobereva modification
 							isDragging = .true.
-                
+							isCtrlPressed = (IAND(current_msg%wParam, MK_CONTROL) /= 0)
+							
 						case (WM_MOUSEMOVE)
 							if (isDragging) then
 								currentX = LOWORD(int(current_msg%lParam,kind=4))  !Sobereva modification
@@ -46,14 +49,26 @@
 								delx = currentX - startX
 								dely = currentY - startY
                         
-								if (abs(delx) > 5 .or. abs(dely) > 5) then
+								if (abs(delx) > 2 .or. abs(dely) > 2) then
 									startX = currentX
 									startY = currentY
-
+                                    
 									!Plot actions
-									XVU = XVU + delx * 0.3
-									yvutemp = YVU + dely * 0.3
-									if (yvutemp >= -90D0 .and. yvutemp < 90D0) YVU = yvutemp
+                                    IF (isCtrlPressed) THEN
+										!Zoom in/out
+										if (iorthoview==0) then
+											ZVUtmp = ZVU + dely * 0.01D0
+											if (ZVUtmp>2) ZVU=ZVUtmp
+                                        else
+											XFAC = XFAC - dely * 0.002D0
+                                        end if
+                                        !Rotate along screen
+                                        camrotang = camrotang + delx * 0.2D0
+                                    else !Rotate
+										XVU = XVU + delx * 0.3
+										yvutemp = YVU + dely * 0.3
+										if (yvutemp >= -90D0 .and. yvutemp < 90D0) YVU = yvutemp
+                                    end if
 									if (GUI_mode/=2) then
 										call drawmol
 									else if (GUI_mode==2) then
@@ -187,7 +202,7 @@
 								delx = currentX - startX
 								dely = currentY - startY
                         
-								if (abs(delx) > 5 .or. abs(dely) > 5) then
+								if (abs(delx) > 2 .or. abs(dely) > 2) then
 									startX = currentX
 									startY = currentY
 
@@ -417,8 +432,6 @@ call wgpbut(idisright,"Up",idisrotup)
 call wgpbut(idisright,"Down",idisrotdown)
 call wgpbut(idisright,"Left",idisrotleft)
 call wgpbut(idisright,"Right",idisrotright)
-call wgpbut(idisright,"Zoom in",idiszoomin)
-call wgpbut(idisright,"Zoom out",idiszoomout)
 call wgpbut(idisright,"Reset view",idisreset)
 call wgpbut(idisright,"Save picture",idissavepic)
 call wgbut(idisright,"Show labels",ishowatmlab,idisshowatmlab)
@@ -559,8 +572,6 @@ call SWGCBK(idisrotleft,rotleft)
 call SWGCBK(idisrotright,rotright)
 call SWGCBK(idisrotup,rotup)
 call SWGCBK(idisrotdown,rotdown)
-call SWGCBK(idiszoomin,zoomin)
-call SWGCBK(idiszoomout,zoomout)
 call SWGCB3(idisgraph,zoominout)
 call SWGCBK(idisreset,resetview)
 call SWGCBK(idissavepic,savepic)
@@ -632,8 +643,6 @@ else if (isavepic==0) then
 	call wgpbut(idisright,"Down",idisrotdown)
 	call wgpbut(idisright,"Left",idisrotleft)
 	call wgpbut(idisright,"Right",idisrotright)
-	call wgpbut(idisright,"Zoom in",idiszoomin)
-	call wgpbut(idisright,"Zoom out",idiszoomout)
 	call wgpbut(idisright,"Reset view",idisreset)
 	write(tmpstring,"(f8.2)") XVU
 	call WGLAB(idisright,"Horizontal angle:",idisXVU)
@@ -649,8 +658,6 @@ else if (isavepic==0) then
 	call SWGCBK(idisrotright,rotright)
 	call SWGCBK(idisrotup,rotup)
 	call SWGCBK(idisrotdown,rotdown)
-	call SWGCBK(idiszoomin,zoomin)
-	call SWGCBK(idiszoomout,zoomout)
 	call SWGCB3(idisgraph,zoominout)
 	call SWGCBK(idisreset,resetview)
 	call SWGCBK(idissetplaneXVU,setplaneXVU)
@@ -754,8 +761,6 @@ call wgpbut(idisright,"Up",idisrotup)
 call wgpbut(idisright,"Down",idisrotdown)
 call wgpbut(idisright,"Left",idisrotleft)
 call wgpbut(idisright,"Right",idisrotright)
-call wgpbut(idisright,"Zoom in",idiszoomin)
-call wgpbut(idisright,"Zoom out",idiszoomout)
 call wgpbut(idisright,"Reset view",idisreset)
 call wgpbut(idisright,"Save picture",idissavepic)
 write(temp,"(f10.5)") sur_value
@@ -830,8 +835,6 @@ call SWGCBK(idisrotleft,rotleft)
 call SWGCBK(idisrotright,rotright)
 call SWGCBK(idisrotup,rotup)
 call SWGCBK(idisrotdown,rotdown)
-call SWGCBK(idiszoomin,zoomin)
-call SWGCBK(idiszoomout,zoomout)
 call SWGCB3(idisgraph,zoominout)
 call SWGCBK(idisreset,resetview)
 call SWGCBK(idisisosurscl,setisosurscl)
@@ -923,8 +926,6 @@ call wgpbut(idisright,"Up",idisrotup)
 call wgpbut(idisright,"Down",idisrotdown)
 call wgpbut(idisright,"Left",idisrotleft)
 call wgpbut(idisright,"Right",idisrotright)
-call wgpbut(idisright,"Zoom in",idiszoomin)
-call wgpbut(idisright,"Zoom out",idiszoomout)
 call wgpbut(idisright,"Reset view",idisreset)
 call wgpbut(idisright,"Save picture",idissavepic)
 call wgbut(idisright,"Atom labels",ishowatmlab,idisshowatmlab)
@@ -968,8 +969,6 @@ call SWGCBK(idisrotleft,rotleft)
 call SWGCBK(idisrotright,rotright)
 call SWGCBK(idisrotup,rotup)
 call SWGCBK(idisrotdown,rotdown)
-call SWGCBK(idiszoomin,zoomin)
-call SWGCBK(idiszoomout,zoomout)
 call SWGCB3(idisgraph,zoominout)
 call SWGCBK(idisreset,resetview)
 call SWGCBK(idissavepic,savepic)
@@ -1041,8 +1040,6 @@ call wgpbut(idisright,"Up",idisrotup)
 call wgpbut(idisright,"Down",idisrotdown)
 call wgpbut(idisright,"Left",idisrotleft)
 call wgpbut(idisright,"Right",idisrotright)
-call wgpbut(idisright,"Zoom in",idiszoomin)
-call wgpbut(idisright,"Zoom out",idiszoomout)
 call wgpbut(idisright,"Reset view",idisreset)
 call wgpbut(idisright,"Save picture",idissavepic)
 call wgbut(idisright,"Atom labels",ishowatmlab,idisshowatmlab)
@@ -1072,8 +1069,6 @@ call SWGCBK(idisrotleft,rotleft)
 call SWGCBK(idisrotright,rotright)
 call SWGCBK(idisrotup,rotup)
 call SWGCBK(idisrotdown,rotdown)
-call SWGCBK(idiszoomin,zoomin)
-call SWGCBK(idiszoomout,zoomout)
 call SWGCB3(idisgraph,zoominout)
 call SWGCBK(idisreset,resetview)
 call SWGCBK(idissavepic,savepic)
@@ -1144,8 +1139,6 @@ call wgpbut(idisright,"Up",idisrotup)
 call wgpbut(idisright,"Down",idisrotdown)
 call wgpbut(idisright,"Left",idisrotleft)
 call wgpbut(idisright,"Right",idisrotright)
-call wgpbut(idisright,"Zoom in",idiszoomin)
-call wgpbut(idisright,"Zoom out",idiszoomout)
 call wgpbut(idisright,"Reset view",idisreset)
 call wgpbut(idisright,"Save picture",idissavepic)
 call wgbut(idisright,"Show molecule",idrawmol,idisshowmol)
@@ -1196,8 +1189,6 @@ call SWGCBK(idisrotleft,rotleft)
 call SWGCBK(idisrotright,rotright)
 call SWGCBK(idisrotup,rotup)
 call SWGCBK(idisrotdown,rotdown)
-call SWGCBK(idiszoomin,zoomin)
-call SWGCBK(idiszoomout,zoomout)
 call SWGCB3(idisgraph,zoominout)
 call SWGCBK(idisreset,resetview)
 call SWGCBK(idissavepic,savepic)
@@ -1274,8 +1265,6 @@ call wgpbut(idisright,"Up",idisrotup)
 call wgpbut(idisright,"Down",idisrotdown)
 call wgpbut(idisright,"Left",idisrotleft)
 call wgpbut(idisright,"Right",idisrotright)
-call wgpbut(idisright,"Zoom in",idiszoomin)
-call wgpbut(idisright,"Zoom out",idiszoomout)
 call wgpbut(idisright,"Reset view",idisreset)
 call wgpbut(idisright,"Save picture",idissavepic)
 call wgbut(idisright,"Show molecule",idrawmol,idisshowmol)
@@ -1320,8 +1309,6 @@ call SWGCBK(idisrotleft,rotleft)
 call SWGCBK(idisrotright,rotright)
 call SWGCBK(idisrotup,rotup)
 call SWGCBK(idisrotdown,rotdown)
-call SWGCBK(idiszoomin,zoomin)
-call SWGCBK(idiszoomout,zoomout)
 call SWGCB3(idisgraph,zoominout)
 call SWGCBK(idisreset,resetview)
 call SWGCBK(idissavepic,savepic)
@@ -1375,8 +1362,6 @@ call wgpbut(idisright,"Up",idisrotup)
 call wgpbut(idisright,"Down",idisrotdown)
 call wgpbut(idisright,"Left",idisrotleft)
 call wgpbut(idisright,"Right",idisrotright)
-call wgpbut(idisright,"Zoom in",idiszoomin)
-call wgpbut(idisright,"Zoom out",idiszoomout)
 if (imodlayout<=1) then
 	call wgbut(idisright,"Show atomic labels",ishowatmlab,idisshowatmlab)
 	call swgstp(0.1D0) !step size of scale bar than default
@@ -1450,8 +1435,6 @@ call SWGCBK(idisrotleft,rotleft)
 call SWGCBK(idisrotright,rotright)
 call SWGCBK(idisrotup,rotup)
 call SWGCBK(idisrotdown,rotdown)
-call SWGCBK(idiszoomin,zoomin)
-call SWGCBK(idiszoomout,zoomout)
 call SWGCB3(idisgraph,zoominout)
 if (imodlayout<=1) then
 	call SWGCBK(idisshowatmlab,setshowatmlab)
@@ -1482,7 +1465,7 @@ else
 	call swgwth(plotwinsize3D)
 	CALL SWGOPT("CENTER","POSITION") !Main window appear in the center of screen
 end if
-call SWGPOP("NOOK")  !Don't show OK&QUIT in upper menu
+call SWGPOP("NOOK") !Don't show OK&QUIT in upper menu
 call SWGPOP("NOQUIT")
 call SWGPOP("NOHELP")
 CALL WGINI('HORI',idiswindow)
@@ -1502,8 +1485,6 @@ call wgpbut(idisright,"Up",idisrotup)
 call wgpbut(idisright,"Down",idisrotdown)
 call wgpbut(idisright,"Left",idisrotleft)
 call wgpbut(idisright,"Right",idisrotright)
-call wgpbut(idisright,"Zoom in",idiszoomin)
-call wgpbut(idisright,"Zoom out",idiszoomout)
 call wgpbut(idisright,"Reset view",idisreset)
 call wgpbut(idisright,"Save picture",idissavepic)
 call wgbut(idisright,"Show axis",ishowaxis,idisshowaxis)
@@ -1524,8 +1505,6 @@ call SWGCBK(idisrotleft,rotleft)
 call SWGCBK(idisrotright,rotright)
 call SWGCBK(idisrotup,rotup)
 call SWGCBK(idisrotdown,rotdown)
-call SWGCBK(idiszoomin,zoomin)
-call SWGCBK(idiszoomout,zoomout)
 call SWGCB3(idisgraph,zoominout)
 call SWGCBK(idisshowatmlab,setshowatmlab)
 call SWGCBK(idisatmsize,setatmsize)
@@ -1616,21 +1595,25 @@ if (iorthoview==0) then !Perspective
 else if (iorthoview==1) then !Ortho
 	XFAC=XFAC+0.1D0
 end if
-if (GUI_mode/=2) call drawmol
-if (GUI_mode==2) call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
-if (iorthoview==0.and.ZVU<=2) call SWGATT(idiszoomin,"INACTIVE","STATUS") !Too close to the system, disable zoom in button
+if (GUI_mode==2) then
+	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+else
+	call drawmol
+end if
 end subroutine
 
 subroutine zoomout(id)
 integer,intent (in) :: id
 if (iorthoview==0) then !Perspective
 	ZVU=ZVU+0.5D0
-	if (ZVU>2) call SWGATT(idiszoomin,"ACTIVE","STATUS") !No the camera is not too close the molecule, the zoom in can be used now
 else if (iorthoview==1) then !Ortho
 	XFAC=XFAC-0.1D0
 end if
-if (GUI_mode/=2) call drawmol
-if (GUI_mode==2) call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+if (GUI_mode==2) then
+	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+else
+	call drawmol
+end if
 end subroutine
 
 subroutine zoominout(id,iwheel) !Response mouse wheel action on the graph
@@ -1758,9 +1741,11 @@ else if (GUI_mode==6) then
 else if (GUI_mode==2) then
 	ZVU=7D0
 end if
-call SWGATT(idiszoomin,"ACTIVE","STATUS")
-if (GUI_mode/=2) call drawmol
-if (GUI_mode==2) call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+if (GUI_mode==2) then
+	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+else
+	call drawmol
+end if
 end subroutine
 
 subroutine savepic(id)
@@ -2170,11 +2155,9 @@ integer,intent (in) :: id
 if (iorthoview==1) then
     iorthoview=0
     call swgatt(idissetVANG3D,"ACTIVE","STATUS")
-	if (ZVU<=2) call SWGATT(idiszoomin,"INACTIVE","STATUS")
 else
     iorthoview=1
     call swgatt(idissetVANG3D,"INACTIVE","STATUS")
-    call SWGATT(idiszoomin,"ACTIVE","STATUS")
 end if
 call drawmol
 end subroutine
@@ -3667,7 +3650,7 @@ if (alive1.or.alive2) then
 	call swgbut(idisshowmol,idrawmol)
 	call swgbut(idisshowisosur,idrawisosur)
     if (GUI_mode==3) then
-    		write(c30tmp,"(f8.3)") sur_value
+        write(c30tmp,"(f8.3)") sur_value
 		call SWGTXT(idisscrval,trim(c30tmp))
     end if
 else
