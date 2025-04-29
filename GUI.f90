@@ -1,7 +1,8 @@
 !!------------------- Mouse rotate module, only use on Windows x64 system
 !Link user32.lib
-!Written by Yujie Liu, 2025-04-08
-!http://bbs.keinsci.com/thread-52873-1-1.html
+!Written by Yujie Liu, 2025-04-08 (http://bbs.keinsci.com/thread-52873-1-1.html)
+!Modified and greatly extended by Tian Lu, 2025-4-28 (http://bbs.keinsci.com/thread-53146-1-1.html)
+!Ref.: https://learn.microsoft.com/en-us/windows/win32/inputdev/wm-lbuttondown
 #ifdef _WIN32
 	!Use Intel fortran ifwin
 #	ifdef __INTEL_COMPILER
@@ -15,7 +16,8 @@
 				use IFWIN
 				integer(WORD) :: startX = 0, startY = 0 !Mouse position
 				logical :: isDragging = .false.   !Mouse dragging status
-				logical :: isCtrlPressed = .false.   !Mouse dragging status
+				logical :: isCtrlPressed = .false.   !Ctrl key status
+				logical :: isShiftPressed = .false.   !Shift key status
 				integer, intent(in) :: id
 				type(T_MSG) :: current_msg 
                 INTEGER :: wParam
@@ -41,6 +43,9 @@
 							startY = HIWORD(int(current_msg%lParam,kind=4))  !Sobereva modification
 							isDragging = .true.
 							isCtrlPressed = (IAND(current_msg%wParam, MK_CONTROL) /= 0)
+							isShiftPressed = (IAND(current_msg%wParam, MK_SHIFT) /= 0)
+						case (WM_MBUTTONDOWN)
+							!write(*,*) "M"
 							
 						case (WM_MOUSEMOVE)
 							if (isDragging) then
@@ -64,6 +69,9 @@
                                         end if
                                         !Rotate along screen
                                         camrotang = camrotang + delx * 0.2D0
+                                    else if (isShiftPressed) THEN
+										ORIGIN_3D_X= ORIGIN_3D_X + delx * 2
+										ORIGIN_3D_Y= ORIGIN_3D_Y + dely * 2
                                     else !Rotate
 										XVU = XVU + delx * 0.3
 										yvutemp = YVU + dely * 0.3
@@ -194,7 +202,6 @@
 							startX = iand(current_msg%lParam, 65535_8)
 							startY = iand(ishft(current_msg%lParam, -16), 65535_8)
 							isDragging = .true.
-                
 						case (WM_MOUSEMOVE)
 							if (isDragging) then
 								currentX = iand(current_msg%lParam, 65535_8)
@@ -2044,6 +2051,8 @@ end subroutine
 subroutine GUIreturn(id)
 integer,intent (in) :: id
 CALL setxid(0,'NONE') !Return to default setting, otherwise such as spectrum cannot be plotted
+ORIGIN_3D_X=0 !User may have changed the origin position, now reinitalize it, so that next time entering the GUI, origin position is (0,0)
+ORIGIN_3D_Y=0
 call sendok
 end subroutine
 

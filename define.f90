@@ -422,6 +422,7 @@ integer :: iclrindctrpos=5,iclrindctrneg=5,ivdwclrindctr=3,iclrindgradline=6,vdw
 integer :: isavepic=0,icurve_vertlinex=0,iclrindatmlab=1,imarkrefpos=0,ilog10y=0,iclrcurve=1
 integer :: inucespplot=0,idrawmol=1,idrawisosur=0,isosursec=0,idrawtype=1,idrawcontour=1
 integer :: iinvgradvec=0,icolorvecfield=0,vecclrind=30,idrawplanevdwctr=0,iplaneoutall=0,icurvethick=5,iclrtrans=0,ifillctrline=0,ishowclrfill_bar=0
+integer :: ORIGIN_3D_X=0,ORIGIN_3D_Y=0
 integer,allocatable :: highlightatomlist(:)
 character :: stream_intmethod*5="RK2",curveYname*50=" "
 character :: clrtransname(0:19)*50=(/ character(len=50) :: "Rainbow & white/black for out-of-limit data","Rainbow","Reversed rainbow","Rainbow starting from white","Spectrum","Reversed Spectrum",&

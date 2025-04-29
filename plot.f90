@@ -121,6 +121,7 @@ CALL SCRMOD('revers')
 CALL PAGE(3000,3000)
 CALL IMGFMT("RGB") !If don't call this routine, the saved picture use palette color mode by default, the color is not smooth
 CALL DISINI
+CALL ORIGIN(ORIGIN_3D_X,ORIGIN_3D_Y) !Set origin of the map
 if (iorthoview==0) then
 	CALL PROJ3D("PERSPECTIVE")
 	call VANG3D(VANG3DANG)
@@ -1676,7 +1677,8 @@ if (idrawtype==1.or.idrawtype==2.or.idrawtype==6.or.idrawtype==7) then
 !Relief map & shaded relief map with/without projection
 else if (idrawtype==3.or.idrawtype==4.or.idrawtype==5) then
     call setcolortable(iclrtrans) !This routine must be invoked prior to GRAF
-	CALL AXSPOS(100,2800) !Make position of coordinate proper
+    CALL AXSPOS(100,2800) !Make position of coordinate proper
+	CALL ORIGIN(ORIGIN_3D_X,ORIGIN_3D_Y) !Set origin of the map
 	planetrunc=planemat
 	planetrunc2=planemat
 	!Now truncate the value in planemat to uplimit of Z-scale of relief map and save to planetrunc, else the color scale will range from
