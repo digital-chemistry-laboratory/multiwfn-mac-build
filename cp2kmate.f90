@@ -227,6 +227,7 @@ do while(.true.)
     if (ioutcube==4) write(*,*) "-3 Set exporting cube file, current: Hartree potential (negative of ESP)"
     if (ioutcube==5) write(*,*) "-3 Set exporting cube file, current: Electric field"
     if (ioutcube==6) write(*,"(a,i6,a,i6)") " -3 Set exporting cube file, current: MOs, with NHOMO=",NHOMO,", NLUMO=",NLUMO
+    if (ioutcube==7) write(*,*) "-3 Set exporting cube file, current: Electron density + Hartree pot."
     if (imolden==0) write(*,*) "-2 Toggle exporting .molden file for Multiwfn, current: No"
     if (imolden==1) write(*,*) "-2 Toggle exporting .molden file for Multiwfn, current: Yes"
     if (itask==1) write(*,*) "-1 Choose task, current: Energy"

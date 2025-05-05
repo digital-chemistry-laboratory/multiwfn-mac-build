@@ -9253,7 +9253,7 @@ use fparser
 implicit real*8 (a-h,o-z)
 integer infomode
 character(len=*) name
-character :: c200tmp*200,c80tmp*80,c80tmp2*80,c80tmp3*80,symopstr(500)*40,strarr(20)*30,var(3)=(/'x','y','z'/)
+character :: c200tmp*200,c80tmp*80,c80tmp2*80,c80tmp3*80,symopstr(500)*80,strarr(20)*30,var(3)=(/'x','y','z'/),testchar
 real*8 vec1(3),vec2(3),vec1car(3),vec2car(3),val(3)
 real*8,allocatable :: atmocc(:)
 type(atomtype),allocatable :: a_dup(:)
@@ -9455,15 +9455,39 @@ if (ifound==1) then
         c80tmp=symopstr(isymop)(:itmp-1)
         c80tmp2=symopstr(isymop)(itmp+1:jtmp-1)
         c80tmp3=symopstr(isymop)(jtmp+1:)
+        !Operation may be "1/2x+1/2y+z", however, to make parsing feasible, it should be replaced with "1/2*x+1/2*y+z", now we add * between number and x/y/z
+        do itmp=2,80
+			if (c80tmp(itmp:itmp)=='x'.or.c80tmp(itmp:itmp)=='y'.or.c80tmp(itmp:itmp)=='z') then
+				testchar=c80tmp(itmp-1:itmp-1)
+                if (iachar(testchar)>=48.and.iachar(testchar)<=57) then !Digit
+					c80tmp(itmp+1:80)=c80tmp(itmp:79)
+                    c80tmp(itmp:itmp)='*'
+                end if
+            end if
+			if (c80tmp2(itmp:itmp)=='x'.or.c80tmp2(itmp:itmp)=='y'.or.c80tmp2(itmp:itmp)=='z') then
+				testchar=c80tmp2(itmp-1:itmp-1)
+                if (iachar(testchar)>=48.and.iachar(testchar)<=57) then !Digit
+					c80tmp2(itmp+1:80)=c80tmp2(itmp:79)
+                    c80tmp2(itmp:itmp)='*'
+                end if
+            end if
+			if (c80tmp3(itmp:itmp)=='x'.or.c80tmp3(itmp:itmp)=='y'.or.c80tmp3(itmp:itmp)=='z') then
+				testchar=c80tmp3(itmp-1:itmp-1)
+                if (iachar(testchar)>=48.and.iachar(testchar)<=57) then !Digit
+					c80tmp3(itmp+1:80)=c80tmp3(itmp:79)
+                    c80tmp3(itmp:itmp)='*'
+                end if
+            end if
+        end do
         !write(*,"(' Symmetry operation',i4,': ',a,1x,a,1x,a)") isymop,trim(c80tmp),trim(c80tmp2),trim(c80tmp3)
-        call parsef(1,trim(c80tmp),var) !Use string to define formula, var(:) defines variables in the formula. Then use evalf to evaluate value
+        call parsef(1,trim(c80tmp),var) !The string defines formula, var(1/2/3)=x/y/z specify variables in the formula. After that, we can use function evalf to evaluate result of the formula
         call parsef(2,trim(c80tmp2),var)
         call parsef(3,trim(c80tmp3),var)
         do iatm=1,ncenter_tmp !Duplicate unique atoms via symmetry operations
             vec1(1)=a_tmp(iatm)%x !Unique atom in fractional coordinate
             vec1(2)=a_tmp(iatm)%y
             vec1(3)=a_tmp(iatm)%z
-            vec2(1)=evalf(1,vec1) !Duplicated atom in fractional coordinate
+            vec2(1)=evalf(1,vec1) !Obtain fractional coordinate of duplicated atom (vec2) by evaluating the formula defined above based on coordinate of the unique atom (vec1)
             vec2(2)=evalf(2,vec1)
             vec2(3)=evalf(3,vec1)
             !write(*,"(' Atom',i5,/,' Org fract.:',3f12.6,' Bohr',/,' New fract.:',3f12.6,' Bohr')") iatm,vec1,vec2

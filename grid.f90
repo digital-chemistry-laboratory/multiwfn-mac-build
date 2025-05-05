@@ -238,25 +238,37 @@ character cubefilename*200,pointfilename*200,c80tmp*80,c2000tmp*2000
 integer imode
 logical filealive
 integer selatm(ncenter)
+real*8 :: spclowqual=0.4D0,spcmedqual=0.25D0,spchighqual=0.15D0
 
 if (imode==2) then
 	igridsel=9
 else
-	ntotlow=125000
-	ntotmed=512000
-	ntothigh=1728000
+    if (ifPBC==0) then
+		ntotlow=125000
+		ntotmed=512000
+		ntothigh=1728000
+    else
+		molxlen=dsqrt(sum(cellv1**2))*b2a
+		molylen=dsqrt(sum(cellv2**2))*b2a
+		molzlen=dsqrt(sum(cellv3**2))*b2a
+		ntotlow=(nint(molxlen/spclowqual)+1)*(nint(molylen/spclowqual)+1)*(nint(molzlen/spclowqual)+1)
+		ntotmed=(nint(molxlen/spcmedqual)+1)*(nint(molylen/spcmedqual)+1)*(nint(molzlen/spcmedqual)+1)
+		ntothigh=(nint(molxlen/spchighqual)+1)*(nint(molylen/spchighqual)+1)*(nint(molzlen/spchighqual)+1)
+    end if
 	do while(.true.)
 		write(*,*)
 		write(*,*) "Please select a method to set up grid"
-        if (ifPBC>0) then
-			write(*,"(a)") " **** NOTE: For periodic systems, if you hope the grid points evenly distribute in the whole cell, usually you should choose option 9 to define the grid ****"
-        end if
         if (ifPBC==0) then
 			write(*,"(a,f7.3,a)") " -10 Set extension distance of grid range for mode 1~4, current:",aug3D," Bohr"
 			write(*,*) "1 Low quality grid,    covering whole system, about 125000 points in total"
 			write(*,*) "2 Medium quality grid, covering whole system, about 512000 points in total"
 			write(*,*) "3 High quality grid,   covering whole system, about 1728000 points in total"
 			write(*,*) "4 Input the number of points or grid spacing in X,Y,Z, covering whole system"
+        else
+			write(*,"(a,f4.2,a,i11)") " 1 Low quality grid, covering whole cell,    spacing=",spclowqual," Bohr, grids:",ntotlow
+			write(*,"(a,f4.2,a,i11)") " 2 Medium quality grid, covering whole cell, spacing=",spcmedqual," Bohr, grids:",ntotmed
+			write(*,"(a,f4.2,a,i11)") " 3 High quality grid, covering whole cell,   spacing=",spchighqual," Bohr, grids:",ntothigh
+			write(*,*) "4 Input the number of points or grid spacing in X,Y,Z, covering whole cell"
         end if
 		write(*,*) "5 Input original point, grid spacings, and the number of points"
 		write(*,*) "6 Input center coordinate, number of points and extension distance"
@@ -296,164 +308,177 @@ if (igridsel==100) then !Load points rather than set up grid
 		end if
 	end do
 	write(*,*) "Please wait..."
-else
-	molxlen=(maxval(a%x)-minval(a%x))+2*aug3D
-	molylen=(maxval(a%y)-minval(a%y))+2*aug3D
-	molzlen=(maxval(a%z)-minval(a%z))+2*aug3D
-	if (molxlen==0D0.or.molylen==0D0.or.molzlen==0D0) then !Avoid catastrophe when aug3D=0 and system is plane
-		write(*,"(a,/)") " WARNING: The box size in one of Cartesian axis is zero, &
-		&the calculation cannot be proceeded. Therefore, the size of corresponding direction is automatically set to 3 Bohr"
-		if (molxlen==0D0) then
-			molxlen=3D0
-		else if (molylen==0D0) then
-			molylen=3D0
-		else if (molzlen==0D0) then
-			molzlen=3D0
-		end if
-	end if
-	if (igridsel==1.or.igridsel==2.or.igridsel==3) then
-		if (igridsel==1) dx=(molxlen*molylen*molzlen/dfloat(ntotlow))**(1D0/3D0)
-		if (igridsel==2) dx=(molxlen*molylen*molzlen/dfloat(ntotmed))**(1D0/3D0)
-		if (igridsel==3) dx=(molxlen*molylen*molzlen/dfloat(ntothigh))**(1D0/3D0)
-		dy=dx
-		dz=dx
-		nx=nint(molxlen/dx)+1
-		ny=nint(molylen/dy)+1
-		nz=nint(molzlen/dz)+1
-		orgx=minval(a%x)-aug3D
-		orgy=minval(a%y)-aug3D
-		orgz=minval(a%z)-aug3D
-	else if (igridsel==4) then
-		write(*,*) "Input the number of grid points in X,Y,Z directions, e.g. 139,59,80"
-		write(*,"(a)") " or input grid spacing (Bohr) in X,Y,Z directions, e.g. 0.05,0.08,0.08  (if only input one value, it will be applied to all directions)"
-		read(*,"(a)") c80tmp
-		if (index(c80tmp,'.')/=0) then
-			if (index(c80tmp,',')/=0) then
-				read(c80tmp,*) dx,dy,dz
-			else
-				read(c80tmp,*) tmp
-				dx=tmp
-				dy=tmp
-				dz=tmp
-			end if
-			nx=molxlen/dx+1
-			ny=molylen/dy+1
-			nz=molzlen/dz+1
-		else
-			read(c80tmp,*) nx,ny,nz
-			dx=molxlen/(nx-1)
-			dy=molylen/(ny-1)
-			dz=molzlen/(nz-1)
-		end if
-		orgx=minval(a%x)-aug3D
-		orgy=minval(a%y)-aug3D
-		orgz=minval(a%z)-aug3D
-	else if (igridsel==5) then
-		write(*,*) "Input X,Y,Z coordinate of original point (Bohr), e.g. 0.1,4,-1"
-		read(*,*) orgx,orgy,orgz
-		write(*,*) "Input grid spacings in X,Y,Z directions (Bohr), e.g. 0.1,0.1,0.15"
-		read(*,*) dx,dy,dz
-		write(*,*) "Input the number of points in X,Y,Z directions, e.g. 139,59,80"
-		read(*,*) nx,ny,nz
-	else if (igridsel==6.or.igridsel==7) then
-		if (igridsel==6) then
-			write(*,*) "Input X,Y,Z coordinate of center (Angstrom)"
-			read(*,*) cenx,ceny,cenz
-			cenx=cenx/b2a
-			ceny=ceny/b2a
-			cenz=cenz/b2a
-		else if (igridsel==7) then
-			write(*,*) "Input index of the two atoms, e.g. 2,5"
-			write(*,*) "If the two indices are identical, box center will be placed at the nucleus"
-			read(*,*) indatm1,indatm2
-			cenx=(a(indatm1)%x+a(indatm2)%x)/2D0
-			ceny=(a(indatm1)%y+a(indatm2)%y)/2D0
-			cenz=(a(indatm1)%z+a(indatm2)%z)/2D0
-		end if
-		write(*,*) "Input the number of points in X,Y,Z directions, e.g. 40,40,25"
-		read(*,*) nx,ny,nz
-		write(*,*) "Input the extended distance in X,Y,Z directions (Bohr), e.g. 4.0,4.0,6.5"
-		read(*,*) aug3Dx,aug3Dy,aug3Dz
-		orgx=cenx-aug3Dx
-		orgy=ceny-aug3Dy
-		orgz=cenz-aug3Dz
-		dx=aug3Dx*2D0/(nx-1)
-		dy=aug3Dy*2D0/(ny-1)
-		dz=aug3Dz*2D0/(nz-1)
-	else if (igridsel==8) then
-		write(*,*) "Input path of a cube file, e.g. C:\wake_up_girls.cub"
-		do while(.true.)
-			read(*,"(a)") cubefilename
-			inquire(file=cubefilename,exist=filealive)
-			if (filealive) then
-				open(10,file=cubefilename,status="old")
-				read(10,*)
-				read(10,*)
-				read(10,*) nouse,orgx,orgy,orgz
-				read(10,*) nx,gridv1
-				read(10,*) ny,gridv2
-				read(10,*) nz,gridv3
-				close(10)
-                dx=gridv1(1);dy=gridv2(2);dz=gridv3(3)
-				exit
-			else
-				write(*,*) "Error: File cannot be found, input again"
-			end if
-		end do
-	else if (igridsel==9) then
-		call setgrid_for_PBC(0.25D0,0)
-	else if (igridsel==10) then
-		call setboxGUI
-	else if (igridsel==11) then
-        write(*,*) "Input index of the atoms to define a fragment, e.g. 2,3,7-10"
-        read(*,"(a)") c2000tmp
-        call str2arr(c2000tmp,nselatm,selatm)
-        write(*,*) "Input extension distance around the fragment in Bohr, e.g. 7.5"
-        write(*,*) "To input in Angstrom, add ""A"" suffix, e.g. 3.8 A"
-        read(*,"(a)") c80tmp
-        read(c80tmp,*) extdist
-        if (index(c80tmp,'A')/=0) extdist=extdist/b2a
-        write(*,*) "Input grid spacing in Bohr, e.g. 0.15"
-        write(*,*) "If pressing ENTER button directly, 0.2 will be used"
-        read(*,"(a)") c80tmp
-        if (c80tmp/=" ") then
-			read(c80tmp,*) dx
-        else
-			dx=0.2D0
-        end if
-        dy=dx;dz=dx
-        orgx=minval(a(selatm(1:nselatm))%x)-extdist
-        orgy=minval(a(selatm(1:nselatm))%y)-extdist
-        orgz=minval(a(selatm(1:nselatm))%z)-extdist
-        endx=maxval(a(selatm(1:nselatm))%x)+extdist
-        endy=maxval(a(selatm(1:nselatm))%y)+extdist
-        endz=maxval(a(selatm(1:nselatm))%z)+extdist
-        nx=nint((endx-orgx)/dx)
-        ny=nint((endy-orgy)/dy)
-        nz=nint((endz-orgz)/dz)
-	end if
     
-    if (igridsel/=9) then
-        gridv1=0;gridv1(1)=dx
-        gridv2=0;gridv2(2)=dy
-        gridv3=0;gridv3(3)=dz
-    else if (igridsel==9) then !Grid may be nonorthogonal
+else
+
+	if ((ifPBC/=0.and.igridsel>=1.and.igridsel<=4).or.igridsel==9) then !Use subroutine specifically for defining grid in PBC case
+		if (igridsel==1) then
+			call setgrid_for_PBC(spclowqual,2)
+        else if (igridsel==2) then
+			call setgrid_for_PBC(spcmedqual,2)
+        else if (igridsel==3) then
+			call setgrid_for_PBC(spchighqual,2)
+        else if (igridsel==4) then
+			call setgrid_for_PBC(0.25D0,1)
+        else if (igridsel==9) then
+			call setgrid_for_PBC(0.25D0,0)
+        end if
         dx=gridv1(1)
         dy=gridv2(2)
         dz=gridv3(3)
+	else
+		molxlen=(maxval(a%x)-minval(a%x))+2*aug3D
+		molylen=(maxval(a%y)-minval(a%y))+2*aug3D
+		molzlen=(maxval(a%z)-minval(a%z))+2*aug3D
+		if (molxlen==0D0.or.molylen==0D0.or.molzlen==0D0) then !Avoid catastrophe when aug3D=0 and system is plane
+			write(*,"(a,/)") " WARNING: The box size in one of Cartesian axis is zero, &
+			&the calculation cannot be proceeded. Therefore, the size of corresponding direction is automatically set to 3 Bohr"
+			if (molxlen==0D0) then
+				molxlen=3D0
+			else if (molylen==0D0) then
+				molylen=3D0
+			else if (molzlen==0D0) then
+				molzlen=3D0
+			end if
+		end if
+		if (igridsel==1.or.igridsel==2.or.igridsel==3) then
+			if (igridsel==1) dx=(molxlen*molylen*molzlen/dfloat(ntotlow))**(1D0/3D0)
+			if (igridsel==2) dx=(molxlen*molylen*molzlen/dfloat(ntotmed))**(1D0/3D0)
+			if (igridsel==3) dx=(molxlen*molylen*molzlen/dfloat(ntothigh))**(1D0/3D0)
+			dy=dx
+			dz=dx
+			nx=nint(molxlen/dx)+1
+			ny=nint(molylen/dy)+1
+			nz=nint(molzlen/dz)+1
+			orgx=minval(a%x)-aug3D
+			orgy=minval(a%y)-aug3D
+			orgz=minval(a%z)-aug3D
+		else if (igridsel==4) then
+			write(*,*) "Input the number of grid points in X,Y,Z directions, e.g. 139,59,80"
+			write(*,"(a)") " or input grid spacing (Bohr) in X,Y,Z directions, e.g. 0.05,0.08,0.08  (if only input one value, it will be applied to all directions)"
+			read(*,"(a)") c80tmp
+			if (index(c80tmp,'.')/=0) then
+				if (index(c80tmp,',')/=0) then
+					read(c80tmp,*) dx,dy,dz
+				else
+					read(c80tmp,*) tmp
+					dx=tmp
+					dy=tmp
+					dz=tmp
+				end if
+				nx=molxlen/dx+1
+				ny=molylen/dy+1
+				nz=molzlen/dz+1
+			else
+				read(c80tmp,*) nx,ny,nz
+				dx=molxlen/(nx-1)
+				dy=molylen/(ny-1)
+				dz=molzlen/(nz-1)
+			end if
+			orgx=minval(a%x)-aug3D
+			orgy=minval(a%y)-aug3D
+			orgz=minval(a%z)-aug3D
+		else if (igridsel==5) then
+			write(*,*) "Input X,Y,Z coordinate of original point (Bohr), e.g. 0.1,4,-1"
+			read(*,*) orgx,orgy,orgz
+			write(*,*) "Input grid spacings in X,Y,Z directions (Bohr), e.g. 0.1,0.1,0.15"
+			read(*,*) dx,dy,dz
+			write(*,*) "Input the number of points in X,Y,Z directions, e.g. 139,59,80"
+			read(*,*) nx,ny,nz
+		else if (igridsel==6.or.igridsel==7) then
+			if (igridsel==6) then
+				write(*,*) "Input X,Y,Z coordinate of center (Angstrom)"
+				read(*,*) cenx,ceny,cenz
+				cenx=cenx/b2a
+				ceny=ceny/b2a
+				cenz=cenz/b2a
+			else if (igridsel==7) then
+				write(*,*) "Input index of the two atoms, e.g. 2,5"
+				write(*,*) "If the two indices are identical, box center will be placed at the nucleus"
+				read(*,*) indatm1,indatm2
+				cenx=(a(indatm1)%x+a(indatm2)%x)/2D0
+				ceny=(a(indatm1)%y+a(indatm2)%y)/2D0
+				cenz=(a(indatm1)%z+a(indatm2)%z)/2D0
+			end if
+			write(*,*) "Input the number of points in X,Y,Z directions, e.g. 40,40,25"
+			read(*,*) nx,ny,nz
+			write(*,*) "Input the extended distance in X,Y,Z directions (Bohr), e.g. 4.0,4.0,6.5"
+			read(*,*) aug3Dx,aug3Dy,aug3Dz
+			orgx=cenx-aug3Dx
+			orgy=ceny-aug3Dy
+			orgz=cenz-aug3Dz
+			dx=aug3Dx*2D0/(nx-1)
+			dy=aug3Dy*2D0/(ny-1)
+			dz=aug3Dz*2D0/(nz-1)
+		else if (igridsel==8) then
+			write(*,*) "Input path of a cube file, e.g. C:\wake_up_girls.cub"
+			do while(.true.)
+				read(*,"(a)") cubefilename
+				inquire(file=cubefilename,exist=filealive)
+				if (filealive) then
+					open(10,file=cubefilename,status="old")
+					read(10,*)
+					read(10,*)
+					read(10,*) nouse,orgx,orgy,orgz
+					read(10,*) nx,gridv1
+					read(10,*) ny,gridv2
+					read(10,*) nz,gridv3
+					close(10)
+					dx=gridv1(1);dy=gridv2(2);dz=gridv3(3)
+					exit
+				else
+					write(*,*) "Error: File cannot be found, input again"
+				end if
+			end do
+		else if (igridsel==10) then
+			call setboxGUI
+		else if (igridsel==11) then
+			write(*,*) "Input index of the atoms to define a fragment, e.g. 2,3,7-10"
+			read(*,"(a)") c2000tmp
+			call str2arr(c2000tmp,nselatm,selatm)
+			write(*,*) "Input extension distance around the fragment in Bohr, e.g. 7.5"
+			write(*,*) "To input in Angstrom, add ""A"" suffix, e.g. 3.8 A"
+			read(*,"(a)") c80tmp
+			read(c80tmp,*) extdist
+			if (index(c80tmp,'A')/=0) extdist=extdist/b2a
+			write(*,*) "Input grid spacing in Bohr, e.g. 0.15"
+			write(*,*) "If pressing ENTER button directly, 0.2 will be used"
+			read(*,"(a)") c80tmp
+			if (c80tmp/=" ") then
+				read(c80tmp,*) dx
+			else
+				dx=0.2D0
+			end if
+			dy=dx;dz=dx
+			orgx=minval(a(selatm(1:nselatm))%x)-extdist
+			orgy=minval(a(selatm(1:nselatm))%y)-extdist
+			orgz=minval(a(selatm(1:nselatm))%z)-extdist
+			endx=maxval(a(selatm(1:nselatm))%x)+extdist
+			endy=maxval(a(selatm(1:nselatm))%y)+extdist
+			endz=maxval(a(selatm(1:nselatm))%z)+extdist
+			nx=nint((endx-orgx)/dx)
+			ny=nint((endy-orgy)/dy)
+			nz=nint((endz-orgz)/dz)
+		end if
+        
+        gridv1=0;gridv1(1)=dx
+        gridv2=0;gridv2(2)=dy
+        gridv3=0;gridv3(3)=dz
     end if
-    call getgridend !Generate endx,endy,endz
+    
+    !Generate endx,endy,endz
+    call getgridend
     
 	write(*,"(' Coordinate of origin in X,Y,Z is   ',3f12.6,' Bohr')") orgx,orgy,orgz
 	write(*,"(' Coordinate of end point in X,Y,Z is',3f12.6,' Bohr')") endx,endy,endz
-    if (igridsel/=9) then
-	    write(*,"(' Grid spacing in X,Y,Z is',3f12.6,' Bohr')") dx,dy,dz
-	    write(*,"(' Number of points in X,Y,Z is',3i5,'   Total:',i12)") nx,ny,nz,nx*ny*nz
-    else if (igridsel==9) then !Grid may be nonorthogonal
+    if ((ifPBC/=0.and.igridsel>=1.and.igridsel<=4).or.igridsel==9) then !Grid may be nonorthogonal
 	    write(*,"(' Grid vector 1 in X,Y,Z is',3f10.6,' Bohr, norm:',f10.6)") gridv1,dsqrt(sum(gridv1**2))
 	    write(*,"(' Grid vector 2 in X,Y,Z is',3f10.6,' Bohr, norm:',f10.6)") gridv2,dsqrt(sum(gridv2**2))
 	    write(*,"(' Grid vector 3 in X,Y,Z is',3f10.6,' Bohr, norm:',f10.6)") gridv3,dsqrt(sum(gridv3**2))
 	    write(*,"(' Number of points in three directions is',3i5,'  Total:',i12)") nx,ny,nz,nx*ny*nz
+    else
+	    write(*,"(' Grid spacing in X,Y,Z is',3f12.6,' Bohr')") dx,dy,dz
+	    write(*,"(' Number of points in X,Y,Z is',3i5,'   Total:',i12)") nx,ny,nz,nx*ny*nz
     end if
 end if
 end subroutine
@@ -518,7 +543,6 @@ if (iskip==2) then
 	grdspc=defspc
 else
 	write(*,*) "Now input grid spacing in Bohr, e.g. 0.25"
-	!write(*,*) "Hint about grid quality: 0.2 is fine, 0.3 is coarse, 0.4 is very poor"1
 	write(*,"(a)") " The smaller the spacing, the better the result, the more expensive the calculation"
 	write(*,"(a,f6.3,a)") " If directly pressing ENTER button,",defspc," Bohr will be used"
 	write(*,"(a)") " Note: The grid spacing will be automatically slightly altered so that number of grids in each direction is integer"

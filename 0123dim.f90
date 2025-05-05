@@ -2630,12 +2630,14 @@ else !Calculate grid data
 		    dipy=sum(a%charge*a%y)+dipy*dvol
 		    dipz=sum(a%charge*a%z)+dipz*dvol
         end if
-		write(*,*)
-		write(*,*) "Electric dipole moment estimated by integrating electron density"
-		write(*,"(' X component:    ',f14.6,' a.u.',f14.6,' Debye')") dipx,dipx*au2debye
-		write(*,"(' Y component:    ',f14.6,' a.u.',f14.6,' Debye')") dipy,dipy*au2debye
-		write(*,"(' Z component:    ',f14.6,' a.u.',f14.6,' Debye')") dipz,dipz*au2debye
-		write(*,"(' Total magnitude:',f14.6,' a.u.',f14.6,' Debye')") dsqrt(dipx**2+dipy**2+dipz**2),dsqrt(dipx**2+dipy**2+dipz**2)*au2debye
+        if (ifPBC==0) then
+			write(*,*)
+			write(*,*) "Electric dipole moment estimated by integrating electron density"
+			write(*,"(' X component:    ',f14.6,' a.u.',f14.6,' Debye')") dipx,dipx*au2debye
+			write(*,"(' Y component:    ',f14.6,' a.u.',f14.6,' Debye')") dipy,dipy*au2debye
+			write(*,"(' Z component:    ',f14.6,' a.u.',f14.6,' Debye')") dipz,dipz*au2debye
+			write(*,"(' Total magnitude:',f14.6,' a.u.',f14.6,' Debye')") dsqrt(dipx**2+dipy**2+dipz**2),dsqrt(dipx**2+dipy**2+dipz**2)*au2debye
+        end if
 	else if (ifuncsel==2) then
 		outcubfile="gradient.cub"
 	else if (ifuncsel==3) then

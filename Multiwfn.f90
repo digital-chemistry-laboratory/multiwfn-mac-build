@@ -3,6 +3,7 @@ use defvar
 use util
 use GUI
 use mod_2F2, only: set_alpha_level
+!USE fparser
 !use libreta
 !use function
 implicit real*8 (a-h,o-z)
@@ -10,7 +11,6 @@ character nowdate*20,nowtime*20,c200tmp*200,c2000tmp*2000,lovername*80,settingpa
 real*8,allocatable :: tmparr(:),tmparr2(:),tmpmat(:,:),tmpmat2(:,:),tmpmat3D(:,:,:) !For debug purpose
 integer,allocatable :: tmparri(:),tmparr2i(:),tmpmati(:,:),tmpmat2i(:,:)
 real*8 tmpv1(3),tmpv2(3)
-
 !Special treatment for Intel compiler
 #if defined(__INTEL_COMPILER) || defined(__INTEL_LLVM_COMPILER)
 call kmp_set_warnings_off() !In rare case, "Cannot open message catalog "1041\libiomp5ui.dll"" may occurs, this calling avoid this problem, or user should set KMP_WARNINGS environment variable to 0
@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), update date: 2025-Apr-28"
+write(*,*) "Version 3.8(dev), update date: 2025-May-5"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
 write(*,*) "Multiwfn English forum: http://sobereva.com/wfnbbs"
