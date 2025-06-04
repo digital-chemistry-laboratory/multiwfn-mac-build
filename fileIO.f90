@@ -9096,6 +9096,7 @@ iexp=1
 ibasis=1 !Current position of basis function
 !Note: Below commented with !!! means the line associated to setting basis information
 do i=1,nshell !Cycle each shell
+	!write(*,*) i,shelltype(i),shellcon(i),shtype2nbas(shelltype(i)),k
 	b(k:k+shellcon(i)*shtype2nbas(shelltype(i))-1)%center=shell2atom(i)
 	basshell(ibasis:ibasis+shtype2nbas(shelltype(i))-1)=i !!!Set basis attributed to which shell
 	bascen(ibasis:ibasis+shtype2nbas(shelltype(i))-1)=shell2atom(i) !!!Set basis attributed to which center

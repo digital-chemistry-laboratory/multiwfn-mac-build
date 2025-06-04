@@ -66,7 +66,7 @@
        else if (npt==5810) then
             call LD5810(potx,poty,potz,potw,isphnum)
        else
-	      write(*,*) "Input error!"
+	      write(*,*) "Error: Invalid Lebedev grid, check sphpot setting!"
 	      read(*,*)
        end if
        end subroutine

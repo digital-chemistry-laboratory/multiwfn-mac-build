@@ -9,7 +9,8 @@ a lot of .f90 files (except for dislin_d.f90) // Source code of Multiwfn
 Lebedev-Laikov.F // A file containing the routines for generating Lebedev integration points
 DFTxclib.F // A file containing the routines for calculating DFT exchange-correlation functionals
 dislin_d.f90 and dislin_d-11.0.a // Module file and static library of Dislin graphical library
-noGUI/dislin_d_empty.f90 // Dummy implementation of Dislin graphical library, used for compiling noGUI version
+"noGUI" folder // Special files used for compiling noGUI version
+"ext" folder // Some external files
 "libreta_hybrid" folder // Files of special form of LIBRETA electron integral library
 
 2 Ensure that you have installed developer edition of motif (e.g. motif-devel-2.3.4-1.x86_64_0), because libXm.a in this package is necessary in compilation of Multiwfn. If you have not installed it, you can search the package from the CD of your Linux distribution or download it from https://motif.ics.com/motif/downloads.
@@ -20,7 +21,7 @@ Also ensure that you have installed mesa-libGL-devel and mesa-libGLU-devel packa
 
 3 Go to /sob/Multiwfn folder, then run "make -j". On a common 8-cores computer, the compilation takes about 15 minutes.
 
-If no any exception occurs, you will find executable files "Multiwfn" and "Multiwfn_noGUI" in current folder. Other file needed for running Multiwfn (settings.ini), many example files and useful scripts are provided in binary package of Multiwfn, which can be downloaded from http://sobereva.com/multiwfn.
+If no any exception occurs, you will find executable files "Multiwfn" and "Multiwfn_noGUI" in current folder. Many example files, useful scripts, and auxiliary files, are all provided in binary package of Multiwfn, which can be downloaded from http://sobereva.com/multiwfn.
 
 If this is the first time you use Linux version of Multiwfn, do not forget to read Section 2.1.2 of the manual to know how to prepare the running environment.
 

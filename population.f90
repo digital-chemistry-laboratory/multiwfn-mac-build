@@ -178,7 +178,6 @@ else
 			call dealloall(1)
 			call readinfile(firstfilename,1) !Current wavefunction has been altered, recover the initial state
 		else if (ipopsel==7) then
-            call ask_Sbas_PBC
 			call MMPA(1)
 		else if (ipopsel==8) then
             call ask_Sbas_PBC

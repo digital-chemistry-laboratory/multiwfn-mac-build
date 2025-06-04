@@ -1,12 +1,12 @@
 SIMD = -msse3
 DISDIAG = -diag-disable 8290,8291,6371,10316,6178,6916,7416,5268,7342,7373,5120,5144,5082,5112,2554,5183,6182,7352
-OPT = -O2 -qopenmp -qopenmp-link=static -threads -qopt-matmul $(SIMD) $(DISDIAG) -fpp -mkl -static-intel -DINTEL_MKL -stand f08
-OPT1 = -O1 -qopenmp -qopenmp-link=static -threads $(SIMD) $(DISDIAG) -fpp -mkl -static-intel -DINTEL_MKL -stand f08
+OPT = -O2 -qopenmp -qopenmp-link=static -threads -qopt-matmul $(SIMD) $(DISDIAG) -fpscomp logicals -fpp -mkl -static-intel -DINTEL_MKL -stand f08
+OPT1 = -O1 -qopenmp -qopenmp-link=static -threads $(SIMD) $(DISDIAG) -fpscomp logicals -fpp -mkl -static-intel -DINTEL_MKL -stand f08
 #Options in the next line is for debugging purpose
-#OPT = -O0 -qopenmp -qopenmp-link=static -threads $(DISDIAG) -fpp -mkl -static-intel -DINTEL_MKL -stand f08 -debug all -g -traceback -check all -fstack-protector
+#OPT = -O0 -qopenmp -qopenmp-link=static -threads $(DISDIAG) -fpscomp logicals -fpp -mkl -static-intel -DINTEL_MKL -stand f08 -debug all -g -traceback -check all -fstack-protector
 
-LIB_base =
-LIB_GUI = $(LIB_base) ./dislin_d-11.0.a -lXm -lXt -lX11 -lGL   #At least works for CentOS 7.x
+LIB_base = 
+LIB_GUI = $(LIB_base) ./libfortran-xlib.a ./dislin_d-11.0.a -lXm -lXt -lX11 -lGL
 LIB_noGUI = $(LIB_base)
 INCLUDE = -I./ -I./ext
 FC = ifort
@@ -22,7 +22,7 @@ otherfunc2.o otherfunc3.o O1.o surfana.o procgriddata.o AdNDP.o fuzzy.o CDA.o ba
 orbloc.o visweak.o EDA.o CDFT.o ETS_NOCV.o atmraddens.o NAONBO.o grid.o PBC.o hyper_polar.o deloc_aromat.o cp2kmate.o\
 minpack.o blockhrr_012345.o ean.o hrr_012345.o eanvrr_012345.o boysfunc.o naiveeri.o ryspoly.o 2F2.f90.o
 
-objects_noGUI = noGUI/dislin_d_empty.o #Dummy dislin subroutines
+objects_noGUI = noGUI/dislin_d_empty.o noGUI/mouse_rotate_empty.o #Dummy subroutines for noGUI version
 
 ifeq ($(WITH_FD),1)
   objects += 2F2.c.o
@@ -36,15 +36,15 @@ else
   objects += no2F2.c.o
 endif
 
-default : $(objects)
+default: $(objects)
 	$(MAKE) noGUI
 	$(MAKE) GUI
 	@echo " ------------------------------------------------------ "
 	@echo "          Multiwfn has been successfully built!"
 	@echo " ------------------------------------------------------ "
 
-GUI: $(objects)
-	$(FC) $(OPT) $(objects) $(LIB_GUI) -o $(EXE)
+GUI: $(objects) mouse_rotate.o
+	$(FC) $(OPT) $(objects) mouse_rotate.o $(LIB_GUI) -o $(EXE)
 
 noGUI: $(objects) $(objects_noGUI)
 	$(FC) $(OPT) $(objects) $(objects_noGUI) $(LIB_noGUI) -o $(EXE_noGUI)
@@ -87,8 +87,14 @@ function.o : function.f90 define.o util.o Bspline.o libreta.o 2F2.f90.o
 plot.o : plot.f90 define.o util.o
 	$(FC) $(OPT) -c plot.f90
 
-GUI.o : GUI.f90 define.o plot.o function.o
+GUI.o : GUI.f90 define.o plot.o function.o mouse_rotate.o
 	$(FC) $(OPT) -c GUI.f90
+
+mouse_rotate.o : mouse_rotate.f90 xlib.o define.o plot.o
+	$(FC) $(OPT) -c mouse_rotate.f90
+
+noGUI/mouse_rotate_empty.o : noGUI/mouse_rotate_empty.f90
+	$(FC) $(OPT) -c noGUI/mouse_rotate_empty.f90 -o noGUI/mouse_rotate_empty.o
 
 2F2.f90.o : ext/2F2.f90 util.o Bspline.o
 	$(FC) $(OPT) -c ext/2F2.f90 -o 2F2.f90.o
@@ -124,6 +130,9 @@ fparser.o : fparser.f90
 
 no2F2.c.o : ext/no2F2.c
 	$(CC) -c ext/no2F2.c -o no2F2.c.o
+
+noGUI/dislin_d_empty.o : noGUI/dislin_d_empty.f90
+	$(FC) $(OPT) -c noGUI/dislin_d_empty.f90 -o noGUI/dislin_d_empty.o -diag-disable 6178,6843
 
 #Others
 
@@ -233,14 +242,11 @@ cp2kmate.o : cp2kmate.f90 $(modules)
 	$(FC) $(OPT) -c cp2kmate.f90
 
 
-noGUI/dislin_d_empty.o : noGUI/dislin_d_empty.f90
-	$(FC) $(OPT) -c noGUI/dislin_d_empty.f90 -o noGUI/dislin_d_empty.o -diag-disable 6178,6843
-
-
 # Interfaces of libreta-ESP to Multiwfn
 
 libreta.o: ${LIBRETAPATH}/libreta.f90 hrr_012345.o blockhrr_012345.o ean.o eanvrr_012345.o boysfunc.o
 	$(FC) $(OPT) -c ${LIBRETAPATH}/libreta.f90
+
 
 # Pure libreta files for ESP
 
@@ -259,6 +265,7 @@ eanvrr_012345.o: ${LIBRETAPATH}/eanvrr_012345.f90 boysfunc.o
 boysfunc.o: ${LIBRETAPATH}/boysfunc.f90 ${LIBRETAPATH}/boysfunc_data1.h ${LIBRETAPATH}/boysfunc_data2.h
 	$(FC) $(OPT) -c ${LIBRETAPATH}/boysfunc.f90
 
+
 # libreta-ERI
 
 naiveeri.o: ${LIBRETAPATH}/naiveeri.f90 ryspoly.o
@@ -266,4 +273,11 @@ naiveeri.o: ${LIBRETAPATH}/naiveeri.f90 ryspoly.o
 	
 ryspoly.o: ${LIBRETAPATH}/ryspoly.f90
 	$(FC) $(OPT) -c ${LIBRETAPATH}/ryspoly.f90
+
+
+# Fortran-xlib interface
+xlib.o: ext/xlib.f90 ext/xpm.f90
+	$(FC) $(OPT) -fpscomp logicals -c ext/xlib.f90
+	$(FC) $(OPT) -fpscomp logicals -c ext/xpm.f90
+	ar rcs libfortran-xlib.a xlib.o xpm.o
 

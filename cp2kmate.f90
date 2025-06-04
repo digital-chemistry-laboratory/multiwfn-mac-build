@@ -767,7 +767,7 @@ do while(.true.)
         if (itask==6.or.itask==14) write(*,*) "Choose the format for recording trajectory of molecular dynamics"
         write(*,*) " 1 xyz (Simplest. Does not contain cell information)"
         write(*,*) " 2 dcd (Binary file, smallest size. Containing cell information)"
-        write(*,"(a)") " -2 dcd_aligned_cell (same as -2, but transform so that cell vector 1 is along X-axis, cell vector 2 is in XY plane)"
+        write(*,"(a)") " -2 dcd_aligned_cell (same as 2, but transform so that cell vector 1 is along X-axis, cell vector 2 is in XY plane)"
         write(*,*) " 3 pdb (Containing cell information, but accuracy of coordinates is limited)"
         read(*,*) iMDformat
     else if (isel==-4) then
@@ -786,6 +786,20 @@ do while(.true.)
             write(*,*) "Press ENTER button to continue"
             read(*,*)
             iatomcharge=0
+        end if
+        if (iatomcharge==4) then
+            write(*,"(a)") " Warning: The Hirshfeld-I charge calculated by CP2K is not in line with its standard definition. Rigorous Hirshfeld-I charges can be calculated by main function 7 of Multiwfn"
+            write(*,*) "Press ENTER button to continue"
+            read(*,*)
+        end if
+        if (iatomcharge==6) then
+            if (ifPBC/=0) then
+                write(*,*) "Warning: REPEAT charge is a much better choice than RESP for periodic systems!"
+            else
+                write(*,*) "Warning: The RESP charge calculated by CP2K is not in line with its standard definition in J. Phys. Chem., 97, 10269 (1993). Rigorous RESP charges can be calculated by main function 7 of Multiwfn"
+            end if
+            write(*,*) "Press ENTER button to continue"
+            read(*,*)
         end if
     else if (isel==-3) then
         write(*,*) "Output cube file for which real space function?"
@@ -3484,13 +3498,13 @@ integer,parameter :: nSPmax=1000,nkpmax=10000
 character SPlabel(nSPmax)*10 !Label of special points
 real*8 SPvec(3,nSPmax) !XYZ of special points
 integer*2 SPpath(nSPmax) !The path number that this special point belongs to. Each path consists of connected special points
-integer*2 SPkp(nSPmax) !Index of k-point list of each special point
+integer*2 SPkp(nSPmax) !Index of k-point that each special point corresponds to
 real*8 tmpvec(3),kpvec(3,nkpmax)
-integer kpplot(nkpmax) !kpplot(i) is k-point index for plotting band map of real k-point i
+integer kpplot(nkpmax) !kpplot(i) is k-point index for plotting band map of actual k-point i (two neighbouring k-points with same coordinate is merged to single index in kpplot. kpplot corresponds to X-axis position of band structure map)
 E_VBT=-99999 !Valence band top
 E_CBB=99999 !Conduction band bottom
 
-eshift=0 !Don't do shift here, because plotting band structure module is directly able to do shift
+eshift=0 !Don't shift here, because plotting band structure module is directly able to do shift
 !write(*,*) "Input value for shifting energy levels, e.g. 3.42"
 !write(*,*) "If inputting ENTER button directly, 0 will be used"
 !read(*,"(a)") c200tmp
@@ -3665,12 +3679,14 @@ if (iopsh==1) then
     close(14)
 end if
 
-!write(*,*) "List of k-points:"
-!do ikp=1,nkp
-!    write(*,"(2i4,3f12.6)") ikp,kpplot(ikp),kpvec(:,ikp)
-!end do
+write(*,*)
+write(*,*) "List of k-points: (Original index, actual index, X, Y, Z)"
+do ikp=1,nkp
+    write(*,"(2i4,3x,3f16.12)") ikp,kpplot(ikp),kpvec(:,ikp)
+end do
 
-!Determine correspondence between special points and (actual) k-point index
+write(*,*)
+write(*,*) "Determine correspondence between special points and original k-point index..."
 SPkp(:)=0
 do iSP=1,nSP
     if (iSP==1) then
@@ -3678,12 +3694,21 @@ do iSP=1,nSP
     else
         ibeg=SPkp(iSP-1)+1
     end if
+    !write(*,*) iSP,ibeg,nkp
     do ikp=ibeg,nkp
         if (SPvec(1,iSP)==kpvec(1,ikp).and.SPvec(2,iSP)==kpvec(2,ikp).and.SPvec(3,iSP)==kpvec(3,ikp)) then
             SPkp(iSP)=ikp
             exit
         end if
     end do
+    if (ikp==nkp+1) then
+        write(*,"(a,i6,1x,'(',a,')','!')") " Warning: Unable to determine k-point attribution of special point",iSP,trim(SPlabel(iSP))
+        write(*,"(' X,Y,Z of this special point:',3f10.6)") SPvec(:,iSP)
+        write(*,*) "Press ENTER button to continue"
+        read(*,*)
+    else
+        write(*,"(a,i4,1x,'(',a,') at',3f10.6,' attributes to k-point',i6)") " SP",iSP,SPlabel(iSP),SPvec(:,iSP),SPkp(iSP)
+    end if
 end do
 
 write(*,"(/,' Number of total levels:',i7)") nlevelthis
