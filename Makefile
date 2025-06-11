@@ -6,7 +6,7 @@ OPT1 = -O1 -qopenmp -qopenmp-link=static -threads $(SIMD) $(DISDIAG) -fpscomp lo
 #OPT = -O0 -qopenmp -qopenmp-link=static -threads $(DISDIAG) -fpscomp logicals -fpp -mkl -static-intel -DINTEL_MKL -stand f08 -debug all -g -traceback -check all -fstack-protector
 
 LIB_base = 
-LIB_GUI = $(LIB_base) ./libfortran-xlib.a ./dislin_d-11.0.a -lXm -lXt -lX11 -lGL
+LIB_GUI = $(LIB_base) ./dislin_d-11.0.a -lXm -lXt -lX11 -lGL
 LIB_noGUI = $(LIB_base)
 INCLUDE = -I./ -I./ext
 FC = ifort
@@ -43,8 +43,8 @@ default: $(objects)
 	@echo "          Multiwfn has been successfully built!"
 	@echo " ------------------------------------------------------ "
 
-GUI: $(objects) mouse_rotate.o
-	$(FC) $(OPT) $(objects) mouse_rotate.o $(LIB_GUI) -o $(EXE)
+GUI: $(objects) mouse_rotate.o xlib.o
+	$(FC) $(OPT) $(objects) mouse_rotate.o xlib.o $(LIB_GUI) -o $(EXE)
 
 noGUI: $(objects) $(objects_noGUI)
 	$(FC) $(OPT) $(objects) $(objects_noGUI) $(LIB_noGUI) -o $(EXE_noGUI)
@@ -276,8 +276,6 @@ ryspoly.o: ${LIBRETAPATH}/ryspoly.f90
 
 
 # Fortran-xlib interface
-xlib.o: ext/xlib.f90 ext/xpm.f90
+xlib.o: ext/xlib.f90
 	$(FC) $(OPT) -fpscomp logicals -c ext/xlib.f90
-	$(FC) $(OPT) -fpscomp logicals -c ext/xpm.f90
-	ar rcs libfortran-xlib.a xlib.o xpm.o
 

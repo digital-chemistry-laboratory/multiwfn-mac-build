@@ -4712,7 +4712,7 @@ end if
 basinlab=" "
 basinnatm=0
 
-!Assigning labels for core basins. If distance between an attractor and a nucleus is smaller than ELFcore_r, then do assigment
+!Assigning labels for core basins. If distance between an attractor and a nucleus is smaller than ELFcore_r, then do the assignment
 write(*,*) "Assigning labels for core basins..."
 do irealatt=1,numrealatt !Cycle each real attractor
     cycatt: do idx=1,nrealatthas(irealatt) !Cycle each sub attractor
@@ -4733,7 +4733,7 @@ do irealatt=1,numrealatt !Cycle each real attractor
 end do
 
 !Assigning labels for valence basins. If any grid (boundary, rho>0.001) belonging to an attractor is neighbouring to a grid of a core basin, &
-!then the owner atom of this core grid will be added to member list of this attractor
+!then the owner atom of this core basin grid will be added to member list of this attractor
 write(*,*) "Assigning labels for valence basins..."
 ntest=2 !Test two-layers neighbouring grid. If =1, then V(S,F) of SF6 will be incorrectly assigned as V(S), since there is a layer of V(F) grids between core basin of V(S) and C(F)
 do irealatt=1,numrealatt !Cycle all attractors

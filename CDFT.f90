@@ -6,7 +6,7 @@ use functions
 use util
 implicit real*8 (a-h,o-z)
 character keywords*200,c10tmp*10,c200tmp*200,inpname*200,selectyn
-character c3p*3,c3q*3 !e.g. c3p="N+4" if np=4, c3q="N-4" if nq=4
+character c3p*3,c3q*3 !e.g. c3p="N+4" if np=4, c3q="N-4" if nq=4. c3 means three characters
 !Maximum number of electron states in order: N,N+p,N-q,N-2,N+1,N-1 (six slots)
 !For nondegeneracy case, p=1 and q=1, slots 5 and 6 are not used
 !N-2 is only used for calculating w_cubic and epsilon. In this case only nondegeneracy case is supported

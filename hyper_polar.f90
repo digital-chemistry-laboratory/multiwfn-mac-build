@@ -1066,6 +1066,7 @@ real*8,allocatable :: excene(:) !Excitation energy
 real*8 alpha(3,3),alphatmp(3,3),beta(3,3,3),gamma(3,3,3,3),gamma1(3,3,3,3),gamma2(3,3,3,3),delta(3,3,3,3,3)
 real*8 eigval(3),eigvecmat(3,3),tmpw(5)
 real*8,allocatable :: freqlist(:,:) !Store the frequency to be calculated for beta and gamma
+real*8 term(3)
 integer tmpdir(5),arrb(6,3),arrg(24,4),arrd(120,5),dir1,dir2,dir3,dir4,dir5
 
 write(*,*) "Loading data..."
@@ -1967,48 +1968,92 @@ else if (isel==4) then
 	write(*,"(' Calculation took up wall clock time',i10,' s')") iwalltime2-iwalltime1
 	
 else if (isel==20) then !Two or three-level analysis of beta
-    write(*,"(a)") " Excitation energy (E,eV) and transition dipole moment (X,Y,Z,total) between ground state to excited states (a.u.)"
+    write(*,"(a)") " Excitation energy (E), transition electric dipole moment between ground state and excited state, &
+    &and variation of dipole moment of excited states w.r.t. ground state"
+    write(*,*) "                 Trans. dipole moment (a.u.)        Var. dipole moment (a.u.)"
+    write(*,*) "State   E(eV)     X       Y       Z      Tot        X       Y       Z      Tot"
     do istat=1,nstates
-        write(*,"(' State',i5,'  E=',f9.4,'  X=',f10.5,' Y=',f10.5,' Z=',f10.5,' Tot=',f10.5)") &
-        istat,excene(istat)*au2eV,trandip(0,istat,:),dsqrt(sum(trandip(0,istat,:)**2))
+        !write(*,"(' State',i5,'  E=',f9.4,'  X=',f10.5,' Y=',f10.5,' Z=',f10.5,' Tot=',f10.5)") &
+        !istat,excene(istat)*au2eV,trandip(0,istat,:),dsqrt(sum(trandip(0,istat,:)**2))
+        term1=dsqrt(sum(trandip(0,istat,1:3)**2))
+        term2=dsqrt(sum(trandip(istat,istat,1:3)-trandip(0,0,1:3))**2)
+        write(*,"(i5,f9.4,4f8.3,2x,4f8.3)") istat,excene(istat)*au2eV,trandip(0,istat,1:3),term1,trandip(istat,istat,1:3)-trandip(0,0,1:3),term2
     end do
     write(*,*)
-    write(*,*) "Select the component of first hyperpolarizability to carry out the analysis"
-    write(*,*) "1: X   2: Y   3: Z"
-    read(*,*) idir
-    write(*,"(a)") " Input index of states. If only inputting one index, then two-level model analysis will be carried out. &
-    If inputting two indices (e.g. 3,6), three-level model will be used"
+    write(*,"(a)") " Input index of state(s). If only inputting one index, then two-level model analysis will be performed between ground state and this state. &
+    &If inputting two indices (e.g. 2,5), three-level model analysis will be performed on them"
+    write(*,"(a)") " If you want to perform two-level analysis for a range of excited states, for example 1 to 10, you should input 1-10"
     read(*,"(a)") c80tmp
-    if (index(c80tmp,',')/=0) then
+    if (index(c80tmp,'-')/=0) then
+        nexc=0 !Scan
+        itmp=index(c80tmp,'-')
+        c80tmp(itmp:itmp)=' '
+        read(c80tmp,*) istat,jstat
+    else if (index(c80tmp,',')/=0) then
         nexc=2
         read(c80tmp,*) istat,jstat
     else
         nexc=1
         read(c80tmp,*) istat
     end if
-    do i=1,nexc
-        if (i==1) iexc=istat
-        if (i==2) iexc=jstat
-        write(*,*)
-        write(*,"(' Excited state',i6)") iexc
-        write(*,"(' Excitation energy',f10.4,' eV')") excene(iexc)*au2eV
-        write(*,"(' Transition dipole moment component:  ',f12.4,' a.u.')") trandip(0,iexc,idir)
-        write(*,"(' Oscillator strength component:       ',f12.6,' a.u.')") (2D0/3D0)*excene(iexc)*trandip(0,iexc,idir)**2
-        write(*,"(' Variation of dipole moment component:',f12.4,' a.u.')") trandip(iexc,iexc,idir)-trandip(0,0,idir)
-    end do
-    if (nexc==1) then
-        term=6* (trandip(istat,istat,idir)-trandip(0,0,idir))*trandip(0,istat,idir)**2  / excene(istat)**2
-        write(*,"(/,' beta evaluated by the two-level model: ',f16.6,' a.u.')") term
-    else if (nexc==2) then
-        write(*,"(/,' Transition dipole moment between states',i6,' to',i6,':',f12.6,' a.u.')") istat,jstat,trandip(istat,jstat,idir)
-        term1=6* (trandip(istat,istat,idir)-trandip(0,0,idir))*trandip(0,istat,idir)**2  / excene(istat)**2
-        term2=12* trandip(istat,jstat,idir)*trandip(0,istat,idir)*trandip(0,jstat,idir) / (excene(istat)*excene(jstat))
-        term3=6* (trandip(jstat,jstat,idir)-trandip(0,0,idir))*trandip(0,jstat,idir)**2  / excene(jstat)**2
-        write(*,*)
-        write(*,"(' Contribution of excited state',i6,':',f16.6,' a.u.')") istat,term1
-        write(*,"(' Contribution of excited state',i6,':',f16.6,' a.u.')") jstat,term3
-        write(*,"(' Contribution of cross term:         ',f16.6,' a.u.')") term2
-        write(*,"(' beta evaluated by the three-level model:',f16.6,' a.u.')") term1+term2+term3
+    if (nexc/=0) then !Two or three-level analysis for selected state(s)
+        if (nexc==1) write(*,*) "Basic information of selected state:"
+        if (nexc==2) write(*,*) "Basic information of selected states:"
+        do i=1,nexc
+            if (i==1) iexc=istat
+            if (i==2) iexc=jstat
+            write(*,*)
+            write(*,"(' Excited state',i6)") iexc
+            write(*,"(' Excitation energy',f12.6,' a.u.',f10.4,' eV')") excene(iexc),excene(iexc)*au2eV
+            write(*,"(' Transition dipole moment (a.u.)')")
+            write(*,"(' X=',f12.6,'  Y=',f12.6,'  Z=',f12.6,'  Total=',f12.6)") trandip(0,iexc,1:3),dsqrt(sum(trandip(0,iexc,1:3)**2))
+            write(*,"(' Oscillator strength')") 
+            write(*,"(' X=',f12.6,'  Y=',f12.6,'  Z=',f12.6,'  Total=',f12.6)") (2D0/3D0)*excene(iexc)*trandip(0,iexc,1:3)**2,(2D0/3D0)*excene(iexc)*sum(trandip(0,iexc,1:3)**2)
+            write(*,"(' Variation of dipole moment (a.u.)')")
+            write(*,"(' X=',f12.6,'  Y=',f12.6,'  Z=',f12.6,'  Total=',f12.6)") &
+            trandip(iexc,iexc,1)-trandip(0,0,1),trandip(iexc,iexc,2)-trandip(0,0,2),trandip(iexc,iexc,3)-trandip(0,0,3),dsqrt(sum((trandip(iexc,iexc,:)-trandip(0,0,:))**2))
+        end do
+        if (nexc==1) then
+            do idir=1,3
+                term(idir)=6* (trandip(istat,istat,idir)-trandip(0,0,idir))*trandip(0,istat,idir)**2 / excene(istat)**2
+            end do
+            write(*,"(/,' beta evaluated by two-level model: (a.u.)')")
+            write(*,"(' XXX=',f14.4,'  YYY=',f14.4,'  ZZZ=',f14.4,'  Norm=',f14.4)") term(1:3),dsqrt(sum(term(:)**2))
+        else if (nexc==2) then
+            term_xxx=0
+            term_yyy=0
+            term_zzz=0
+            write(*,"(/,' Transition dipole moment between states',i6,' to',i6,': (a.u.)')") istat,jstat
+            write(*,"(' X=',f12.6,'  Y=',f12.6,'  Z=',f12.6,'  Total=',f12.6)") trandip(istat,jstat,1:3),dsqrt(sum(trandip(istat,jstat,1:3)**2))
+            term(1:3)=6* (trandip(istat,istat,1:3)-trandip(0,0,1:3))*trandip(0,istat,1:3)**2  / excene(istat)**2
+            term_xxx=term_xxx+term(1)
+            term_yyy=term_yyy+term(2)
+            term_zzz=term_zzz+term(3)
+            write(*,"(' Individual contribution of excited state',i6,' to beta: (a.u.)')") istat
+            write(*,"(' XXX=',f14.4,'  YYY=',f14.4,'  ZZZ=',f14.4,'  Norm=',f14.4)") term(1:3),dsqrt(sum(term(:)**2))
+            term(1:3)=6* (trandip(jstat,jstat,1:3)-trandip(0,0,1:3))*trandip(0,jstat,1:3)**2  / excene(jstat)**2
+            term_xxx=term_xxx+term(1)
+            term_yyy=term_yyy+term(2)
+            term_zzz=term_zzz+term(3)
+            write(*,"(' Individual contribution of excited state',i6,' to beta: (a.u.)')") jstat
+            write(*,"(' XXX=',f14.4,'  YYY=',f14.4,'  ZZZ=',f14.4,'  Norm=',f14.4)") term(1:3),dsqrt(sum(term(:)**2))
+            term(1:3)=12* trandip(istat,jstat,1:3)*trandip(0,istat,1:3)*trandip(0,jstat,1:3) / (excene(istat)*excene(jstat))
+            term_xxx=term_xxx+term(1)
+            term_yyy=term_yyy+term(2)
+            term_zzz=term_zzz+term(3)
+            write(*,"(' Coupling contribution of the two excited states to beta: (a.u.)')")
+            write(*,"(' XXX=',f14.4,'  YYY=',f14.4,'  ZZZ=',f14.4,'  Norm=',f14.4)") term(1:3),dsqrt(sum(term(:)**2))
+            write(*,"(/,' beta evaluated by three-level model: (a.u.)')")
+            write(*,"(' XXX=',f14.4,'  YYY=',f14.4,'  ZZZ=',f14.4,'  Norm=',f14.4)") term_xxx,term_yyy,term_zzz,dsqrt(term_xxx**2+term_yyy**2+term_zzz**2)
+        end if
+    else !Two-level analysis for a range of excited states
+        write(*,"(/,' beta evaluated by two-level model: (a.u.)')")
+        do idx=istat,jstat
+            do idir=1,3
+                term(idir)=6* (trandip(idx,idx,idir)-trandip(0,0,idir))*trandip(0,idx,idir)**2 / excene(idx)**2
+            end do
+            write(*,"(' #',i5,': XXX=',f13.2,'  YYY=',f13.2,'  ZZZ=',f13.2,'  Norm=',f13.2)") idx,term(1:3),dsqrt(sum(term(:)**2))
+        end do
     end if
 end if
 
