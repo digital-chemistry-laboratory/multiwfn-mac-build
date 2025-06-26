@@ -3831,10 +3831,21 @@ if (iCP2K==1) then
 			end if
 			call loclabel(10,"VIB|Frequency (cm^-1)",ifound,0)
             !Read frequencies
-			read(10,"(22x)",advance="no")
-			if (iread==1) read(10,*) datax(inow)
-			if (iread==2) read(10,*) datax(inow),datax(inow+1)
-			if (iread==3) read(10,*) datax(inow),datax(inow+1),datax(inow+2)
+            read(10,"(a)") c80tmp
+			if (iread==1) then
+				read(c80tmp(23:),*,iostat=ierror) datax(inow)
+			else if (iread==2) then
+				read(c80tmp(23:),*,iostat=ierror) datax(inow),datax(inow+1)
+			else if (iread==3) then
+				read(c80tmp(23:),*,iostat=ierror) datax(inow),datax(inow+1),datax(inow+2)
+            end if
+            if (ierror/=0) then
+				write(*,*) "Error encountered while loading the following line:"
+                write(*,"(a)") trim(c80tmp)
+                write(*,*) "Press ENTER button to exit"
+                read(*,*)
+                stop
+            end if
             !Read IR/Raman intensities
 			if (ispectrum==2) read(10,*) !Skip IR line
 			do itmp=1,iread

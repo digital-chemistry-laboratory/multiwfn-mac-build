@@ -6380,7 +6380,7 @@ if (idiffuse==0) then
     if (ilevel==10) c200tmp="! CCSD(T) cc-pVTZ tightSCF"
     if (ilevel==11) c200tmp="! CCSD(T)-F12/RI cc-pVDZ-F12 cc-pVDZ-F12-CABS cc-pVTZ/C tightSCF"
     if (ilevel==12) c200tmp="! ExtrapolateEP2(3/4,cc,MP2) tightSCF"
-    if (ilevel==13) c200tmp="! DLPNO-CCSD(T) tightPNO Extrapolate(3/4,def2) tightSCF"
+    if (ilevel==13) c200tmp="! DLPNO-CCSD(T) tightPNO Extrapolate(3/4,def2) def2-QZVPP/C RIJCOSX tightSCF"
     if (ilevel==14) c200tmp="! CCSD(T) Extrapolate(3/4,cc) tightSCF"
     if (ilevel==20) c200tmp="! wB97X-D3 def2-SV(P) def2/J RIJCOSX"
     if (ilevel==21) c200tmp="! PBE0 def2-SV(P) def2/J def2-SVP/C RIJCOSX tightSCF"//trim(grd4str)

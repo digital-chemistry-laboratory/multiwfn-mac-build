@@ -1021,7 +1021,9 @@ do while(.true.)
             if (isel2==31) method="GFN0-xTB"
             if (isel2==40) method="PM6"
             if (isel2==50) method="SCC-DFTB"
-            if (index(method,"ADMM")/=0.or.isel2==30.or.isel2==40.or.isel2==50) idiagOT=2 !When ADMM is used, OT is suggested to be used. OT is suggested for GFN1-xTB, PM6, SCC-DFTB dealing with large systems
+            if (index(method,"ADMM")/=0.or.isel2==30.or.isel2==40.or.isel2==50) then !When ADMM is used, OT is suggested to be used. OT is suggested for GFN1-xTB, PM6, SCC-DFTB dealing with large systems
+                if (ikpoint1==1.and.ikpoint2==1.and.ikpoint3==1) idiagOT=2
+            end if
             if (isel2==40) imixing=1
             if (index(method,"SCAN")/=0) then
                 write(*,"(a)") " NOTE: If you are using CP2K >=9.1, in the generated CP2K input file, it is suggested to replace &
