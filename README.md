@@ -57,9 +57,11 @@ Use `cmake --install build` to install the `multiwfn` executable and `settings.i
 
 ## Building with GUI
 
-The GUI version can be built on Intel machines. It is currently not possible to build the GUI on Apple Silicon machines, due to lack of a [DISLIN](https://www.dislin.de) distribution. The required libraries can be installed with homebrew:
-- [OpenMotif](https://formulae.brew.sh/formula/openmotif)
-- [XQuartz](https://formulae.brew.sh/cask/xquartz)
+The GUI version can be built on Intel machines and seem to work with bugs on Apple Silicon machnines. The required libraries can be installed with homebrew:
+
+```shell
+brew install brew install libx11 libxt mesa openmotif
+```
 
 ### Install DISLIN
 
@@ -72,8 +74,9 @@ The DISLIN package needs to be installed on the system. Follow these steps:
 
 An example of how to do this is:
 ```shell
-wget https://www.dislin.de/downloads/darwin/dislin-11.5.darwin.intel.64.tar.gz
-tar -xvf dislin-11.5.darwin.intel.64.tar.gz
+wget https://www.dislin.de/downloads/macOS/dislin-11.5.macOS.intel.64.tar.gz
+# for Apple Silicon: wget https://www.dislin.de/downloads/macOS/dislin-11.5.macOS.arm.64.tar.gz
+tar -xvf dislin-11.5.macOS.intel.64.tar.gz
 export DISLIN=$HOME/bin/dislin
 cd dislin-11.5
 ./INSTALL
@@ -90,3 +93,12 @@ $ cmake -B build -DWITH_GUI=ON -DDISLIN_DIR=$DISLIN
 ```
 
 where `$DISLIN` points to the same directory as during the installation. These options can be combined with OpenMP and the release build type for optimal performance (see above).
+
+### Running
+
+To avoid memory issues, make sure to follow the instructions in the Multiwfn manual and set the `OMP_STACKSIZE` before executing the program.
+
+```shell
+export OMP_STACKSIZE=64000000
+multiwfn
+```

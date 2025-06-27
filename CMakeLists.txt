@@ -37,8 +37,14 @@ if(WITH_GUI)
     NAMES dislin_d
     PATHS ${DISLIN_DIR} REQUIRED)
   find_library(Xm NAMES Xm REQUIRED)
+  find_library(X11 NAMES X11 REQUIRED)
+  find_library(Xt NAMES Xt REQUIRED)
+  find_library(GL NAMES GL REQUIRED)
   message("-- Found DISLIN: ${dislin}")
-  message("-- Found OpenMotif: ${Xm}")
+  message("-- Found X11: ${X11}")
+  message("-- Found Xm: ${Xm}")
+  message("-- Found Xt: ${Xt}")
+  message("-- Found GL: ${GL}")
 endif()
 
 # Turn on preprocessor
@@ -76,7 +82,10 @@ target_link_libraries(
           ${GMP_LINK_LIBRARIES}
           $<$<BOOL:${OpenMP_Fortran_FOUND}>:OpenMP::OpenMP_Fortran>
           $<$<BOOL:${WITH_GUI}>:${dislin}>
-          $<$<BOOL:${WITH_GUI}>:${Xm}>)
+          $<$<BOOL:${WITH_GUI}>:${X11}>
+          $<$<BOOL:${WITH_GUI}>:${Xm}>
+          $<$<BOOL:${WITH_GUI}>:${Xt}>
+          $<$<BOOL:${WITH_GUI}>:${GL}>)
 target_include_directories(
   multiwfn PRIVATE ${GMP_INCLUDE_DIRS} ${FLINT_INCLUDE_DIRS}
                    ${ARB_INCLUDE_DIRS})
