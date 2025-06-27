@@ -59,7 +59,7 @@ jobs:
 
     - name: Install libraries
       run: |
-        brew install openmotif mesa flint
+        brew install flint libx11 libxt mesa openmotif
         wget https://www.dislin.de/downloads/darwin/dislin-11.5.darwin.intel.64.tar.gz
         tar -xvf dislin-11.5.darwin.intel.64.tar.gz
         export DISLIN=$GITHUB_WORKSPACE/dislin
