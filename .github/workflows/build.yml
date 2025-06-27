@@ -33,7 +33,7 @@ jobs:
       run: |
         cmake -B build -DWITH_OpenMP=ON
         cmake --build build
-        cmake --install build --prefix $PWD
+        cmake --install build --prefix $GITHUB_WORKSPACE
       env:
         FC: gfortran-12
         CC: gcc-12
@@ -62,7 +62,7 @@ jobs:
         brew install openmotif mesa flint
         wget https://www.dislin.de/downloads/darwin/dislin-11.5.darwin.intel.64.tar.gz
         tar -xvf dislin-11.5.darwin.intel.64.tar.gz
-        export DISLIN=$PWD/dislin
+        export DISLIN=$GITHUB_WORKSPACE/dislin
         cd dislin-11.5
         ./INSTALL
         cd ..
@@ -73,7 +73,7 @@ jobs:
       run: |
         cmake -B build -DWITH_OpenMP=ON -DWITH_GUI=ON -DDISLIN_DIR=$PWD/dislin
         cmake --build build
-        cmake --install build --prefix $PWD
+        cmake --install build --prefix $GITHUB_WORKSPACE
       env:
         FC: gfortran-12
         CC: gcc-12        
