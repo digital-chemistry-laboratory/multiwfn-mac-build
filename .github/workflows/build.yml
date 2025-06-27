@@ -31,9 +31,9 @@ jobs:
 
     - name: Build
       run: |
-        cmake -B build -DWITH_OpenMP=ON
+        cmake -B build -DWITH_OpenMP=ON -DCMAKE_INSTALL_PREFIX=$PWD
         cmake --build build
-        cmake --install build --prefix $GITHUB_WORKSPACE
+        cmake --install build
       env:
         FC: gfortran-12
         CC: gcc-12
@@ -71,9 +71,9 @@ jobs:
 
     - name: Build
       run: |
-        cmake -B build -DWITH_OpenMP=ON -DWITH_GUI=ON -DDISLIN_DIR=$PWD/dislin
+        cmake -B build -DWITH_OpenMP=ON -DWITH_GUI=ON -DDISLIN_DIR=$PWD/dislin -DCMAKE_INSTALL_PREFIX=$PWD
         cmake --build build
-        cmake --install build --prefix $GITHUB_WORKSPACE
+        cmake --install build
       env:
         FC: gfortran-12
         CC: gcc-12        
