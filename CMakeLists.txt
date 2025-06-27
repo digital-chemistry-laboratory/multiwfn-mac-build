@@ -55,8 +55,13 @@ file(
   ${PROJECT_SOURCE_DIR}/ext/2F2.c
   ${PROJECT_SOURCE_DIR}/ext/frj.f90
   ${PROJECT_SOURCE_DIR}/libreta_hybrid/*.f90)
-if(NOT WITH_GUI)
-  list(APPEND srcs ${PROJECT_SOURCE_DIR}/noGUI/dislin_d_empty.f90)
+
+if(WITH_GUI)
+  list(APPEND srcs ${PROJECT_SOURCE_DIR}/ext/xlib.f90)
+else()
+  list(REMOVE_ITEM srcs ${PROJECT_SOURCE_DIR}/mouse_rotate.f90)
+  list(APPEND srcs ${PROJECT_SOURCE_DIR}/noGUI/mouse_rotate_empty.f90
+       ${PROJECT_SOURCE_DIR}/noGUI/dislin_d_empty.f90)
 endif()
 
 # Add executable
@@ -72,7 +77,9 @@ target_link_libraries(
           $<$<BOOL:${OpenMP_Fortran_FOUND}>:OpenMP::OpenMP_Fortran>
           $<$<BOOL:${WITH_GUI}>:${dislin}>
           $<$<BOOL:${WITH_GUI}>:${Xm}>)
-target_include_directories(multiwfn PRIVATE ${GMP_INCLUDE_DIRS} ${FLINT_INCLUDE_DIRS} ${ARB_INCLUDE_DIRS})
+target_include_directories(
+  multiwfn PRIVATE ${GMP_INCLUDE_DIRS} ${FLINT_INCLUDE_DIRS}
+                   ${ARB_INCLUDE_DIRS})
 
 # Add compiler flags to GFortran
 target_compile_options(
