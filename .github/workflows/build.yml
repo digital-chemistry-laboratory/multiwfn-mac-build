@@ -27,7 +27,7 @@ jobs:
 
     - name: Install libraries
       run: |
-        brew install arb flint
+        brew install flint
 
     - name: Build
       run: |
@@ -59,7 +59,7 @@ jobs:
 
     - name: Install libraries
       run: |
-        brew install openmotif mesa arb flint
+        brew install openmotif mesa flint
         wget https://www.dislin.de/downloads/darwin/dislin-11.5.darwin.intel.64.tar.gz
         tar -xvf dislin-11.5.darwin.intel.64.tar.gz
         export DISLIN=$PWD/dislin
