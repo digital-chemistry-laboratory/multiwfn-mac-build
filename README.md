@@ -59,7 +59,7 @@ Use `cmake --install build` to install the `multiwfn` executable and `settings.i
 The GUI version can be built on Intel machines and seem to work with bugs on Apple Silicon machnines. The required libraries can be installed with homebrew:
 
 ```shell
-brew install brew install libx11 libxt mesa openmotif
+brew install libx11 libxt mesa openmotif
 ```
 
 ### Install DISLIN
