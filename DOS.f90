@@ -1919,12 +1919,12 @@ else if (isel==0.or.isel==10) then
                 else !COHP
 					open(10,file="COHP_line.txt",status="replace")
 					do i=1,3*imoend
-						write(10,"(f12.5,f12.6)") linexpos(i),-COHPliney(i)
+						write(10,"(f12.5,f20.6)") linexpos(i),-COHPliney(i)
 					end do
 					close(10)
 					open(10,file="COHP_curve.txt",status="replace")
 					do i=1,num1Dpoints
-						write(10,"(f10.5,f12.6)") curvexpos(i),-COHPcurve(i)
+						write(10,"(f10.5,f20.6)") curvexpos(i),-COHPcurve(i)
 					end do
 					close(10)
 					write(*,*) "Curve data have been written to COHP_curve.txt in current folder"

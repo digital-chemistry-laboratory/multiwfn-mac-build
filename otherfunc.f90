@@ -412,25 +412,31 @@ if (iwork==1) then !NCI
 	iselfunc2=13
     write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
     write(*,*) "  Original paper of NCI: J. Am. Chem. Soc., 132, 6498 (2010)"
-	write(*,"(a)") "   A nice comprehensive review: Tian Lu, Qinxue Chen, Visualization Analysis of &
+	write(*,"(a)") "   Comprehensive reviews:"
+    write(*,"(a)") " Tian Lu, Qinxue Chen, Visualization Analysis of &
 	&Weak Interactions in Chemical Systems. In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
+    write(*,"(a)") " Tian Lu, Visualization Analysis of Covalent and Noncovalent Interactions in Real Space, Angew. Chem. Int. Ed., e202504895 (2025) DOI: 10.1002/anie.202504895"
 else if (iwork==2) then !NCI based on promolecular approximation
 	iselfunc1=16
 	iselfunc2=14
     write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
     write(*,*) "  Original paper of NCI: J. Am. Chem. Soc., 132, 6498 (2010)"
-	write(*,"(a)") "   A nice comprehensive review: Tian Lu, Qinxue Chen, Visualization Analysis of &
+	write(*,"(a)") "   Comprehensive reviews:"
+    write(*,"(a)") " Tian Lu, Qinxue Chen, Visualization Analysis of &
 	&Weak Interactions in Chemical Systems. In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
+    write(*,"(a)") " Tian Lu, Visualization Analysis of Covalent and Noncovalent Interactions in Real Space, Angew. Chem. Int. Ed., e202504895 (2025) DOI: 10.1002/anie.202504895"
 else if (iwork==4) then !IRI
 	iselfunc1=15
 	iuserfunc_old=iuserfunc
 	iselfunc2=100
 	iuserfunc=99
     write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
-    write(*,"(a)") "  Original paper of IRI: Tian Lu, Qinxue Chen, Interaction Region Indicator (IRI): A Simple Real Space Function &
+    write(*,"(a)") "   Original paper of IRI: Tian Lu, Qinxue Chen, Interaction Region Indicator (IRI): A Simple Real Space Function &
     &Clearly Revealing Both Chemical Bonds and Weak Interactions, Chemistry-Methods, 1, 231-239 (2021) DOI: 10.1002/cmtd.202100007"   
-	write(*,"(a)") "  A nice comprehensive review: Tian Lu, Qinxue Chen, Visualization Analysis of &
+	write(*,"(a)") "   Comprehensive reviews:"
+    write(*,"(a)") " Tian Lu, Qinxue Chen, Visualization Analysis of &
 	&Weak Interactions in Chemical Systems. In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
+    write(*,"(a)") " Tian Lu, Visualization Analysis of Covalent and Noncovalent Interactions in Real Space, Angew. Chem. Int. Ed., e202504895 (2025) DOI: 10.1002/anie.202504895"
 else if (iwork==5) then !DORI
 	iselfunc1=15
 	iuserfunc_old=iuserfunc

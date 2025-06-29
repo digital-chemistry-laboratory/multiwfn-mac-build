@@ -3,9 +3,10 @@ subroutine visweak_main
 use defvar
 implicit real*8 (a-h,o-z)
 
-write(*,"(a)") " Review article of most functions in this module:"
+write(*,"(a)") " Reviews of functions in this module:"
 write(*,"(a)") " Tian Lu and Qinxue Chen, Visualization Analysis of Weak Interactions in Chemical Systems. &
-&In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) http://dx.doi.org/10.1016/B978-0-12-821978-2.00076-3"
+&In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
+write(*,"(a)") " Tian Lu, Visualization Analysis of Covalent and Noncovalent Interactions in Real Space, Angew. Chem. Int. Ed., e202504895 (2025) DOI: 10.1002/anie.202504895"
 do while(.true.)
 	write(*,*)
 	write(*,*) "           ============ Visual study of weak interaction ============ "
@@ -81,7 +82,7 @@ real*8,allocatable :: scatterx(:),scattery(:)
 
 write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
 write(*,*) "  Original paper of aNCI: J. Chem. Theory Comput., 9, 2226 (2013)"
-write(*,"(a)") "   A nice comprehensive review: Tian Lu, Qinxue Chen, Visualization Analysis of &
+write(*,"(a)") "   Review: Tian Lu, Qinxue Chen, Visualization Analysis of &
 &Weak Interactions in Chemical Systems. In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
 
 write(*,*)
@@ -394,8 +395,10 @@ else if (iIGMtype==2) then
     write(*,*) "  Erratum to the IGMH paper:"
     write(*,*) "Tian Lu, Qinxue Chen, ChemRxiv (2022) DOI: 10.26434/chemrxiv-2022-g1m34"
 end if
-write(*,"(a)") "   A nice comprehensive review: Tian Lu, Qinxue Chen, Visualization Analysis of &
+write(*,"(a)") "   Comprehensive reviews:"
+write(*,"(a)") " Tian Lu, Qinxue Chen, Visualization Analysis of &
 &Weak Interactions in Chemical Systems. In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
+write(*,"(a)") " Tian Lu, Visualization Analysis of Covalent and Noncovalent Interactions in Real Space, Angew. Chem. Int. Ed., e202504895 (2025) DOI: 10.1002/anie.202504895"
 
 !----- Define fragments
 write(*,*)
@@ -1513,8 +1516,9 @@ real*8,allocatable :: repulgrid(:,:,:),dispgrid(:,:,:),vdwgrid(:,:,:)
 character outcubfile*200,c80tmp*80
 
 write(*,"(/,a)") " !!! If this method is employed in your work, please cite this paper along with Multiwfn original paper:"
-write(*,"(a,/)") " Tian Lu, Qinxue Chen, van der Waals Potential: An Important Complement to Molecular Electrostatic &
+write(*,"(a)") " Tian Lu, Qinxue Chen, van der Waals Potential: An Important Complement to Molecular Electrostatic &
 &Potential in Studying Intermolecular Interactions. J. Mol. Model., 26, 315 (2020) DOI: 10.1007/s00894-020-04577-0"
+write(*,"(a,/)") " Review: Tian Lu, Visualization Analysis of Covalent and Noncovalent Interactions in Real Space, Angew. Chem. Int. Ed., e202504895 (2025) DOI: 10.1002/anie.202504895"
 
 if (ivdwprobe==0) then
     write(*,*) "Input name of probe atom, e.g. Ar"
