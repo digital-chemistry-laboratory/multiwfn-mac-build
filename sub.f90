@@ -4595,11 +4595,11 @@ use defvar
 use libreta
 integer info
 if (ifPBC>0) then
-	write(*,*) "Error: Currently evaluation of ESP does not support periodic system"
+	write(*,*) "Error: Evaluation of ESP does not support periodic systems"
     write(*,*) "Press ENTER button to continue (then Multiwfn may crash)"
     read(*,*)
 end if
-if (iuserfunc>=61.and.iuserfunc<=67) return !In this case, the function involves derivative of ESP, while I found the numerical derivate of ESP produced by libreta has noise
+if (iuserfunc>=61.and.iuserfunc<=67) return !In this case, the function involves derivative of ESP, while I found the numerical derivative of ESP produced by libreta has noise
 if (if_initlibreta==0) then
 	if (info==1) then
 		write(*,*)

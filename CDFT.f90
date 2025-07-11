@@ -396,20 +396,27 @@ do while(.true.)
                     ifailed=0
                     do istate=1,maxstate
                         if (spin(istate)==0) cycle
+                        write(*,*)
                         call runORCA(trim(statename(istate))//".inp",isuccess)
+                        call delfile(trim(statename(istate))//".gbw "//&
+                        trim(statename(istate))//".densities "//&
+                        trim(statename(istate))//".PDAT.tmp "//&
+                        trim(statename(istate))//".property.txt "//&
+                        trim(statename(istate))//".densitiesinfo "//&
+                        trim(statename(istate))//".bibtex "//&
+                        trim(statename(istate))//".wfx")
                         if (isuccess==1) then
                             call delfile(trim(statename(istate))//".inp "//trim(statename(istate))//".out")
-                            write(*,"(a,/)") " Now current folder should contain "//trim(statename(istate))//".wfn"
+                            write(*,"(a)") " Now current folder should contain "//trim(statename(istate))//".wfn"
                         else
-                            write(*,"(a,/)") " The task has failed! Please manually check "//trim(statename(istate))//".inp and "//trim(statename(istate))//".out"
+                            write(*,"(a)") " The task has failed! Please manually check "//trim(statename(istate))//".inp and "//trim(statename(istate))//".out"
                             ifailed=1
                         end if
-                        call delfile(trim(statename(istate))//".gbw "//trim(statename(istate))//".densities "//trim(statename(istate))//".PDAT.tmp "//trim(statename(istate))//"_property.txt "//trim(statename(istate))//".wfx")
                     end do
                     if (ifailed==1) then
-                        write(*,"(a)") " Since one or more .wfn files was not successfully generated, the subsequent analysis cannot be conducted"
+                        write(*,"(/,a)") " Since one or more .wfn files was not successfully generated, the subsequent analysis cannot be conducted"
                     else
-                        write(*,"(a)") " All .wfn files have been successfully generated, now you can use option 2 or 3 to start the analysis"
+                        write(*,"(/,a)") " All .wfn files have been successfully generated, now you can use option 2 or 3 to start the analysis"
                     end if
                 end if
             else

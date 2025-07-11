@@ -442,6 +442,9 @@ integer :: iclrpath=14 !Color of topology paths (Brown)
 integer :: iclr3n1path=15 !Color of interbasin paths (Dark blue)
 integer,allocatable :: boldlinelist(:)
 character(len=3) :: drawsurmesh="ON "
+!Parameters for plotting extrema of a function on a contour line of another function
+integer :: iextrema_on_contour=0,ifunc_2Dextrema
+real*8 ctrval_2Dextrema
 !Parameter for drawing molecular structure or 3D map
 integer :: ienablelight1=1,ienablelight2=1,ienablelight3=1,ienablelight4=0,ienablelight5=0 !If enable lighting 1~5
 integer :: ishowatmlab=1,ishowCPlab=0,ishowpathlab=0,ishowaxis=1,isosurshowboth=1,ishowdatarange=0,ishowcell=0,ishowboundaryatom=1,ishowboundarytopo=1,idrawpath=1,idrawbassurf=1,ishowattlab=0,ishowatt=0

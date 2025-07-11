@@ -1574,7 +1574,7 @@ do while(.true.)
 		if (idrawtype==3.or.idrawtype==4.or.idrawtype==5) then !Draw 3D plane, first use drawplaneGUI to setup GUI, which then invokes drawplane
 			call drawplanegui(axlow1,axhigh1,axlow2,axhigh2,drawlowlim,drawuplim,idrawtype)
 		else
-			call drawplane(axlow1,axhigh1,axlow2,axhigh2,drawlowlim,drawuplim,idrawtype)
+			call drawplane(axlow1,axhigh1,axlow2,axhigh2,drawlowlim,drawuplim)
 		end if
 		if (isavepic==1) write(*,"(a,a,a)") " Graph have been saved as ",trim(graphformat)," format with ""dislin"" prefix in current directory"
 		isavepic=0
@@ -1673,6 +1673,11 @@ do while(.true.)
 		if (iatmlabtype==1) write(*,*) "18 Change style of atomic labels: Only plot element symbol"
 		if (iatmlabtype==2) write(*,*) "18 Change style of atomic labels: Only plot atomic index"
 		if (iatmlabtype==3) write(*,*) "18 Change style of atomic labels: Plot both element symbol and atomic index"
+        if (iextrema_on_contour==0) then
+			write(*,"(a)") " 19 Enable showing extrema of a function on a contour line"
+        else
+			write(*,"(a)") " 19 Disable showing extrema of a function on a contour line"
+        end if
 	else if (idrawtype==4.or.idrawtype==5) then !Colored relief map with/without projected color-filled map
 		write(*,*) "1 Set color scale range for filling color"
 		write(*,"(a,a)") " 2 Toggle drawing mesh on the surface, current: ",drawsurmesh
@@ -1785,7 +1790,7 @@ do while(.true.)
 				read(*,*) selectyn
 				if (selectyn=='y'.or.selectyn=='Y') then
 					iplaneoutall=1 !Global variable, which tells drawplane routine to export topology data
-					call drawplane(axlow1,axhigh1,axlow2,axhigh2,drawlowlim,drawuplim,idrawtype)
+					call drawplane(axlow1,axhigh1,axlow2,axhigh2,drawlowlim,drawuplim)
 					iplaneoutall=0
 					if (numcp>0) write(*,"(a)") " Critical points have been outputted to planeCP.txt in current folder. The third column is type: 1=(3,-3), 2=(3,-1), 3=(3,+1), 4=(3,+3)"
 					if (numpath>0.and.imarkpath==1) write(*,*) "Topology paths have been outputted to planepath.txt in current folder"
@@ -1794,11 +1799,12 @@ do while(.true.)
 				end if
 			end if
 		end if
-	else if (i==-5) then
+	else if (i==-5) then !Return to main menu
 		deallocate(planemat,planemattmp)
 		if (allocated(planemat_bk)) deallocate(planemat_bk)
 		idrawplanevdwctr=0
 		iorbsel2=0
+        iextrema_on_contour=0
 		exit
 	else if (i==-4) then
         call saveload2Dplottingsetting(drawlowlim,drawuplim)
@@ -1885,6 +1891,17 @@ do while(.true.)
 			write(*,*) "3: Plot both element symbol and atomic index"
 			write(*,*) "Note that the default setting can be set by ""iatmlabtype"" in settings.ini"
 			read(*,*) iatmlabtype
+		else if (i==19) then
+			if (iextrema_on_contour==0) then
+				write(*,*) "Input isovalue for defining the contour line, e.g. 0.5"
+				read(*,*) ctrval_2Dextrema
+				write(*,*) "Select the real space function to search for extrema on the contour lines"
+				call selfunc_interface(1,ifunc_2Dextrema)
+                iextrema_on_contour=1
+                if (ifunc_2Dextrema==12) call doinitlibreta(info)
+            else
+				iextrema_on_contour=0
+            end if
 		end if
 		
 		!Options only for idrawtype 1 =====================
@@ -3377,7 +3394,7 @@ do while(.true.)
         else if (isel==1) then
             isavepic=1
         end if
-		call drawplane(xlow,xhigh,ylow,yhigh,zlow,zhigh,idrawtype)
+		call drawplane(xlow,xhigh,ylow,yhigh,zlow,zhigh)
         if (isel==1) then
             isavepic=0
             write(*,"(a,a,a)") " The map have been saved as ",trim(graphformat)," format with ""dislin"" prefix in current folder"

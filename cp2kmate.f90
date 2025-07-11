@@ -3380,9 +3380,9 @@ if (itask==5) then
     write(ifileid,"(a)") "  TC_PRESSURE 101325 #1 atm. Pressure for calculate thermodynamic data (Pa)"
     write(ifileid,"(a)") "  TC_TEMPERATURE 298.15 #Temperature for calculate thermodynamic data (K)"
     write(ifileid,"(a)") "  THERMOCHEMISTRY #Print thermochemistry information (only valid for isolated systems)"
-    if (ikpoint1==1.and.ikpoint2==1.and.ikpoint3==1) then
+    if (ikpoint1==1.and.ikpoint2==1.and.ikpoint3==1.and.iTDDFT==0) then
         write(ifileid,"(a)") "  INTENSITIES T #Calculate IR/Raman intensities"
-    else !Cannot produce moment/polarizability and hence intensities when k-points are considered
+    else !Cannot produce moment/polarizability and hence intensities when k-points are considered or TDDFT
         write(ifileid,"(a)") "  INTENSITIES F #Calculate IR/Raman intensities"
     end if
     if (ifPBC==0.or.PBCdir=="NONE") then

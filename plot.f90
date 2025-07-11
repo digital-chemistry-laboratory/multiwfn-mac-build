@@ -1071,18 +1071,25 @@ end subroutine
 !!!------------------------- Draw property on a plane (or output critical points and paths, when iplaneoutall=1)
 !init and end is coordinate range in each dimension
 !Input length unit must be in Bohr, but you can use ilenunit2D to change the displayed length unit (=1/2 denote Bohr/Angstrom)
-subroutine drawplane(init1inp,end1inp,init2inp,end2inp,init3,end3,idrawtype)
+subroutine drawplane(init1inp,end1inp,init2inp,end2inp,init3,end3)
 use topo
 use util
+use functions
 implicit real*8 (a-h,o-z)
 real*8 init1inp,end1inp,init2inp,end2inp,init1,end1,init2,end2,init3,end3
 real*8 xcoord(ngridnum1),ycoord(ngridnum2),gradd1tmp(ngridnum1,ngridnum2),gradd2tmp(ngridnum1,ngridnum2)
-real*8 dx,dy,pix2usr,n1,n2,n1_2,n2_2
+real*8 dx2D,dy2D,pix2usr,n1,n2,n1_2,n2_2
 real*8 planetrunc(ngridnum1,ngridnum2),planetrunc2(ngridnum1,ngridnum2) !Store truncated planemat
 integer lengthx !length of x axis
-integer idrawtype,i,j
+integer i,j
 integer :: inplane(ncenter+1) !If =1, then the label is close enough to the plotting plane
 character atmlabtext*20,tmpstr*20
+!For plotting extrema on a contour
+integer,parameter :: maxctrpt=10000,maxctrline=300
+real*8 ctrptx(maxctrpt),ctrpty(maxctrpt) !X,Y coordinate of points on all contour lines of the specific isovalue
+real*8 ctrptval(maxctrpt),ctrptval_tmp(maxctrpt),ctrptval_org(maxctrpt) !Another function on the contour line points
+integer ctrptnum(maxctrline) !Number of points on each contour line
+integer ifopenctr(maxctrline)
 
 scll=1D0
 if (ilenunit2D==2) scll=b2a
@@ -1164,13 +1171,13 @@ end if
 call ticks(iticks,"XYZ")
 if (ilenunit2D==1) CALL NAME('Length unit: Bohr', 'X')
 if (ilenunit2D==2) CALL NAME('Length unit: Angstrom', 'X')
-dx=(end1-init1)/(ngridnum1-1)
-dy=(end2-init2)/(ngridnum2-1)
+dx2D=(end1-init1)/(ngridnum1-1)
+dy2D=(end2-init2)/(ngridnum2-1)
 do i=1,ngridnum1
-	xcoord(i)=init1+(i-1)*dx
+	xcoord(i)=init1+(i-1)*dx2D
 end do
 do i=1,ngridnum2
-	ycoord(i)=init2+(i-1)*dy
+	ycoord(i)=init2+(i-1)*dy2D
 end do
 shiftx=mod(init1,planestpx) !Shift of axis origin, so that there is a label just at exactly midpoint
 shifty=mod(init2,planestpy)
@@ -1435,8 +1442,11 @@ if (idrawtype==1.or.idrawtype==2.or.idrawtype==6.or.idrawtype==7) then
 						end if
 						tmp1=n1*d1; tmp2=n2*d2
 						if (tmp1<init1.or.tmp1>end1.or.tmp2<init2.or.tmp2>end2) cycle !To avoid path out of plotting range
-						if (iplaneoutall==0) call rlsymb(21,tmp1,tmp2)
-						if (iplaneoutall==1) write(10,"(2f12.6)") n1*d1*b2a,n2*d2*b2a
+						if (iplaneoutall==0) then
+							call rlsymb(21,tmp1,tmp2)
+						else if (iplaneoutall==1) then
+							write(10,"(2f12.6)") n1*d1*b2a,n2*d2*b2a
+                        end if
 					end if
 				end do
 				if (iplaneoutall==1) write(10,*) !Leave a blank line between each paths
@@ -1496,15 +1506,135 @@ if (idrawtype==1.or.idrawtype==2.or.idrawtype==6.or.idrawtype==7) then
 					end if
 					tmp1=n1*d1; tmp2=n2*d2
 					if (tmp1<init1.or.tmp1>end1.or.tmp2<init2.or.tmp2>end2) cycle !To avoid path out of plotting range
-					if (iplaneoutall==0) call rlsymb(21,tmp1,tmp2)
-					if (iplaneoutall==1) write(10,"(2f12.6,i4)") n1*d1*b2a,n2*d2*b2a,CPtype(icp)
+					if (iplaneoutall==0) then
+						call rlsymb(21,tmp1,tmp2)
+					else if (iplaneoutall==1) then
+						write(10,"(2f12.6,i4)") n1*d1*b2a,n2*d2*b2a,CPtype(icp)
+                    end if
 				end if
 			end if
 		end do
 		if (iplaneoutall==1) close(10)
 	end if
 	if (iplaneoutall==1) return
-
+    
+    !Draw extrema of a function on a contour line of specific value of present function
+    if (iextrema_on_contour==1) then
+		call conpts(xcoord,ngridnum1,ycoord,ngridnum2,planetrunc,ctrval_2Dextrema,ctrptx,ctrpty,maxctrpt,ctrptnum,maxctrline,nctrlines)
+        if (nctrlines==0) then
+			write(*,"(a,1PE16.8,a)") " Warning: No contour line of isovalue of",ctrval_2Dextrema," can be generated!"
+        else
+			write(*,"(i4,a)") nctrlines," contour line(s) are generated"
+			!Show coordinate of contour line points on the map
+	   !     istart=0
+	   !     do ictr=1,nctrlines
+				!write(*,"(/,a,i5)") " Contour line",ictr
+	   !         do ipt=istart+1,istart+ctrptnum(ictr)
+					!write(*,"(i6,2f18.12)") ipt,ctrptx(ipt),ctrpty(ipt)
+	   !         end do
+	   !         istart=istart+ctrptnum(ictr)
+	   !     end do
+			!Determine if the contour lines are open
+			istart=0
+			do ictr=1,nctrlines
+				dist=dsqrt((ctrptx(istart+1)-ctrptx(istart+ctrptnum(ictr)))**2 + (ctrpty(istart+1)-ctrpty(istart+ctrptnum(ictr)))**2)
+				if (dist>dsqrt(dx2D**2+dy2D**2)) then
+					ifopenctr(ictr)=1
+					write(*,"(' Contour',i5,' is open')") ictr
+				else
+					ifopenctr(ictr)=0
+					write(*,"(' Contour',i5,' is closed')") ictr
+				end if
+				istart=istart+ctrptnum(ictr)
+			end do
+			write(*,*) "Calculating function value on the contour lines..."
+			istart=0
+			do ictr=1,nctrlines
+				!write(*,"(/,a,i5)") " Contour line",ictr
+				!$OMP PARALLEL DO SHARED(ctrptval) PRIVATE(ipt,fract1,fract2,tmpx,tmpy,tmpz) schedule(dynamic) NUM_THREADS(nthreads)
+				do ipt=istart+1,istart+ctrptnum(ictr)
+					!Transform 2D coordinate in the map to real space 3D coordinate, then calculate function value
+					fract1=(ctrptx(ipt)-init1)/dx2D
+					fract2=(ctrpty(ipt)-init2)/dy2D
+					tmpx=orgx2D+fract1*v1x+fract2*v2x
+					tmpy=orgy2D+fract1*v1y+fract2*v2y
+					tmpz=orgz2D+fract1*v1z+fract2*v2z
+					ctrptval(ipt)=calcfuncall(ifunc_2Dextrema,tmpx,tmpy,tmpz)
+					!write(*,"(i6,3f16.10,1PE18.10)") ipt,tmpx,tmpy,tmpz,ctrptval(ipt)
+					!write(10,"(3f16.10)") tmpx*b2a,tmpy*b2a,tmpz*b2a
+				end do
+				!$OMP END PARALLEL DO
+				istart=istart+ctrptnum(ictr)
+			end do
+			ctrptval_org=ctrptval
+			!Hint: If there is still artificial extrema, set ntime=3 may be helpful. If some extrema are missing, try to only consider nearest neighours (ignore considering secondary ones)
+			write(*,*) "Detecting extrema on the contour lines..."
+			istart=0
+			do ictr=1,nctrlines
+				write(*,"(/,a,i5)") " Contour line",ictr
+                if (ifopenctr(ictr)==0) then
+					ibeg=istart+1
+					iend=istart+ctrptnum(ictr)
+                else
+					ibeg=istart+3
+					iend=istart+ctrptnum(ictr)-2
+                end if
+				nmaxi=0
+				nmini=0
+				!Denoising by taking average between neighours, so that minor numerical fluctuations (causing artifical extrema) can be removed
+				ntime=2 !I found denoising twice is fully adequate
+				do itime=1,ntime
+					ctrptval_tmp=ctrptval
+					do ipt=ibeg,iend
+						iprev=ipt-1
+						if (iprev<ibeg) iprev=iend
+						iprev2=iprev-1
+						if (iprev2<ibeg) iprev2=iend
+						inext=ipt+1
+						if (inext>iend) inext=ibeg
+						inext2=inext+1
+						if (inext2>iend) inext2=ibeg
+						!ctrptval(ipt)=(ctrptval_tmp(ipt)+ctrptval_tmp(iprev)+ctrptval_tmp(inext))/3
+						ctrptval(ipt)=(ctrptval_tmp(ipt)+ctrptval_tmp(iprev)+ctrptval_tmp(iprev2)+ctrptval_tmp(inext)+ctrptval_tmp(inext2))/5
+					end do
+				end do
+				!Check effect of denoising: Twice, once, no denoising
+	   !         open(10,file="checksmooth.txt",status="replace")
+				!do ipt=ibeg,iend
+				!	write(10,"(i4,3f16.10)") ipt,ctrptval(ipt),ctrptval_tmp(ipt),ctrptval_org(ipt)
+	   !         end do
+	   !         close(10)
+				do ipt=ibeg,iend
+					!Consider both nearest and second nearest neighbours is important even after denoising data, otherwise there may be many meaningless extrema
+					iprev=ipt-1
+					if (iprev<ibeg) iprev=iend
+					iprev2=iprev-1
+					if (iprev2<ibeg) iprev2=iend
+					inext=ipt+1
+					if (inext>iend) inext=ibeg
+					inext2=inext+1
+					if (inext2>iend) inext2=ibeg
+					if (ctrptval(ipt)>ctrptval(iprev).and.ctrptval(ipt)>ctrptval(inext).and.ctrptval(ipt)>ctrptval(iprev2).and.ctrptval(ipt)>ctrptval(inext2)) then
+						write(*,"(a,2f12.6,'  Value:',f16.10)") ' Maximum found at',ctrptx(ipt),ctrpty(ipt),ctrptval_org(ipt)
+						call color('red')
+						call rlsymb(21,ctrptx(ipt),ctrpty(ipt))
+						nmaxi=nmaxi+1
+					else if (ctrptval(ipt)<ctrptval(iprev).and.ctrptval(ipt)<ctrptval(inext).and.ctrptval(ipt)<ctrptval(iprev2).and.ctrptval(ipt)<ctrptval(inext2)) then
+						write(*,"(a,2f12.6,'  Value:',f16.10)") ' Minimum found at',ctrptx(ipt),ctrpty(ipt),ctrptval_org(ipt)
+						call color('blue')
+						call rlsymb(21,ctrptx(ipt),ctrpty(ipt))
+						nmini=nmini+1
+					end if
+				end do
+				write(*,"(' Total maxima:',i6)") nmaxi
+				write(*,"(' Total minima:',i6)") nmini
+				istart=istart+ctrptnum(ictr)
+			end do
+			write(*,*)
+			write(*,"(a)") " On the map, red and blue spheres correspond to maxima and minima on the contour line, respectively"
+			call color("WHITE") !Restore to default
+        end if
+    end if
 
     !Construct "inplane" list, if =1, the atom or reference point is close enough to the plotting plane
     !The "inplane" will be used for plotting atomic labels and bonds later

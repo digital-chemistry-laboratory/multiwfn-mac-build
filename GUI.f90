@@ -365,7 +365,7 @@ dp_end2=end2
 dp_init3=init3
 dp_end3=end3
 if (isavepic==1) then
-	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3)
 else if (isavepic==0) then
 	if (idrawtype==3) CALL swgtit('Relief map')
 	if (idrawtype==4) CALL swgtit('Shaded relief map')
@@ -411,7 +411,7 @@ else if (isavepic==0) then
 	call SWGCBK(idisreset,resetview)
 	call SWGCBK(idissetplaneXVU,setplaneXVU)
 	call SWGCBK(idissetplaneYVU,setplaneYVU)
-	if (isys==1) call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+	if (isys==1) call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3)
 	CALL WGFIN
 end if
 end subroutine
@@ -1274,7 +1274,7 @@ XVU=XVU+10
 if (GUI_mode/=2) then
 	call drawmol
 else if (GUI_mode==2) then
-	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3)
 	write(tmpstr,"(f8.2)") XVU
 	call SWGTXT(idissetplaneXVU,tmpstr)
 end if
@@ -1287,7 +1287,7 @@ XVU=XVU-10
 if (GUI_mode/=2) then
 	call drawmol
 else if (GUI_mode==2) then
-	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3)
 	write(tmpstr,"(f8.2)") XVU
 	call SWGTXT(idissetplaneXVU,tmpstr)
 end if
@@ -1302,7 +1302,7 @@ if (YVU<90D0) YVU=YVU+10 !I found value range of YVU is -90 to 90, the viewpoint
 if (GUI_mode/=2) then
 	call drawmol
 else if (GUI_mode==2) then
-	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3)
 	write(tmpstr,"(f8.2)") YVU
 	call SWGTXT(idissetplaneYVU,tmpstr)
 end if
@@ -1315,7 +1315,7 @@ if (YVU>-90D0) YVU=YVU-10
 if (GUI_mode/=2) then
 	call drawmol
 else if (GUI_mode==2) then
-	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3)
 	write(tmpstr,"(f8.2)") YVU
 	call SWGTXT(idissetplaneYVU,tmpstr)
 end if
@@ -1330,7 +1330,7 @@ else if (iorthoview==1) then !Ortho
 	XFAC=XFAC+0.1D0
 end if
 if (GUI_mode==2) then
-	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3)
 else
 	call drawmol
 end if
@@ -1344,7 +1344,7 @@ else if (iorthoview==1) then !Ortho
 	XFAC=XFAC-0.1D0
 end if
 if (GUI_mode==2) then
-	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3)
 else
 	call drawmol
 end if
@@ -1478,7 +1478,7 @@ else if (GUI_mode==2) then
 	ZVU=7D0
 end if
 if (GUI_mode==2) then
-	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+	call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3)
 else
 	call drawmol
 end if
@@ -1903,13 +1903,13 @@ end subroutine
 subroutine setplaneXVU(id)
 integer,intent (in) :: id
 call GWGFLT(id,XVU)
-call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3)
 end subroutine
 
 subroutine setplaneYVU(id)
 integer,intent (in) :: id
 call GWGFLT(id,YVU)
-call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3)
 end subroutine
 
 subroutine setshowpath(id)

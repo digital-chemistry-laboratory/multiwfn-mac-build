@@ -84,7 +84,7 @@ util.o : util.f90 define.o
 function.o : function.f90 define.o util.o Bspline.o libreta.o 2F2.f90.o
 	$(FC) $(OPT) -c function.f90
 
-plot.o : plot.f90 define.o util.o
+plot.o : plot.f90 function.o define.o util.o
 	$(FC) $(OPT) -c plot.f90
 
 GUI.o : GUI.f90 define.o plot.o function.o mouse_rotate.o

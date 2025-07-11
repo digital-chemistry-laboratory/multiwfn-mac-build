@@ -9675,9 +9675,14 @@ if (ifound==0) then
 	    end if
 	    inquire(file=settingpath,exist=alive)
 	    if (.not.alive) then
-		    write(*,"(a)") " Warning: ""settings.ini"" was found neither in current folder nor in the path defined by ""Multiwfnpath"" &
-		    environment variable. Now using default settings instead"
-		    write(*,*)
+		    write(*,"(a)") " WARNING: ""settings.ini"" was found neither in current folder nor in the path defined by ""Multiwfnpath"" &
+		    environment variable. Now using default settings instead, and all your modifications (if any) on settings.ini will not take effect!"
+            if (isys==1) then
+				write(*,*) "Press ENTER button to continue"
+                read(*,*)
+            else
+			    write(*,*)
+            end if
 		    return
 	    end if
     end if

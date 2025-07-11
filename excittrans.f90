@@ -142,7 +142,7 @@ use excitinfo
 use util
 implicit real*8 (a-h,o-z)
 integer ioutinfo
-character c80tmp*80,transmodestr*200,selectyn,c200tmp*200
+character c80tmp*80,c80tmp2*80,transmodestr*200,selectyn,c200tmp*200
 !ifiletypeexc=1: Gaussian output file
 !ifiletypeexc=2: ORCA output file
 !ifiletypeexc=3: plain text file
@@ -415,10 +415,10 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
 				    end if
 			    end do
 		    end do
-            if (imultisel==3) then !Spin-forbidden
+            if (imultisel==3) then !Triplet, spin-forbidden transition
                 allexcf=0
-            else
-                call loclabel(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",ifound,0) !Load oscillator strengths
+            else !Singlet
+                call loclabel(10,"ABSORPTION SPECTRUM VIA TRANSITION ELECTRIC DIPOLE MOMENTS",ifound) !Load oscillator strengths
                 call skiplines(10,5)
                 read(10,"(a)") c80tmp
                 if (index(c80tmp,'->')/=0) then
@@ -429,16 +429,22 @@ else !The [excitfilename/=" ".and.nstates=0] case is involved in TDMplot
                 end if
                 backspace(10)
                 allexcf=0
-		        do iexc=1,nstates
-					if (iORCAver==5) then
+				if (iORCAver==5) then !<=5.0.x
+					do iexc=1,nstates
 						read(10,*,iostat=ierror) itmp,rnouse,rnouse,tmpval
-                    else if (iORCAver==6) then
-						itmp=itmp+1
-						read(10,*,iostat=ierror) c80tmp,c80tmp,c80tmp,c80tmp,c80tmp,c80tmp,tmpval
-                    end if
-                    if (ierror/=0) exit !For SF-TDDFT, number of states recorded in this field is less than nstates by 1, because one of SF-TDDFT states is viewed as ground state
-                    allexcf(itmp)=tmpval
-                end do
+						if (ierror/=0) exit !For SF-TDDFT, number of states recorded in this field is less than nstates by 1, because one of SF-TDDFT states is viewed as ground state
+						allexcf(itmp)=tmpval
+					end do
+                else if (iORCAver==6) then !>=6.0.x
+					do iexc=1,2*nstates !Singlet and triplet states are outputted together, sorted by energy, so we need to examine 2*nstates
+						read(10,*,iostat=ierror) c80tmp,c80tmp,c80tmp2,c80tmp,c80tmp,c80tmp,tmpval
+						if (ierror/=0) exit !For SF-TDDFT, number of states recorded in this field is less than nstates by 1, because one of SF-TDDFT states is viewed as ground state
+                        if (index(c80tmp2,"-1")/=0) then !e.g. 0-1A  ->  4-1A, where c80tmp2="4-1A"
+							itmp=itmp+1
+							allexcf(itmp)=tmpval
+                        end if
+					end do
+                end if
             end if
         else if (iORCAsTD==1) then !sTDA or sTDDFT
             !If triplets=true, at least for ORCA 4.2, singlet and triplets are not outputted with clear labels, and transition strengths are always zero
@@ -639,7 +645,7 @@ end subroutine
 
 !================ Load details of all excited states
 !If information has already been loaded previously, they will not be loaded again
-!Loaded content: MO index, excitation direction, determinant coefficient
+!Information to be loaded: MO indices, excitation directions, determinant coefficients
 !ioutinfo=1: Output summary  =0: Do not output summary  =2: Print nothing
 subroutine loadallexccoeff(ioutinfo)
 use defvar

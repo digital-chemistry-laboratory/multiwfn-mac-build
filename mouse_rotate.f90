@@ -80,7 +80,7 @@
 									if (GUI_mode/=2) then
 										call drawmol
 									else if (GUI_mode==2) then
-										call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+										call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3)
 										write(tmpstr,"(f8.2)") XVU
 										call SWGTXT(idissetplaneXVU,tmpstr)
 										write(tmpstr,"(f8.2)") YVU
@@ -220,7 +220,7 @@
 									if (GUI_mode/=2) then
 										call drawmol
 									else if (GUI_mode==2) then
-										call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+										call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3)
 										write(tmpstr,"(f8.2)") XVU
 										call SWGTXT(idissetplaneXVU,tmpstr)
 										write(tmpstr,"(f8.2)") YVU
@@ -332,7 +332,7 @@
 			if (GUI_mode/=2) then
 				call drawmol
 			else if (GUI_mode==2) then
-				call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3,idrawtype)
+				call drawplane(dp_init1,dp_end1,dp_init2,dp_end2,dp_init3,dp_end3)
 				write(tmpstr,"(f8.2)") XVU
 				call SWGTXT(idissetplaneXVU,tmpstr)
 				write(tmpstr,"(f8.2)") YVU
