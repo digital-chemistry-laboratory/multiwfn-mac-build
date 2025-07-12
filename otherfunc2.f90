@@ -2739,7 +2739,6 @@ if (all(MOene==0)) then
 else
 	call getHOMOidx
 end if
-
 idoene=0
 
 do while(.true.)

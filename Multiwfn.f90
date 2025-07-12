@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), update date: 2025-Jul-10"
+write(*,*) "Version 3.8(dev), update date: 2025-Jul-12"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
 write(*,*) "Multiwfn English forum: http://sobereva.com/wfnbbs"

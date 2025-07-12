@@ -4491,6 +4491,7 @@ end subroutine
 !Note that for UHF, actual HOMO energy should be max(MOene(idxHOMO),MOene(idxHOMOb)), because beta-HOMO may be higher than alpha-HOMO
 subroutine getHOMOidx
 use defvar
+implicit real*8 (a-h,o-z)
 if (wfntype==0) then
     do idxHOMO=nmo,1,-1
 	    if (nint(MOocc(idxHOMO))==2) exit
@@ -4505,12 +4506,12 @@ else if (wfntype==1) then !U
 		do imo=1,nmo
 			if (nint(MOocc(imo))==0) cycle
 			if (MOtype(imo)==1) then
-				if (MOene(imo)>ealow) then
+				if (MOene(imo)>=ealow) then
 					idxHOMO=imo
 					ealow=MOene(imo)
 				end if
 			else if (MOtype(imo)==2) then
-				if (MOene(imo)>eblow) then
+				if (MOene(imo)>=eblow) then
 					idxHOMOb=imo
 					eblow=MOene(imo)
 				end if
