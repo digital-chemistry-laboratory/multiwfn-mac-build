@@ -1500,7 +1500,180 @@ use defvar
 use util
 implicit real*8 (a-h,o-z)
 
-if (ispecial==1) then
+!Calculate based on atomic charges, and print dipole moment information
+if (ifiletype==4) then
+    write(*,"(a)") " Note: Wavefunction information is not available, the data will be evaluated based on atomic charges"
+    xdip=0
+    ydip=0
+    zdip=0
+    do iatm=1,ncenter
+        xdip=xdip+a(iatm)%x*a(iatm)%charge
+        ydip=ydip+a(iatm)%y*a(iatm)%charge
+        zdip=zdip+a(iatm)%z*a(iatm)%charge
+    end do
+    write(*,"(/,' Dipole moment (a.u.): ',3f14.6)") xdip,ydip,zdip
+    write(*,"(' Dipole moment (Debye):',3f14.6)") xdip*au2debye,ydip*au2debye,zdip*au2debye
+    dipmag=dsqrt(xdip**2+ydip**2+zdip**2)
+    write(*,"(' Magnitude of dipole moment:',f14.6,' a.u.',f14.6,' Debye')") dipmag,dipmag*au2debye
+    
+    xxinttot=0;yyinttot=0;zzinttot=0;xyinttot=0;yzinttot=0;xzinttot=0
+    xxxinttot=0;yyyinttot=0;zzzinttot=0;yzzinttot=0
+    xzzinttot=0;xxzinttot=0;yyzinttot=0;xxyinttot=0;xyyinttot=0;xyzinttot=0
+    xxxxinttot=0;yyyyinttot=0;zzzzinttot=0;xxxyinttot=0;xxxzinttot=0
+    yyyxinttot=0;yyyzinttot=0;zzzxinttot=0;zzzyinttot=0;xxyyinttot=0
+    xxzzinttot=0;yyzzinttot=0;xxyzinttot=0;yyxzinttot=0;zzxyinttot=0
+    do iatm=1,ncenter
+        xxinttot=xxinttot+a(iatm)%x*a(iatm)%x*a(iatm)%charge
+        yyinttot=yyinttot+a(iatm)%y*a(iatm)%y*a(iatm)%charge
+        zzinttot=zzinttot+a(iatm)%z*a(iatm)%z*a(iatm)%charge
+        xyinttot=xyinttot+a(iatm)%x*a(iatm)%y*a(iatm)%charge
+        yzinttot=yzinttot+a(iatm)%y*a(iatm)%z*a(iatm)%charge
+        xzinttot=xzinttot+a(iatm)%x*a(iatm)%z*a(iatm)%charge
+	    xxxinttot=xxxinttot+a(iatm)%x*a(iatm)%x*a(iatm)%x*a(iatm)%charge
+	    yyyinttot=yyyinttot+a(iatm)%y*a(iatm)%y*a(iatm)%y*a(iatm)%charge
+	    zzzinttot=zzzinttot+a(iatm)%z*a(iatm)%z*a(iatm)%z*a(iatm)%charge
+	    yzzinttot=yzzinttot+a(iatm)%y*a(iatm)%z*a(iatm)%z*a(iatm)%charge
+	    xzzinttot=xzzinttot+a(iatm)%x*a(iatm)%z*a(iatm)%z*a(iatm)%charge
+	    xxzinttot=xxzinttot+a(iatm)%x*a(iatm)%x*a(iatm)%z*a(iatm)%charge
+	    yyzinttot=yyzinttot+a(iatm)%y*a(iatm)%y*a(iatm)%z*a(iatm)%charge
+	    xxyinttot=xxyinttot+a(iatm)%x*a(iatm)%x*a(iatm)%y*a(iatm)%charge
+	    xyyinttot=xyyinttot+a(iatm)%x*a(iatm)%y*a(iatm)%y*a(iatm)%charge
+	    xyzinttot=xyzinttot+a(iatm)%x*a(iatm)%y*a(iatm)%z*a(iatm)%charge
+        xxxxinttot=xxxxinttot+a(iatm)%x*a(iatm)%x*a(iatm)%x*a(iatm)%x*a(iatm)%charge
+        yyyyinttot=yyyyinttot+a(iatm)%y*a(iatm)%y*a(iatm)%y*a(iatm)%y*a(iatm)%charge
+        zzzzinttot=zzzzinttot+a(iatm)%z*a(iatm)%z*a(iatm)%z*a(iatm)%z*a(iatm)%charge
+        xxxyinttot=xxxyinttot+a(iatm)%x*a(iatm)%x*a(iatm)%x*a(iatm)%y*a(iatm)%charge
+        xxxzinttot=xxxzinttot+a(iatm)%x*a(iatm)%x*a(iatm)%x*a(iatm)%z*a(iatm)%charge
+        yyyxinttot=yyyxinttot+a(iatm)%y*a(iatm)%y*a(iatm)%y*a(iatm)%x*a(iatm)%charge
+        yyyzinttot=yyyzinttot+a(iatm)%y*a(iatm)%y*a(iatm)%y*a(iatm)%z*a(iatm)%charge
+        zzzxinttot=zzzxinttot+a(iatm)%z*a(iatm)%z*a(iatm)%z*a(iatm)%x*a(iatm)%charge
+        zzzyinttot=zzzyinttot+a(iatm)%z*a(iatm)%z*a(iatm)%z*a(iatm)%y*a(iatm)%charge
+        xxyyinttot=xxyyinttot+a(iatm)%x*a(iatm)%x*a(iatm)%y*a(iatm)%y*a(iatm)%charge
+        xxzzinttot=xxzzinttot+a(iatm)%x*a(iatm)%x*a(iatm)%z*a(iatm)%z*a(iatm)%charge
+        yyzzinttot=yyzzinttot+a(iatm)%y*a(iatm)%y*a(iatm)%z*a(iatm)%z*a(iatm)%charge
+        xxyzinttot=xxyzinttot+a(iatm)%x*a(iatm)%x*a(iatm)%y*a(iatm)%z*a(iatm)%charge
+        yyxzinttot=yyxzinttot+a(iatm)%y*a(iatm)%y*a(iatm)%x*a(iatm)%z*a(iatm)%charge
+        zzxyinttot=zzxyinttot+a(iatm)%z*a(iatm)%z*a(iatm)%x*a(iatm)%y*a(iatm)%charge
+    end do
+
+else !Calculation based on wavefunction information, and print dipole moment information
+    if (ispecial==1) then
+        xnucdip=0
+        ynucdip=0
+        znucdip=0
+        do iatm=1,ncenter
+            xnucdip=xnucdip+a(iatm)%x*a(iatm)%charge
+            ynucdip=ynucdip+a(iatm)%y*a(iatm)%charge
+            znucdip=znucdip+a(iatm)%z*a(iatm)%charge
+        end do
+        write(*,"(/,' Dipole moment from nuclear charges (a.u.): ',3f11.6)") xnucdip,ynucdip,znucdip
+        write(*,"(a)") " Because ispecial=1, now displacing nuclear coordinates to make their contributions to dipole moment vanishing"
+        sumnuc=sum(a%charge)
+        do iatm=1,ncenter
+            a(iatm)%x=a(iatm)%x-xnucdip/sumnuc
+            a(iatm)%y=a(iatm)%y-ynucdip/sumnuc
+            a(iatm)%z=a(iatm)%z-znucdip/sumnuc
+        end do
+        write(*,*) "Done!"
+    end if
+
+    if (allocated(CObasa)) then
+        write(*,"(a)") " Calculating electric dipole, quadruple, octopole and Hexadecapole moment integral matrix..."
+        call genMultipolebas_curr
+
+        xinttot=sum(Dbas(1,:,:)*Ptot(:,:))
+        yinttot=sum(Dbas(2,:,:)*Ptot(:,:))
+        zinttot=sum(Dbas(3,:,:)*Ptot(:,:))
+
+        xxinttot=sum(Quadbas(1,:,:)*Ptot(:,:))
+        yyinttot=sum(Quadbas(2,:,:)*Ptot(:,:))
+        zzinttot=sum(Quadbas(3,:,:)*Ptot(:,:))
+        xyinttot=sum(Quadbas(4,:,:)*Ptot(:,:))
+        yzinttot=sum(Quadbas(5,:,:)*Ptot(:,:))
+        xzinttot=sum(Quadbas(6,:,:)*Ptot(:,:))
+
+        xxxinttot=sum(Octobas(1,:,:)*Ptot(:,:))
+        yyyinttot=sum(Octobas(2,:,:)*Ptot(:,:))
+        zzzinttot=sum(Octobas(3,:,:)*Ptot(:,:))
+        yzzinttot=sum(Octobas(4,:,:)*Ptot(:,:))
+        xzzinttot=sum(Octobas(5,:,:)*Ptot(:,:))
+        xxzinttot=sum(Octobas(6,:,:)*Ptot(:,:))
+        yyzinttot=sum(Octobas(7,:,:)*Ptot(:,:))
+        xxyinttot=sum(Octobas(8,:,:)*Ptot(:,:))
+        xyyinttot=sum(Octobas(9,:,:)*Ptot(:,:))
+        xyzinttot=sum(Octobas(10,:,:)*Ptot(:,:))
+    
+        xxxxinttot=sum(Hexdebas(1,:,:)*Ptot(:,:))
+        yyyyinttot=sum(Hexdebas(2,:,:)*Ptot(:,:))
+        zzzzinttot=sum(Hexdebas(3,:,:)*Ptot(:,:))
+        xxxyinttot=sum(Hexdebas(4,:,:)*Ptot(:,:))
+        xxxzinttot=sum(Hexdebas(5,:,:)*Ptot(:,:))
+        yyyxinttot=sum(Hexdebas(6,:,:)*Ptot(:,:))
+        yyyzinttot=sum(Hexdebas(7,:,:)*Ptot(:,:))
+        zzzxinttot=sum(Hexdebas(8,:,:)*Ptot(:,:))
+        zzzyinttot=sum(Hexdebas(9,:,:)*Ptot(:,:))
+        xxyyinttot=sum(Hexdebas(10,:,:)*Ptot(:,:))
+        xxzzinttot=sum(Hexdebas(11,:,:)*Ptot(:,:))
+        yyzzinttot=sum(Hexdebas(12,:,:)*Ptot(:,:))
+        xxyzinttot=sum(Hexdebas(13,:,:)*Ptot(:,:))
+        yyxzinttot=sum(Hexdebas(14,:,:)*Ptot(:,:))
+        zzxyinttot=sum(Hexdebas(15,:,:)*Ptot(:,:))
+    
+    else if (allocated(b)) then
+        write(*,*) "Calculating density matrix based on GTFs..."
+        call genPprim
+        write(*,"(a)") " Calculating electric dipole, quadruple, octopole and Hexadecapole moment integral matrix..."
+        call genMultipoleprim
+
+        xinttot=sum(Dprim(1,:,:)*Ptot_prim(:,:))
+        yinttot=sum(Dprim(2,:,:)*Ptot_prim(:,:))
+        zinttot=sum(Dprim(3,:,:)*Ptot_prim(:,:))
+
+        xxinttot=sum(Quadprim(1,:,:)*Ptot_prim(:,:))
+        yyinttot=sum(Quadprim(2,:,:)*Ptot_prim(:,:))
+        zzinttot=sum(Quadprim(3,:,:)*Ptot_prim(:,:))
+        xyinttot=sum(Quadprim(4,:,:)*Ptot_prim(:,:))
+        yzinttot=sum(Quadprim(5,:,:)*Ptot_prim(:,:))
+        xzinttot=sum(Quadprim(6,:,:)*Ptot_prim(:,:))
+
+        xxxinttot=sum(Octoprim(1,:,:)*Ptot_prim(:,:))
+        yyyinttot=sum(Octoprim(2,:,:)*Ptot_prim(:,:))
+        zzzinttot=sum(Octoprim(3,:,:)*Ptot_prim(:,:))
+        yzzinttot=sum(Octoprim(4,:,:)*Ptot_prim(:,:))
+        xzzinttot=sum(Octoprim(5,:,:)*Ptot_prim(:,:))
+        xxzinttot=sum(Octoprim(6,:,:)*Ptot_prim(:,:))
+        yyzinttot=sum(Octoprim(7,:,:)*Ptot_prim(:,:))
+        xxyinttot=sum(Octoprim(8,:,:)*Ptot_prim(:,:))
+        xyyinttot=sum(Octoprim(9,:,:)*Ptot_prim(:,:))
+        xyzinttot=sum(Octoprim(10,:,:)*Ptot_prim(:,:))
+
+        xxxxinttot=sum(Hexdeprim(1,:,:)*Ptot_prim(:,:))
+        yyyyinttot=sum(Hexdeprim(2,:,:)*Ptot_prim(:,:))
+        zzzzinttot=sum(Hexdeprim(3,:,:)*Ptot_prim(:,:))
+        xxxyinttot=sum(Hexdeprim(4,:,:)*Ptot_prim(:,:))
+        xxxzinttot=sum(Hexdeprim(5,:,:)*Ptot_prim(:,:))
+        yyyxinttot=sum(Hexdeprim(6,:,:)*Ptot_prim(:,:))
+        yyyzinttot=sum(Hexdeprim(7,:,:)*Ptot_prim(:,:))
+        zzzxinttot=sum(Hexdeprim(8,:,:)*Ptot_prim(:,:))
+        zzzyinttot=sum(Hexdeprim(9,:,:)*Ptot_prim(:,:))
+        xxyyinttot=sum(Hexdeprim(10,:,:)*Ptot_prim(:,:))
+        xxzzinttot=sum(Hexdeprim(11,:,:)*Ptot_prim(:,:))
+        yyzzinttot=sum(Hexdeprim(12,:,:)*Ptot_prim(:,:))
+        xxyzinttot=sum(Hexdeprim(13,:,:)*Ptot_prim(:,:))
+        yyxzinttot=sum(Hexdeprim(14,:,:)*Ptot_prim(:,:))
+        zzxyinttot=sum(Hexdeprim(15,:,:)*Ptot_prim(:,:))
+    else
+        write(*,*) "Error: The current input file contain neither wavefunction information nor atomic charges, this function cannot be used!"
+        write(*,*) "Press ENTER button to return"
+        read(*,*)
+        return
+    end if
+
+    ESEx=-xxinttot
+    ESEy=-yyinttot
+    ESEz=-zzinttot
+
+    !Combine nuclear contribution and electron contribution to obtain multiple moments
     xnucdip=0
     ynucdip=0
     znucdip=0
@@ -1508,175 +1681,61 @@ if (ispecial==1) then
         xnucdip=xnucdip+a(iatm)%x*a(iatm)%charge
         ynucdip=ynucdip+a(iatm)%y*a(iatm)%charge
         znucdip=znucdip+a(iatm)%z*a(iatm)%charge
+        xxinttot=xxinttot+a(iatm)%x*a(iatm)%x*a(iatm)%charge
+        yyinttot=yyinttot+a(iatm)%y*a(iatm)%y*a(iatm)%charge
+        zzinttot=zzinttot+a(iatm)%z*a(iatm)%z*a(iatm)%charge
+        xyinttot=xyinttot+a(iatm)%x*a(iatm)%y*a(iatm)%charge
+        yzinttot=yzinttot+a(iatm)%y*a(iatm)%z*a(iatm)%charge
+        xzinttot=xzinttot+a(iatm)%x*a(iatm)%z*a(iatm)%charge
+	    xxxinttot=xxxinttot+a(iatm)%x*a(iatm)%x*a(iatm)%x*a(iatm)%charge
+	    yyyinttot=yyyinttot+a(iatm)%y*a(iatm)%y*a(iatm)%y*a(iatm)%charge
+	    zzzinttot=zzzinttot+a(iatm)%z*a(iatm)%z*a(iatm)%z*a(iatm)%charge
+	    yzzinttot=yzzinttot+a(iatm)%y*a(iatm)%z*a(iatm)%z*a(iatm)%charge
+	    xzzinttot=xzzinttot+a(iatm)%x*a(iatm)%z*a(iatm)%z*a(iatm)%charge
+	    xxzinttot=xxzinttot+a(iatm)%x*a(iatm)%x*a(iatm)%z*a(iatm)%charge
+	    yyzinttot=yyzinttot+a(iatm)%y*a(iatm)%y*a(iatm)%z*a(iatm)%charge
+	    xxyinttot=xxyinttot+a(iatm)%x*a(iatm)%x*a(iatm)%y*a(iatm)%charge
+	    xyyinttot=xyyinttot+a(iatm)%x*a(iatm)%y*a(iatm)%y*a(iatm)%charge
+	    xyzinttot=xyzinttot+a(iatm)%x*a(iatm)%y*a(iatm)%z*a(iatm)%charge
+        xxxxinttot=xxxxinttot+a(iatm)%x*a(iatm)%x*a(iatm)%x*a(iatm)%x*a(iatm)%charge
+        yyyyinttot=yyyyinttot+a(iatm)%y*a(iatm)%y*a(iatm)%y*a(iatm)%y*a(iatm)%charge
+        zzzzinttot=zzzzinttot+a(iatm)%z*a(iatm)%z*a(iatm)%z*a(iatm)%z*a(iatm)%charge
+        xxxyinttot=xxxyinttot+a(iatm)%x*a(iatm)%x*a(iatm)%x*a(iatm)%y*a(iatm)%charge
+        xxxzinttot=xxxzinttot+a(iatm)%x*a(iatm)%x*a(iatm)%x*a(iatm)%z*a(iatm)%charge
+        yyyxinttot=yyyxinttot+a(iatm)%y*a(iatm)%y*a(iatm)%y*a(iatm)%x*a(iatm)%charge
+        yyyzinttot=yyyzinttot+a(iatm)%y*a(iatm)%y*a(iatm)%y*a(iatm)%z*a(iatm)%charge
+        zzzxinttot=zzzxinttot+a(iatm)%z*a(iatm)%z*a(iatm)%z*a(iatm)%x*a(iatm)%charge
+        zzzyinttot=zzzyinttot+a(iatm)%z*a(iatm)%z*a(iatm)%z*a(iatm)%y*a(iatm)%charge
+        xxyyinttot=xxyyinttot+a(iatm)%x*a(iatm)%x*a(iatm)%y*a(iatm)%y*a(iatm)%charge
+        xxzzinttot=xxzzinttot+a(iatm)%x*a(iatm)%x*a(iatm)%z*a(iatm)%z*a(iatm)%charge
+        yyzzinttot=yyzzinttot+a(iatm)%y*a(iatm)%y*a(iatm)%z*a(iatm)%z*a(iatm)%charge
+        xxyzinttot=xxyzinttot+a(iatm)%x*a(iatm)%x*a(iatm)%y*a(iatm)%z*a(iatm)%charge
+        yyxzinttot=yyxzinttot+a(iatm)%y*a(iatm)%y*a(iatm)%x*a(iatm)%z*a(iatm)%charge
+        zzxyinttot=zzxyinttot+a(iatm)%z*a(iatm)%z*a(iatm)%x*a(iatm)%y*a(iatm)%charge
     end do
+
+    write(*,"(/,' X, Y, Z of center of positive charges (nuclear charges) in Angstrom',/,3f12.6)") &
+    xnucdip/sum(a%charge)*b2a,ynucdip/sum(a%charge)*b2a,znucdip/sum(a%charge)*b2a
+    write(*,"(' X, Y, Z of center of negative charges (electronic charges) in Angstrom',/,3f12.6)") &
+    -xinttot/nelec*b2a,-yinttot/nelec*b2a,-zinttot/nelec*b2a
+
     write(*,"(/,' Dipole moment from nuclear charges (a.u.): ',3f11.6)") xnucdip,ynucdip,znucdip
-    write(*,"(a)") " Because ispecial=1, now displacing nuclear coordinates to make their contributions to dipole moment vanishing"
-    sumnuc=sum(a%charge)
-    do iatm=1,ncenter
-        a(iatm)%x=a(iatm)%x-xnucdip/sumnuc
-        a(iatm)%y=a(iatm)%y-ynucdip/sumnuc
-        a(iatm)%z=a(iatm)%z-znucdip/sumnuc
-    end do
-    write(*,*) "Done!"
+    write(*,"(' Dipole moment from electrons (a.u.):       ',3f11.6)") xinttot,yinttot,zinttot
+    xinttot=xinttot+xnucdip
+    yinttot=yinttot+ynucdip
+    zinttot=zinttot+znucdip
+    write(*,*)
+    write(*,"(' Dipole moment (a.u.): ',3f14.6)") xinttot,yinttot,zinttot
+    write(*,"(' Dipole moment (Debye):',3f14.6)") xinttot*au2debye,yinttot*au2debye,zinttot*au2debye
+    dipmag=sqrt(xinttot**2+yinttot**2+zinttot**2)
+    write(*,"(' Magnitude of dipole moment:',f14.6,' a.u.',f14.6,' Debye')") dipmag,dipmag*au2debye
 end if
 
-if (allocated(CObasa)) then
-    write(*,"(a)") " Calculating electric dipole, quadruple, octopole and Hexadecapole moment integral matrix..."
-    call genMultipolebas_curr
-
-    xinttot=sum(Dbas(1,:,:)*Ptot(:,:))
-    yinttot=sum(Dbas(2,:,:)*Ptot(:,:))
-    zinttot=sum(Dbas(3,:,:)*Ptot(:,:))
-
-    xxinttot=sum(Quadbas(1,:,:)*Ptot(:,:))
-    yyinttot=sum(Quadbas(2,:,:)*Ptot(:,:))
-    zzinttot=sum(Quadbas(3,:,:)*Ptot(:,:))
-    xyinttot=sum(Quadbas(4,:,:)*Ptot(:,:))
-    yzinttot=sum(Quadbas(5,:,:)*Ptot(:,:))
-    xzinttot=sum(Quadbas(6,:,:)*Ptot(:,:))
-
-    xxxinttot=sum(Octobas(1,:,:)*Ptot(:,:))
-    yyyinttot=sum(Octobas(2,:,:)*Ptot(:,:))
-    zzzinttot=sum(Octobas(3,:,:)*Ptot(:,:))
-    yzzinttot=sum(Octobas(4,:,:)*Ptot(:,:))
-    xzzinttot=sum(Octobas(5,:,:)*Ptot(:,:))
-    xxzinttot=sum(Octobas(6,:,:)*Ptot(:,:))
-    yyzinttot=sum(Octobas(7,:,:)*Ptot(:,:))
-    xxyinttot=sum(Octobas(8,:,:)*Ptot(:,:))
-    xyyinttot=sum(Octobas(9,:,:)*Ptot(:,:))
-    xyzinttot=sum(Octobas(10,:,:)*Ptot(:,:))
-    
-    xxxxinttot=sum(Hexdebas(1,:,:)*Ptot(:,:))
-    yyyyinttot=sum(Hexdebas(2,:,:)*Ptot(:,:))
-    zzzzinttot=sum(Hexdebas(3,:,:)*Ptot(:,:))
-    xxxyinttot=sum(Hexdebas(4,:,:)*Ptot(:,:))
-    xxxzinttot=sum(Hexdebas(5,:,:)*Ptot(:,:))
-    yyyxinttot=sum(Hexdebas(6,:,:)*Ptot(:,:))
-    yyyzinttot=sum(Hexdebas(7,:,:)*Ptot(:,:))
-    zzzxinttot=sum(Hexdebas(8,:,:)*Ptot(:,:))
-    zzzyinttot=sum(Hexdebas(9,:,:)*Ptot(:,:))
-    xxyyinttot=sum(Hexdebas(10,:,:)*Ptot(:,:))
-    xxzzinttot=sum(Hexdebas(11,:,:)*Ptot(:,:))
-    yyzzinttot=sum(Hexdebas(12,:,:)*Ptot(:,:))
-    xxyzinttot=sum(Hexdebas(13,:,:)*Ptot(:,:))
-    yyxzinttot=sum(Hexdebas(14,:,:)*Ptot(:,:))
-    zzxyinttot=sum(Hexdebas(15,:,:)*Ptot(:,:))
-    
-else if (allocated(b)) then
-    write(*,*) "Calculating density matrix based on GTFs..."
-    call genPprim
-    write(*,"(a)") " Calculating electric dipole, quadruple, octopole and Hexadecapole moment integral matrix..."
-    call genMultipoleprim
-
-    xinttot=sum(Dprim(1,:,:)*Ptot_prim(:,:))
-    yinttot=sum(Dprim(2,:,:)*Ptot_prim(:,:))
-    zinttot=sum(Dprim(3,:,:)*Ptot_prim(:,:))
-
-    xxinttot=sum(Quadprim(1,:,:)*Ptot_prim(:,:))
-    yyinttot=sum(Quadprim(2,:,:)*Ptot_prim(:,:))
-    zzinttot=sum(Quadprim(3,:,:)*Ptot_prim(:,:))
-    xyinttot=sum(Quadprim(4,:,:)*Ptot_prim(:,:))
-    yzinttot=sum(Quadprim(5,:,:)*Ptot_prim(:,:))
-    xzinttot=sum(Quadprim(6,:,:)*Ptot_prim(:,:))
-
-    xxxinttot=sum(Octoprim(1,:,:)*Ptot_prim(:,:))
-    yyyinttot=sum(Octoprim(2,:,:)*Ptot_prim(:,:))
-    zzzinttot=sum(Octoprim(3,:,:)*Ptot_prim(:,:))
-    yzzinttot=sum(Octoprim(4,:,:)*Ptot_prim(:,:))
-    xzzinttot=sum(Octoprim(5,:,:)*Ptot_prim(:,:))
-    xxzinttot=sum(Octoprim(6,:,:)*Ptot_prim(:,:))
-    yyzinttot=sum(Octoprim(7,:,:)*Ptot_prim(:,:))
-    xxyinttot=sum(Octoprim(8,:,:)*Ptot_prim(:,:))
-    xyyinttot=sum(Octoprim(9,:,:)*Ptot_prim(:,:))
-    xyzinttot=sum(Octoprim(10,:,:)*Ptot_prim(:,:))
-
-    xxxxinttot=sum(Hexdeprim(1,:,:)*Ptot_prim(:,:))
-    yyyyinttot=sum(Hexdeprim(2,:,:)*Ptot_prim(:,:))
-    zzzzinttot=sum(Hexdeprim(3,:,:)*Ptot_prim(:,:))
-    xxxyinttot=sum(Hexdeprim(4,:,:)*Ptot_prim(:,:))
-    xxxzinttot=sum(Hexdeprim(5,:,:)*Ptot_prim(:,:))
-    yyyxinttot=sum(Hexdeprim(6,:,:)*Ptot_prim(:,:))
-    yyyzinttot=sum(Hexdeprim(7,:,:)*Ptot_prim(:,:))
-    zzzxinttot=sum(Hexdeprim(8,:,:)*Ptot_prim(:,:))
-    zzzyinttot=sum(Hexdeprim(9,:,:)*Ptot_prim(:,:))
-    xxyyinttot=sum(Hexdeprim(10,:,:)*Ptot_prim(:,:))
-    xxzzinttot=sum(Hexdeprim(11,:,:)*Ptot_prim(:,:))
-    yyzzinttot=sum(Hexdeprim(12,:,:)*Ptot_prim(:,:))
-    xxyzinttot=sum(Hexdeprim(13,:,:)*Ptot_prim(:,:))
-    yyxzinttot=sum(Hexdeprim(14,:,:)*Ptot_prim(:,:))
-    zzxyinttot=sum(Hexdeprim(15,:,:)*Ptot_prim(:,:))
-
-else
-    write(*,*) "Error: The current input file does not contain wavefunction information!"
-    write(*,*) "Press ENTER button to return"
-    read(*,*)
-    return
-end if
-
-ESEx=-xxinttot
-ESEy=-yyinttot
-ESEz=-zzinttot
-
-!Combine nuclear contribution and electron contribution to obtain multiple moments
-xnucdip=0
-ynucdip=0
-znucdip=0
-do iatm=1,ncenter
-    xnucdip=xnucdip+a(iatm)%x*a(iatm)%charge
-    ynucdip=ynucdip+a(iatm)%y*a(iatm)%charge
-    znucdip=znucdip+a(iatm)%z*a(iatm)%charge
-    xxinttot=xxinttot+a(iatm)%x*a(iatm)%x*a(iatm)%charge
-    yyinttot=yyinttot+a(iatm)%y*a(iatm)%y*a(iatm)%charge
-    zzinttot=zzinttot+a(iatm)%z*a(iatm)%z*a(iatm)%charge
-    xyinttot=xyinttot+a(iatm)%x*a(iatm)%y*a(iatm)%charge
-    yzinttot=yzinttot+a(iatm)%y*a(iatm)%z*a(iatm)%charge
-    xzinttot=xzinttot+a(iatm)%x*a(iatm)%z*a(iatm)%charge
-	xxxinttot=xxxinttot+a(iatm)%x*a(iatm)%x*a(iatm)%x*a(iatm)%charge
-	yyyinttot=yyyinttot+a(iatm)%y*a(iatm)%y*a(iatm)%y*a(iatm)%charge
-	zzzinttot=zzzinttot+a(iatm)%z*a(iatm)%z*a(iatm)%z*a(iatm)%charge
-	yzzinttot=yzzinttot+a(iatm)%y*a(iatm)%z*a(iatm)%z*a(iatm)%charge
-	xzzinttot=xzzinttot+a(iatm)%x*a(iatm)%z*a(iatm)%z*a(iatm)%charge
-	xxzinttot=xxzinttot+a(iatm)%x*a(iatm)%x*a(iatm)%z*a(iatm)%charge
-	yyzinttot=yyzinttot+a(iatm)%y*a(iatm)%y*a(iatm)%z*a(iatm)%charge
-	xxyinttot=xxyinttot+a(iatm)%x*a(iatm)%x*a(iatm)%y*a(iatm)%charge
-	xyyinttot=xyyinttot+a(iatm)%x*a(iatm)%y*a(iatm)%y*a(iatm)%charge
-	xyzinttot=xyzinttot+a(iatm)%x*a(iatm)%y*a(iatm)%z*a(iatm)%charge
-    xxxxinttot=xxxxinttot+a(iatm)%x*a(iatm)%x*a(iatm)%x*a(iatm)%x*a(iatm)%charge
-    yyyyinttot=yyyyinttot+a(iatm)%y*a(iatm)%y*a(iatm)%y*a(iatm)%y*a(iatm)%charge
-    zzzzinttot=zzzzinttot+a(iatm)%z*a(iatm)%z*a(iatm)%z*a(iatm)%z*a(iatm)%charge
-    xxxyinttot=xxxyinttot+a(iatm)%x*a(iatm)%x*a(iatm)%x*a(iatm)%y*a(iatm)%charge
-    xxxzinttot=xxxzinttot+a(iatm)%x*a(iatm)%x*a(iatm)%x*a(iatm)%z*a(iatm)%charge
-    yyyxinttot=yyyxinttot+a(iatm)%y*a(iatm)%y*a(iatm)%y*a(iatm)%x*a(iatm)%charge
-    yyyzinttot=yyyzinttot+a(iatm)%y*a(iatm)%y*a(iatm)%y*a(iatm)%z*a(iatm)%charge
-    zzzxinttot=zzzxinttot+a(iatm)%z*a(iatm)%z*a(iatm)%z*a(iatm)%x*a(iatm)%charge
-    zzzyinttot=zzzyinttot+a(iatm)%z*a(iatm)%z*a(iatm)%z*a(iatm)%y*a(iatm)%charge
-    xxyyinttot=xxyyinttot+a(iatm)%x*a(iatm)%x*a(iatm)%y*a(iatm)%y*a(iatm)%charge
-    xxzzinttot=xxzzinttot+a(iatm)%x*a(iatm)%x*a(iatm)%z*a(iatm)%z*a(iatm)%charge
-    yyzzinttot=yyzzinttot+a(iatm)%y*a(iatm)%y*a(iatm)%z*a(iatm)%z*a(iatm)%charge
-    xxyzinttot=xxyzinttot+a(iatm)%x*a(iatm)%x*a(iatm)%y*a(iatm)%z*a(iatm)%charge
-    yyxzinttot=yyxzinttot+a(iatm)%y*a(iatm)%y*a(iatm)%x*a(iatm)%z*a(iatm)%charge
-    zzxyinttot=zzxyinttot+a(iatm)%z*a(iatm)%z*a(iatm)%x*a(iatm)%y*a(iatm)%charge
-end do
+!Print multipole moments
 rrinttot=xxinttot+yyinttot+zzinttot
 rrxinttot=xxxinttot+xyyinttot+xzzinttot
 rryinttot=xxyinttot+yyyinttot+yzzinttot
 rrzinttot=xxzinttot+yyzinttot+zzzinttot
-
-write(*,"(/,' X, Y, Z of center of positive charges (nuclear charges) in Angstrom',/,3f12.6)") &
-xnucdip/sum(a%charge)*b2a,ynucdip/sum(a%charge)*b2a,znucdip/sum(a%charge)*b2a
-write(*,"(' X, Y, Z of center of negative charges (electronic charges) in Angstrom',/,3f12.6)") &
--xinttot/nelec*b2a,-yinttot/nelec*b2a,-zinttot/nelec*b2a
-
-write(*,"(/,' Dipole moment from nuclear charges (a.u.): ',3f11.6)") xnucdip,ynucdip,znucdip
-write(*,"(' Dipole moment from electrons (a.u.):       ',3f11.6)") xinttot,yinttot,zinttot
-xinttot=xinttot+xnucdip
-yinttot=yinttot+ynucdip
-zinttot=zinttot+znucdip
-write(*,*)
-write(*,"(' Dipole moment (a.u.): ',3f14.6)") xinttot,yinttot,zinttot
-write(*,"(' Dipole moment (Debye):',3f14.6)") xinttot*au2debye,yinttot*au2debye,zinttot*au2debye
-dipmag=sqrt(xinttot**2+yinttot**2+zinttot**2)
-write(*,"(' Magnitude of dipole moment:',f14.6,' a.u.',f14.6,' Debye')") dipmag,dipmag*au2debye
 write(*,*)
 write(*,*) "Note: All units given below are in a.u."
 write(*,"(/,' Quadrupole moments (Standard Cartesian form):')")
@@ -1736,9 +1795,11 @@ write(*,"(' YYYZ=',f16.4,'  ZZZX=',f16.4,'  ZZZY=',f16.4)") yyyzinttot*fac,zzzxi
 write(*,"(' XXYY=',f16.4,'  XXZZ=',f16.4,'  YYZZ=',f16.4)") xxyyinttot*fac,xxzzinttot*fac,yyzzinttot*fac
 write(*,"(' XXYZ=',f16.4,'  YYXZ=',f16.4,'  ZZXY=',f16.4)") xxyzinttot*fac,yyxzinttot*fac,zzxyinttot*fac
 
-ESE=ESEx+ESEy+ESEz
-write(*,"(/,a,f16.6)") " Electronic spatial extent <r^2>:",ESE
-write(*,"(' Components of <r^2>:  X=',f15.6,'  Y=',f15.6,'  Z=',f15.6)") ESEx,ESEy,ESEz
+if (allocated(b)) then
+    ESE=ESEx+ESEy+ESEz
+    write(*,"(/,a,f16.6)") " Electronic spatial extent <r^2>:",ESE
+    write(*,"(' Components of <r^2>:  X=',f15.6,'  Y=',f15.6,'  Z=',f15.6)") ESEx,ESEy,ESEz
+end if
 end subroutine
 
 

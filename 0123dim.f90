@@ -1647,11 +1647,14 @@ do while(.true.)
             if (ifillctrline==0) write(*,*) "9 Enable filling colors for contour lines"
             if (ifillctrline==1) write(*,*) "9 Set status of filling colors between the contour lines"
         end if
-        
 		if (idrawtype==6) then
 			if (igrad_arrow==0) write(*,*) "10 Show arrow on the gradient lines"
 			if (igrad_arrow==1) write(*,*) "10 Do not show arrow on the gradient lines"
             write(*,*) "11 Set detailed parameters of plotting gradient line"
+            if (igrad_arrow==1) then
+				if (iinvgradvec==0) write(*,*) "13 Invert gradient vectors"
+				if (iinvgradvec==1) write(*,*) "13 Do not invert gradient vectors"
+            end if
 		else if (idrawtype==7) then
 			write(*,"(a,f8.4)") " 10 Set upper limit of absolute value for scaling arrows, current:",cutgradvec
 			if (icolorvecfield==0) write(*,*) "11 Map color to arrows"
@@ -2093,6 +2096,12 @@ do while(.true.)
 					        read(*,*) iwidthgradline
                         end if
                     end do
+				else if (i==13) then
+					if (iinvgradvec==1) then
+						iinvgradvec=0
+					else if (iinvgradvec==0) then
+						iinvgradvec=1
+					end if
 				end if
 			!Option only for idrawtype 7 ============
 			else if (idrawtype==7) then

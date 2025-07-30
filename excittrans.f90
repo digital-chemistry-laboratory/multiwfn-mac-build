@@ -1017,6 +1017,8 @@ use util
 implicit real*8 (a-h,o-z)
 character c80tmp*80,c200tmp*200,leftstr*80,rightstr*80
 integer istate,ioutinfo
+real*8,allocatable :: coefarr1(:),coefarr2(:)
+
 excene=allexcene(istate)
 excf=allexcf(istate)
 excmulti=allexcmulti(istate)
@@ -1089,63 +1091,177 @@ if (ifiletypeexc==1.or.ifiletypeexc==3) then !Gaussian output file or plain text
 	
 else if (ifiletypeexc==2) then !ORCA output file
     if (iORCAsTD==0) then !Regular case
-	    !Worthnotingly, in at least ORCA 4.0, de-excitation is not separately outputted as <-, but combined into ->
-	    !Here we still check <-, because hopefully Neese may change the convention of ORCA output in the future...
-        do igeom=1,numexctime
-            call loclabel(10,"TD-DFT XC SETUP",ifound,0)
-            read(10,*)
+		iORCAjson=0
+		do itmp=len(excitfilename),1,-1
+			if (excitfilename(itmp:itmp)=='.') exit
         end do
-	    call loclabel(10,"the weight of the individual excitations are printed",ifound,0)
-	    if (allexcmulti(1)==3) then !When triplets=on, ORCA calculates both singlet and triplet excited states, now move to the latter
-		    read(10,*)
-		    call loclabel(10,"the weight of the individual excitations are printed",ifound,0)
-	    end if
-	    do iexc=1,istate
-		    call loclabel(10,"STATE ",ifound,0)
-		    read(10,*)
-		    if (iexc==istate) then
-			    do itmp=1,excnorb
-				    read(10,"(a)") c80tmp
-				    if (index(c80tmp,'->')/=0) then
-					    excdir(itmp)=1
-				    else
-					    excdir(itmp)=2
-				    end if
-				    do isign=1,80 !Find position of <- or ->
-					    if (c80tmp(isign:isign)=='-'.or.c80tmp(isign:isign)=='<') exit
-				    end do
-				    !Process left side of <- or ->
-				    read(c80tmp(:isign-1),"(a)") leftstr
-				    read(leftstr(:len_trim(leftstr)-1),*) orbleft(itmp)
-				    orbleft(itmp)=orbleft(itmp)+1 !ORCA counts orbital from 0 rather than 1!!!
-				    if (index(leftstr,'b')/=0) orbleft(itmp)=orbleft(itmp)+nbasis
-				    !Process right side of <- or ->
-				    read(c80tmp(isign+2:),*) rightstr
-				    read(rightstr(:len_trim(rightstr)-1),*) orbright(itmp)
-				    orbright(itmp)=orbright(itmp)+1
-				    if (index(rightstr,'b')/=0) orbright(itmp)=orbright(itmp)+nbasis
-				    iTDA=index(c80tmp,'c=')
-				    if (iTDA/=0) then !CIS, TDA task, configuration coefficients are presented
-					    read(c80tmp(iTDA+2:iTDA+13),*) exccoeff(itmp)
-				    else !TD task, configuration coefficients are not presented. Contribution of i->a and i<-a are summed up and outputted as i->a
-					    if (iwarnORCA_TD==1.and.itmp==1) then
-						    write(*,"(a)") " Warning: For TD task, ORCA does not print configuration coefficients but only print corresponding contributions of each orbital pair, &
-						    &in this case Multiwfn determines configuration coefficients simply as square root of contribution values. However, this treatment is &
-						    &evidently inappropriate and the result is nonsense when de-excitation is significant (In this situation you have to use TDA-DFT instead)"
-						    write(*,*) "If you really want to proceed, press ENTER button to continue"
-						    read(*,*)
-                            iwarnORCA_TD=0
-					    end if
-					    read(c80tmp(23:32),*) tmpval
-					    if (tmpval<0) excdir(itmp)=2 !Negative contribution is assumed to be de-excitation (of course this is not strict since -> and <- have been combined together)
-					    exccoeff(itmp)=dsqrt(abs(tmpval))
-				    end if
-				    !Although for closed-shell ground state, ORCA still outputs coefficients as normalization to 1.0, &
-				    !However, in order to follow the Gaussian convention, we change the coefficient as normalization to 0.5
-				    if (wfntype==0.or.wfntype==3) exccoeff(itmp)=exccoeff(itmp)/dsqrt(2D0)
-			    end do
-		    end if
-	    end do
+        c200tmp=trim(excitfilename(1:itmp))//"json"
+		inquire(file=c200tmp,exist=alive)
+		if (alive.eqv..true.) then
+			write(*,"(1x,a,a)") trim(c200tmp)," was found in current folder, do you want to load configuration coefficients from this file instead of from ORCA output file? (y/n)"
+            read(*,*) c80tmp
+            if (c80tmp=='y'.or.c80tmp=='Y') iORCAjson=1
+        end if
+		if (iORCAjson==1) then !Load from json file
+			close(10)
+            write(*,*) "Loading "//trim(c200tmp)//"..."
+            open(10,file=c200tmp,status="old")
+			if (istate>1) then
+				do iexc=1,istate-1
+					call loclabel(10,"IRoot",ifound,0)
+					if (ifound==0) then
+						write(*,"(a)") " Error: Unable to find ""IRoot"" from the json file! The json file was not prepared in proper way, &
+                        &please check Section 3.21.A of Multiwfn manual carefully"
+						write(*,*) "Press ENTER button to exit program"
+						read(*,*)
+                        stop
+					end if
+					read(10,*)
+				end do
+            end if
+            critkeep=1E-14
+            !We first load all coefficients
+            call loclabel(10,"IRoot",ifound,0)
+			call loclabel(10,"OrbWin",ifound,0)
+            read(10,*)
+            read(10,*) iocclow
+            read(10,*) ioccup
+            read(10,*) ivirlow
+            read(10,*) ivirup
+            iocclow=iocclow+1 !ORCA counts from 0
+            ioccup=ioccup+1
+            ivirlow=ivirlow+1
+            ivirup=ivirup+1
+            ntotcoef=(ioccup-iocclow+1)*(ivirup-ivirlow+1)
+            allocate(coefarr1(ntotcoef))
+			call loclabel(10,"X",ifound,0)
+            read(10,*)
+            itmp=0
+            read(10,*) coefarr1(:)
+			call loclabel(10,"X-Y",ifTD,0)
+            if (ifTD==0) then
+				write(*,"(i8,' configuration coefficients were loaded')") ntotcoef
+                excnorb=count(abs(coefarr1)>critkeep)
+            else if (ifTD==1) then
+				write(*,"(i8,' X+Y coefficients were loaded')") ntotcoef
+				allocate(coefarr2(ntotcoef))
+				read(10,*)
+				read(10,*) coefarr2(:)
+				write(*,"(i8,' X-Y coefficients were loaded')") ntotcoef
+                !facnorm=dsqrt(sum(coefarr2(:)*coefarr1(:))) !The coefficients in json file were not normalized, we renormalize
+                !write(*,"(' Normalization factor:',f16.10)") facnorm
+                !coefarr1 and coefarr2 records X+Y and X-Y coefficients, respectively. Now convert to X and Y coefficients
+                do itmp=1,ntotcoef
+					XpY=coefarr1(itmp)
+					XnY=coefarr2(itmp)
+                    coefarr1(itmp)=(XpY+XnY)/2D0
+                    coefarr2(itmp)=(XpY-XnY)/2D0
+                end do
+                excnorb=count(abs(coefarr1)>critkeep) + count(abs(coefarr2)>critkeep)
+			end if
+            write(*,"(' Absolute configuration coefficients larger than',1PE16.8,' will be kept')") critkeep
+			deallocate(excdir,orbleft,orbright,exccoeff)
+			allocate(excdir(excnorb),orbleft(excnorb),orbright(excnorb),exccoeff(excnorb))
+            !Only retain nonnegligible configuration coefficients to final arrays
+			excnorb=0
+            itmp=0
+			do iocc=iocclow,ioccup
+				do ivir=ivirlow,ivirup
+					itmp=itmp+1
+                    !write(*,*) iocc,ivir,coefarr1(itmp)
+					if (abs(coefarr1(itmp))>critkeep) then
+						excnorb=excnorb+1
+						exccoeff(excnorb)=coefarr1(itmp)
+						orbleft(excnorb)=iocc
+						orbright(excnorb)=ivir
+						excdir(excnorb)=1
+					end if
+				end do
+			end do
+            write(*,"(' Number of kept excitation configuration coefficients:',i8)") excnorb
+            ntmp=excnorb
+            if (ifTD==1) then
+				itmp=0
+				do iocc=iocclow,ioccup
+					do ivir=ivirlow,ivirup
+						itmp=itmp+1
+                        !write(*,*) iocc,ivir,coefarr2(itmp)
+						if (abs(coefarr2(itmp))>critkeep) then
+							excnorb=excnorb+1
+							exccoeff(excnorb)=coefarr2(itmp)
+							orbleft(excnorb)=iocc
+							orbright(excnorb)=ivir
+							excdir(excnorb)=2
+						end if
+					end do
+				end do
+				write(*,"(' Number of kept de-excitation configuration coefficients:',i8)") excnorb-ntmp
+            end if
+            
+            facnorm=dsqrt(sum(coefarr1(:)**2)-sum(coefarr2(:)**2)) !The coefficients in json file were not normalized, we renormalize
+            write(*,"(' Normalization factor:',f16.10)") facnorm
+            exccoeff(:)=exccoeff(:)/facnorm
+            
+            if (wfntype==0.or.wfntype==3) exccoeff(:)=exccoeff(:)/dsqrt(2D0)
+		else !Load from output file
+			!Worthnotingly, in at least ORCA 4.0, de-excitation is not separately outputted as <-, but combined into ->
+			!Here we still check <-, because hopefully Neese may change the convention of ORCA output in the future...
+			do igeom=1,numexctime
+				call loclabel(10,"TD-DFT XC SETUP",ifound,0)
+				read(10,*)
+			end do
+			call loclabel(10,"the weight of the individual excitations are printed",ifound,0)
+			if (allexcmulti(1)==3) then !When triplets=on, ORCA calculates both singlet and triplet excited states, now move to the latter
+				read(10,*)
+				call loclabel(10,"the weight of the individual excitations are printed",ifound,0)
+			end if
+			do iexc=1,istate
+				call loclabel(10,"STATE ",ifound,0)
+				read(10,*)
+				if (iexc==istate) then
+					do itmp=1,excnorb
+						read(10,"(a)") c80tmp
+						if (index(c80tmp,'->')/=0) then
+							excdir(itmp)=1
+						else
+							excdir(itmp)=2
+						end if
+						do isign=1,80 !Find position of <- or ->
+							if (c80tmp(isign:isign)=='-'.or.c80tmp(isign:isign)=='<') exit
+						end do
+						!Process left side of <- or ->
+						read(c80tmp(:isign-1),"(a)") leftstr
+						read(leftstr(:len_trim(leftstr)-1),*) orbleft(itmp)
+						orbleft(itmp)=orbleft(itmp)+1 !ORCA counts orbital from 0 rather than 1!!!
+						if (index(leftstr,'b')/=0) orbleft(itmp)=orbleft(itmp)+nbasis
+						!Process right side of <- or ->
+						read(c80tmp(isign+2:),*) rightstr
+						read(rightstr(:len_trim(rightstr)-1),*) orbright(itmp)
+						orbright(itmp)=orbright(itmp)+1
+						if (index(rightstr,'b')/=0) orbright(itmp)=orbright(itmp)+nbasis
+						iTDA=index(c80tmp,'c=')
+						if (iTDA/=0) then !CIS, TDA task, configuration coefficients are presented
+							read(c80tmp(iTDA+2:iTDA+13),*) exccoeff(itmp)
+						else !TD task, configuration coefficients are not presented. Contribution of i->a and i<-a are summed up and outputted as i->a
+							if (iwarnORCA_TD==1.and.itmp==1) then
+								write(*,"(a)") " Warning: For TD task, ORCA does not print configuration coefficients but only print corresponding contributions of each orbital pair, &
+								&in this case Multiwfn determines configuration coefficients simply as square root of contribution values. However, this treatment is &
+								&evidently inappropriate and the result is nonsense when de-excitation is significant (In this situation you have to use TDA-DFT instead)"
+								write(*,*) "If you really want to proceed, press ENTER button to continue"
+								read(*,*)
+								iwarnORCA_TD=0
+							end if
+							read(c80tmp(23:32),*) tmpval
+							if (tmpval<0) excdir(itmp)=2 !Negative contribution is assumed to be de-excitation (of course this is not strict since -> and <- have been combined together)
+							exccoeff(itmp)=dsqrt(abs(tmpval))
+						end if
+						!Although for closed-shell ground state, ORCA still outputs coefficients as normalization to 1.0, &
+						!However, in order to follow the Gaussian convention, we change the coefficient as normalization to 0.5
+						if (wfntype==0.or.wfntype==3) exccoeff(itmp)=exccoeff(itmp)/dsqrt(2D0)
+					end do
+				end if
+			end do
+        end if
     else if (iORCAsTD==1) then
         !sTDA/sTDDFT ignores very low lying occupied MOs and very high lying virtual MOs, &
         !we need to know how many core orbitals are ignored, so that actual MO index can be obtained
@@ -1282,7 +1398,7 @@ else if (ifiletypeexc==5) then !GAMESS-US output file
 		end do
 	end if
     
-else if (ifiletypeexc==6) then !ORCA output file
+else if (ifiletypeexc==6) then !CP2K output file
 	excdir(:)=1 !CP2K is fully based on TDA
     if (allexcmulti(1)==1) then
 		call loclabelfinal(10,"TDDFPT states of multiplicity 1",ifound)
@@ -1367,9 +1483,9 @@ if (ioutinfo==1) then
 		if (excdir(ipair)==2) sumsqrdeexc=sumsqrdeexc-exccoeff(ipair)**2
 	end do
 	sumsqrall=sumsqrexc+sumsqrdeexc
-	write(*,"(' The sum of square of excitation coefficients:',f10.6)") sumsqrexc
-	write(*,"(' The negative of the sum of square of de-excitation coefficients:',f10.6)") sumsqrdeexc
-	write(*,"(' The sum of above two values',f10.6)") sumsqrall
+	write(*,"(' Sum of square of excitation coefficients:',f10.6)") sumsqrexc
+	write(*,"(' Negative of the sum of square of de-excitation coefficients:',f10.6)") sumsqrdeexc
+	write(*,"(' Sum of above two values:',f10.6)") sumsqrall
     if (wfntype==0.or.wfntype==3) then
         dev=abs(sumsqrall-0.5D0)
         write(*,"(' Deviation to expected normalization value (0.5) is',f10.6)") dev

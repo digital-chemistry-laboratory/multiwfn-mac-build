@@ -4444,7 +4444,7 @@ if (alive.and.ifiletype==1) then !Use cubegen to calculate ESP
 	end do
 	close(10)
 	
-	ncubegenthreads=1 !Parallel implementation prior to G16 is buggy, so test here
+	ncubegenthreads=1 !Parallel implementation of cubegen before G16 is buggy, so test here
 	if (index(cubegenpath,"G16")/=0.or.index(cubegenpath,"g16")/=0) ncubegenthreads=nthreads
 	
 	!if input file is .chk, convert it to .fch before invoking cubegen

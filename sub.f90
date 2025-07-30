@@ -3924,7 +3924,7 @@ end subroutine
 
 !!-------- Randomly generate name
 subroutine mylover(outname)
-integer,parameter :: nlovers=67
+integer,parameter :: nlovers=68
 character(len=80) lovername(nlovers),outname
 CALL RANDOM_SEED()
 CALL RANDOM_NUMBER(tmp)
@@ -3995,6 +3995,7 @@ lovername(64)="The_Cafe_Terrace_and_Its_Goddesses\Akane_Hououji"
 lovername(65)="Kanojo_mo_Kanojo\Rika_Hoshizaki"
 lovername(66)="Hokkaido_Gals_Are_Super_Adorable!\Minami_Fuyuki"
 lovername(67)="Love_Live!\Mari_Ohara"
+lovername(68)="Ballpark_de_Tsukamaete\Ruriko"
 !Dear Kanan,
 !
 !You are the one I deeply love forever in the real world,

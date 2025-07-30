@@ -936,7 +936,8 @@ do while(.true.)
             write(*,*) "17 BEEF-vdW                  18 HLE17 (via LibXC)"
             write(*,*) "20 RI-MP2     21 RI-SCS-MP2    22 RI-(EXX+RPA)@PBE"
             write(*,*) "25 RI-B2PLYP  26 RI-B2GP-PLYP  27 RI-DSD-BLYP  28 RI-revDSD-PBEP86 with ADMM"
-            write(*,*) "30 GFN1-xTB   31 GFN0-xTB      40 PM6      50 SCC-DFTB + disp. corr."
+            write(*,*) "30 GFN1-xTB   31 GFN0-xTB      32 GFN2-xTB (via tblite)"
+            write(*,*) "40 PM6        50 SCC-DFTB + disp. corr."
             write(*,*) "60 GW@BHandHLYP with ADMM      61 GW@MN15L"
             write(*,*) "80 PBEh      -80 PBEh with ADMM  (customize HFX composition)"
             write(*,*) "100 FIST module (molecular mechanics)"
@@ -1019,12 +1020,13 @@ do while(.true.)
             end if
             if (isel2==30) method="GFN1-xTB"
             if (isel2==31) method="GFN0-xTB"
+            if (isel2==32) method="GFN2-xTB"
             if (isel2==40) method="PM6"
             if (isel2==50) method="SCC-DFTB"
             if (index(method,"ADMM")/=0.or.isel2==30.or.isel2==40.or.isel2==50) then !When ADMM is used, OT is suggested to be used. OT is suggested for GFN1-xTB, PM6, SCC-DFTB dealing with large systems
                 if (ikpoint1==1.and.ikpoint2==1.and.ikpoint3==1) idiagOT=2
             end if
-            if (isel2==40) imixing=1
+            if (isel2==32.or.isel==40) imixing=1
             if (index(method,"SCAN")/=0) then
                 write(*,"(a)") " NOTE: If you are using CP2K >=9.1, in the generated CP2K input file, it is suggested to replace &
                 ""POTENTIAL_FILE_NAME  POTENTIAL"" with ""POTENTIAL_FILE_NAME  POTENTIAL_UZH"", and replace ""BASIS_SET_FILE_NAME  BASIS_MOLOPT"" with ""BASIS_SET_FILE_NAME  BASIS_MOLOPT_UZH"", &
@@ -1803,6 +1805,13 @@ if (method=="GFN1-xTB") then
     if (PBCdir/="NONE") write(ifileid,"(a)") "        DO_EWALD T" !Default is Coulomb way to calculate electrostatic interaction
     write(ifileid,"(a)") "        CHECK_ATOMIC_CHARGES F #xTB calculation often crashes without setting this to false"
     write(ifileid,"(a)") "      &END xTB"
+else if (method=="GFN2-xTB") then
+    write(ifileid,"(a)") "      METHOD xTB"
+    write(ifileid,"(a)") "      &xTB"
+    write(ifileid,"(a)") "        &TBLITE"
+    write(ifileid,"(a)") "          METHOD GFN2"
+    write(ifileid,"(a)") "        &END TBLITE"
+    write(ifileid,"(a)") "      &END xTB"
 else if (method=="GFN0-xTB") then
     write(ifileid,"(a)") "      METHOD xTB"
     write(ifileid,"(a)") "      &xTB"
@@ -2468,7 +2477,11 @@ else !&SCF
             write(ifileid,"(a)") "      &MIXING #How to mix old and new density matrices"
             if (imixing==1) then !PM6 and only use this
                 write(ifileid,"(a)") "        METHOD DIRECT_P_MIXING"
-                write(ifileid,"(a)") "        ALPHA 0.4 #Default. Mixing 40% of new density matrix with the old one"
+                if (method=="GFN2-xTB") then !The best choice for this method
+                    write(ifileid,"(a)") "        ALPHA 0.2 #Default. Mixing 20% of new density matrix with the old one"
+                else
+                    write(ifileid,"(a)") "        ALPHA 0.4 #Default. Mixing 40% of new density matrix with the old one"
+                end if
             else if (imixing==2) then
                 write(ifileid,"(a)") "        METHOD BROYDEN_MIXING #PULAY_MIXING is also a good alternative"
                 write(ifileid,"(a)") "        ALPHA 0.4 #Default. Mixing 40% of new density matrix with the old one"

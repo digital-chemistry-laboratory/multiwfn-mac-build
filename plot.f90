@@ -1251,7 +1251,7 @@ if (idrawtype==1.or.idrawtype==2.or.idrawtype==6.or.idrawtype==7) then
 				call myline(ctrposstyle,nsizestyle) !Set line style
 				call contur(xcoord,ngridnum1,ycoord,ngridnum2,planemat,ctrval(i))
 				if (iorbsel2/=0) call contur(xcoord,ngridnum1,ycoord,ngridnum2,planemattmp,ctrval(i)) !Also plot another orbital if it was specified
-			else if (ctrval(i)<0) then
+			else
 				CALL LINWID(iwidthnegctr)
 				call setcolor(iclrindctrneg)
 				nsizestyle=2
@@ -1264,8 +1264,11 @@ if (idrawtype==1.or.idrawtype==2.or.idrawtype==6.or.idrawtype==7) then
 		if (allocated(boldlinelist)) then !Bold some contour lines
 			CALL LINWID(10)
 			do i=1,size(boldlinelist)
-				if (ctrval(boldlinelist(i))>=0D0) call solid
-				if (ctrval(boldlinelist(i))<0D0) call dashm
+				if (ctrval(boldlinelist(i))>=0D0) then
+					call solid
+				else
+					call dashm
+                end if
 				call contur(xcoord,ngridnum1,ycoord,ngridnum2,planemat,ctrval(boldlinelist(i)))		
 			end do
 			CALL LINWID(1) !Restore to default
@@ -1273,20 +1276,30 @@ if (idrawtype==1.or.idrawtype==2.or.idrawtype==6.or.idrawtype==7) then
 	end if
 
 	if (idrawtype==6) then !Draw gradient line map
+		gradd1tmp=gradd1 !Create temporary gradd1,d2 arrays
+		gradd2tmp=gradd2
+		if (iinvgradvec==1) then
+			gradd1tmp=-gradd1tmp
+			gradd2tmp=-gradd2tmp
+        end if
 		call solid
 		call setcolor(iclrindgradline)
-		if (igrad_arrow==1) call stmmod('on','arrow')
-		if (igrad_arrow==0) call stmmod('off','arrow')
+		if (igrad_arrow==1) then
+			call stmmod('on','arrow')
+		else
+			call stmmod('off','arrow')
+        end if
         call stmmod(stream_intmethod,'integration') !Integration method of stream line
 		call stmval(gradplotstep,'step')
 		call stmval(gradplotdis,'distance') !Controls number of lines, smaller value means more lines
 		call stmval(gradplottest,'test')
 		call stmval(0.3D0,'arrows') !Set interval distance of arrows in the same line
 		call LINWID(iwidthgradline)
-		call stream(gradd1,gradd2,ngridnum1,ngridnum2,xcoord,ycoord,(/ 0D0 /),(/ 0D0 /),0)
+		call stream(gradd1tmp,gradd2tmp,ngridnum1,ngridnum2,xcoord,ycoord,(/ 0D0 /),(/ 0D0 /),0)
 		CALL LINWID(1) !Restore to default
+        
 	else if (idrawtype==7) then !Draw vector field map
-		gradd1tmp=gradd1 !Refresh gradd1,d2 array in each time
+		gradd1tmp=gradd1 !Create temporary gradd1,d2 arrays
 		gradd2tmp=gradd2
 		do i=1,ngridnum1
 			do j=1,ngridnum2
@@ -1297,8 +1310,10 @@ if (idrawtype==1.or.idrawtype==2.or.idrawtype==6.or.idrawtype==7) then
 				end if
 			end do
 		end do
-		if (iinvgradvec==1) gradd1tmp=-gradd1tmp
-		if (iinvgradvec==1) gradd2tmp=-gradd2tmp
+		if (iinvgradvec==1) then
+			gradd1tmp=-gradd1tmp
+			gradd2tmp=-gradd2tmp
+        end if
 		if (icolorvecfield==1) then
 			call vecclr(-2)
 		else

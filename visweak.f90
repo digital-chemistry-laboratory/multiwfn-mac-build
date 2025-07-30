@@ -6,7 +6,7 @@ implicit real*8 (a-h,o-z)
 write(*,"(a)") " Reviews of functions in this module:"
 write(*,"(a)") " Tian Lu and Qinxue Chen, Visualization Analysis of Weak Interactions in Chemical Systems. &
 &In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
-write(*,"(a)") " Tian Lu, Visualization Analysis of Covalent and Noncovalent Interactions in Real Space, Angew. Chem. Int. Ed., e202504895 (2025) DOI: 10.1002/anie.202504895"
+write(*,"(a)") " Tian Lu, Visualization Analysis of Covalent and Noncovalent Interactions in Real Space, Angew. Chem. Int. Ed., 137, e202504895 (2025) DOI: 10.1002/anie.202504895"
 do while(.true.)
 	write(*,*)
 	write(*,*) "           ============ Visual study of weak interaction ============ "
@@ -398,7 +398,7 @@ end if
 write(*,"(a)") "   Comprehensive reviews:"
 write(*,"(a)") " Tian Lu, Qinxue Chen, Visualization Analysis of &
 &Weak Interactions in Chemical Systems. In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
-write(*,"(a)") " Tian Lu, Visualization Analysis of Covalent and Noncovalent Interactions in Real Space, Angew. Chem. Int. Ed., e202504895 (2025) DOI: 10.1002/anie.202504895"
+write(*,"(a)") " Tian Lu, Visualization Analysis of Covalent and Noncovalent Interactions in Real Space, Angew. Chem. Int. Ed., 137, e202504895 (2025) DOI: 10.1002/anie.202504895"
 
 !----- Define fragments
 write(*,*)
@@ -1518,7 +1518,7 @@ character outcubfile*200,c80tmp*80
 write(*,"(/,a)") " !!! If this method is employed in your work, please cite this paper along with Multiwfn original paper:"
 write(*,"(a)") " Tian Lu, Qinxue Chen, van der Waals Potential: An Important Complement to Molecular Electrostatic &
 &Potential in Studying Intermolecular Interactions. J. Mol. Model., 26, 315 (2020) DOI: 10.1007/s00894-020-04577-0"
-write(*,"(a,/)") " Review: Tian Lu, Visualization Analysis of Covalent and Noncovalent Interactions in Real Space, Angew. Chem. Int. Ed., e202504895 (2025) DOI: 10.1002/anie.202504895"
+write(*,"(a,/)") " Review: Tian Lu, Visualization Analysis of Covalent and Noncovalent Interactions in Real Space, Angew. Chem. Int. Ed., 137, e202504895 (2025) DOI: 10.1002/anie.202504895"
 
 if (ivdwprobe==0) then
     write(*,*) "Input name of probe atom, e.g. Ar"
