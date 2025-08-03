@@ -1757,6 +1757,7 @@ use defvar
 implicit real*8 (a-h,o-z)
 real*8,allocatable :: Pspin(:,:)
 character selectyn,denstype*10,locstr*40
+
 if (ifiletype/=1) then
 	write(*,*) "Error: .fch/.fchk should be used as input file for this function"
 	write(*,*) "Press ENTER button to return"

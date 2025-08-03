@@ -28,7 +28,7 @@ do while(.true.)
 		write(*,*) "1 List all GTFs"
 	end if
 	write(*,*) "3 List all orbitals                4 Print detail information of an orbital"
-	if (allocated(CObasa)) write(*,*) "5 Print coefficient matrix in basis function"
+	if (allocated(CObasa)) write(*,*) "5 Print coefficient matrix in basis functions"
 	if (allocated(CObasa)) write(*,*) "6 Print density matrix in basis function"
 	if (allocated(CObasa)) write(*,*) "7 Print various kinds of integral matrix between basis functions"
 	write(*,*) "11 Exchange some information of two GTFs"
@@ -993,6 +993,7 @@ end subroutine
 subroutine modorbocc
 use defvar
 use util
+implicit real*8 (a-h,o-z)
 character c1000tmp*1000
 integer orbarr(nmo)
 
@@ -1170,6 +1171,7 @@ use defvar
 use util
 character symlab(nmo)*4,c2000tmp*2000,symstat(nmo)*9 !Allocate the array lengths as upper limit
 integer tmparr(nmo),symNorb(nmo) !Allocate the array lengths as upper limit
+
 if (wfntype/=0.and.wfntype/=1) then
 	write(*,"(a)") " Error: This function only works for RHF or UHF wavefunctions (or the DFT counterparts)"
 	return
@@ -1416,6 +1418,7 @@ subroutine renormmoldengau(nlen,Lval,exp,con)
 implicit real*8 (a-h,o-z)
 integer nlen,Lval
 real*8 exp(nlen),con(nlen),ctmp(nlen)
+
 pi=acos(-1D0)
 call genn1n2nf(Lval,n1,n2,nf)
 fc=2D0**n1/(pi**3*nf)
@@ -2920,6 +2923,7 @@ use defvar
 use functions
 implicit real*8 (a-h,o-z)
 integer selatm(nselatm),nselatm,itype
+
 if (allocated(planemat)) deallocate(planemat)
 if (allocated(planemattmp)) deallocate(planemattmp)
 allocate(planemat(ngridnum1,ngridnum2),planemattmp(ngridnum1,ngridnum2))
@@ -2973,6 +2977,7 @@ use defvar
 use functions
 implicit real*8 (a-h,o-z)
 integer selatm(nselatm),nselatm,itype
+
 if (allocated(cubmat)) deallocate(cubmat)
 if (allocated(cubmattmp)) deallocate(cubmattmp)
 allocate(cubmat(nx,ny,nz),cubmattmp(nx,ny,nz))
@@ -3387,6 +3392,7 @@ end subroutine
 subroutine MRCC_gennatorb
 use defvar
 use util
+implicit real*8 (a-h,o-z)
 character c200tmp*200,selectyn,outname*200
 real*8,allocatable :: eigvecmat(:,:),eigvalarr(:),tmparr(:)
 do while(.true.)
@@ -3433,7 +3439,7 @@ if (wfntype==0.or.wfntype==2) then !RHF and ROHF reference
 		eigvecmat(:,idx)=eigvecmat(:,jdx)
 		eigvecmat(:,jdx)=tmparr
 	end do
-	CObasa=matmul(CObasa,eigvecmat)
+	CObasa=matmul(CObasa,eigvecmat) !Transform to AO basis
 	wfntype=3
 	write(*,*) "Occupation numbers:"
 	write(*,"(6f12.8)") MOocc
@@ -3534,6 +3540,106 @@ end subroutine
 
 
 
+!!--------- Convert 1RDM in json file outputted by orca_2json in ORCA program to natural orbitals
+!gennatorb is invoked in this subroutine
+!This subroutine is very similar with gennatorb
+subroutine ORCAjson_gennatorb
+use util
+use defvar
+implicit real*8 (a-h,o-z)
+real*8,allocatable :: Pspin(:,:)
+character c200tmp*200,selectyn,denstype*10,locstr*40
+
+if (ifiletype/=9) then
+	write(*,*) "Error: Molden file of ORCA must be used as input file for this function!"
+	write(*,*) "Press ENTER button to return"
+	read(*,*)
+	return
+end if
+
+do while(.true.)
+	write(*,*) "Input the path of json file, e.g. C:\Palaio\Faliro.json"
+	read(*,"(a)") c200tmp
+	inquire(file=c200tmp,exist=alive)
+	if (alive) exit
+	write(*,*) "Error: Cannot find the file, input again"
+end do
+open(10,file=c200tmp,status="old")
+
+write(*,*) "Input the type of density matrix, e.g. pmp2re, autocipre..."
+write(*,"(a)") " Hint: If you do not know how to input, please run e.g. ""orca_plot test.gbw -i"" and then choose ""1 - Enter type of plot""&
+& to check which densities are available. For example, pmp2re corresponds to MP2 relaxed density, autocipre corresponds to AutoCI relaxed density"
+do while(.true.)
+	read(*,"(a)") denstype
+	call loclabel(10,trim(denstype),ifound)
+	if (ifound==1) exit
+    write(*,"(a)") " Error: Unable to find "//trim(denstype)//" from the json file! Input again"
+end do
+
+write(*,"(' Found ',a,', loading it...')") trim(denstype)
+read(10,*)
+do ibas=1,nbasis
+	read(10,*)
+	read(10,*) Ptot(:,ibas)
+	read(10,*)
+end do
+call ORCA_mat_reorder(nbasis,Ptot)
+
+iNOtype=1
+if (wfntype==1.or.wfntype==2.or.wfntype==4) then
+	write(*,*) "Select the type of natural orbitals you want to obtain"
+	write(*,*) "1 Spatial natural orbitals (diagonalizing total density matrix)"
+	write(*,*) "2 Alpha and beta natural orbitals (diagonalizing respective density matrix)"
+	write(*,*) "3 Spin natural orbitals (diagonalizing spin density matrix)"
+	read(*,*) iNOtype
+    if (iNOtype>1) then
+		write(*,*) "Input the label corresponding to the spin density matrix, e.g.:"
+        write(*,*) "rmp2re corresponds to MP2 relaxed spin density"
+        write(*,*) "autocirre corresponds to AutoCI relaxed spin density"
+        do while(.true.)
+			read(*,"(a)") denstype
+			call loclabel(10,trim(denstype),ifound)
+			if (ifound==1) exit
+			write(*,"(a)") " Error: Unable to find "//trim(denstype)//" from the json file! Input again"
+		end do
+		write(*,"(' Found ',a,', loading it...')") trim(denstype)
+		!Load spin density matrix to construct alpha and beta DM
+		allocate(Pspin(nbasis,nbasis))
+		read(10,*)
+		do ibas=1,nbasis
+			read(10,*)
+			read(10,*) Pspin(:,ibas)
+			read(10,*)
+		end do
+		call ORCA_mat_reorder(nbasis,Pspin)
+		Palpha=(Ptot+Pspin)/2D0
+		Pbeta=(Ptot-Pspin)/2D0
+    end if
+end if
+
+close(10)
+write(*,*) "Density matrix was successfully loaded from the json file"
+
+call gennatorb(iNOtype,1)
+write(*,*) "Done! Basis function information now correspond to natural orbitals"
+
+write(*,"(/,a)") " If next you intend to analyze real space functions based on the NOs, you should export new.mwfn &
+&in current folder and then reload it, so that GTF information will also correspond to NOs"
+write(*,*) "Would you like to do this immediately? (y/n)"
+read(*,*) selectyn
+if (selectyn=='y') then
+    call outmwfn("new.mwfn",10,0)
+	write(*,*) "The NOs have been exported to new.mwfn in current folder"
+	call dealloall(0)
+	write(*,*) "Loading new.mwfn..."
+	call readinfile("new.mwfn",1)
+	write(*,"(a)") " Loading finished, now you can use main function 0 to visualize NOs as isosurfaces, or perform various wavefunction analyses based on the NOs"
+end if
+end subroutine
+
+
+
+
 !!----------- Generate spherical harmonic -> Cartesian basis function conversion table for d,f,g,h.
 !iprog=1: for readfch;  iprog=2: for readmolden
 !The table comes from IJQC,54,83, which is used by Gaussian
@@ -3542,6 +3648,7 @@ end subroutine
 subroutine gensphcartab(iprog,matd,matf,matg,math)
 real*8 matd(6,5),matf(10,7),matg(15,9),math(21,11)
 integer iprog
+
 matd=0D0
 matf=0D0
 matg=0D0
@@ -3752,6 +3859,7 @@ end subroutine
 subroutine loadFockfile(istatus)
 use defvar
 use util
+implicit real*8 (a-h,o-z)
 character c200tmp*200
 integer istatus
 
@@ -4093,6 +4201,7 @@ end subroutine
 subroutine addBq(xpos,ypos,zpos)
 use defvar
 real*8 xpos,ypos,zpos
+
 if (allocated(a_tmp)) deallocate(a_tmp)
 allocate(a_tmp(ncenter))
 a_tmp=a
@@ -4110,11 +4219,13 @@ deallocate(a_tmp)
 end subroutine
 
 
+
 !!------- Invoke Gaussian to run a .gjf
 !If returned istate=1, means normally termination, =0 means other case or failed
 subroutine runGaussian(gjfname,istate)
 use defvar
 use util
+
 character(len=*) gjfname
 character command*400,outname*200
 outname=gjfname(:len(gjfname)-3)//"out"
@@ -4126,11 +4237,13 @@ close(100)
 end subroutine
 
 
+
 !!------- Invoke ORCA to run a .inp
 !If returned istate=1, means normally termination, =0 means other case or failed
 subroutine runORCA(inpname,istate)
 use defvar
 use util
+
 character(len=*) inpname
 character command*400,outname*200
 outname=inpname(:len(inpname)-3)//"out"
@@ -4318,6 +4431,7 @@ use defvar
 use util
 implicit real*8 (a-h,o-z)
 integer iselatm,iffrag(ncenter)
+
 iffrag=0
 iffrag(iselatm)=1
 if (.not.allocated(connmat)) call genconnmat(0,0) !Generate connectivity matrix
@@ -4493,6 +4607,7 @@ end subroutine
 subroutine getHOMOidx
 use defvar
 implicit real*8 (a-h,o-z)
+
 if (wfntype==0) then
     do idxHOMO=nmo,1,-1
 	    if (nint(MOocc(idxHOMO))==2) exit
@@ -4553,6 +4668,7 @@ subroutine definefragment
 use defvar
 use util
 character c2000tmp*2000
+
 if (allocated(frag1)) then
 	write(*,*) "Atoms in current fragment:"
 	write(*,"(13i6)") frag1
@@ -4581,6 +4697,7 @@ end subroutine
 subroutine showorbinfo(ibeg,iend)
 use defvar
 integer ibeg,iend,i
+
 do i=1,nmo
 	write(*,"(' Orbital:',i5,' Energy(a.u.):',f14.8,' Occ:',f14.8,' Type: ',a)") i,MOene(i),MOocc(i),orbtypename(MOtype(i))
 end do
@@ -4596,6 +4713,7 @@ subroutine doinitlibreta(info)
 use defvar
 use libreta
 integer info
+
 if (ifPBC>0) then
 	write(*,*) "Error: Evaluation of ESP does not support periodic systems"
     write(*,*) "Press ENTER button to continue (then Multiwfn may crash)"
@@ -4637,6 +4755,7 @@ end subroutine
 !!--------- Initialize for some special functions, needed after loading some files
 subroutine init_func
 use defvar
+
 !Local Hartree-Fock exchange energy involves Coulomb matrix generated by libreta and density matrix, so initialize
 if (iuserfunc==999.and.allocated(b)) then
     write(*,"(/,a)") " Local Hartree-Fock exchange energy is chosen as user-defined function, &
@@ -4814,6 +4933,7 @@ subroutine get_dipole_moment(vec)
 use defvar
 implicit real*8 (a-h,o-z)
 real*8 vec(3)
+
 if (allocated(CObasa)) then
     write(*,*) "Calculating electric dipole moment integral matrix..."
     call genDbas_curr
@@ -4847,6 +4967,7 @@ end subroutine
 !!------ Generate "fragatm" array containing all atoms in the present system
 subroutine genfragatm
 use defvar
+
 if (allocated(fragatm)) deallocate(fragatm)
 allocate(fragatm(ncenter))
 nfragatm=ncenter
@@ -5010,6 +5131,7 @@ end subroutine
 subroutine genZmat(Zmat,ierror)
 use defvar
 use util
+implicit real*8 (a-h,o-z)
 integer Zmat(ncenter,3),ierror
 integer nneigh(ncenter) !Number of neighbours (the number of atoms connected to this atom)
 integer neigh(maxneigh,ncenter) !neigh(1:nneigh(i),i) is list of neighbouring atom indices of atom i
@@ -5119,6 +5241,7 @@ subroutine read_ompstacksize(c200tmp)
 use defvar
 use util
 character(len=*) c200tmp
+
 iunit=2 !KB, this is default unit according to OpenMP standard when unit is not explicitly specified
 if (index(c200tmp,'b')/=0.or.index(c200tmp,'B')/=0) iunit=1 !Bytes
 if (index(c200tmp,'M')/=0.or.index(c200tmp,'n')/=0) iunit=3 !MBytes
@@ -5288,6 +5411,7 @@ use defvar
 use util
 character(len=*) name
 integer idx
+
 idx=0
 call lc2uc(name(1:1)) !Convert to upper case
 call uc2lc(name(2:2)) !Convert to lower case
@@ -5391,6 +5515,7 @@ subroutine setupmovevec
 use defvar
 use basinintmod
 real*8 vec(3)
+
 vec26x=0
 vec26y=0
 vec26z=0
@@ -5459,6 +5584,7 @@ end subroutine
 subroutine bascen2basstart_end
 use defvar
 implicit real*8 (a-h,o-z)
+
 nowcen=0
 indcen=0
 basstart=0 !Bq atom without basis function will have 0 for basstart and basend
@@ -5525,6 +5651,7 @@ implicit real*8 (a-h,o-z)
 real*8 occfragB(nbasis),CObasapro(nbasis,nbasis)
 real*8,allocatable :: CObasbpro(:,:)
 real*8 PfrzA(0,0),PfrzB(0,0),CObasbfrz(0,0)
+
 CObasapro=CObasa
 if (wfntype==0) then
     allocate(CObasbpro(0,0))

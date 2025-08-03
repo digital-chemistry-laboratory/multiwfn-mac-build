@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), update date: 2025-Jul-29"
+write(*,*) "Version 3.8(dev), update date: 2025-Aug-2"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
 write(*,*) "Multiwfn English forum: http://sobereva.com/wfnbbs"
@@ -256,7 +256,7 @@ end if
 
 
 !Special treatment and test new code
-!call denspolar_excit
+!call ORCAjson_gennatorb
 
 !!!--------------------- Now everything start ---------------------!!!
 do while(.true.) !Main loop
@@ -681,6 +681,7 @@ do while(.true.) !Main loop
 		    write(*,*) "92 Calculate result of various kinetic energy functionals"
             write(*,*) "93 Output all Becke's integration points to intpt.txt in current folder"
 		    write(*,*) "97 Generate natural orbitals based on density matrix outputted by MRCC program"
+		    write(*,*) "98 Generate natural orbitals based on density matrix outputted by ORCA program"
 		    write(*,*) "99 Show EDF information (if any)"
 		    write(*,*) "100 Check the sanity of present wavefunction"
             write(*,*) "201 Ring-ring distance&angle statistical analysis for a trajectory" !Only used by Sobereva in C18 work
@@ -868,6 +869,8 @@ do while(.true.) !Main loop
                 call outBeckeintpt
 		    else if (i==97) then
 			    call MRCC_gennatorb
+		    else if (i==98) then
+				call ORCAjson_gennatorb
 		    else if (i==99) then
 			    if (nEDFprims==0) then
 				    write(*,*) "EDF field was not loaded"
