@@ -94,7 +94,7 @@ target_include_directories(
 target_compile_options(
   multiwfn
   PRIVATE
-    $<$<AND:$<COMPILE_LANGUAGE:Fortran>,$<STREQUAL:$<Fortran_COMPILER_ID>,GNU>>:-ffree-line-length-none>
+    $<$<AND:$<COMPILE_LANGUAGE:Fortran>,$<STREQUAL:$<Fortran_COMPILER_ID>,GNU>>:-ffree-line-length-none -std=legacy>
 )
 
 # Install
