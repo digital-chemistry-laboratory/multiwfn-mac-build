@@ -2069,9 +2069,9 @@ do while(.true.)
 				"HETATM",itri,' '//"C "//' ',"MOL",'A',surtrifrag(itri),surtrix*b2a,surtriy*b2a,surtriz*b2a,surtriang(itri)%value,1.0," C"
 			end do
 			write(*,"(a)",advance="no") " Coordinate of the geometry center of the surface facets have been outputted to locsurf.pqr in current folder. &
-            &The atomic charge column (i.e. third last column) corresponds to function value in a.u."
-			if (isel==11) write(*,"(a)") " Residue numbers record the attribution of the surface facets."
-			if (abs(isel)==12) write(*,"(a)") " Residue number of 1/0 means corresponding surface facet belongs / does not belong to the fragment you defined."
+            &The atomic charge column (i.e. the third last column) corresponds to function value in a.u."
+			if (isel==11) write(*,"(a)") " Residue indices correspond to the attribution of the surface facets."
+			if (abs(isel)==12) write(*,"(a)") " Residue index of 1/0 means that the corresponding surface facet belongs / does not belong to the fragment you defined."
 			close(10)
 		end if
 		

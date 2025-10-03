@@ -6735,6 +6735,7 @@ character(len=*) outname
 open(ifileid,file=outname,status="replace")
 netcharge=nint(sum(a%charge)-nelec)
 if (nelec==0) netcharge=0 !nelec==0 means no electron information, e.g. pdb file
+write(ifileid,"(a,/)") "start"
 write(ifileid,"(a,i3)") "charge",netcharge
 write(ifileid,"(a)") "GEOMETRY"
 do i=1,ncenter
@@ -6742,11 +6743,11 @@ do i=1,ncenter
 end do
 write(ifileid,"(a)") "END"
 write(ifileid,"(a)") "BASIS"
-write(ifileid,"(a)") "* library 6-31G*"
+write(ifileid,"(a)") "  * library 6-31G*"
 write(ifileid,"(a)") "END"
 write(ifileid,"(a)") "DFT"
-write(ifileid,"(a)") "XC B3LYP"
-write(ifileid,"(a,i3)") "mult",nint(naelec-nbelec)+1
+write(ifileid,"(a)") "  XC B3LYP"
+write(ifileid,"(a,i3)") "  mult",nint(naelec-nbelec)+1
 write(ifileid,"(a)") "END"
 write(ifileid,"(a)") "TASK DFT ENERGY"
 close(ifileid)
@@ -7383,7 +7384,6 @@ if (dalname/=" ") then
                         CObasa_reorder(itmp,:)=CObasa_reordertmp(ibas,:)
                         end if
                     end do
-					write(*,*) iatm,iang,itmp
 				end do
             end do
             if (wfntype==1.or.wfntype==4) then
@@ -7441,11 +7441,7 @@ write(c20tmp,"(i5)") natmtype
 c20tmp=adjustl(c20tmp)
 write(c20tmp2,"(i5)") netcharge
 c20tmp2=adjustl(c20tmp2)
-if (selectyn=='n'.or.isphergau==1) then
-	write(ifileid,"(a,a,a,a)") "Atomtypes=",trim(c20tmp)," Angstrom Nosymmetry charge=",trim(c20tmp2)
-else
-	write(ifileid,"(a,a,a,a,' Cartesian')") "Atomtypes=",trim(c20tmp)," Angstrom Nosymmetry charge=",trim(c20tmp2)
-end if
+write(ifileid,"(a,a,a,a)") "Atomtypes=",trim(c20tmp)," Angstrom Nosymmetry charge=",trim(c20tmp2)
 do iele=1,nelesupp
 	natmthis=count(a%index==iele)
 	if (natmthis>0) then	

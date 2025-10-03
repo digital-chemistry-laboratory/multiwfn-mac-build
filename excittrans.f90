@@ -5971,8 +5971,12 @@ open(10,file=filename,status="old")
 call outputprog(10,iprog)
 if (iprog==1) then !Gaussian
     call loclabel(10,"  Beta  occ. eigenvalues",iopsh)
-    if (iopsh==0) wfntype=0
-    if (iopsh==1) wfntype=1
+    if (iopsh==0) call loclabel(10,"S**2 before",iopsh) !When pop=no is used, even for open-shell case, there is no "  Beta  occ. eigenvalues"
+    if (iopsh==0) then
+		wfntype=0
+    else if (iopsh==1) then
+		wfntype=1
+    end if
     call loclabel(10,"basis functions,")
     read(10,*) nbasis
 else if (iprog==2) then !ORCA
