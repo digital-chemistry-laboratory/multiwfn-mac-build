@@ -59,8 +59,8 @@ integer :: iorbsel2=0 !Which orbital will be plotted together with iorbsel in pl
 integer :: iorbvis=0 !The index of the orbital selected in main function 0
 integer :: if_initlibreta=0 !If LIBRETA has been initialized for present wavefunction by running "call initlibreta"
 
-integer,parameter :: ncolormax=16,ngoodcolor=15
-character(len=10) :: colorname(ncolormax)=(/ character(len=10) :: "Red","Green","Blue","White","Black","Gray","Cyan","Yellow","Orange","Magenta","Crimson","Dark green","Purple","Brown","Dark blue","Pink" /) !Color name involved setcolor/selcolor routine
+integer,parameter :: ncolormax=19,ngoodcolor=15
+character(len=10) :: colorname(ncolormax)=(/ character(len=10) :: "Red","Green","Blue","White","Black","Gray","Cyan","Yellow","Orange","Magenta","Crimson","Dark green","Purple","Brown","Dark blue","Pink","User1","User2","User3" /) !Color name involved setcolor/selcolor routine
 integer :: goodcolor(ngoodcolor)=(/5,1,3,12,9,10,14,13,11,15,16,2,7,8,6/) !Color list suitable for plotting lines, good colors appear prior to bad ones. Black,Red,Blue,Dark green,Orange,Magenta,Brown,Purple,Crimson,Dark blue,Pink,Green,Cyan,Yellow,Gray
 !The name for superheavy atoms are consistent with Stuttgart PP website: http://www.tc.uni-koeln.de/PP/clickpse.en.html
 character(len=2) :: ind2name(0:nelesupp)=(/ "Bq","H ","He", &   !Bq(number 0) is ghost atom. Bq is recorded in .fch, but X is not recorded
@@ -403,7 +403,7 @@ integer :: numdigx=2,numdigy=2,numdigz=3,numdiglinex=3,numdigliney=3,numdigctr=3
 real*8 :: planestpx=1.5D0,planestpy=1.5D0,planestpz=0.1D0
 integer :: fillcoloritpx=5,fillcoloritpy=3,pleatmlabsize=50
 real*8 :: disshowlabel=0.5D0,disshowCP=0.5D0,disshowpath=0.5D0
-real*8 :: bondclrR=0.1D0,bondclrG=1D0,bondclrB=0.1D0,atmlabclrR=0D0,atmlabclrG=0D0,atmlabclrB=0D0
+real*8 :: bondclrR=0.1D0,bondclrG=1D0,bondclrB=0.1D0,atmlabclrR=0D0,atmlabclrG=0D0,atmlabclrB=0D0,user1clrR,user1clrG,user1clrB,user2clrR,user2clrG,user2clrB,user3clrR,user3clrG,user3clrB
 real*8 :: CPlabclrR=0D0,CPlabclrG=0D0,CPlabclrB=1D0 !CP label color
 real*8 :: CP3n3RGB(3)=(/0.72D0,0D0,0.72D0/),CP3n1RGB(3)=(/1D0,0.5D0,0D0/),CP3p1RGB(3)=(/1D0,1D0,0D0/),CP3p3RGB(3)=(/0D0,1D0,0D0/)
 real*8 :: CP3n3RGB_2D(3)=(/0.72D0,0D0,0.72D0/),CP3n1RGB_2D(3)=(/0D0,0D0,1D0/),CP3p1RGB_2D(3)=(/1D0,0.5D0,0D0/),CP3p3RGB_2D(3)=(/0D0,1D0,0D0/)

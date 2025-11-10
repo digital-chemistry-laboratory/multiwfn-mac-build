@@ -1908,6 +1908,7 @@ end module
 
 !---- Interface of selecting color by index
 subroutine selcolor(clrind)
+use defvar
 integer clrind
 write(*,*) "1  = Red        2  = Green"
 write(*,*) "3  = Blue       4  = White"
@@ -1917,12 +1918,17 @@ write(*,*) "9  = Orange     10 = Magenta"
 write(*,*) "11 = Crimson    12 = Dark green"
 write(*,*) "13 = Purple     14 = Brown"
 write(*,*) "15 = Dark blue  16 = Pink"
+write(*,"(a,3f8.4)") " 17 = User color 1, current:",user1clrR,user1clrG,user1clrB
+write(*,"(a,3f8.4)") " 18 = User color 2, current:",user2clrR,user2clrG,user2clrB
+write(*,"(a,3f8.4)") " 19 = User color 3, current:",user3clrR,user3clrG,user3clrB
+write(*,"(a)") " Note: RGB of user colors 1,2,3 can be customized by user1RGB/user2RGB/user3RGB in settings.ini"
 read(*,*) clrind
 end subroutine
 
 
 !---- Set color used by DISLIN routine by index
 subroutine setcolor(clrind)
+use defvar
 integer clrind
 if (clrind==1) call color('RED')
 if (clrind==2) call color('GREEN')
@@ -1940,6 +1946,9 @@ if (clrind==13) call setRGB(0.4D0,0D0,0.84D0) !Purple
 if (clrind==14) call setRGB(0.7D0,0.5D0,0.4D0) !Brown
 if (clrind==15) call setRGB(0D0,0D0,0.5D0) !Dark blue
 if (clrind==16) call setRGB(1D0,0.5D0,1D0) !Pink
+if (clrind==17) call setRGB(user1clrR,user1clrG,user1clrB) !User 1
+if (clrind==18) call setRGB(user2clrR,user2clrG,user2clrB) !User 2
+if (clrind==19) call setRGB(user3clrR,user3clrG,user3clrB) !User 3
 end subroutine
 
 

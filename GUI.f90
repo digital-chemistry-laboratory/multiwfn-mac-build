@@ -2240,7 +2240,7 @@ subroutine setatmlabclr(id)
 use defvar
 integer,intent (in) :: id
 character clrlist*200
-clrlist="Red|Green|Blue|White|Black|Gray|Cyan|Yellow|Orange|Magenta|Crimson|Dark green|Purple|Brown|Dark blue|Pink"
+clrlist="Red|Green|Blue|White|Black|Gray|Cyan|Yellow|Orange|Magenta|Crimson|Dark green|Purple|Brown|Dark blue|Pink|User1|User2|User3"
 CALL swgtit("Select label color")
 CALL WGINI('VERT',idiswindow)
 call swgatt(idiswindow,"OFF","MENU") !Make close/minimize/maximize buttons invisible
@@ -2265,7 +2265,7 @@ subroutine setCPlabclr(id)
 use defvar
 integer,intent (in) :: id
 character clrlist*200
-clrlist="Red|Green|Blue|White|Black|Gray|Cyan|Yellow|Orange|Magenta|Crimson|Dark green|Purple|Brown|Dark blue|Pink"
+clrlist="Red|Green|Blue|White|Black|Gray|Cyan|Yellow|Orange|Magenta|Crimson|Dark green|Purple|Brown|Dark blue|Pink|User1|User2|User3"
 CALL swgtit("Select label color")
 CALL WGINI('VERT',idiswindow)
 call swgatt(idiswindow,"OFF","MENU") !Make close/minimize/maximize buttons invisible

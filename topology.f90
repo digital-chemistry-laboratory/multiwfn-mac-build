@@ -91,7 +91,9 @@ do while(.true.)
 	write(*,*) "21 Calculate gradient and curvature of electron density along a direction"
     
     read(*,"(a)") c80tmp
-    if (c80tmp=="00") then !Special case
+    if (c80tmp==" ") then
+		cycle
+    else if (c80tmp=="00") then !Special case
 		call showtoposummary
         cycle
     else if (c80tmp=="vmin".or.c80tmp=="Vmin") then !Set most suitable setting for searching ESP minima via steepest descent

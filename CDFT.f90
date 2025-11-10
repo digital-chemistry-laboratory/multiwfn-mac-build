@@ -624,7 +624,11 @@ do while(.true.)
         if (wfntype==0.or.wfntype==1.or.wfntype==2) write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Nucleophilicity index: ",nucleophi,nucleophi*au2eV
         if (iwcubic==1) then
             write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Cubic electrophilicity index (w_cubic):",w_cubic,w_cubic*au2eV
-            write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Electrophilic descriptor (epsilon):    ",eps,eps*au2eV
+            if ((c_eta**2 - 2*c_gamma*c_miu)<0) then
+                write(10,"(/,a)") " Warning: Electrophilic descriptor (epsilon) cannot be calculated for this system, because the sqrt(eta**2 - 2*gamma*miu) term involved in epsilon is imaginary!"
+            else
+                write(10,"(a,f12.6,' Hartree,',f10.4,' eV')") " Electrophilic descriptor (epsilon):    ",eps,eps*au2eV
+            end if
         end if
         close(10)
         write(*,*) "Done! Data have been outputted to CDFT.txt in current folder!"

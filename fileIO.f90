@@ -5848,6 +5848,14 @@ if (alive) then !Write information in template.gjf to current gjf file except fo
     nspace=0
     do while(.true.)
         read(ifileid+1,"(a)",iostat=ierror) c200tmp
+        if (ierror/=0) then
+			write(*,"(/,a)") " Error: Unable to find [geometry] or [GEOMETRY] in template.gjf! The generated input file is meaningless!"
+            write(*,*) "Press ENTER to return"
+            read(*,*)
+            close(ifileid)
+            close(ifileid+1)
+			return
+        end if
         if (c200tmp==" ".and.nspace<2) nspace=nspace+1
         if (nspace==2) then !Write charge and spin multiplicity of present system
 			if (loadmulti/=-99.or.allocated(b)) then !Charge and spin multiplicity are loaded or specified manually, or wavefunction information is available
@@ -5868,6 +5876,7 @@ if (alive) then !Write information in template.gjf to current gjf file except fo
 			end if
 			write(ifileid,"(a)") trim(c200tmp)
 		else
+			ifoundgeomlabel=1
 			exit !Encountered [geometry] or [GEOMETRY]
 		end if
     end do
@@ -5999,7 +6008,7 @@ else
 end if
 
 close(ifileid)
-write(*,"(a)") " Exporting Gaussian input file finished! It corresponds to single point task at B3LYP/6-31G* level"
+write(*,"(/,a)") " Exporting Gaussian input file finished! It corresponds to single point task at B3LYP/6-31G* level"
 if (selectyn=='y') write(*,"(a)") " Note that you must specify the basis set to the one &
 &originally used to yield the wavefunction, otherwise Gaussian calculation must be failed"
 end subroutine
@@ -9549,7 +9558,7 @@ use defvar
 character(len=200) outname,c200tmp
 call path2filename(filename,c200tmp)
 write(*,*) "Input path for outputting cif file, e.g. C:\ltwd.cif"
-write(*,"(a)") " If press ENTER button directly,the system will be exported to "//trim(c200tmp)//".cif in current folder"
+write(*,"(a)") " If press ENTER button directly, the system will be exported to "//trim(c200tmp)//".cif in current folder"
 read(*,"(a)") outname
 if (outname==" ") outname=trim(c200tmp)//".cif"
 call outcif(outname,10)
@@ -9867,6 +9876,12 @@ call get_option_str(20,'bondRGB=',c80tmp)
 if (c80tmp/=" ") read(c80tmp,*) bondclrR,bondclrG,bondclrB
 call get_option_str(20,'atmlabRGB=',c80tmp)
 if (c80tmp/=" ") read(c80tmp,*) atmlabclrR,atmlabclrG,atmlabclrB
+call get_option_str(20,'user1RGB=',c80tmp)
+if (c80tmp/=" ") read(c80tmp,*) user1clrR,user1clrG,user1clrB
+call get_option_str(20,'user2RGB=',c80tmp)
+if (c80tmp/=" ") read(c80tmp,*) user2clrR,user2clrG,user2clrB
+call get_option_str(20,'user3RGB=',c80tmp)
+if (c80tmp/=" ") read(c80tmp,*) user3clrR,user3clrG,user3clrB
 call get_option_str(20,'CP_RGB=',c80tmp)
 if (c80tmp/=" ") read(c80tmp,*) CP3n3RGB,CP3n1RGB,CP3p1RGB,CP3p3RGB
 call get_option_str(20,'CP_RGB_2D=',c80tmp)
