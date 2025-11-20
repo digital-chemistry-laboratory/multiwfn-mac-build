@@ -780,3 +780,48 @@ tmp3=1-cosa**2-cosb**2-cosg**2+2*cosa*cosb*cosg
 d=(tmp1+tmp2)/tmp3
 d=1D0/dsqrt(d)
 end subroutine
+
+
+
+
+!!!------------ Wrap all atoms into the center cell
+subroutine PBCwrap_atoms
+use defvar
+implicit real*8 (a-h,o-z)
+real*8 rcoord(3),fcoord(3)
+do iatm=1,ncenter
+    rcoord(1)=a(iatm)%x
+    rcoord(2)=a(iatm)%y
+    rcoord(3)=a(iatm)%z
+    call Cart2fract(rcoord,fcoord)
+    do idir=1,3
+        if (fcoord(idir)>1) then
+            fcoord(idir)=fcoord(idir)-int(fcoord(idir))
+        else if (fcoord(idir)<0) then
+            fcoord(idir)=fcoord(idir)+ceiling(abs(fcoord(idir)))
+        end if
+    end do
+    call fract2Cart(fcoord,rcoord)
+    a(iatm)%x=rcoord(1)
+    a(iatm)%y=rcoord(2)
+    a(iatm)%z=rcoord(3)
+end do
+end subroutine
+
+
+
+!!---------- Check if any atom outside cell
+!iout=1: There are atom(s) outside  =0: All in cell
+subroutine check_atom_outcell(iout)
+use defvar
+implicit real*8 (a-h,o-z)
+real*8 rcoord(3),fcoord(3)
+iout=0
+do iatm=1,ncenter
+    rcoord(1)=a(iatm)%x
+    rcoord(2)=a(iatm)%y
+    rcoord(3)=a(iatm)%z
+    call Cart2fract(rcoord,fcoord)
+    if (any(fcoord(:)>1)) iout=1
+end do
+end subroutine

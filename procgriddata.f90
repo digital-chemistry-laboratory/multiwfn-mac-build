@@ -121,6 +121,7 @@ do while(.true.)
 	write(*,*) "16 Scale data range of present grid data"
 	write(*,*) "17 Show statistic data of grid points in specific spatial and value ranges"
 	write(*,*) "18 Plot (local) integral curve or plane-averaged in X/Y/Z direction"
+    write(*,*) "19 Translate grid data"
 	read(*,*) isel
     
     if (isel>=2.and.isel<=7.and.ifgridortho()/=1) then
@@ -896,6 +897,9 @@ do while(.true.)
         
 	else if (isel==18) then !Integral curve
         call drawintcurve
+        
+    else if (isel==19) then !Translate grid data
+		call translate_grid
 	end if
 end do
 end subroutine
@@ -1314,4 +1318,114 @@ do while(.true.)
         write(*,"(' The value is ',1PE18.8)") val
 	end if
 end do
+end subroutine
+
+
+
+
+!!------------ Translate grid data and geometry, and meantime wrap atoms in PBC case
+subroutine translate_grid
+use defvar
+implicit real*8 (a-h,o-z)
+character c80tmp*80
+write(*,*) "Input translation factor along the first axis, must be -1 to 1"
+write(*,*) "For example, 0.4 means translating approximately 40% in this direction"
+write(*,*) "If press ENTER button directly, no translation will be performed"
+read(*,"(a)") c80tmp
+if (c80tmp/=" ") then
+    read(c80tmp,*) trans_a
+    if (trans_a<0) trans_a=trans_a +1
+else
+    trans_a=0
+end if
+write(*,*) "Input translation factor along the second axis, must be -1 to 1"
+write(*,*) "For example, 0.4 means translating approximately 40% in this direction"
+write(*,*) "If press ENTER button directly, no translation will be performed"
+read(*,"(a)") c80tmp
+if (c80tmp/=" ") then
+    read(c80tmp,*) trans_b
+    if (trans_b<0) trans_b=trans_b +1
+else
+    trans_b=0
+end if
+write(*,*) "Input translation factor along the third axis, must be -1 to 1"
+write(*,*) "For example, 0.4 means translating approximately 40% in this direction"
+write(*,*) "If press ENTER button directly, no translation will be performed"
+read(*,"(a)") c80tmp
+if (c80tmp/=" ") then
+    read(c80tmp,*) trans_c
+    if (trans_c<0) trans_c=trans_c +1
+else
+    trans_c=0
+end if
+
+xmove=0
+ymove=0
+zmove=0
+
+allocate(cubmattmp(nx,ny,nz))
+!direction 1
+cubmattmp=cubmat
+nmove=nint(trans_a*(nx-1))
+write(*,"(' Translate along the 1st axis by',i5' grids')") nmove
+if (nmove>0) then
+    cubmat(nmove+1:nx,:,:)=cubmat(1:nx-nmove,:,:)
+    cubmat(1:nmove,:,:)=cubmattmp(nx-nmove+1:nx,:,:)
+    xmove=xmove+nmove*gridv1(1)
+    ymove=ymove+nmove*gridv1(2)
+    zmove=zmove+nmove*gridv1(3)
+end if
+!direction 2
+cubmattmp=cubmat
+nmove=nint(trans_b*(ny-1))
+write(*,"(' Translate along the 2nd axis by',i5' grids')") nmove
+if (nmove>0) then
+    cubmat(:,nmove+1:ny,:)=cubmat(:,1:ny-nmove,:)
+    cubmat(:,1:nmove,:)=cubmattmp(:,ny-nmove+1:ny,:)
+    xmove=xmove+nmove*gridv2(1)
+    ymove=ymove+nmove*gridv2(2)
+    zmove=zmove+nmove*gridv2(3)
+end if
+!direction 3
+cubmattmp=cubmat
+nmove=nint(trans_c*(nz-1))
+write(*,"(' Translate along the 3rd axis by',i5' grids')") nmove
+if (nmove>0) then
+    cubmat(:,:,nmove+1:nz)=cubmat(:,:,1:nz-nmove)
+    cubmat(:,:,1:nmove)=cubmattmp(:,:,nz-nmove+1:nz)
+    xmove=xmove+nmove*gridv3(1)
+    ymove=ymove+nmove*gridv3(2)
+    zmove=zmove+nmove*gridv3(3)
+end if
+deallocate(cubmattmp)
+if (xmove==0.and.ymove==0.and.zmove==0) then
+	write(*,*) "No translation is performed"
+    return
+end if
+
+write(*,"(' Translation vector:',3f12.6,' Angstrom')") xmove*b2a,ymove*b2a,zmove*b2a
+a(:)%x=a(:)%x+xmove
+a(:)%y=a(:)%y+ymove
+a(:)%z=a(:)%z+zmove
+
+if (ifPBC==0) then !No PBC information yet. Temporarily taking box as cell to consider wrapping atoms
+    call grid2cellinfo
+	a(:)%x=a(:)%x-orgx !Because origin of cell is always (0,0,0), we need to temporarily translate to satisfy
+	a(:)%y=a(:)%y-orgy
+	a(:)%z=a(:)%z-orgz
+	call check_atom_outcell(iout)
+    if (iout==1) then
+		write(*,"(/,a)") " There are atoms outside the box of grid data, do you want to wrap them into the box? (y/n)"
+		read(*,*) c80tmp
+		if (c80tmp=='y'.or.c80tmp=='Y') then
+			call PBCwrap_atoms
+			write(*,*) "Done!"
+		end if
+	end if
+    ifPBC=0
+	a(:)%x=a(:)%x+orgx
+	a(:)%y=a(:)%y+orgy
+	a(:)%z=a(:)%z+orgz
+end if
+
 end subroutine

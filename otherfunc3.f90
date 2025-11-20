@@ -2807,23 +2807,7 @@ do while(.true.)
         write(*,*) "Done!"
         
     else if (isel==22) then !Wrap all atoms into the center cell
-        do iatm=1,ncenter
-            rcoord(1)=a(iatm)%x
-            rcoord(2)=a(iatm)%y
-            rcoord(3)=a(iatm)%z
-            call Cart2fract(rcoord,fcoord)
-            do idir=1,3
-                if (fcoord(idir)>1) then
-                    fcoord(idir)=fcoord(idir)-int(fcoord(idir))
-                else if (fcoord(idir)<0) then
-                    fcoord(idir)=fcoord(idir)+ceiling(abs(fcoord(idir)))
-                end if
-            end do
-            call fract2Cart(fcoord,rcoord)
-            a(iatm)%x=rcoord(1)
-            a(iatm)%y=rcoord(2)
-            a(iatm)%z=rcoord(3)
-        end do
+        call PBCwrap_atoms
         write(*,*) "Done!"
         
     else if (isel==23) then !Translate system along cell axes

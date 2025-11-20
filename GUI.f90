@@ -102,6 +102,8 @@ call wgapp(idisorbinfomenu,"Show all",idisorbinfo)
 if ((wfntype==0.or.wfntype==1.or.wfntype==2).and.allocated(CObasa)) then
 	call wgapp(idisorbinfomenu,"Show up to LUMO+10",idisorbinfo2)
 	call wgapp(idisorbinfomenu,"Show occupied orbitals",idisorbinfo3)
+else if (allocated(MOocc).and.MOocc(nmo)==0) then
+	call wgapp(idisorbinfomenu,"Show occupied orbitals",idisorbinfo3)
 end if
 CALL WGPOP(idiswindow," Isosur#1 style",idisisosur1style)
 call wgapp(idisisosur1style,"Use solid face",idisisosur1solid)
@@ -255,6 +257,8 @@ call SWGCBK(idisgraph,mouse_rotate) !Make system rotatable by dragging mouse
 call SWGCBK(idisorbinfo,showorbinfo1)
 if ((wfntype==0.or.wfntype==1.or.wfntype==2).and.allocated(CObasa)) then
 	call SWGCBK(idisorbinfo2,showorbinfo2)
+	call SWGCBK(idisorbinfo3,showorbinfo3)
+else if (allocated(MOocc).and.MOocc(nmo)==0) then
 	call SWGCBK(idisorbinfo3,showorbinfo3)
 end if
 call SWGCBK(idisisosur1solid,setisosur1solid) !Set style for isosur 1
