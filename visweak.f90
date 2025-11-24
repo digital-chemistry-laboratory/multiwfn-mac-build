@@ -374,7 +374,8 @@ real*8,allocatable :: scatterx(:),scattery(:),tmparr(:),scattery2(:)
 integer,allocatable :: tmpidx1(:),tmpidx2(:),allatm(:)
 real*8,allocatable :: atmpairdg(:,:) !(i,j) is integral of dg between ith atom in a fragment and jth atom in another fragment
 real*8,allocatable :: IBSIWmat(:,:)
-!write(*,*) "Citation: Phys. Chem. Chem. Phys., 19, 17928 (2017)"
+real*8 vec1(3),vec2(3)
+logical,allocatable :: dogrid(:,:,:)
 write(*,*) "Note: Atomic unit is used for all outputs of this function"
 
 write(*,*)
@@ -385,8 +386,9 @@ if (iIGMtype==1) then
     write(*,*) "  Implementation of IGM in Multiwfn:"
     write(*,*) "J. Comput. Chem., 43, 539 (2022) DOI: 10.1002/jcc.26812"
 else if (iIGMtype==-1) then !mIGM
-	write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
-    write(*,*) "J. Comput. Chem., 43, 539 (2022) DOI: 10.1002/jcc.26812"
+	write(*,*) "*** Please cite the following paper along with Multiwfn original papers ***"
+    write(*,*) "  Original paper of mIGM:"
+    write(*,*) "Struct. Bond., 190, 297 (2026) DOI: 10.1007/430_2025_95"
 else if (iIGMtype==2) then
 	write(*,*)
 	write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
@@ -469,14 +471,51 @@ call setgrid(0,igridsel)
 allocate(dg_intra(nx,ny,nz),dg_inter(nx,ny,nz),dg(nx,ny,nz),sl2r(nx,ny,nz))
 if (iIGMtype==2) allocate(rhogrid(nx,ny,nz),gradgrid(3,nx,ny,nz))
 
-!----- Calculate grid data
+
+
+call walltime(iwalltime1)
+
+!----- Initialize
 call delvirorb(1)
 if (ifPBC==0) then
 	call gen_GTFuniq(0) !Generate unique GTFs, for faster evaluation in orbderv
 else
 	call gen_neigh_GTF !Generate neighbouring GTFs list at reduced grids, for faster evaluation
 end if
-call walltime(iwalltime1)
+
+!----- Grid prescreening
+if (IGMvdwscl/=0) then
+	write(*,"(/,a,f6.2)") " Prescreening grids with IGMvdwscl parameter:",IGMvdwscl
+    allocate(dogrid(nx,ny,nz))
+    dogrid=.false.
+	!$OMP PARALLEL DO SHARED(dogrid) PRIVATE(vec1,vec2,idx,dist,i,j,k,nwithin,ifrag,iatm) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
+	do k=1,nz
+		do j=1,ny
+			do i=1,nx
+				call getgridxyz(i,j,k,vec1(1),vec1(2),vec1(3))
+                nwithin=0
+				do ifrag=1,nIGMfrag
+					do idx=1,IGMfragsize(ifrag)
+						iatm=IGMfrag(ifrag,idx)
+						vec2(1)=a(iatm)%x
+						vec2(2)=a(iatm)%y
+						vec2(3)=a(iatm)%z
+						call nearest_dist(vec1,vec2,dist)
+						if (dist < IGMvdwscl*vdwr(a(iatm)%index)) then
+							nwithin=nwithin+1
+							exit
+						end if
+					end do
+				end do
+                if (nwithin>=2) dogrid(i,j,k)=.true.
+            end do
+        end do
+    end do
+	!$OMP END PARALLEL DO
+    write(*,"(' Percent of screened grids:',f10.2,'%',/)") dfloat(count(dogrid.eqv..false.))/(nx*ny*nz)*100
+end if
+
+!----- Start calculation
 write(*,*) "Calculating sign(lambda2)rho..."
 ifinish=0;ishowprog=1
 ntmp=floor(ny*nz/100D0)
@@ -484,6 +523,9 @@ ntmp=floor(ny*nz/100D0)
 do k=1,nz
 	do j=1,ny
 		do i=1,nx
+            if (IGMvdwscl/=0) then
+                if (dogrid(i,j,k).eqv..false.) cycle
+            end if
             call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
 			if (isl2r==1) then !sign(lambda2)rho based on actual electron density
                 if (abs(iIGMtype)==1) then
@@ -514,11 +556,14 @@ ifinish=0
 ishowprog=1
 dg_inter=0
 ntmp=floor(ny*nz/100D0)
-!$OMP PARALLEL DO SHARED(ifinish,ishowprog,dg,dg_inter) PRIVATE(i,j,k,tmpx,tmpy,tmpz,grad,gradnorm,IGM_gradnorm,IGM_gradnorm_inter,gradtmp) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
+!$OMP PARALLEL DO SHARED(ifinish,ishowprog,dg,dg_inter,dograd) PRIVATE(i,j,k,tmpx,tmpy,tmpz,grad,gradnorm,IGM_gradnorm,IGM_gradnorm_inter,gradtmp) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
 do k=1,nz
 	do j=1,ny
 		do i=1,nx
             call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
+            if (IGMvdwscl/=0) then
+                if (dogrid(i,j,k).eqv..false.) cycle
+            end if
 			!Calculate gradient vector and IGM gradient norm of whole system and get dg
 			if (iIGMtype==1) then !IGM
                 call IGMgrad_promol(tmpx,tmpy,tmpz,allatm,grad,IGM_gradnorm)
@@ -1132,9 +1177,13 @@ real*8,allocatable :: scatterx(:),scattery(:)
 character c2000tmp*2000,selectyn
 real*8 prorho,prograd(3),atmprorho(ncenter),atmprograd(3,ncenter),atmgrad(3),atomcoeff(10),atomexp(10)
 
-write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
-write(*,"(a)") "   Original paper of aIGM: Tian Lu, Qinxue Chen, Visualization Analysis of &
-&Weak Interactions in Chemical Systems. In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
+write(*,*) "*** Please cite the following paper along with Multiwfn original papers ***"
+if (iIGMtype==1) then
+	write(*,"(a)") " Original paper of aIGM: Tian Lu, Qinxue Chen, Visualization Analysis of &
+	&Weak Interactions in Chemical Systems. In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
+else
+	write(*,"(a)") " Original paper of amIGM: Tian Lu, Graphically revealing weak interactions in dynamic environments using amIGM method, Struct. Bond., 190, 297 (2026) DOI: 10.1007/430_2025_95"
+end if
 
 if (iIGMtype==1) then
 	write(*,*)

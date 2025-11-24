@@ -4002,30 +4002,31 @@ else !Periodic case
 				ry2=ry*ry
 				rz2=rz*rz
 				r2=rx2+ry2+rz2
-				if (r2>atmrhocutsqr(iele)) cycle
-				r=dsqrt(r2)
-				if (itype==1) then
-					call genatmraddens(iele,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids
-					call lagintpol(atmradpos(1:npt),rhoarr(1:npt),npt,r,rhotmp,der1r,der2r,2)
-					rho=rho+rhotmp
-					if (r/=0) then
-						der1rdr=der1r/r
-						grad(1)=grad(1)+der1rdr*rx
-						grad(2)=grad(2)+der1rdr*ry
-						grad(3)=grad(3)+der1rdr*rz
-					end if
-                else
-					call genatmraddens_STOfitparm(iele,nSTO,atomcoeff,atomexp)
-					do iSTO=1,nSTO
-						term=atomcoeff(iSTO)*dexp(-r*atomexp(iSTO))
-						rho=rho+term
+				if (r2<atmrhocutsqr(iele)) then
+					r=dsqrt(r2)
+					if (itype==1) then
+						call genatmraddens(iele,rhoarr,npt) !Extract spherically averaged radial density of corresponding element at specific grids
+						call lagintpol(atmradpos(1:npt),rhoarr(1:npt),npt,r,rhotmp,der1r,der2r,2)
+						rho=rho+rhotmp
 						if (r/=0) then
-							tmp=term*atomexp(iSTO)/r
-							grad(1)=grad(1)-tmp*rx
-							grad(2)=grad(2)-tmp*ry
-							grad(3)=grad(3)-tmp*rz
+							der1rdr=der1r/r
+							grad(1)=grad(1)+der1rdr*rx
+							grad(2)=grad(2)+der1rdr*ry
+							grad(3)=grad(3)+der1rdr*rz
 						end if
-					end do
+					else
+						call genatmraddens_STOfitparm(iele,nSTO,atomcoeff,atomexp)
+						do iSTO=1,nSTO
+							term=atomcoeff(iSTO)*dexp(-r*atomexp(iSTO))
+							rho=rho+term
+							if (r/=0) then
+								tmp=term*atomexp(iSTO)/r
+								grad(1)=grad(1)-tmp*rx
+								grad(2)=grad(2)-tmp*ry
+								grad(3)=grad(3)-tmp*rz
+							end if
+						end do
+					end if
                 end if
 			end do
 		end do

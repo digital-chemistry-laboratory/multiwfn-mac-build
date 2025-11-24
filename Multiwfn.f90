@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), update date: 2025-Nov-19"
+write(*,*) "Version 3.8(dev), update date: 2025-Nov-23"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
 write(*,*) "Multiwfn English forum: http://sobereva.com/wfnbbs"
@@ -306,6 +306,8 @@ do while(.true.) !Main loop
 	    filename=""
 	    ifirstMultiwfn=0
 	    goto 10
+    else if (c200tmp=="fod".or.c200tmp=="FOD") then
+	    call FOD_wrapper
     else if (c200tmp=="oi") then
 	    call outORCAinp_wrapper
     else if (c200tmp=="gi") then

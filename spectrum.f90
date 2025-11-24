@@ -3408,15 +3408,14 @@ if (iORCAout==1) then
 	isTDA=0
 	if (ispectrum==3.or.ispectrum==4) call loclabel(10,"ORCA sTD",isTDA) !When plotting UV-Vis or ECD, check if this is a sTDA or sTD-DFT calculation
 	if (isTDA==0) then !Regular calculation
-		if (ispectrum==1.or.ispectrum==2.or.ispectrum==5) then !IR, Raman
-			if (ispectrum==1) call loclabel(10,"IR SPECTRUM")
-			if (ispectrum==2) call loclabel(10,"RAMAN SPECTRUM")
-			if (ispectrum==5) call loclabel(10,"VCD-Intensity")
-			call loclabel(10," Mode    freq (cm**-1)",ioldformat,0)
-			if (ioldformat==1) then !ORCA 4
+		if (ispectrum==1.or.ispectrum==2.or.ispectrum==5) then !IR, Raman, VCD
+			call loclabel(10,"Mode    freq (cm**-1)   T",ioldformat,0)
+			if (ioldformat==1) then !ORCA <=4
 				read(10,*);read(10,*)
+                write(*,*) "Note: Old ORCA format is detected"
 			else !ORCA >=5
-				call loclabel(10," Mode   freq  ",ifound,1)
+				call loclabel(10,"IR SPECTRUM")
+				call loclabel(10," Mode   freq  ",ifound,0)
 				read(10,*);read(10,*);read(10,*)
 			end if
 			numdata=0
@@ -3430,20 +3429,35 @@ if (iORCAout==1) then
                 return
             end if
 			allocate(datax(numdata),str(numdata),FWHM(numdata))
-			if (ispectrum==1) call loclabelfinal(10,"IR SPECTRUM",nfound)
-			if (ispectrum==2) call loclabelfinal(10,"RAMAN SPECTRUM",nfound)
-			if (ispectrum==5) call loclabelfinal(10,"VCD-Intensity",nfound)
-			if (ioldformat==1) then !ORCA 4
-                call loclabel(10," Mode    freq (cm**-1)",ifound,0)
+			if (ioldformat==1) then !ORCA <=4
+                call loclabelfinal(10," Mode    freq (cm**-1)")
 				read(10,*);read(10,*)
+				do i=1,numdata
+					read(10,*) c80tmp,datax(i),str(i)
+				end do
 			else !ORCA >=5
-				if (ispectrum==1.or.ispectrum==2) call loclabel(10," Mode   freq  ",ifound,0)
-				read(10,*);read(10,*);read(10,*)
+                if (ispectrum==1) then !IR
+					call loclabelfinal(10,"IR SPECTRUM")
+					call loclabel(10,"Mode",ifound,0)
+					read(10,*);read(10,*);read(10,*)
+					do i=1,numdata
+						read(10,*) c80tmp,datax(i),rnouse,str(i)
+					end do
+                else if (ispectrum==2) then !Raman
+					call loclabelfinal(10,"RAMAN SPECTRUM")
+					call loclabel(10,"Mode",ifound,0)
+					read(10,*);read(10,*)
+					do i=1,numdata
+						read(10,*) c80tmp,datax(i),str(i)
+					end do
+                else if (ispectrum==5) then !VCD
+					call loclabelfinal(10,"VCD-Intensity")
+					read(10,*);read(10,*);read(10,*)
+					do i=1,numdata
+						read(10,*) c80tmp,datax(i),str(i)
+					end do
+                end if
 			end if
-			do i=1,numdata
-				read(10,*) c80tmp,datax(i),str(i)
-                write(*,*) c80tmp,datax(i),str(i)
-			end do
 			FWHM=8D0
 		else if (ispectrum==3.or.ispectrum==4) then !UV-Vis, ECD
 			call loclabelfinal(10,"Number of roots to be determined",nfound)

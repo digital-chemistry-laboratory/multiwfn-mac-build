@@ -1249,15 +1249,15 @@ end subroutine
 subroutine get_option_str(ifileid,label,str)
 integer ifileid
 character(len=*) label,str
-character c200tmp*200
+character c400tmp*400
 str=" "
 call loclabel(ifileid,label,ifound)
 if (ifound==1) then
-	read(ifileid,"(a)") c200tmp
-	ibeg=index(c200tmp,'=')
-    iend=index(c200tmp,'//')
-    if (iend==0) iend=len_trim(c200tmp)+1
-    str=adjustl(c200tmp(ibeg+1:iend-1))
+	read(ifileid,"(a)") c400tmp
+	ibeg=index(c400tmp,'=')
+    iend=index(c400tmp,'//')
+    if (iend==0) iend=len_trim(c400tmp)+1
+    str=adjustl(c400tmp(ibeg+1:iend-1))
 end if
 end subroutine
 
@@ -1798,6 +1798,41 @@ if (MO == 0) deallocate( INDX, TEMP )
 end subroutine
 
 
+
+!------- Fastest code dedicated to invert 3*3 matrix
+!mat: input matrix
+!matinv: inverted matrix
+subroutine invmatsub_3x3(mat,matinv,det)
+real*8 :: mat(3,3),matinv(3,3),tmpval
+real*8,optional :: det
+
+matinv(1,1) = mat(2,2)*mat(3,3) - mat(2,3)*mat(3,2)
+matinv(2,1) = mat(2,3)*mat(3,1) - mat(2,1)*mat(3,3)
+matinv(3,1) = mat(2,1)*mat(3,2) - mat(2,2)*mat(3,1)
+
+matinv(1,2) = mat(1,3)*mat(3,2) - mat(1,2)*mat(3,3)
+matinv(2,2) = mat(1,1)*mat(3,3) - mat(1,3)*mat(3,1)
+matinv(3,2) = mat(1,2)*mat(3,1) - mat(1,1)*mat(3,2)
+
+matinv(1,3) = mat(1,2)*mat(2,3) - mat(1,3)*mat(2,2)
+matinv(2,3) = mat(1,3)*mat(2,1) - mat(1,1)*mat(2,3)
+matinv(3,3) = mat(1,1)*mat(2,2) - mat(1,2)*mat(2,1)
+
+tmpval = mat(1,1)*matinv(1,1) + mat(1,2)*matinv(2,1) + mat(1,3)*matinv(3,1)
+
+if (abs(tmpval) < 1D-12) then
+    matinv = 0D0
+    if (present(det)) det = 0D0
+    return
+end if
+
+matinv = matinv / tmpval
+if (present(det)) det = tmpval
+end subroutine
+
+
+
+
 !------- Calculate how much is a square matrix deviates from identity matrix
 !error=∑[i,j]abs( abs(mat(i,j))-δ(i,j) )
 real*8 function identmaterr(mat)
@@ -2227,24 +2262,26 @@ end subroutine
 
 !-------- Locate to the final label, and meantime returns the number of matches. Based on "loclabel"
 subroutine loclabelfinal(fileid,label,nfound)
-integer fileid,nfound,ifound
+integer fileid,ifound,nfoundtmp
+integer,optional :: nfound
 character(len=*) label
-nfound=0
+nfoundtmp=0
 rewind(fileid)
 do while(.true.)
     call loclabel(fileid,label,ifound,0)
     if (ifound==0) then
         exit
     else
-        nfound=nfound+1
+        nfoundtmp=nfoundtmp+1
         read(fileid,*)
     end if
 end do
 rewind(fileid)
-do ifound=1,nfound
+do ifound=1,nfoundtmp
     call loclabel(fileid,label,inouse,0)
-    if (ifound<nfound) read(fileid,*)
+    if (ifound<nfoundtmp) read(fileid,*)
 end do
+if (present(nfound)) nfound=nfoundtmp
 end subroutine
 
 

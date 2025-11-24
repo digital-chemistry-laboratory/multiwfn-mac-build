@@ -9649,7 +9649,7 @@ subroutine loadsetting
 use defvar
 use util
 implicit real*8 (a-h,o-z)
-character c80tmp*80,c200tmp*200,c200tmp2*200,settingpath*200
+character c80tmp*80,c200tmp*200,c200tmp2*200,c400tmp*400,settingpath*200
 !Set default color of atomic spheres
 atm3Dclr(:,1)=0.85D0
 atm3Dclr(:,2)=0.6D0
@@ -9819,6 +9819,8 @@ call get_option_str(20,'cfgcrossthres=',c80tmp)
 if (c80tmp/=" ") read(c80tmp,*) cfgcrossthres
 call get_option_str(20,'amIGMvdwscl=',c80tmp)
 if (c80tmp/=" ") read(c80tmp,*) amIGMvdwscl
+call get_option_str(20,' IGMvdwscl=',c80tmp)
+if (c80tmp/=" ") read(c80tmp,*) IGMvdwscl
 call get_option_str(20,'PBCnxnynz=',c80tmp)
 if (c80tmp/=" ") read(c80tmp,*) PBCnx_in,PBCny_in,PBCnz_in
 call get_option_str(20,'ifdoPBCxyz=',c80tmp)
@@ -9987,8 +9989,8 @@ if (ifound==0) then
 end if
 
 !The last opened file name
-call get_option_str(20,'lastfile=',c200tmp)
-if (c200tmp/=" ") read(c200tmp,*) lastfile
+call get_option_str(20,'lastfile=',c400tmp)
+if (c400tmp/=" ") read(c400tmp,*) lastfile
 
 close(20)
 

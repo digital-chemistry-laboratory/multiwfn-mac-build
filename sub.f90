@@ -1045,40 +1045,7 @@ do while(.true.)
             read(*,*)
         end if
 	else if (index(c1000tmp,"fod")/=0) then
-        fodnum=0
-		if (wfntype==3) then
-			idxHOMO=nint(nelec/2)
-			do iorbidx=1,numorbsel
-				iorb=orbarr(iorbidx)
-                if (iorb<=idxHOMO) MOocc(iorb)=2-MOocc(iorb)
-				fodnum=fodnum+MOocc(iorb)
-			end do
-        else
-			do itmp=nmo,1,-1 !Find the last alpha MO
-				if (MOtype(itmp)==1) exit
-			end do
-			do iorbidx=1,numorbsel
-				iorb=orbarr(iorbidx)
-                if (iorb<=itmp) then !Alpha
-					if (iorb<=nint(naelec)) MOocc(iorb)=1-MOocc(iorb)
-                else !Beta
-					if (iorb-itmp<=nint(nbelec)) MOocc(iorb)=1-MOocc(iorb)
-                end if
-				fodnum=fodnum+MOocc(iorb)
-			end do
-        end if
-        write(*,*) "Done!"
-		if (nEDFprims/=0) then
-			deallocate(b_EDF,CO_EDF,nEDFelecatm)
-			nEDFprims=0
-			nEDFelec=0
-			write(*,"(/,a)") " NOTE: EDF information has been removed to avoid their unexpected influence on subsequent calculation of electron density (corresponding to FOD in the present context)"
-		end if
-        if (numorbsel==nmo) then
-			write(*,"(a,f12.6)") " N_FOD is",fodnum
-        else
-			write(*,"(a,f12.6)") " Sum of occupation numbers of selected orbitals:",fodnum
-        end if
+		call FOD(orbarr,numorbsel)
 	else if (index(c1000tmp,"i")/=0) then
 		MOocc(orbarr(1:numorbsel))=MOocc_org(orbarr(1:numorbsel))
 		write(*,*) "The occupation numbers have been recovered"
@@ -1107,6 +1074,64 @@ do while(.true.)
 		end if
 	end if
 end do
+end subroutine
+
+
+
+
+!!---------- Convert orbital occupancy for all orbitals to FOD case  
+subroutine FOD_wrapper
+use defvar
+implicit real*8 (a-h,o-z)
+integer orbarr(nmo)
+forall(i=1:nmo) orbarr(i)=i
+call FOD(orbarr,nmo)
+if (allocated(CObasa)) then
+	write(*,*) "Updating density matrix..."
+	call genP
+	write(*,*) "Density matrix has been updated"
+end if
+if_initlibreta=0 !LIBRETA should then be re-initialized
+end subroutine
+!!---------- Convert orbital occupancy of selected orbitals to FOD case    
+subroutine FOD(orbarr,numorbsel)
+use defvar
+implicit real*8 (a-h,o-z)
+integer numorbsel,orbarr(numorbsel)
+fodnum=0
+if (wfntype==3) then
+	idxHOMO=nint(nelec/2)
+	do iorbidx=1,numorbsel
+		iorb=orbarr(iorbidx)
+        if (iorb<=idxHOMO) MOocc(iorb)=2-MOocc(iorb)
+		fodnum=fodnum+MOocc(iorb)
+	end do
+else
+	do itmp=nmo,1,-1 !Find the last alpha MO
+		if (MOtype(itmp)==1) exit
+	end do
+	do iorbidx=1,numorbsel
+		iorb=orbarr(iorbidx)
+        if (iorb<=itmp) then !Alpha
+			if (iorb<=nint(naelec)) MOocc(iorb)=1-MOocc(iorb)
+        else !Beta
+			if (iorb-itmp<=nint(nbelec)) MOocc(iorb)=1-MOocc(iorb)
+        end if
+		fodnum=fodnum+MOocc(iorb)
+	end do
+end if
+write(*,*) "Done!"
+if (nEDFprims/=0) then
+	deallocate(b_EDF,CO_EDF,nEDFelecatm)
+	nEDFprims=0
+	nEDFelec=0
+	write(*,"(/,a)") " NOTE: EDF information has been removed to avoid their unexpected influence on subsequent calculation of electron density (corresponding to FOD in the present context)"
+end if
+if (numorbsel==nmo) then
+	write(*,"(a,f12.6)") " N_FOD is",fodnum
+else
+	write(*,"(a,f12.6)") " Sum of occupation numbers of selected orbitals:",fodnum
+end if
 end subroutine
 
 

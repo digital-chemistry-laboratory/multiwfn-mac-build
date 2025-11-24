@@ -463,7 +463,7 @@ do while(.true.)
 			write(*,*) "2 Delete some CPs"
 			write(*,*) "3 Add a CP artificially"
 			write(*,*) "4 Save CPs to CPs.txt in current folder"
-			write(*,*) "5 Load CPs from a file"
+			write(*,*) "5 Load CPs from a text file"
 			write(*,*) "6 Export CPs as CPs.pdb file in current folder"
 			if (ifPBC>0) write(*,"(a)") " -6 Export CPs (including images at cell boundary if any) as CPs.pdb file in current folder"
 			read(*,*) isel2

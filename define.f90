@@ -483,7 +483,7 @@ character :: lastfile*200="",gaupath*200="",cubegenpath*200="",formchkpath*200="
 integer :: RDG_addminimal=1,ELF_addminimal=1,num1Dpoints=3000,atomdenscut=1,nprevorbgrid=120000,paircorrtype=3,pairfunctype=1,srcfuncmode=1
 integer :: ELFLOL_type=0,ipolarpara=0,iALIEdecomp=0,iskipnuc=0,ivdwprobe=6
 integer :: nKEDmax=24
-real*8 :: laplfac=1D0,uservar=0,uservar2=0,orbwei_delta=0.1D0,amIGMvdwscl=2D0
+real*8 :: laplfac=1D0,uservar=0,uservar2=0,orbwei_delta=0.1D0,amIGMvdwscl=2D0,IGMvdwscl=2D0
 real*8 :: RDG_maxrho=0.05D0,RDGprodens_maxrho=0.1D0,IRI_rhocut=5D-5,aug1D=1.5D0,aug2D=4.5D0,aug3D=6D0,radcut=10D0,cfgcrossthres=0.01D0
 real*8 :: refx=0D0,refy=0D0,refz=0D0
 real*8 :: pleA=0D0,pleB=0D0,pleC=0D0,pleD=0D0 !!ABCD of the plane defined by main function 1000, used for special aims

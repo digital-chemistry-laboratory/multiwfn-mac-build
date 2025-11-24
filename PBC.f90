@@ -166,7 +166,7 @@ end subroutine
 subroutine getpointcell(x,y,z,icell,jcell,kcell)
 use defvar
 use util
-real*8 x,y,z,vec(3),Amat(3,3),Bmat(3,3),Fcoord(3,1),rcoord(3,1)
+real*8 x,y,z,vec(3),Amat(3,3),Bmat(3,3),Fcoord(3,1),rcoord(3,1),tmpvec(3)
 integer icell,jcell,kcell
 if (ifPBC==0) then
     icell=0
@@ -181,7 +181,8 @@ rcoord(:,1)=vec(:)
 Amat(:,1)=cellv1(:)
 Amat(:,2)=cellv2(:)
 Amat(:,3)=cellv3(:)
-Bmat=invmat(Amat,3)
+!Bmat=invmat(Amat,3) !Using general inversion code is too slow if getpointcell is called huge number of times
+call invmatsub_3x3(Amat,Bmat)
 Fcoord=matmul(Bmat,rcoord) !Get fractional coordinate
 icell=0;jcell=0;kcell=0
 if (ifdoPBCx==1) icell=floor(Fcoord(1,1))
