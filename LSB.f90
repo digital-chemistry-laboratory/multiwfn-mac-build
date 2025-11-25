@@ -494,10 +494,12 @@ do iatm=1,ncenter !Cycle each atom
 	!Generate Hirshfeld weight and integrate the function
 	do i=1+iradcut*sphpot,radpot*sphpot
 		promol=sum(atmdens(i,:))
-		do jatm=1,ncenter
-			if (promol/=0) Hirshwei=atmdens(i,jatm)/promol !Hirshfeld weight of jatm at i point
-			atmintval(jatm)=atmintval(jatm)+funcval(i)*Hirshwei*beckeweigrid(i)*gridatmorg(i)%value
-		end do
+        if (promol/=0) then
+			do jatm=1,ncenter
+                Hirshwei=atmdens(i,jatm)/promol !Hirshfeld weight of jatm at i point
+                atmintval(jatm)=atmintval(jatm)+funcval(i)*Hirshwei*beckeweigrid(i)*gridatmorg(i)%value
+			end do
+        end if
 	end do
 	
 end do
@@ -2077,3 +2079,92 @@ end subroutine
 
 
 
+!!--------- Information gain with reference density provided by user's wavefunction file. Molecular integration grid
+!Reference wavefunction should have the same atomic coordinate as present wavefunction
+!Tian Lu, 2025-11-24
+subroutine infogain_customref
+use defvar
+use functions
+implicit real*8 (a-h,o-z)
+real*8 actualrho(radpot*sphpot),refrho(radpot*sphpot)
+real*8 beckeweigrid(radpot*sphpot),atmdens(radpot*sphpot,ncenter),atmintval(ncenter) !Integration value of each atom
+type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
+character reffilename*200
+
+write(*,*) "Input path of reference wavefunction file, e.g. D:\test\ref.wfn"
+do while(.true.)
+	read(*,"(a)") reffilename
+	inquire(file=reffilename,exist=alive)
+	if (alive) exit
+	write(*,*) "Cannot find the file, input again!"
+end do
+
+call setpromol
+call gen1cintgrid(gridatmorg,iradcut)
+
+write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
+
+call walltime(iwalltime1)
+atmintval=0
+
+do iatm=1,ncenter !Cycle each atom
+	write(*,"(' Processing center',i6,'(',a2,')   /',i6)") iatm,a(iatm)%name,ncenter
+	gridatm%x=gridatmorg%x+a(iatm)%x !Move quadrature point to actual position in molecule
+	gridatm%y=gridatmorg%y+a(iatm)%y
+	gridatm%z=gridatmorg%z+a(iatm)%z
+	
+	!Calculate electron density of actual state (the first loaded file after entering Multiwfn)
+	!$OMP parallel do shared(actualrho) private(ipt) num_threads(nthreads)
+	do ipt=1+iradcut*sphpot,radpot*sphpot
+		actualrho(ipt)=fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
+	end do
+	!$OMP end parallel do
+    
+    !Calculate electron density of reference state
+	call dealloall(0)
+	call readinfile(reffilename,1)
+	!$OMP parallel do shared(refrho) private(ipt) num_threads(nthreads)
+	do ipt=1+iradcut*sphpot,radpot*sphpot
+		refrho(ipt)=fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
+	end do
+	!$OMP end parallel do
+	
+	!Calculate Becke weight
+	call gen1cbeckewei(iatm,iradcut,gridatm,beckeweigrid,covr_tianlu,3)
+	
+	!Calculate atom densities for evaluating Hirshfeld weight later
+	do jatm=1,ncenter_org
+		call dealloall(0)
+		call readwfn(custommapname(jatm),1)
+		!$OMP parallel do shared(atmdens) private(ipt) num_threads(nthreads)
+		do ipt=1+iradcut*sphpot,radpot*sphpot
+			atmdens(ipt,jatm)=fdens(gridatm(ipt)%x,gridatm(ipt)%y,gridatm(ipt)%z)
+		end do
+		!$OMP end parallel do
+	end do
+	call dealloall(0)
+	call readinfile(firstfilename,1) !Retrieve to the first loaded file(whole molecule) to calc real rho again
+	
+	!Generate Hirshfeld weight and calculate information gain w.r.t. reference state
+	do i=1+iradcut*sphpot,radpot*sphpot
+		promol=sum(atmdens(i,:))
+        if (promol/=0.and.actualrho(i)/=0.and.refrho(i)/=0) then
+			tmpval=actualrho(i)*log(actualrho(i)/refrho(i))
+			do jatm=1,ncenter
+                Hirshwei=atmdens(i,jatm)/promol !Hirshfeld weight of jatm at i point
+                atmintval(jatm)=atmintval(jatm)+ tmpval*Hirshwei*beckeweigrid(i)*gridatmorg(i)%value
+			end do
+        end if
+	end do
+	
+end do
+
+call walltime(iwalltime2)
+write(*,"(' Calculation took up wall clock time',i10,'s',/)") iwalltime2-iwalltime1
+
+write(*,*) "Contribution from various atoms (Hirshfeld partition)"
+do iatm=1,ncenter
+	write(*,"(' Atom',i6,'(',a2,'):',f25.10)") iatm,a(iatm)%name,atmintval(iatm)
+end do
+write(*,"(/,' Total:',f25.10,/)") sum(atmintval(:)) 
+end subroutine

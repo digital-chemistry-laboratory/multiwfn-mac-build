@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), update date: 2025-Nov-23"
+write(*,*) "Version 3.8(dev), update date: 2025-Nov-25"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
 write(*,*) "Multiwfn English forum: http://sobereva.com/wfnbbs"
@@ -256,7 +256,7 @@ end if
 
 
 !Special treatment and test new code
-!call ORCAjson_gennatorb
+!call infogain_customref
 
 !!!--------------------- Now everything start ---------------------!!!
 do while(.true.) !Main loop
@@ -496,7 +496,9 @@ do while(.true.) !Main loop
 	    else if (isel==15) then
 		    call fuzzyana(0)
 	    else if (isel==-15) then
-		    call fuzzySBL	
+		    call fuzzySBL
+	    else if (isel==-16) then !Information gain with reference density provided by user's wavefunction file
+		    call infogain_customref
 
 
 	    !!!---------------------------------------------------

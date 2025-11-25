@@ -353,7 +353,7 @@ real*8 :: HOMArefbond(nelesupp,nelesupp)=-1D0,HOMAsigma(nelesupp,nelesupp)=0D0
 real*8 :: Birda(nelesupp,nelesupp)=-1D0,Birdb(nelesupp,nelesupp)=-1D0
 real*8 :: BirdVref(100)=-1
 real*8,allocatable :: BirdN(:)
-character C200inp*200
+character C200tmp*200,c2000tmp*2000
 
 if (all(HOMArefbond==-1D0)) then !If =-1, means missing reference value
 	HOMArefbond(5,6)=1.4235D0
@@ -443,9 +443,9 @@ do while(.true.)
 		do while(.true.)
 			write(*,"(a)") " Input indices of the atoms according to bonding relationship in the ring, e.g. 1,5,6,7,8,12"
 			write(*,*) "(Input q can return)"
-			read(*,"(a)") c200inp
-			if (c200inp=='q') exit
-			call str2arr(c200inp,numHOMAatm,HOMAatm)
+			read(*,"(a)") c2000tmp
+			if (c2000tmp=='q') exit
+			call str2arr(c2000tmp,numHOMAatm,HOMAatm)
 			HOMAval=1D0
             write(*,*)
 			write(*,*) "        Atom pair         Contribution  Bond length(Angstrom)"
@@ -480,9 +480,9 @@ do while(.true.)
 			write(*,*) "Input two element indices and new bond length and sigma parameter"
 			write(*,"(a)") " e.g. 6,7,1.334,93.52 means set reference bond length and sigma for C-N to 1.334 Angstrom and 93.52 respectively"
 			write(*,*) "(Input q can return)"
-			read(*,"(a)") C200inp
-			if (C200inp(1:1)=='q') exit
-			read(C200inp,*) itmp,jtmp,refbondtmp,sigmatmp
+			read(*,"(a)") C200tmp
+			if (C200tmp(1:1)=='q') exit
+			read(C200tmp,*) itmp,jtmp,refbondtmp,sigmatmp
 			HOMArefbond(itmp,jtmp)=refbondtmp
 			HOMArefbond(jtmp,itmp)=refbondtmp
 			HOMAsigma(itmp,jtmp)=sigmatmp
@@ -508,9 +508,9 @@ do while(.true.)
 		do while(.true.)
 			write(*,"(a)") " Input indices of the atoms according to bonding relationship in the ring, e.g. 1,5,6,7,8,12"
 			write(*,*) "(Input q can return)"
-			read(*,"(a)") c200inp
-			if (c200inp=='q') exit
-			call str2arr(c200inp,numBirdatm,Birdatm)
+			read(*,"(a)") c2000tmp
+			if (c2000tmp=='q') exit
+			call str2arr(c2000tmp,numBirdatm,Birdatm)
 			if (BirdVref(numBirdatm)==-1) then
 				write(*,*) "Error: Missing reference V parameter for this number of centers!"
 				exit
@@ -553,9 +553,9 @@ do while(.true.)
 			write(*,*) "Input two element indices and a and b parameters"
 			write(*,"(a)") " e.g. 6,7,6.941,2.205 means set a and b parameters for C-N to 6.941 and 2.205 respectively"
 			write(*,*) "(Input q can return)"
-			read(*,"(a)") C200inp
-			if (C200inp(1:1)=='q') exit
-			read(C200inp,*) itmp,jtmp,Birdatmp,Birdbtmp
+			read(*,"(a)") C200tmp
+			if (C200tmp(1:1)=='q') exit
+			read(C200tmp,*) itmp,jtmp,Birdatmp,Birdbtmp
 			Birda(itmp,jtmp)=Birdatmp
 			Birda(jtmp,itmp)=Birda(itmp,jtmp)
 			Birdb(itmp,jtmp)=Birdbtmp
