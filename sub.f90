@@ -1145,12 +1145,18 @@ MOocc=0
 if (wfntype==0.or.wfntype==3) then !Closed-shell or RO
 	diffint=abs(nelec-nint(nelec)) !Due to recording accuracy, the difference is not exactly zero even total number of electron actually is integer
     if (diffint<1D-5) then
-		write(*,"(a)") " Note: The difference between number of electrons and integer is less than 1E-5, so number of electrons is set to integer"
+		write(*,"(a,f16.8,a)") " Note: The difference between number of electrons (",diffint,") and &
+        &integer is less than 1E-5, so number of electrons is set to exact integer"
         nelec=nint(nelec)
+    else
+		write(*,"(a,f12.6,a)") " Warning: The total number of electrons deviates significantly from an integer by",diffint,"! If this is not a &
+        wavefunction produced by a fractional occupation number calculation, then this wavefunction should be wrong!"
+		write(*,*) "Press ENTER button to continue"
+        read(*,*)
     end if
     nintocc=floor(nelec/2D0)
 	MOocc(1:nintocc)=2
-    write(*,*) "Done!"
+    write(*,*) "Refilling orbital occupations by Aufbau principle finished!"
     if (diffint<1D-5.and.wfntype==3) then
 		wfntype=0
 		write(*,*) "Note: The wavefunction has been set to single-determinant closed-shell type"
@@ -1161,11 +1167,20 @@ if (wfntype==0.or.wfntype==3) then !Closed-shell or RO
 else if (wfntype==1.or.wfntype==4) then !Unrestricted
 	diffinta=abs(naelec-nint(naelec))
 	diffintb=abs(nbelec-nint(nbelec))
+	write(*,"(' Number of alpha electrons:',f20.8)") naelec
+	write(*,"(' Number of beta electrons: ',f20.8)") nbelec
     if (diffinta<1D-5.and.diffintb<1D-5) then
-		write(*,"(a)") " Note: The difference between number of electrons and integer is less than 1E-5, so number of electrons is set to integer"
+		write(*,"(a)") " Note: The difference between number of alpha/beta electrons and integer is less than 1E-5, &
+        &so the number of alpha/beta electrons is set to exact integer"
         naelec=nint(naelec)
         nbelec=nint(nbelec)
         nelec=nint(nelec)
+    else
+		write(*,"(a)") " Warning: The number of alpha or beta electrons deviates significantly from an integer! Your wavefunction file may be problematic, please double check"
+		if (ifPBC/=0) write(*,"(a)") " Note: If your wavefunction was produced with smearing by CP2K, you should set &DFT/&SCF/&SMEAR/FIXED_MAGNETIC_MOMENT to -1 &
+        &to constraint the difference between the numbers of alpha and beta electrons to an integer"
+		write(*,*) "Press ENTER button to continue"
+        read(*,*)
     end if
     nintocca=floor(naelec)
     nintoccb=floor(nbelec)
@@ -1174,11 +1189,11 @@ else if (wfntype==1.or.wfntype==4) then !Unrestricted
     end do
 	MOocc(1:nintocca)=1
 	MOocc(ibeta:ibeta+nintoccb-1)=1
-    write(*,*) "Done!"
+    write(*,*) "Refilling orbital occupations by Aufbau principle finished!"
     if (diffinta<1D-5.and.diffintb<1D-5.and.wfntype==4) then
 		wfntype=1
 		write(*,"(a)") " Note: The wavefunction has been set to single-determinant unrestricted open-shell type"
-    else !Distribute reminder electrons to LUMO
+    else !Distribute residual electrons to LUMO
 		MOocc(nintocca+1)=mod(naelec,1D0)
 		if (ibeta-1>=nintocca+2) MOocc(nintocca+2:ibeta-1)=0
 		MOocc(ibeta+nintoccb)=mod(nbelec,1D0)

@@ -3006,7 +3006,7 @@ if (index(loadspecname,".dat")/=0) then
 	read(10,*)
 	do i=1,numdata
 		!Note: The last four columns of tda.dat correspond to f_length, f_velocity, R_length, R_velocity
-		read(10,*) inouse,datax(i),fl,fv,Rl,Rv
+		read(10,*) c80tmp,datax(i),fl,fv,Rl,Rv
 		if (ispectrum==3) then
 			str(i)=fl
 		else if (ispectrum==4) then

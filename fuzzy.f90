@@ -554,6 +554,7 @@ else if (isel==3.or.isel==33.or.isel==4.or.isel==44.or.isel==5.or.isel==6.or.ise
 				if (ntmpb>0) write(*,"('       The highest',i6,' beta virtual orbitals will not be taken into account')") nmo-iendalpha-nmatsizeb
                 if ((isel==3.or.isel==33).and.(ntmpa>0.or.ntmpb>0)) write(*,*) "If you hope to consider all orbitals, set ""ispecial"" in settings.ini to 3"
 			end if
+            write(*,*) "Allocating memory..."
 			if (allocated(AOM)) deallocate(AOM,AOMsum) 
 			if (allocated(AOMb)) deallocate(AOMb,AOMsumb)
 			allocate(AOM(nmatsizea,nmatsizea,ncenter),AOMb(nmatsizeb,nmatsizeb,ncenter))

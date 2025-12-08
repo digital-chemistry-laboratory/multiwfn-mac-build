@@ -2711,6 +2711,9 @@ character c80tmp*80,c200tmp*200,c2000tmp*200,selectyn
 
 if (wfntype>=2) then !Only for R and U SCF currently
     write(*,"(a)") " Error: Only restricted and unresticted single-determinant wavefunction are supported!"
+    if (ifPBC/=0) write(*,"(a)") " Note: If your wavefunction was produced with smearing, you should use subfunction 38 of main funcion 6 first &
+    &to reorder orbital occupancy, so that the wavefunction behaves as a standard single-determinant wavefunction. Alternatively, disable smearing &
+    &and regenerate the wavefunction file by your first-principles code"
     write(*,*) "Press ENTER button to return"
     read(*,*)
     return

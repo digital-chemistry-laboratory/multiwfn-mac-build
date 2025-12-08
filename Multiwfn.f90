@@ -31,7 +31,7 @@ end if
 
 10 call loadsetting
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8(dev), update date: 2025-Nov-25"
+write(*,*) "Version 3.8(dev), update date: 2025-Dec-7"
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
 write(*,*) "Multiwfn English forum: http://sobereva.com/wfnbbs"
@@ -83,7 +83,7 @@ write(*,*)
 if (trim(filename)==" ") then !Haven't defined filename variable
 	call mylover(lovername)
 	write(*,"(a,a,a)") " Now input file path, for example, E:\",trim(lovername),".mwfn"
-	write(*,*) "(.wfn/wfn/wfx/fch/molden/pdb/xyz/mol2/cif/cub... see Section 2.5 of manual)"
+	write(*,*) "(.mwfn/wfn/wfx/fch/molden/pdb/xyz/mol2/cif/cub... see Section 2.5 of manual)"
 	write(*,"(a)") " Hint: Pressing ENTER button directly can select a file in a GUI window. To reload the past file, inputting ""o"". &
 	&Input such as ?miku.fch can open the miku.fch in the same folder as the past file"
 	do while(.true.)

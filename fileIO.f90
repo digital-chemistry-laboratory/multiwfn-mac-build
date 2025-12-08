@@ -9817,6 +9817,8 @@ call get_option_str(20,'ibasinlocmin=',c80tmp)
 if (c80tmp/=" ") read(c80tmp,*) ibasinlocmin
 call get_option_str(20,'cfgcrossthres=',c80tmp)
 if (c80tmp/=" ") read(c80tmp,*) cfgcrossthres
+call get_option_str(20,'ORCAloadcoeff=',c80tmp)
+if (c80tmp/=" ") read(c80tmp,*) ORCAloadcoeff
 call get_option_str(20,'amIGMvdwscl=',c80tmp)
 if (c80tmp/=" ") read(c80tmp,*) amIGMvdwscl
 call get_option_str(20,' IGMvdwscl=',c80tmp)
@@ -9966,6 +9968,8 @@ call get_option_str(20,'orcapath=',c200tmp)
 if (c200tmp/=" ") read(c200tmp,*) orcapath
 call get_option_str(20,'orca_2mklpath=',c200tmp)
 if (c200tmp/=" ") read(c200tmp,*) orca_2mklpath
+call get_option_str(20,'orca_2jsonpath=',c200tmp)
+if (c200tmp/=" ") read(c200tmp,*) orca_2jsonpath
 call get_option_str(20,'dftd3path=',c200tmp)
 if (c200tmp/=" ") read(c200tmp,*) dftd3path
 call testarg("-silent",isilent)

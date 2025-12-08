@@ -478,13 +478,13 @@ integer :: NICSnptlim=8000,iCDAcomp=1,ESPrhonlay=1
 real*8 :: bndordthres=0.05D0,compthres=0.5D0,compthresCDA=1D0,expcutoff=-40D0,expcutoff_PBC=-20D0,ESPrhoiso=0D0
 integer :: nthreads=4
 integer*8 :: ompstacksize=200000000
-character :: lastfile*200="",gaupath*200="",cubegenpath*200="",formchkpath*200="",orcapath*200="",orca_2mklpath*200="",dftd3path*200="",cubegendenstype*80="SCF"
+character :: lastfile*200="",gaupath*200="",cubegenpath*200="",formchkpath*200="",orcapath*200="",orca_2mklpath*200="",orca_2jsonpath*200="",dftd3path*200="",cubegendenstype*80="SCF"
 !! About function calculation, external or internal parameters
 integer :: RDG_addminimal=1,ELF_addminimal=1,num1Dpoints=3000,atomdenscut=1,nprevorbgrid=120000,paircorrtype=3,pairfunctype=1,srcfuncmode=1
 integer :: ELFLOL_type=0,ipolarpara=0,iALIEdecomp=0,iskipnuc=0,ivdwprobe=6
 integer :: nKEDmax=24
 real*8 :: laplfac=1D0,uservar=0,uservar2=0,orbwei_delta=0.1D0,amIGMvdwscl=2D0,IGMvdwscl=2D0
-real*8 :: RDG_maxrho=0.05D0,RDGprodens_maxrho=0.1D0,IRI_rhocut=5D-5,aug1D=1.5D0,aug2D=4.5D0,aug3D=6D0,radcut=10D0,cfgcrossthres=0.01D0
+real*8 :: RDG_maxrho=0.05D0,RDGprodens_maxrho=0.1D0,IRI_rhocut=5D-5,aug1D=1.5D0,aug2D=4.5D0,aug3D=6D0,radcut=10D0,cfgcrossthres=0.01D0,ORCAloadcoeff=1D-4
 real*8 :: refx=0D0,refy=0D0,refz=0D0
 real*8 :: pleA=0D0,pleB=0D0,pleC=0D0,pleD=0D0 !!ABCD of the plane defined by main function 1000, used for special aims
 real*8 :: globaltmp=0 !A variable can be used anywhere and can be set by option 5 of main function 1000, for debugging purpose avoiding re-compile code

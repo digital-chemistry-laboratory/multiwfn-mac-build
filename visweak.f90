@@ -697,22 +697,27 @@ do while (.true.)
 		write(*,*) "Finished! Column 1/2/3/4 = delta-g_inter/delta-g_intra/delta-g/sign(lambda2)rho"
 	else if (isel==3) then
 		write(*,*) "Exporting..."
-		open(10,file="dg_inter.cub",status="replace")
-		call outcube(dg_inter,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
-		close(10)
-		write(*,*) "delta-g_inter has been exported to dg_inter.cub in current folder"
-		open(10,file="dg_intra.cub",status="replace")
-		call outcube(dg_intra,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
-		close(10)
-		write(*,*) "delta-g_intra has been exported to dg_intra.cub in current folder"
-		open(10,file="dg.cub",status="replace")
-		call outcube(dg,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
-		close(10)
-		write(*,*) "delta-g has been exported to dg.cub in current folder"
 		open(10,file="sl2r.cub",status="replace")
 		call outcube(sl2r,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
 		close(10)
 		write(*,*) "sign(lambda2)rho has been exported to sl2r.cub in current folder"
+		open(10,file="dg_inter.cub",status="replace")
+		call outcube(dg_inter,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
+		close(10)
+		write(*,*) "delta-g_inter has been exported to dg_inter.cub in current folder"
+		if (IGMvdwscl==0) then
+			open(10,file="dg_intra.cub",status="replace")
+			call outcube(dg_intra,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
+			close(10)
+			write(*,*) "delta-g_intra has been exported to dg_intra.cub in current folder"
+			open(10,file="dg.cub",status="replace")
+			call outcube(dg,nx,ny,nz,orgx,orgy,orgz,gridv1,gridv2,gridv3,10)
+			close(10)
+			write(*,*) "delta-g has been exported to dg.cub in current folder"
+        else
+			write(*,"(a)")  " Note: Because ""IGMvdwscl"" in settings.ini is not zero, grid data of &
+            &delta-g_intra and delta-g are not exported as these functions are meaningless in this case"
+        end if
 	else if (isel==4) then
 		write(*,*) "1 delta-g_inter"
 		write(*,*) "2 delta-g_intra"
