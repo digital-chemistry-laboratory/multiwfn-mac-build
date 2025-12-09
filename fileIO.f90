@@ -1442,10 +1442,12 @@ use defvar
 implicit real*8 (a-h,o-z)
 integer ifileid,nframe
 character c80tmp*80
+write(*,*) "Detecting number of frames in the trajectory file..."
 nframe=0
 do while(.true.)
     read(ifileid,*,iostat=ierror) c80tmp
     if (ierror/=0.or.c80tmp==" ") then
+		write(*,"(a,i10)") " Total number of frames:",nframe
         return
     else
         nframe=nframe+1

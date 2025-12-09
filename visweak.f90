@@ -59,9 +59,9 @@ do while(.true.)
 	else if (isel==11) then
 		call IGM(2)
 	else if (isel==12) then
-		call aIGM(1)
+		call aIGM_amIGM(1)
 	else if (isel==-12) then
-		call aIGM(-1)
+		call aIGM_amIGM(-1)
 	end if
 end do
 end subroutine
@@ -79,6 +79,7 @@ implicit real*8 (a-h,o-z)
 real*8,allocatable :: avgdens(:,:,:),avggrad(:,:,:,:),avghess(:,:,:,:,:)
 real*8,allocatable :: avgRDG(:,:,:),avgsl2r(:,:,:),thermflu(:,:,:)
 real*8,allocatable :: scatterx(:),scattery(:)
+logical,allocatable :: dogrid(:,:,:)
 
 write(*,*) "*** Please cite the following papers along with Multiwfn original papers ***"
 write(*,*) "  Original paper of aNCI: J. Chem. Theory Comput., 9, 2226 (2013)"
@@ -98,15 +99,20 @@ write(*,"(' Selected',i8,' frames, frames from',i8,' to',i8,' will be processed'
 call setgrid(0,igridsel)
 
 call walltime(iwalltime1)
-write(*,"(/,a)") " Calculating averaged density, gradient and Hessian of density"
+allocate(dogrid(nx,ny,nz))
+dogrid=.true.
+
+write(*,"(/,a)") " Calculating averaged density, gradient and Hessian of promolecular density"
 allocate(avgdens(nx,ny,nz),avggrad(3,nx,ny,nz),avghess(3,3,nx,ny,nz))
-call avg_rhogradhess(avgdens,avggrad,avghess,ifpsstart,ifpsend)
+call avg_rhogradhess(avgdens,avggrad,avghess,ifpsstart,ifpsend,dogrid)
+
 write(*,"(a)") " Calculating averaged RDG and averaged sign(lambda2)*rho..."
 allocate(avgRDG(nx,ny,nz),avgsl2r(nx,ny,nz))
 call avg_RDG_sl2r(avgdens,avggrad,avghess,avgRDG,avgsl2r)
+
 call walltime(iwalltime2)
 write(*,"(' Calculation totally took up wall clock time',i10,' s')") iwalltime2-iwalltime1
-deallocate(avggrad,avghess) !Will not be used further, so release its memory
+deallocate(avggrad,avghess,dogrid) !Will not be used further
 
 allocate(scatterx(nx*ny*nz),scattery(nx*ny*nz))
 ii=1
@@ -210,13 +216,17 @@ end subroutine
 
 
 !!----- Generate averaged density, averaged gradient and averaged Hessian
-subroutine avg_rhogradhess(avgdens,avggrad,avghess,ifpsstart,ifpsend)
+!Only the grid with dogrid=.true. will be calculated
+subroutine avg_rhogradhess(avgdens,avggrad,avghess,ifpsstart,ifpsend,dogrid)
 use defvar
 use util
 use functions
 implicit real*8 (a-h,o-z)
 real*8 avgdens(nx,ny,nz),avggrad(3,nx,ny,nz),avghess(3,3,nx,ny,nz)
 real*8 gradtmp(3),hesstmp(3,3)
+logical dogrid(nx,ny,nz)
+integer ifpsstart,ifpsend
+
 avgdens=0D0
 avggrad=0D0
 avghess=0D0
@@ -236,6 +246,7 @@ do ifps=1,ifpsend
 	do k=1,nz
 		do j=1,ny
 			do i=1,nx
+				if (dogrid(i,j,k).eqv..false.) cycle
 				call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
 				call calchessmat_prodens(tmpx,tmpy,tmpz,denstmp,gradtmp,hesstmp)
 				avgdens(i,j,k)=avgdens(i,j,k)+denstmp
@@ -261,6 +272,7 @@ use util
 implicit real*8 (a-h,o-z)
 real*8 avgdens(nx,ny,nz),avggrad(3,nx,ny,nz),avghess(3,3,nx,ny,nz),avgRDG(nx,ny,nz),avgsl2r(nx,ny,nz)
 real*8 eigvecmat(3,3),eigval(3)
+
 !$OMP PARALLEL DO SHARED(avgRDG,avgsl2r) PRIVATE(i,j,k,tmpx,tmpy,tmpz,avggradnormtmp,eigval) schedule(dynamic) NUM_THREADS(nthreads)
 do k=1,nz
 	do j=1,ny
@@ -283,7 +295,6 @@ do k=1,nz
 			else
 				avgsl2r(i,j,k)=-avgdens(i,j,k) !Around nuclei, eigval(2)/abs(eigval(2)) always be negative
 			end if
-			
 		end do
 	end do
 end do
@@ -626,7 +637,7 @@ xmax=0.2D0
 
 do while (.true.)
 	write(*,*)
-	write(*,*) "             -------------- Post-processing menu --------------"
+	call menutitle("Post-processing menu",10,1)
 	write(*,"(' -3 Change range of Y-axis of scatter graph, current:',f11.6,' to',f11.6)") ymin,ymax
 	write(*,"(' -2 Change range of X-axis of scatter graph, current:',f11.6,' to',f11.6)") xmin,xmax
 	write(*,*) "-1 Draw scatter graph           1 Save the scatter graph to file"
@@ -1160,10 +1171,9 @@ end subroutine
 
 
 
-!!-------- Averaged IGM/mIGM. Supports PBC
+!!-------- Averaged IGM (aIGM) and averaged mIGM (amIGM). Supports PBC
 !iIGMtype=1: aIGM   =-1: amIGM
-!iIGMtype=3 (obsolete): Calculate averaged (regular/IGM) density gradient first, then calculate aIGM
-subroutine aIGM(iIGMtype)
+subroutine aIGM_amIGM(iIGMtype)
 use defvar
 use util
 use GUI
@@ -1174,12 +1184,12 @@ integer iIGMtype
 integer,allocatable :: IGMfrag(:,:),IGMfragsize(:) !Definition of each fragment used in IGM, and the number of atoms in each fragment
 real*8,allocatable :: frag_grad(:,:,:,:,:) !frag_grad(1:3,nx,ny,nz,nfrag), gradient vector of each fragment at every point
 real*8,allocatable :: dg_inter(:,:,:),TFI_IGM(:,:,:)
-logical,allocatable :: dogrid(:,:,:)
+logical,allocatable :: dogrid(:,:,:),dogridtmp(:,:,:)
 !The first index of avggrad and the first two indices of avghess correspond to components of gradient and Hessian, respectively
 real*8,allocatable :: avgdens(:,:,:),avggrad(:,:,:,:),avghess(:,:,:,:,:)
 real*8,allocatable :: avgRDG(:,:,:),thermflu(:,:,:),avgsl2r(:,:,:)
 real*8,allocatable :: scatterx(:),scattery(:)
-character c2000tmp*2000,selectyn
+character c80tmp*80,c2000tmp*2000,selectyn
 real*8 prorho,prograd(3),atmprorho(ncenter),atmprograd(3,ncenter),atmgrad(3),atomcoeff(10),atomexp(10)
 
 write(*,*) "*** Please cite the following paper along with Multiwfn original papers ***"
@@ -1218,192 +1228,209 @@ do ifrag=1,nIGMfrag
 	end if
 end do
 
-write(*,*)
-write(*,*) "Input range of the frames to be analyzed, e.g. 150,400 means from 150 to 400 frames"
-write(*,*) "Note: The frame index starts from 1"
-read(*,*) ifpsstart,ifpsend
-nfps=ifpsend-ifpsstart+1
-write(*,"(' Selected',i8,' frames, frames from',i8,' to',i8,' will be processed',/)") nfps,ifpsstart,ifpsend
+write(*,"(/,a)") " Input range of the frames to be analyzed, e.g. 150,400 means from 150 to 400 frames. Note that frame index starts from 1"
+write(*,*) "If pressing ENTER button directly, all frames will be taken into account"
+read(*,"(a)") c80tmp
+if (c80tmp==" ") then
+	open(10,file=filename,status="old")
+	call xyzfile_nframe(10,ifpsend)
+    close(10)
+    ifpsstart=1
+    nfps=ifpsend
+else
+	read(c80tmp,*) ifpsstart,ifpsend
+	nfps=ifpsend-ifpsstart+1
+	write(*,"(' Selected',i8,' frames, frames from',i8,' to',i8,' will be processed')") nfps,ifpsstart,ifpsend
+end if
 
 call setgrid(0,igridsel)
+allocate(dg_inter(nx,ny,nz))
+dg_inter=0
 
 call walltime(iwalltime1)
-
-write(*,"(/,a)") " Calculating averaged density, gradient and Hessian of density..."
-allocate(avgdens(nx,ny,nz),avggrad(3,nx,ny,nz),avghess(3,3,nx,ny,nz))
-call avg_rhogradhess(avgdens,avggrad,avghess,ifpsstart,ifpsend)
-
-write(*,"(a)") " Calculating averaged RDG and averaged sign(lambda2)*rho..."
-allocate(avgRDG(nx,ny,nz),avgsl2r(nx,ny,nz))
-call avg_RDG_sl2r(avgdens,avggrad,avghess,avgRDG,avgsl2r) !RDG is a byproduct
-deallocate(avggrad,avghess) !Will not be used further, so release its memory
-call walltime(iwalltime2)
-write(*,"(' Calculation took up wall clock time until now',i10,' s')") iwalltime2-iwalltime1
-
-if (abs(iIGMtype)==1) then !Calculate IGM/mIGM for each frame, then take average
-    allocate(dg_inter(nx,ny,nz))
-    open(10,file=filename,status="old")
-    if (iIGMtype==1) write(*,*) "Calculating grid data of averaged IGM..."
-    if (iIGMtype==-1) write(*,*) "Calculating grid data of averaged mIGM..."
-    dg_inter=0
+!Prescreening grids. If a grid is within scaled vdW radius of any atom of fragment 1 (coordinate fixed) in the first frame, &
+!and meantime within that of any other fragments throughout the whole trajectory, then this grid will be calculated. 
+!This treatment can safely reduce certain computational cost if scale factor is set to 2
+if (amIGMvdwscl/=0) then
+	write(*,"(/,a,f6.2)") " Prescreening grids with amIGMvdwscl parameter:",amIGMvdwscl
+    write(*,*) "Doing stage 1..."
+	allocate(dogrid(nx,ny,nz))
+	dogrid=.false.
+    !$OMP PARALLEL DO SHARED(dogrid) PRIVATE(i,j,k,vec1,vec2,dist,iatm,idx) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
+	do k=1,nz
+		do j=1,ny
+			do i=1,nx
+				call getgridxyz(i,j,k,vec1(1),vec1(2),vec1(3))
+				do idx=1,IGMfragsize(1)
+					iatm=IGMfrag(1,idx)
+					vec2(1)=a(iatm)%x
+					vec2(2)=a(iatm)%y
+					vec2(3)=a(iatm)%z
+					call nearest_dist(vec1,vec2,dist)
+					if (dist < amIGMvdwscl*vdwr(a(iatm)%index)) then
+						dogrid(i,j,k)=.true.
+						exit
+					end if
+				end do
+			end do
+		end do
+	end do
+	write(*,"(' first stage percent of screened grids:',f10.2,'%')") dfloat(count(dogrid.eqv..false.))/(nx*ny*nz)*100
     
-    !Prescreening grids. If a grid is within scaled vdW radius of any atom of fragment 1, then this grid will be calculated. 
-    !This treatment can safely reduce certain computational cost if scale factor is set to 2
-    if (amIGMvdwscl/=0) then
-		write(*,"(a,f6.2)") " Prescreening grids with amIGMvdwscl parameter:",amIGMvdwscl
-		allocate(dogrid(nx,ny,nz))
-		dogrid=.false.
+    write(*,*) "Doing stage 2..."
+	allocate(dogridtmp(nx,ny,nz))
+	dogridtmp=.false.
+	open(10,file=filename,status="old")
+	do ifps=1,ifpsend
+		call showprog(ifps,nfps)
+		call readxyztrj(10)
+		if (ifps<ifpsstart) cycle
+		!$OMP PARALLEL DO SHARED(dogridtmp) PRIVATE(vec1,vec2,idx,dist,i,j,k,ifrag,iatm) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
 		do k=1,nz
 			do j=1,ny
 				do i=1,nx
+					if (dogrid(i,j,k).eqv..false.) cycle
+					if (dogridtmp(i,j,k).eqv..true.) cycle
 					call getgridxyz(i,j,k,vec1(1),vec1(2),vec1(3))
-					do idx=1,IGMfragsize(1)
-						iatm=IGMfrag(1,idx)
-						vec2(1)=a(iatm)%x
-						vec2(2)=a(iatm)%y
-						vec2(3)=a(iatm)%z
-						call nearest_dist(vec1,vec2,dist)
-						if (dist < amIGMvdwscl*vdwr(a(iatm)%index)) then
-							dogrid(i,j,k)=.true.
-							exit
-						end if
+					do ifrag=2,nIGMfrag
+						do idx=1,IGMfragsize(ifrag)
+							iatm=IGMfrag(ifrag,idx)
+							vec2(1)=a(iatm)%x
+							vec2(2)=a(iatm)%y
+							vec2(3)=a(iatm)%z
+							call nearest_dist(vec1,vec2,dist)
+							if (dist < amIGMvdwscl*vdwr(a(iatm)%index)) then
+								dogridtmp(i,j,k)=.true.
+								exit
+							end if
+						end do
 					end do
 				end do
 			end do
 		end do
-        write(*,"(' Percent of screened grids:',f10.2,'%')") dfloat(count(dogrid.eqv..false.))/(nx*ny*nz)*100
-    end if
-    
-    !Loop frames
-    do ifps=1,ifpsend
-	    call readxyztrj(10)
-	    if (ifps<ifpsstart) cycle
-        call showprog(ifps,nfps)
-        !$OMP PARALLEL DO SHARED(dg_inter) PRIVATE(i,j,k,ifrag,gradtmp,grad_inter,IGM_gradnorm_inter,tmpx,tmpy,tmpz,tmpval,&
-        !$OMP idx,iatm,atmprorho,atmprograd,prorho,prograd,idir,&
-        !$OMP rx,ry,rz,rx2,ry2,rz2,r,r2,iele,nSTO,atomcoeff,atomexp,iSTO,tmp,term) schedule(dynamic) NUM_THREADS(nthreads)
-        do k=1,nz
-	        do j=1,ny
-		        do i=1,nx
-					if (amIGMvdwscl/=0) then
-						if (dogrid(i,j,k).eqv..false.) cycle
-                    end if
-					call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
-                    grad_inter=0
-                    IGM_gradnorm_inter=0
-                    if (iIGMtype==1) then !aIGM
-						do ifrag=1,nIGMfrag
-							call IGMgrad_promol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),tmpval)
-							grad_inter(:)=grad_inter(:)+gradtmp(:)
-							IGM_gradnorm_inter=IGM_gradnorm_inter+dsqrt(sum(gradtmp**2))
-						end do
-                    else !amIGM
-						!  In fact, one can simply replacing "IGMgrad_promol" in above code by "IGMgrad_Hirshpromol" to realize amIGM
-						!However, the cost is high, because proatomic density for all atoms will be evaluated in this subroutine when looping each fragment
-						!So, in the following code, promolecular is calculated first, and record proatomic gradient at the same time
-                    
-						!Obtain density and gradient of all atoms in their isolated states
-                        atmprorho=0
-                        atmprograd=0
-						do iatm=1,ncenter
-							!call proatmgrad(2,iatm,tmpx,tmpy,tmpz,atmprorho(iatm),atmprograd(:,iatm))
-							!The following code is equivalent to the above line, while more efficient
-							rx=tmpx-a(iatm)%x
-							ry=tmpy-a(iatm)%y
-							rz=tmpz-a(iatm)%z
-							rx2=rx*rx
-							ry2=ry*ry
-							rz2=rz*rz
-							r2=rx2+ry2+rz2
-							iele=a(iatm)%index
-							if (r2<atmrhocutsqr_1En5(iele)) then
-								r=dsqrt(r2)
-								call genatmraddens_STOfitparm(iele,nSTO,atomcoeff,atomexp)
-								do iSTO=1,nSTO
-									term=atomcoeff(iSTO)*dexp(-r*atomexp(iSTO))
-									atmprorho(iatm)=atmprorho(iatm)+term
-									if (r/=0) then
-										tmp=term*atomexp(iSTO)/r
-										atmprograd(1,iatm)=atmprograd(1,iatm)-tmp*rx
-										atmprograd(2,iatm)=atmprograd(2,iatm)-tmp*ry
-										atmprograd(3,iatm)=atmprograd(3,iatm)-tmp*rz
-									end if
-								end do
-							end if
-						end do
-                        
-						prorho=sum(atmprorho(:))
-						!Cycle fragments
-                        if (prorho/=0) then
-							!Calculate gradient of promolecular density
-							do idir=1,3
-								prograd(idir)=sum(atmprograd(idir,:))
-							end do
-							do ifrag=1,nIGMfrag
-								!Calculate gradient and IGM gradient of this fragment in the mIGM way
-                                gradtmp=0
-								do idx=1,IGMfragsize(ifrag)
-									iatm=IGMfrag(ifrag,idx)
-									atmgrad(:)=2*atmprorho(iatm)/prorho*prograd(:) - atmprograd(:,iatm)
-									gradtmp=gradtmp+atmgrad
-								end do
-								grad_inter(:)=grad_inter(:)+gradtmp(:)
-								IGM_gradnorm_inter=IGM_gradnorm_inter+dsqrt(sum(gradtmp**2))
-							end do
-                        end if
-                    end if
-                    
-                    dg_inter(i,j,k)=dg_inter(i,j,k) + IGM_gradnorm_inter - dsqrt(sum(grad_inter**2))
-		        end do
-	        end do
-        end do
-        !$OMP END PARALLEL DO
-    end do
-    close(10)
-    dg_inter=dg_inter/nfps
-    
-else if (iIGMtype==3) then !Obsolete, result is poor. Calculate averaged (regular/IGM) density gradient first, then calculate aIGM
-    allocate(dg_inter(nx,ny,nz),frag_grad(3,nx,ny,nz,nIGMfrag))
-    open(10,file=filename,status="old")
-    write(*,*) "Calculating grid data of averaged density gradient of each fragment..."
-    frag_grad=0
-    do ifps=1,ifpsend
-	    call readxyztrj(10)
-	    if (ifps<ifpsstart) cycle
-        call showprog(ifps,nfps)
-        do ifrag=1,nIGMfrag
-            !$OMP PARALLEL DO SHARED(frag_grad) PRIVATE(i,j,k,tmpx,tmpy,tmpz,gradtmp) schedule(dynamic) NUM_THREADS(nthreads)
-            do k=1,nz
-	            do j=1,ny
-		            do i=1,nx
-						call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
-                        !gradtmp is gradient vector of ifrag
-                        call IGMgrad_promol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),rnouse)
-                        frag_grad(:,i,j,k,ifrag)=frag_grad(:,i,j,k,ifrag)+gradtmp(:)
-		            end do
-	            end do
+		!$OMP END PARALLEL DO
+	end do
+	close(10)
+	do k=1,nz
+		do j=1,ny
+			do i=1,nx
+				if (dogridtmp(i,j,k).eqv..false.) dogrid(i,j,k)=.false.
             end do
-            !$OMP END PARALLEL DO
         end do
     end do
-    close(10)
-    frag_grad=frag_grad/nfps
+    deallocate(dogridtmp)
+    write(*,"(' Final percent of screened grids:',f10.2,'%')") dfloat(count(dogrid.eqv..false.))/(nx*ny*nz)*100
+	call walltime(iwalltime2)
+	write(*,"(' Calculation took up wall clock time until now',i10,' s')") iwalltime2-iwalltime1
+end if
 
-    write(*,*) "Calculating grid data of delta-g_inter..."
+write(*,"(/,a)") " Calculating averaged density, gradient and Hessian of promolecular density..."
+allocate(avgdens(nx,ny,nz),avggrad(3,nx,ny,nz),avghess(3,3,nx,ny,nz))
+call avg_rhogradhess(avgdens,avggrad,avghess,ifpsstart,ifpsend,dogrid)
+write(*,*) "Done!"
+
+write(*,"(a)") " Calculating averaged RDG and averaged sign(lambda2)*rho..."
+allocate(avgRDG(nx,ny,nz),avgsl2r(nx,ny,nz))
+call avg_RDG_sl2r(avgdens,avggrad,avghess,avgRDG,avgsl2r) !aRDG is a byproduct
+write(*,*) "Done!"
+
+deallocate(avggrad,avghess) !Will not be used further
+call walltime(iwalltime2)
+write(*,"(' Calculation took up wall clock time until now',i10,' s')") iwalltime2-iwalltime1
+    
+!Loop frames
+open(10,file=filename,status="old")
+if (iIGMtype==1) then
+	write(*,*) "Calculating grid data of averaged IGM (aIGM)..."
+else if (iIGMtype==-1) then
+	write(*,*) "Calculating grid data of averaged mIGM (amIGM)..."
+end if
+do ifps=1,ifpsend
+	call readxyztrj(10)
+	if (ifps<ifpsstart) cycle
+    call showprog(ifps,nfps)
+    !$OMP PARALLEL DO SHARED(dg_inter) PRIVATE(i,j,k,ifrag,gradtmp,grad_inter,IGM_gradnorm_inter,tmpx,tmpy,tmpz,tmpval,&
+    !$OMP idx,iatm,atmprorho,atmprograd,prorho,prograd,idir,&
+    !$OMP rx,ry,rz,rx2,ry2,rz2,r,r2,iele,nSTO,atomcoeff,atomexp,iSTO,tmp,term) schedule(dynamic) NUM_THREADS(nthreads) collapse(2)
     do k=1,nz
 	    do j=1,ny
 		    do i=1,nx
+				if (amIGMvdwscl/=0) then
+					if (dogrid(i,j,k).eqv..false.) cycle
+                end if
+				call getgridxyz(i,j,k,tmpx,tmpy,tmpz)
                 grad_inter=0
                 IGM_gradnorm_inter=0
-                do ifrag=1,nIGMfrag
-                    grad_inter=grad_inter+frag_grad(:,i,j,k,ifrag)
-	                IGM_gradnorm_inter=IGM_gradnorm_inter+dsqrt(sum(frag_grad(:,i,j,k,ifrag)**2))
-                end do
-                dg_inter(i,j,k)=IGM_gradnorm_inter-dsqrt(sum(grad_inter**2))
-	        end do
-        end do
-    end do    
-end if
+                if (iIGMtype==1) then !aIGM
+					do ifrag=1,nIGMfrag
+						call IGMgrad_promol(tmpx,tmpy,tmpz,IGMfrag(ifrag,1:IGMfragsize(ifrag)),gradtmp(:),tmpval)
+						grad_inter(:)=grad_inter(:)+gradtmp(:)
+						IGM_gradnorm_inter=IGM_gradnorm_inter+dsqrt(sum(gradtmp**2))
+					end do
+                else !amIGM
+					!  In fact, one can simply replacing "IGMgrad_promol" in above code by "IGMgrad_Hirshpromol" to realize amIGM
+					!However, the cost is high, because proatomic density for all atoms will be evaluated in this subroutine when looping each fragment
+					!So, in the following code, promolecular is calculated first, and record proatomic gradient at the same time
+                    
+					!Obtain density and gradient of all atoms in their isolated states
+                    atmprorho=0
+                    atmprograd=0
+					do iatm=1,ncenter
+						!call proatmgrad(2,iatm,tmpx,tmpy,tmpz,atmprorho(iatm),atmprograd(:,iatm))
+						!The following code is equivalent to the above line, while more efficient
+						rx=tmpx-a(iatm)%x
+						ry=tmpy-a(iatm)%y
+						rz=tmpz-a(iatm)%z
+						rx2=rx*rx
+						ry2=ry*ry
+						rz2=rz*rz
+						r2=rx2+ry2+rz2
+						iele=a(iatm)%index
+						if (r2<atmrhocutsqr_1En5(iele)) then
+							r=dsqrt(r2)
+							call genatmraddens_STOfitparm(iele,nSTO,atomcoeff,atomexp)
+							do iSTO=1,nSTO
+								term=atomcoeff(iSTO)*dexp(-r*atomexp(iSTO))
+								atmprorho(iatm)=atmprorho(iatm)+term
+								if (r/=0) then
+									tmp=term*atomexp(iSTO)/r
+									atmprograd(1,iatm)=atmprograd(1,iatm)-tmp*rx
+									atmprograd(2,iatm)=atmprograd(2,iatm)-tmp*ry
+									atmprograd(3,iatm)=atmprograd(3,iatm)-tmp*rz
+								end if
+							end do
+						end if
+					end do
+                        
+					prorho=sum(atmprorho(:))
+					!Cycle fragments
+                    if (prorho/=0) then
+						!Calculate gradient of promolecular density
+						do idir=1,3
+							prograd(idir)=sum(atmprograd(idir,:))
+						end do
+						do ifrag=1,nIGMfrag
+							!Calculate gradient and IGM gradient of this fragment in the mIGM way
+                            gradtmp=0
+							do idx=1,IGMfragsize(ifrag)
+								iatm=IGMfrag(ifrag,idx)
+								atmgrad(:)=2*atmprorho(iatm)/prorho*prograd(:) - atmprograd(:,iatm)
+								gradtmp=gradtmp+atmgrad
+							end do
+							grad_inter(:)=grad_inter(:)+gradtmp(:)
+							IGM_gradnorm_inter=IGM_gradnorm_inter+dsqrt(sum(gradtmp**2))
+						end do
+                    end if
+                end if
+                    
+                dg_inter(i,j,k)=dg_inter(i,j,k) + IGM_gradnorm_inter - dsqrt(sum(grad_inter**2))
+		    end do
+	    end do
+    end do
+    !$OMP END PARALLEL DO
+end do
+close(10)
+dg_inter=dg_inter/nfps
 
 call walltime(iwalltime2)
 write(*,"(' Calculation totally took up wall clock time',i10,' s')") iwalltime2-iwalltime1
@@ -1415,6 +1442,7 @@ xmax=0.5D0
 
 do while (.true.)
 	write(*,*)
+	call menutitle("Post-processing menu",10,1)
 	write(*,"(' -3 Change range of Y-axis of scatter graph, current:',f11.6,' to',f11.6)") ymin,ymax
 	write(*,"(' -2 Change range of X-axis of scatter graph, current:',f11.6,' to',f11.6)") xmin,xmax
 	write(*,*) "-1 Draw scatter map between averaged delta-g_inter and sign(lambda2)*rho"

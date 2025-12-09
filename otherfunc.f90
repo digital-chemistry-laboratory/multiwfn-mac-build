@@ -545,6 +545,7 @@ end if
 
 do while (.true.)
 	write(*,*)
+	call menutitle("Post-processing menu",10,1)
 	if (allocated(f2orgdata)) write(*,"(a)") " -4 Restore original "//trim(f2name)//" grid data"
 	write(*,"(a)") " -3 Set "//trim(f2name)//" value where value of "//trim(f1name)//" is out of a certain range"
 	write(*,"(a)") " -2 Set "//trim(f2name)//" value where value of "//trim(f1name)//" is within a certain range"
@@ -3845,7 +3846,6 @@ if (filename(itmp-3:itmp)==".xyz") then
 				open(10,file=filename,status="old")
 				call xyzfile_nframe(10,nframe)
                 close(10)
-                write(*,"(a,i8 )") " Total number of frames:",nframe
 				allocate(frameidx(nframe))
                 forall(i=1:nframe) frameidx(i)=i
             else

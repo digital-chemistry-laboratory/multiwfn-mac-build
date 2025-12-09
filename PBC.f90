@@ -118,7 +118,7 @@ rcoord(:,1)=Cart(:)
 Amat(:,1)=cellv1(:)
 Amat(:,2)=cellv2(:)
 Amat(:,3)=cellv3(:)
-Bmat=invmat(Amat,3)
+Bmat=invmat_3x3(Amat)
 Fcoord=matmul(Bmat,rcoord)
 fract(:)=Fcoord(:,1)
 end subroutine
@@ -135,7 +135,7 @@ rcoord(:,1)=xyzin(:)
 Amat(:,1)=cellv1(:)
 Amat(:,2)=cellv2(:)
 Amat(:,3)=cellv3(:)
-Bmat=invmat(Amat,3)
+Bmat=invmat_3x3(Amat)
 !Get fractional coordinate
 Fcoord=matmul(Bmat,rcoord)
 !Move to central cell
@@ -181,7 +181,6 @@ rcoord(:,1)=vec(:)
 Amat(:,1)=cellv1(:)
 Amat(:,2)=cellv2(:)
 Amat(:,3)=cellv3(:)
-!Bmat=invmat(Amat,3) !Using general inversion code is too slow if getpointcell is called huge number of times
 call invmatsub_3x3(Amat,Bmat)
 Fcoord=matmul(Bmat,rcoord) !Get fractional coordinate
 icell=0;jcell=0;kcell=0

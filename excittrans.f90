@@ -2089,7 +2089,7 @@ if (ifPBC>0) write(*,"(/,a)") " Note: RMSD, t, H and ghost-hunter indices, as we
 
 do while(.true.)
 	write(*,*)
-	write(*,*) "             -------------- Post-processing menu --------------"
+	call menutitle("Post-processing menu",10,1)
     if (iaddstateidx==1) write(*,*) "-1 Toggle if adding state index at end of exported cube filename, current: Yes"
     if (iaddstateidx==0) write(*,*) "-1 Toggle if adding state index at end of exported cube filename, current: No"
 	write(*,*) "0 Return"

@@ -1036,7 +1036,7 @@ rcoord(3,1)=Cart(3)-orgz
 Amat(:,1)=gridv1(:)*nx
 Amat(:,2)=gridv2(:)*ny
 Amat(:,3)=gridv3(:)*nz
-Bmat=invmat(Amat,3)
+Bmat=invmat_3x3(Amat)
 Fcoord=matmul(Bmat,rcoord)
 fract(:)=Fcoord(:,1)
 end subroutine

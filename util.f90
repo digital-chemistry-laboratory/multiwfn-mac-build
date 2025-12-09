@@ -1594,7 +1594,7 @@ call dgemm(tranA,tranB,nArow,nBcol,nAcol,1D0,matA,lda,matB,ldb,0D0,matmul_blas,n
 end function
 
 
-!!--------------- A function to output inverted matrix, inputted matrix will not be affected. Essentially is a warpper of KROUT
+!!--------------- A function to return inverted matrix, inputted matrix will not be affected. Essentially is a warpper of KROUT
 function invmat(mat,N)
 integer N,ierr
 real*8 :: mat(N,N),invmat(N,N),tmpvec(N)
@@ -1798,34 +1798,49 @@ if (MO == 0) deallocate( INDX, TEMP )
 end subroutine
 
 
+!!---------- Fastest function to return inverted matrix, inputted matrix will not be affected. Essentially is a warpper of invmatsub_3x3
+function invmat_3x3(mat)
+real*8 :: invmat_3x3(3,3),mat(3,3)
+invmat_3x3(1,1) = mat(2,2)*mat(3,3) - mat(2,3)*mat(3,2)
+invmat_3x3(2,1) = mat(2,3)*mat(3,1) - mat(2,1)*mat(3,3)
+invmat_3x3(3,1) = mat(2,1)*mat(3,2) - mat(2,2)*mat(3,1)
+invmat_3x3(1,2) = mat(1,3)*mat(3,2) - mat(1,2)*mat(3,3)
+invmat_3x3(2,2) = mat(1,1)*mat(3,3) - mat(1,3)*mat(3,1)
+invmat_3x3(3,2) = mat(1,2)*mat(3,1) - mat(1,1)*mat(3,2)
+invmat_3x3(1,3) = mat(1,2)*mat(2,3) - mat(1,3)*mat(2,2)
+invmat_3x3(2,3) = mat(1,3)*mat(2,1) - mat(1,1)*mat(2,3)
+invmat_3x3(3,3) = mat(1,1)*mat(2,2) - mat(1,2)*mat(2,1)
 
-!------- Fastest code dedicated to invert 3*3 matrix
+tmpval = mat(1,1)*invmat_3x3(1,1) + mat(1,2)*invmat_3x3(2,1) + mat(1,3)*invmat_3x3(3,1)
+if (abs(tmpval) < 1D-12) then
+    invmat_3x3 = 0D0
+    return
+end if
+invmat_3x3 = invmat_3x3 / tmpval
+end function
+
+!--------- Fastest code dedicated to invert 3*3 matrix
 !mat: input matrix
 !matinv: inverted matrix
 subroutine invmatsub_3x3(mat,matinv,det)
 real*8 :: mat(3,3),matinv(3,3),tmpval
 real*8,optional :: det
-
 matinv(1,1) = mat(2,2)*mat(3,3) - mat(2,3)*mat(3,2)
 matinv(2,1) = mat(2,3)*mat(3,1) - mat(2,1)*mat(3,3)
 matinv(3,1) = mat(2,1)*mat(3,2) - mat(2,2)*mat(3,1)
-
 matinv(1,2) = mat(1,3)*mat(3,2) - mat(1,2)*mat(3,3)
 matinv(2,2) = mat(1,1)*mat(3,3) - mat(1,3)*mat(3,1)
 matinv(3,2) = mat(1,2)*mat(3,1) - mat(1,1)*mat(3,2)
-
 matinv(1,3) = mat(1,2)*mat(2,3) - mat(1,3)*mat(2,2)
 matinv(2,3) = mat(1,3)*mat(2,1) - mat(1,1)*mat(2,3)
 matinv(3,3) = mat(1,1)*mat(2,2) - mat(1,2)*mat(2,1)
 
 tmpval = mat(1,1)*matinv(1,1) + mat(1,2)*matinv(2,1) + mat(1,3)*matinv(3,1)
-
 if (abs(tmpval) < 1D-12) then
     matinv = 0D0
     if (present(det)) det = 0D0
     return
 end if
-
 matinv = matinv / tmpval
 if (present(det)) det = tmpval
 end subroutine
@@ -2435,14 +2450,16 @@ end subroutine
 subroutine inputprog(ifileid,iprog)
 integer ifileid,iprog
 iprog=0
-call loclabel(ifileid,"&COORD ",ifound,maxline=10000) !Various information may present before &COORD, so maxline should be large
-if (ifound==1) then
-    iprog=1
-    return
-end if
 call loclabel(ifileid,"* xyz ",ifound,maxline=500)
+if (ifound==0) call loclabel(ifileid,"*xyz ",ifound,maxline=500)
 if (ifound==1) then
     iprog=2
+    return
+end if
+call loclabel(ifileid,"&COORD ",ifound,maxline=20000) !Various information may present before &COORD, so maxline should be large
+if (ifound==0) call loclabel(ifileid,"&coord ",ifound,maxline=20000)
+if (ifound==1) then
+    iprog=1
     return
 end if
 call loclabel(ifileid,"&control ",ifound,maxline=1000)
