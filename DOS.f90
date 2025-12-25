@@ -1103,7 +1103,10 @@ else if (isel==0.or.isel==10) then
 						if (MOene_dos(imoall)<enelow-3*FWHMmax.or.MOene_dos(imoall)>enehigh+3*FWHMmax) cycle
 						if (MOene(imoall)==0) cycle !They are not actual orbitals recorded in inputted wavefunction file, which are abundant in CP2K molden file
 						if (idoPDOS==1) then !Calculate fragment composition in MOs
-							if (icompmethod==2) allsqr=sum(tmpmat(:,imo)**2) !Used by SCPA
+							if (icompmethod==2) then
+								allsqr=sum(tmpmat(:,imo)**2) !Used by SCPA
+                                if (allsqr==0) cycle !Rare case. When using OT, unoccupied orbitals are not solved, but user may load their energies from CP2K output file; these orbitals are looped, but allsqr=0
+                            end if
 							do ifrag=1,nfragmax
 								if (nfragDOS(ifrag)==0) cycle
 								do i=1,nfragDOS(ifrag) !Cycle each basis in the fragment

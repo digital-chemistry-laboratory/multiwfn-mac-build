@@ -54,7 +54,7 @@ use util
 use defvar
 character(len=200) outname,c200tmp
 call path2filename(filename,c200tmp)
-write(*,"(/,a)") " Note: Please mention Multiwfn and cite original paper of Multiwfn if you benefits from this function in your study, thank you!"
+write(*,"(/,a)") " Note: Please cite original papers of Multiwfn if you benefits from this function in your study!"
 write(*,*) 
 write(*,*) "Input path for generating CP2K input file, e.g. C:\ltwd.inp"
 write(*,"(a)") " If press ENTER button directly, will export to "//trim(c200tmp)//".inp"
@@ -285,10 +285,12 @@ do while(.true.)
         end if
         if (iSCCS==0) write(*,*) " 7 Toggle using self-consistent continuum solvation (SCCS), current: No"
         if (iSCCS==1) write(*,*) " 7 Toggle using self-consistent continuum solvation (SCCS), current: Yes"
-        if (ikpoint1==1.and.ikpoint2==1.and.ikpoint3==1) then
-            write(*,*) " 8 Set k-points, current: GAMMA only"
-        else
-            write(*,"(a,3i3)") "  8 Set k-points, current: MONKHORST-PACK",ikpoint1,ikpoint2,ikpoint3
+        if (PBCdir/="NONE") then
+            if (ikpoint1==1.and.ikpoint2==1.and.ikpoint3==1) then
+                write(*,*) " 8 Set k-points, current: GAMMA only"
+            else
+                write(*,"(a,3i3)") "  8 Set k-points, current: MONKHORST-PACK",ikpoint1,ikpoint2,ikpoint3
+            end if
         end if
     end if
     !!!! Below are task specific options
@@ -498,13 +500,15 @@ do while(.true.)
                     imoment=1
                 end if
             else if (isel2==7) then
-                write(*,*) "Note: The inputted size will be applied to both sides of non-periodic direction"
+                write(*,*) "Note: The inputted size will be applied to both sides of non-periodic direction(s)"
                 if (PBCdir=="NONE") then
-                    write(*,*) "Input vacuum size in X,Y,Z in Angstrom, e.g. 5.0,6.5,5.0"
+                    write(*,*) "Input vacuum size in Angstrom, e.g. 4.2"
                     if (iPSOLVER==4) write(*,"(a)") " Note: WAVELET Poisson solver requires cubic cell, &
                     Multiwfn will determine the longest cell size and set it to all directions"
-                    read(*,*) vacsizex,vacsizey,vacsizez
-                    vacsizex=vacsizex/b2a;vacsizey=vacsizey/b2a;vacsizez=vacsizez/b2a
+                    read(*,*) vacsizex
+                    vacsizex=vacsizex/b2a
+                    vacsizey=vacsizex
+                    vacsizez=vacsizex
                 else if (PBCdir=="X") then
                     write(*,*) "Input vacuum size in Y and Z in Angstrom, e.g. 5.0,6.5"
                     read(*,*) vacsizey,vacsizez
@@ -741,7 +745,13 @@ do while(.true.)
     else if (isel==-7) then
         write(*,*) "Input one of following strings to specify periodic boundary condition (PBC)"
         write(*,*) "NONE, X, XY, XYZ, XZ, Y, YZ, Z"
-        read(*,*) PBCdir
+        write(*,*) "If press ENTER button, NONE will be used"
+        read(*,"(a)") c80tmp
+        if (c80tmp==" ") then
+            PBCdir="NONE"
+        else
+            read(c80tmp,*) PBCdir
+        end if
         call strlc2uc(PBCdir) !Foolish user may input in lower case
         !Automatically set proper Poisson solver and vacuum sizes
         if (PBCdir=="NONE") then !Use WAVELET for 0D, usually best choice
@@ -835,8 +845,12 @@ do while(.true.)
         write(*,*) "Please select a task"
         write(*,*) "1 Energy"
         write(*,*) "2 Energy + force"
-        write(*,*) "3 Optimizing structure (cell is fixed)"
-        write(*,*) "4 Optimizing both structure and cell"
+        if (PBCdir=="NONE") then
+            write(*,*) "3 Optimizing structure"
+        else
+            write(*,*) "3 Optimizing structure (cell is fixed)"
+            write(*,*) "4 Optimizing both structure and cell"
+        end if
         write(*,*) "5 Vibrational analysis"
         write(*,*) "6 Molecular dynamics (MD)"
         write(*,*) "7 Searching transition state (dimer algorithm)"
@@ -3415,6 +3429,7 @@ end if
 close(ifileid)
 
 write(*,"(a)") " CP2K input file has been exported to "//trim(outname)
+write(*,"(a)") " Note: Please cite original papers of Multiwfn in your work if this function brings you convenience!"
 end subroutine
 
 !----- Test if a given integer array contains contiguous numbers (index order is unimportant)

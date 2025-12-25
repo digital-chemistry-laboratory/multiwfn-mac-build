@@ -4129,7 +4129,7 @@ do icyc=1,maxcyc
 				!$OMP CRITICAL
 				ifinish=ifinish+1
 				ishowprog=mod(ifinish,ntmp)
-				if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+				!if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
 				!$OMP END CRITICAL
             end if
 		end do
@@ -4139,7 +4139,7 @@ do icyc=1,maxcyc
 	atmpop(:)=atmpop(:)+atmpop_tmp(:)
 	!$OMP END CRITICAL
 	!$OMP END PARALLEL
-	if (ishowprog/=0) call showprog(100,100)
+	!if (ishowprog/=0) call showprog(100,100)
 
 	!Evaluate current charge. Note that EDFs were not involved in evaluating system density
     charge(:)=a(:)%charge-atmpop(:)
@@ -4918,7 +4918,7 @@ do icyc=1,maxcyc
 					!$OMP CRITICAL
 					ifinish=ifinish+1
 					ishowprog=mod(ifinish,ntmp)
-					if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
+					!if (ishowprog==0) call showprog(floor(100D0*ifinish/(ny*nz)),100)
 					!$OMP END CRITICAL
                 end if
 			end do
@@ -4929,7 +4929,7 @@ do icyc=1,maxcyc
 		shsignew(:,:)=shsignew(:,:)+shsignew_tmp(:,:)
 		!$OMP END CRITICAL
 		!$OMP END PARALLEL
-		if (ishowprog/=0) call showprog(100,100)
+		!if (ishowprog/=0) call showprog(100,100)
     end if
     
 	!write(*,*) "Population of each shell"
