@@ -566,7 +566,7 @@ do while(.true.)
                     read(*,"(a)") c2000tmp
                     istar=index(c2000tmp,'*')
                     if (c2000tmp=="q") then
-                        multispin=sum(kindmag(atmkind(:)))+1
+                        multispin=nint(sum(kindmag(atmkind(:))))+1
                         exit
                     else if (istar/=0) then !Select element
                         c80tmp=(c2000tmp(istar+1:))

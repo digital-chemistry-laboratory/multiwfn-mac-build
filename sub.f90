@@ -4072,7 +4072,7 @@ end subroutine
 
 !!-------- Randomly generate name
 subroutine mylover(outname)
-integer,parameter :: nlovers=69
+integer,parameter :: nlovers=71
 character(len=80) lovername(nlovers),outname
 CALL RANDOM_SEED()
 CALL RANDOM_NUMBER(tmp)
@@ -4145,6 +4145,8 @@ lovername(66)="Hokkaido_Gals_Are_Super_Adorable!\Minami_Fuyuki"
 lovername(67)="Love_Live!\Mari_Ohara"
 lovername(68)="Ballpark_de_Tsukamaete\Ruriko"
 lovername(69)="LoveLive!_Nijigasaki_High_School_Idol_Club\Setsuna_Yuki"
+lovername(70)="Kingdom\Yo Tan Wa"
+lovername(71)="There's No Freaking Way I'll Be Your Lover! Unless...\Ajisai Sena"
 !Dear Kanan,
 !
 !You are the one I deeply love forever in the real world,

@@ -2739,6 +2739,7 @@ end subroutine
 ! This module does not have wealth of features as RESP routine, but it is very clear and have these special points:
 ! (1) Support additional fitting center (2) Support external fitting points (3) Fitting points could be exported
 ! (4) Can calculate TrEsp (transition charge from electrostatic potential), see manual
+! (5) Dipole moment constraint is available
 subroutine fitESP(igridtype)
 use util
 use defvar
@@ -2747,7 +2748,7 @@ implicit real*8 (a-h,o-z)
 integer igridtype
 character(len=200) addcenfile,extptfile,chgfile,gauoutfilepath,outchgfilepath
 character selectyn,c80tmp*80,c2000tmp*2000
-integer :: iESPtype=1,ioutfitptval=0,iradiisel=1
+integer :: iESPtype=1,ioutfitptval=0,iradiisel=1,idipolecons=0
 !About distribution of fitting points
 integer :: nMKlayer=4
 integer :: MKatmlist(ncenter) !Record index of atoms used to construct MK fitting points
@@ -2756,6 +2757,7 @@ real*8 :: espfitvdwr(nelesupp),sclvdwlayer(100)=(/1.4D0,1.6D0,1.8D0,2D0,(0D0,i=5
 real*8 :: fitspc=0.566917796573677D0 !0.3/b2a, spacing between grid for CHELPG
 real*8 :: extdis=5.29123276802099D0 !2.8/b2a, extend 2.8 Angstrom to each side for CHELPG
 real*8 :: MKptdens=1.68017136515525D0 !6D0*b2a**2, 6.0 Angstrom**2 point density per for MK. Multiply by b2a**2 to convert to Bohr**2
+real*8 dipvec(3)
 !Arrays used in ESP fitting
 real*8,allocatable :: ESPptval(:),ESPpt(:,:),fitcen(:,:) !x/y/z,index
 real*8,allocatable :: Bvec(:),Amat(:,:),Amatinv(:,:),qvec(:)
@@ -2821,6 +2823,8 @@ forall(i=1:ncenter) CHELPGatmlist(i)=i
 	if (ioutfitptval==1) write(*,*) "6 Toggle if exporting fitting points with ESP after the task, current: Yes"
  	if (iloadgau==0) write(*,"(a)") " 7 Toggle if reading fitting points and ESP values from Gaussian output file of pop=MK/CHELPG task with IOp(6/33=2), current: No"
  	if (iloadgau==1) write(*,"(a)") " 7 Toggle if reading fitting points and ESP values from Gaussian output file of pop=MK/CHELPG task with IOp(6/33=2), current: Yes"
+ 	if (idipolecons==0) write(*,"(a)") " 8 Toggle if exactly reproducing dipole moment, current: No"
+ 	if (idipolecons==1) write(*,"(a)") " 8 Toggle if exactly reproducing dipole moment, current: Yes"
 	if (iradiisel==1) write(*,*) "10 Choose the atomic radii used in fitting, current: Automatic"
 	if (iradiisel==2) write(*,*) "10 Choose the atomic radii used in fitting, current: Scaled UFF"
 	if (iradiisel==3) write(*,*) "10 Choose the atomic radii used in fitting, current: Customized"
@@ -2950,6 +2954,12 @@ forall(i=1:ncenter) CHELPGatmlist(i)=i
 			end do
 			write(*,"(a)") " OK, ESP fitting points with ESP values will be directly loaded from this file during calculation"
 		end if
+	else if (isel==8) then
+        if (idipolecons==0) then
+			idipolecons=1
+        else
+			idipolecons=0
+        end if
 	else if (isel==10) then
 		write(*,*) "Please choose the way of determining atomic radii:"
 		write(*,"(a)") " 1 Automatic (The radii actually used will depend on the way of distributing fitting points)"
@@ -3043,10 +3053,50 @@ else !Reading ESP and coordinates of fitting points from Gaussian Iop(6/33=2) ou
 	call loadgauESP(gauoutfilepath,nfitcen,fitcen,nESPpt,ESPpt,ESPptval)
 end if
 
+if (idipolecons==1) then
+    write(*,"(/,a)") " Calculating dipole moment based on wavefunction..."
+    dipvec=0
+    do iatm=1,ncenter
+        dipvec(1)=dipvec(1)+a(iatm)%x*a(iatm)%charge
+        dipvec(2)=dipvec(2)+a(iatm)%y*a(iatm)%charge
+        dipvec(3)=dipvec(3)+a(iatm)%z*a(iatm)%charge
+    end do
+    call genPprim
+    call genMultipoleprim
+    do idir=1,3
+		dipvec(idir)=dipvec(idir)+sum(Dprim(idir,:,:)*Ptot_prim(:,:))
+    end do
+    write(*,"(' Dipole moment (a.u.): ',3f14.6)") dipvec(:)
+    write(*,"(' Dipole moment (Debye):',3f14.6)") dipvec(:)*au2debye
+    deallocate(Dprim)
+end if
+
 allocate(cenchg(nfitcen))
 if (iloadchg==0) then
 	!Calculate ESP fitting charges. See original paper of MK for detail of algorithem
-	matdim=nfitcen+1
+	if (idipolecons==0) then !Common case
+		matdim=nfitcen+1
+    else
+		ndipcons=0
+        devthres=1D-3
+        ixdipcons=0;iydipcons=0;izdipcons=0
+        if ((maxval(a%x)-minval(a%x))>devthres) then
+			write(*,*) "X component of dipole moment will be constrained"
+            ndipcons=ndipcons+1
+            ixdipcons=1
+        end if
+        if ((maxval(a%y)-minval(a%y))>devthres) then
+			write(*,*) "Y component of dipole moment will be constrained"
+            ndipcons=ndipcons+1
+            iydipcons=1
+        end if
+        if ((maxval(a%z)-minval(a%z))>devthres) then
+			write(*,*) "Z component of dipole moment will be constrained"
+            ndipcons=ndipcons+1
+            izdipcons=1
+        end if
+		matdim=nfitcen+1+ndipcons
+    end if
 	allocate(Bvec(matdim),Amat(matdim,matdim),Amatinv(matdim,matdim),qvec(matdim))
 	!Forming Amat
 	Amat=0D0
@@ -3060,8 +3110,27 @@ if (iloadchg==0) then
 			Amat(jcen,icen)=Amat(icen,jcen)
 		end do
 	end do
-	Amat(matdim,:nfitcen)=1D0
-	Amat(:nfitcen,matdim)=1D0
+	Amat(nfitcen+1,1:nfitcen)=1D0
+	Amat(1:nfitcen,nfitcen+1)=1D0
+    if (idipolecons==1) then
+		iadd=1
+        if (ixdipcons==1) then
+			iadd=iadd+1
+			Amat(1:nfitcen,nfitcen+iadd)=a(1:nfitcen)%x
+			Amat(nfitcen+iadd,1:nfitcen)=a(1:nfitcen)%x
+        end if
+        if (iydipcons==1) then
+			iadd=iadd+1
+			Amat(1:nfitcen,nfitcen+iadd)=a(1:nfitcen)%y
+			Amat(nfitcen+iadd,1:nfitcen)=a(1:nfitcen)%y
+        end if
+        if (izdipcons==1) then
+			iadd=iadd+1
+			Amat(1:nfitcen,nfitcen+iadd)=a(1:nfitcen)%z
+			Amat(nfitcen+iadd,1:nfitcen)=a(1:nfitcen)%z
+        end if
+    end if
+    !call showmatgau(Amat,form="f10.5")
 	!Forming Bvec
 	Bvec=0D0
 	do icen=1,nfitcen
@@ -3071,15 +3140,31 @@ if (iloadchg==0) then
 		end do
 	end do
 	if (iESPtype==1) then !Take nuclei into account
-		Bvec(matdim)=sum(a(:)%charge)-nelec !Net charge of the system
+		Bvec(nfitcen+1)=sum(a(:)%charge)-nelec !Net charge of the system
 	else if (iESPtype==2) then !Do not take nuclei into account
-		Bvec(matdim)=-nelec
+		Bvec(nfitcen+1)=-nelec
 	else if (iESPtype==3) then !Electronic transition density
-		Bvec(matdim)=0
+		Bvec(nfitcen+1)=0
 	end if
+    if (idipolecons==1) then
+		iadd=1
+        if (ixdipcons==1) then
+			iadd=iadd+1
+            Bvec(nfitcen+iadd)=dipvec(1)
+        end if
+        if (iydipcons==1) then
+			iadd=iadd+1
+            Bvec(nfitcen+iadd)=dipvec(2)
+        end if
+        if (izdipcons==1) then
+			iadd=iadd+1
+            Bvec(nfitcen+iadd)=dipvec(3)
+        end if
+    end if
+    !Solving matrix equation
 	Amatinv=invmat(Amat,matdim)
-	qvec=matmul(Amatinv,Bvec)
-	cenchg=qvec(1:nfitcen)
+	qvec(:)=matmul(Amatinv,Bvec)
+	cenchg(:)=qvec(1:nfitcen)
 	deallocate(Bvec,Amat,Amatinv,qvec)
 else if (iloadchg==1) then
 	!Directly load charges of fitting centers from external files
@@ -3103,6 +3188,12 @@ do i=1,ncenter+naddcen
 end do
 write(*,"(' Sum of charges:',f15.10)") sum(cenchg(1:nfitcen))
 
+xtmp=sum(a(:)%x*cenchg(:))
+ytmp=sum(a(:)%y*cenchg(:))
+ztmp=sum(a(:)%z*cenchg(:))
+write(*,"(/,' Dipole moment from fitted atomic charges (a.u.):')")
+write(*,"(' X=',f12.6,'   Y=',f12.6,'   Z=',f12.6,'   Norm=',f12.6,/)") xtmp,ytmp,ztmp,dsqrt(xtmp**2+ytmp**2+ztmp**2)
+
 !Calculate RMSE and RRMSE
 if (allocated(ESPerr)) deallocate(ESPerr)
 allocate(ESPerr(nESPpt))
@@ -3118,7 +3209,8 @@ do ipt=1,nESPpt
 end do
 RRMSE=dsqrt(RMSE/sum(ESPptval(1:nESPpt)**2))
 RMSE=dsqrt(RMSE/nESPpt)
-write(*,"(' RMSE:',f12.6,'   RRMSE:',f12.6)") RMSE,RRMSE
+write(*,*) "Fitting error:"
+write(*,"(' RMSE:',f12.6,' a.u.   RRMSE:',f12.6)") RMSE,RRMSE
 
 !Show fragment charge
 if (allocated(frag1)) then
