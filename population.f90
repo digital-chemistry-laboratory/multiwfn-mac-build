@@ -1702,7 +1702,7 @@ integer :: nMKlayer=4
 real*8 :: espfitvdwr(nelesupp),sclvdwlayer(100)=(/1.4D0,1.6D0,1.8D0,2D0,(0D0,i=5,100)/)
 real*8 :: fitspc=0.566917796573677D0 !0.3/b2a, spacing between grid for CHELPG
 real*8 :: extdis=5.29123276802099D0 !2.8/b2a, extend 2.8 Angstrom to each side for CHELPG
-real*8 :: MKptdens=1.68017136515525D0 !6D0*b2a**2, 6.0 Angstrom**2 point density per for MK. Multiply by b2a**2 to convert to Bohr**2
+real*8 :: MKptdens=1.68017136515525D0 !6D0*b2a**2, 6.0 points per Angstrom^2 of MK type. Multiply by b2a**2 to convert to Bohr**2
 !Arrays used in ESP fitting
 integer :: maxESPpt !The maximum of number of fitting points among all conformers (used to allocate ESPpt and ESPptval)
 integer,allocatable :: nESPpt(:) !The actual number of fitting points of each conformer
