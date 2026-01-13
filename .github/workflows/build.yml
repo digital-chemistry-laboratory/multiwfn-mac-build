@@ -35,8 +35,8 @@ jobs:
         cmake --build build
         cmake --install build
       env:
-        FC: gfortran-12
-        CC: gcc-12
+        FC: gfortran-15
+        CC: gcc-15
 
     - name: Test
       run: build/multiwfn phenol.xyz <<< "q"
@@ -75,8 +75,8 @@ jobs:
         cmake --build build
         cmake --install build
       env:
-        FC: gfortran-12
-        CC: gcc-12        
+        FC: gfortran-15
+        CC: gcc-15   
 
     - name: Test
       run: build/multiwfn phenol.xyz <<< "q"      
