@@ -16,14 +16,14 @@ jobs:
 
     - name: Download source and settings
       run: |
-        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_dev_src_Linux.zip
-        unzip Multiwfn_3.8_dev_src_Linux.zip
-        mv Multiwfn_3.8_dev_src_Linux/* . 
-        rmdir Multiwfn_3.8_dev_src_Linux
-        rm Multiwfn_3.8_dev_src_Linux.zip
-        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_dev_bin_Linux_noGUI.zip
-        unzip -o -j Multiwfn_3.8_dev_bin_Linux_noGUI.zip Multiwfn_3.8_dev_bin_Linux_noGUI/{settings.ini,LICENSE.txt,examples/phenol.xyz}
-        rm Multiwfn_3.8_dev_bin_Linux_noGUI.zip    
+        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_src_Linux.zip
+        unzip Multiwfn_3.8_src_Linux.zip
+        mv Multiwfn_3.8_src_Linux/* . 
+        rmdir Multiwfn_3.8_src_Linux
+        rm Multiwfn_3.8_src_Linux.zip
+        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_bin_Linux_noGUI.zip
+        unzip -o -j Multiwfn_3.8_bin_Linux_noGUI.zip Multiwfn_3.8_bin_Linux_noGUI/{settings.ini,LICENSE.txt,examples/phenol.xyz}
+        rm Multiwfn_3.8_bin_Linux_noGUI.zip    
 
     - name: Install libraries
       run: |
@@ -35,8 +35,8 @@ jobs:
         cmake --build build
         cmake --install build
       env:
-        FC: gfortran-12
-        CC: gcc-12
+        FC: gfortran-15
+        CC: gcc-15
 
     - name: Test
       run: build/multiwfn phenol.xyz <<< "q"
@@ -48,14 +48,14 @@ jobs:
 
     - name: Download source and settings
       run: |
-        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_dev_src_Linux.zip
-        unzip Multiwfn_3.8_dev_src_Linux.zip
-        mv Multiwfn_3.8_dev_src_Linux/* . 
-        rmdir Multiwfn_3.8_dev_src_Linux
-        rm Multiwfn_3.8_dev_src_Linux.zip
-        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_dev_bin_Linux_noGUI.zip
-        unzip -o -j Multiwfn_3.8_dev_bin_Linux_noGUI.zip Multiwfn_3.8_dev_bin_Linux_noGUI/{settings.ini,LICENSE.txt,examples/phenol.xyz}
-        rm Multiwfn_3.8_dev_bin_Linux_noGUI.zip    
+        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_src_Linux.zip
+        unzip Multiwfn_3.8_src_Linux.zip
+        mv Multiwfn_3.8_src_Linux/* . 
+        rmdir Multiwfn_3.8_src_Linux
+        rm Multiwfn_3.8_src_Linux.zip
+        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_bin_Linux_noGUI.zip
+        unzip -o -j Multiwfn_3.8_bin_Linux_noGUI.zip Multiwfn_3.8_bin_Linux_noGUI/{settings.ini,LICENSE.txt,examples/phenol.xyz}
+        rm Multiwfn_3.8_bin_Linux_noGUI.zip    
 
     - name: Install libraries
       run: |
@@ -75,8 +75,8 @@ jobs:
         cmake --build build
         cmake --install build
       env:
-        FC: gfortran-12
-        CC: gcc-12        
+        FC: gfortran-15
+        CC: gcc-15   
 
     - name: Test
       run: build/multiwfn phenol.xyz <<< "q"      

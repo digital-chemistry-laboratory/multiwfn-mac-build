@@ -17,14 +17,14 @@ jobs:
 
     - name: Download source and settings
       run: |
-        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_dev_src_Linux.zip
-        unzip Multiwfn_3.8_dev_src_Linux.zip
-        mv Multiwfn_3.8_dev_src_Linux/* . 
-        rmdir Multiwfn_3.8_dev_src_Linux
-        rm Multiwfn_3.8_dev_src_Linux.zip
-        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_dev_bin_Linux_noGUI.zip
-        unzip -o -j Multiwfn_3.8_dev_bin_Linux_noGUI.zip Multiwfn_3.8_dev_bin_Linux_noGUI/{settings.ini,LICENSE.txt}
-        rm Multiwfn_3.8_dev_bin_Linux_noGUI.zip
+        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_src_Linux.zip
+        unzip Multiwfn_3.8_src_Linux.zip
+        mv Multiwfn_3.8_src_Linux/* . 
+        rmdir Multiwfn_3.8_src_Linux
+        rm Multiwfn_3.8_src_Linux.zip
+        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_bin_Linux_noGUI.zip
+        unzip -o -j Multiwfn_3.8_bin_Linux_noGUI.zip Multiwfn_3.8_bin_Linux_noGUI/{settings.ini,LICENSE.txt}
+        rm Multiwfn_3.8_bin_Linux_noGUI.zip
 
     - name: Deploy
       uses: JamesIves/github-pages-deploy-action@v4
