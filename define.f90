@@ -356,6 +356,8 @@ integer*2,allocatable :: connmat(:,:) !Diagonal terms are always zero
 
 !-------- Energy related arrays and matrices
 real*8,allocatable,target :: FmatA(:,:),FmatB(:,:) !Fock matrix of total/alpha and beta spin
+!-------- Bond order matrix
+real*8,allocatable :: bndordmat(:,:)
 !-------- Trajectory
 integer :: nframetraj=0 !The number of frames in the trajectory
 real*8,allocatable :: traj(:,:,:) !traj(1/2/3,a,i) corresponds to x/y/z of the ath atom in frame i
@@ -637,3 +639,162 @@ real*8,allocatable :: NAOMO(:,:) !size of (numNAO,NBsUse). (i,r) is coeff. of NA
 real*8,allocatable :: NAOMOb(:,:) !NAOMO for beta part
 real*8,allocatable :: AONAO(:,:) !size of (nbasis,numNAO)
 end module
+
+
+
+
+
+!-------- Module for showing colored text, contributed by Haydar
+module consolecolor
+use, intrinsic :: iso_c_binding
+implicit none
+public :: set_color, reset_color
+public :: C_RED, C_GREEN, C_YELLOW, C_BLUE, C_MAGENTA, C_CYAN
+public :: C_BRIGHT_RED, C_BRIGHT_GREEN, C_BRIGHT_YELLOW
+public :: C_BRIGHT_BLUE, C_BRIGHT_MAGENTA, C_BRIGHT_CYAN
+
+integer, parameter :: C_RED     = 31
+integer, parameter :: C_GREEN   = 32
+integer, parameter :: C_YELLOW  = 33
+integer, parameter :: C_BLUE    = 34
+integer, parameter :: C_MAGENTA = 35
+integer, parameter :: C_CYAN    = 36
+integer, parameter :: C_BRIGHT_RED     = 91
+integer, parameter :: C_BRIGHT_GREEN   = 92
+integer, parameter :: C_BRIGHT_YELLOW  = 93
+integer, parameter :: C_BRIGHT_BLUE    = 94
+integer, parameter :: C_BRIGHT_MAGENTA = 95
+integer, parameter :: C_BRIGHT_CYAN    = 96
+character(len=*), parameter :: ESC = achar(27)
+
+#ifdef _WIN32
+ ! ===== Win32 =====
+  interface
+     function GetStdHandle(nStdHandle) bind(C, name="GetStdHandle")
+       import :: c_int, c_intptr_t
+       integer(c_int), value :: nStdHandle
+       integer(c_intptr_t) :: GetStdHandle
+     end function GetStdHandle
+
+     function SetConsoleTextAttribute(hConsoleOutput, wAttributes) bind(C, name="SetConsoleTextAttribute")
+       import :: c_int, c_intptr_t, c_short
+       integer(c_intptr_t), value :: hConsoleOutput
+       integer(c_short), value :: wAttributes
+       integer(c_int) :: SetConsoleTextAttribute
+     end function SetConsoleTextAttribute
+  end interface
+
+  ! ===== constants =====
+  integer(c_int), parameter :: STD_OUTPUT_HANDLE = -11
+
+  integer(c_short), parameter :: FOREGROUND_BLUE      = int(Z'0001', c_short)
+  integer(c_short), parameter :: FOREGROUND_GREEN     = int(Z'0002', c_short)
+  integer(c_short), parameter :: FOREGROUND_RED       = int(Z'0004', c_short)
+  integer(c_short), parameter :: FOREGROUND_INTENSITY = int(Z'0008', c_short)
+
+  integer(c_short), parameter :: NORMAL_GRAY = int(Z'0007', c_short)
+
+ ! integer(c_int),     parameter :: STD_OUTPUT_HANDLE = -11
+
+  !integer(c_short),   parameter :: FOREGROUND_BLUE      = int(Z'0001', c_short)
+  !integer(c_short),   parameter :: FOREGROUND_GREEN     = int(Z'0002', c_short)
+  !integer(c_short),   parameter :: FOREGROUND_RED       = int(Z'0004', c_short)
+  !integer(c_short),   parameter :: FOREGROUND_INTENSITY = int(Z'0008', c_short)
+
+  !integer(c_short),   parameter :: NORMAL_GRAY = int(Z'0007', c_short)
+
+  integer(c_intptr_t), save :: hstdout = 0_c_intptr_t
+  logical, save :: inited = .false.
+#endif
+
+contains
+
+!--------------------------------------
+  subroutine set_color(code)
+    integer, intent(in) :: code
+
+#ifdef _WIN32
+    integer(c_short) :: attr
+    call init_win()
+    attr = ansi_to_winattr(code)
+    call win_set(attr)
+#else
+    write(*,'(a)', advance='no') ESC//'['//trim(i2s(code))//'m'
+#endif
+  end subroutine set_color
+  
+!--- reset-----
+  subroutine reset_color()
+#ifdef _WIN32
+    call init_win()
+    call win_set(NORMAL_GRAY)
+#else
+    write(*,'(a)', advance='no') ESC//'[0m'
+#endif
+  end subroutine reset_color
+
+  ! ============================================================
+  !integer to string
+  function i2s(i) result(s)
+    integer, intent(in) :: i
+    character(len=16) :: s
+    write(s,'(i0)') i
+  end function i2s
+
+#ifdef _WIN32
+  ! ============================================================
+  ! Windows helpers
+  ! ============================================================
+  subroutine init_win()
+    if (.not. inited) then
+       hstdout = GetStdHandle(STD_OUTPUT_HANDLE)
+       inited = .true.
+    end if
+  end subroutine init_win
+
+  subroutine win_set(attr)
+    integer(c_short), intent(in) :: attr
+    integer(c_int) :: ok
+    ok = SetConsoleTextAttribute(hstdout, attr)
+  end subroutine win_set
+
+  function ansi_to_winattr(code) result(attr)
+    integer, intent(in) :: code
+    integer(c_short) :: attr
+    integer :: base
+    logical :: bright
+
+    ! default
+    attr = NORMAL_GRAY
+
+    ! bright codes: 90-97
+    bright = (code >= 90 .and. code <= 97)
+
+    if (bright) then
+       base = code - 60   ! 91->31, 96->36
+    else
+       base = code
+    end if
+
+    select case (base)
+    case (31)  ! red
+       attr = FOREGROUND_RED
+    case (32)  ! green
+       attr = FOREGROUND_GREEN
+    case (33)  ! yellow = red + green
+       attr = FOREGROUND_RED + FOREGROUND_GREEN
+    case (34)  ! blue
+       attr = FOREGROUND_BLUE
+    case (35)  ! magenta = red + blue
+       attr = FOREGROUND_RED + FOREGROUND_BLUE
+    case (36)  ! cyan = green + blue
+       attr = FOREGROUND_GREEN + FOREGROUND_BLUE
+    case default
+       attr = NORMAL_GRAY
+    end select
+
+    if (bright) attr = attr + FOREGROUND_INTENSITY
+  end function ansi_to_winattr
+#endif
+
+end module consolecolor

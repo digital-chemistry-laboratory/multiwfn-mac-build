@@ -87,7 +87,7 @@ write(*,"(a)") "   Review: Tian Lu, Qinxue Chen, Visualization Analysis of &
 &Weak Interactions in Chemical Systems. In Comprehensive Computational Chemistry, vol. 2, pp. 240-264. Oxford: Elsevier (2024) DOI: 10.1016/B978-0-12-821978-2.00076-3"
 
 write(*,*)
-write(*,"(a)") " NOTE: amIGM is the significantly better choice than aNCI! Please consider to use amIGM instead"
+write(*,"(a)") " NOTE: amIGM is a significantly better choice than aNCI! Please consider to use amIGM instead"
 
 write(*,*)
 write(*,*) "Input range of the frames to be analyzed, e.g. 150,400 means 150 to 400 frames"
@@ -365,6 +365,7 @@ end subroutine
 !iIGMtype=1: Based on promolecular approximation (original IGM)
 !iIGMtype=-1: Modified IGM (mIGM), namely based on Hirshfeld partition of promolecular density
 !iIGMtype=2: Based on Hirshfeld partition of actual density (IGMH)
+!Periodicity is supported
 subroutine IGM(iIGMtype)
 use functions
 use util
@@ -1202,7 +1203,7 @@ end if
 
 if (iIGMtype==1) then
 	write(*,*)
-	write(*,"(a)") " Warning: amIGM is the significantly better choice than aIGM! Please consider to use amIGM instead"
+	write(*,"(a)") " Warning: amIGM is a significantly better choice than aIGM! Please consider to use amIGM instead"
 end if
 
 write(*,*)

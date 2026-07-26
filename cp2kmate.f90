@@ -80,8 +80,7 @@ integer :: iMDformat=1,nMDsavefreq=1,ioutcube=0,idiagOT=1,imixing=2,ismear=0,iat
 integer :: natmcons=0,nthermoatm=0,ikpoint1=1,ikpoint2=1,ikpoint3=1,nrep1=1,nrep2=1,nrep3=1,ikeepcell=0
 integer,allocatable :: atmcons(:),thermoatm(:)
 real*8 :: efieldvec(3)=0,vacsizex=5/b2a,vacsizey=5/b2a,vacsizez=5/b2a
-real*8 :: frag1chg,frag2chg
-integer :: frag1multi,frag2multi,totalmulti
+integer :: frag1chg,frag2chg,frag1multi,frag2multi,totalmulti
 integer :: iprestype=1,ioutSbas=0,ioutKSbas=0,ioutorbene=0,istate_force=1,idiaglib=1,iGAPW=0,iLSSCF=0,iLRIGPW=0,iPSOLVER=1,niter_evGW=1,niter_scGW0=1,istructfile=0
 real*8 :: Piso=1.01325D0,Ptens(3,3)=reshape( [1.01325D0,0D0,0D0, 0D0,1.01325D0,0D0, 0D0,0D0,1.01325D0], shape=shape(Ptens))
 real*8 :: PBEh_HFX=45
@@ -1800,7 +1799,7 @@ if (iRIHFX==1) then
     write(ifileid,"(a)") "      EPS_PGF_ORB 1E-5"
 else
     if (iHFX==1.or.method=="RI-(EXX+RPA)@PBE".or.index(method,"GW")/=0) then
-        write(ifileid,"(a)") "      EPS_PGF_ORB 1E-12 #If warning ""Kohn Sham matrix not 100% occupied"" occurs and meantime calculation is unstable, decrease it"
+        write(ifileid,"(a)") "      EPS_PGF_ORB 1E-7 #If warning ""Kohn Sham matrix not 100% occupied"" occurs and meantime calculation is obviously problematic, decrease it"
     end if
 end if
 if (ikpoint1==1.and.ikpoint2==1.and.ikpoint3==1) then !Gamma
@@ -2345,6 +2344,8 @@ if (idispcorr>0.or.method=="BEEFVDW") then
             write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL revTPSS"
         else if (method=="HLE17_LIBXC") then !i.e. Remove _LIBXC suffix
             write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL HLE17"
+        else if (method=="r2SCAN_LIBXC") then !i.e. Remove _LIBXC suffix
+            write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL r2scan"
         else if (index(method,"B2PLYP")/=0) then
             write(ifileid,"(a)") "          REFERENCE_FUNCTIONAL B2PLYP"
         else if (index(method,"B2GP-PLYP")/=0) then

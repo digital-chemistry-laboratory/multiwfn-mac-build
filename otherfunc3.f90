@@ -179,9 +179,9 @@ do while(.true.)
     grdspcv2=v2len/(ny-1)
     grdspcv3=v3len/(nz-1)
     if (ifPBC==3) then
-        gridv1(:)=cellv1(:)/v1len*grdspcv1
-        gridv2(:)=cellv2(:)/v2len*grdspcv2
-        gridv3(:)=cellv3(:)/v3len*grdspcv3
+        gridv1(:)=cellv1(:)/dsqrt(sum(cellv1**2))*grdspcv1
+        gridv2(:)=cellv2(:)/dsqrt(sum(cellv2**2))*grdspcv2
+        gridv3(:)=cellv3(:)/dsqrt(sum(cellv3**2))*grdspcv3
     else
         gridv1(:)=(/ grdspcv1,0D0,0D0 /)
         gridv2(:)=(/ 0D0,grdspcv2,0D0 /)

@@ -3862,8 +3862,8 @@ if (iCP2K==1) then
             end if
             !Read IR/Raman intensities
 			if (ispectrum==2) read(10,*) !Skip IR line
+			read(10,"(a)") c80tmp
 			do itmp=1,iread
-				read(10,"(a)") c80tmp
 				if (itmp==1) then
 					idxmode=inow
 					read(c80tmp(22:),*,iostat=ierror) str(idxmode)
@@ -3888,7 +3888,6 @@ if (iCP2K==1) then
 						write(*,*) "If it is the case, please manually input the Raman activity, e.g. 89.64"
                     end if
                     read(*,*) str(idxmode)
-					backspace(10)
                 end if
             end do
 			if (ilackdata<=3) exit

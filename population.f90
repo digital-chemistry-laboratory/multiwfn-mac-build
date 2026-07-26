@@ -1952,7 +1952,7 @@ do while(.true.) !Interface loop
         end do
 		
 	else if (isel==6) then
-        write(*,"(a)") " Note: For standard two-stage RESP fitting, below options only take effect for the first stage"
+        write(*,"(a)") " NOTE: For standard two-stage RESP fitting, below options only take effect for the first stage!!!"
         write(*,*)
 		write(*,*) "0 No charge constraint will be imposed" 
 		write(*,*) "1 Load charge constraint setting from external plain text file"

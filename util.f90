@@ -145,8 +145,25 @@ pi=3.141592653589793D0
 rnorm1=dsqrt(vec1x**2+vec1y**2+vec1z**2)
 rnorm2=dsqrt(vec2x**2+vec2y**2+vec2z**2)
 costheta=(vec1x*vec2x+vec1y*vec2y+vec1z*vec2z)/rnorm1/rnorm2
-if (costheta>1D0) costheta=1
+if (costheta>1D0) then
+	costheta=1
+else if (costheta<-1D0) then
+	costheta=-1
+end if
 vecang=acos(costheta)/pi*180
+end function
+
+!!---------- Get angle (degree) between two vectors in Degree, array input
+real*8 function vecang_arr(vec1,vec2)
+real*8 vec1(3),vec2(3)
+pi=3.141592653589793D0
+costheta=(sum(vec1*vec2))/dsqrt(sum(vec1**2))/dsqrt(sum(vec2**2))
+if (costheta>1D0) then
+	costheta=1
+else if (costheta<-1D0) then
+	costheta=-1
+end if
+vecang_arr=acos(costheta)/pi*180
 end function
 
 
@@ -2434,7 +2451,7 @@ if (ifound==1) then
     if (present(info)) write(*,*) "Note: This file is recognized as a xTB output file"
     return
 end if
-call loclabel(10,"BDF",ifound,maxline=500)
+call loclabel(10," BDF ",ifound,maxline=500)
 if (ifound==1) then
     iprog=7
     if (present(info)) write(*,*) "Note: This file is recognized as a BDF output file"

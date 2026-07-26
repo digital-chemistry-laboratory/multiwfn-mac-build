@@ -55,6 +55,8 @@ end function
 
 end module
 
+
+
 !!-------- Process grid data. This module are mainly transplanted from GsGrid
 !We use Bohr in interal processes, but convert to Angstrom when input and output
 subroutine procgriddata
@@ -121,7 +123,8 @@ do while(.true.)
 	write(*,*) "16 Scale data range of present grid data"
 	write(*,*) "17 Show statistic data of grid points in specific spatial and value ranges"
 	write(*,*) "18 Plot (local) integral curve or plane-averaged in X/Y/Z direction"
-    write(*,*) "19 Translate grid data"
+    write(*,*) "19 Translate grid data within current box"
+    write(*,*) "20 Duplicate grid data periodically"
 	read(*,*) isel
     
     if (isel>=2.and.isel<=7.and.ifgridortho()/=1) then
@@ -900,6 +903,9 @@ do while(.true.)
         
     else if (isel==19) then !Translate grid data
 		call translate_grid
+        
+    else if (isel==20) then !Duplicate grid data periodically
+		call duplicate_grid
 	end if
 end do
 end subroutine
@@ -1363,6 +1369,7 @@ xmove=0
 ymove=0
 zmove=0
 
+if (allocated(cubmattmp)) deallocate(cubmattmp)
 allocate(cubmattmp(nx,ny,nz))
 !direction 1
 cubmattmp=cubmat
@@ -1428,4 +1435,123 @@ if (ifPBC==0) then !No PBC information yet. Temporarily taking box as cell to co
 	a(:)%z=a(:)%z+orgz
 end if
 
+end subroutine
+
+
+
+!!------------ Duplicate grid data like constructing supercell
+subroutine duplicate_grid
+use defvar
+implicit real*8 (a-h,o-z)
+character c80tmp*80,selectyn
+
+write(*,*) "Input number of duplicates in the 1st direction. e.g. 2"
+write(*,*) "Press ENTER button directly means do not duplicate in this direction"
+read(*,"(a)") c80tmp
+if (c80tmp==" ") then
+	ndup1=1
+else
+	read(c80tmp,*) ndup1
+end if
+write(*,*) "Input number of duplicates in the 2nd direction. e.g. 2"
+write(*,*) "Press ENTER button directly means do not duplicate in this direction"
+read(*,"(a)") c80tmp
+if (c80tmp==" ") then
+	ndup2=1
+else
+	read(c80tmp,*) ndup2
+end if
+write(*,*) "Input number of duplicates in the 3rd direction. e.g. 2"
+write(*,*) "Press ENTER button directly means do not duplicate in this direction"
+read(*,"(a)") c80tmp
+if (c80tmp==" ") then
+	ndup3=1
+else
+	read(c80tmp,*) ndup3
+end if
+
+if (ndup1==1.and.ndup2==1.and.ndup3==1) then
+	write(*,*) "No duplication is performed"
+	return
+end if
+
+write(*,*) "Also duplicate atoms? (y/n)"
+write(*,"(a)") " Note: If choose yes, then cell information will be set to the box information of the grid data"
+read(*,*) selectyn
+if (selectyn=='y'.or.selectyn=='Y') call grid2cellinfo
+
+if (allocated(cubmattmp)) deallocate(cubmattmp)
+allocate(cubmattmp(nx,ny,nz)) !Store original grid data
+cubmattmp=cubmat
+deallocate(cubmat)
+nx_org=nx
+ny_org=ny
+nz_org=nz
+nx=nx_org*ndup1
+ny=ny_org*ndup2
+nz=nz_org*ndup3
+allocate(cubmat(nx,ny,nz))
+
+!Duplicate grids
+do i1=1,ndup1
+    i1beg=(i1-1)*nx_org+1
+    i1end=i1*nx_org
+	do i2=1,ndup2
+		i2beg=(i2-1)*ny_org+1
+		i2end=i2*ny_org
+		do i3=1,ndup3
+			i3beg=(i3-1)*nz_org+1
+			i3end=i3*nz_org
+			cubmat(i1beg:i1end,i2beg:i2end,i3beg:i3end)=cubmattmp(:,:,:)
+		end do
+	end do
+end do
+
+call getgridend !Generate endx,endy,endz
+
+!Duplicate atoms
+if (selectyn=='y'.or.selectyn=='Y') call const_supercell(ndup1,ndup2,ndup3)
+
+deallocate(cubmattmp)
+write(*,*) "Done!"
+end subroutine
+
+
+
+!!------------ Duplicate atoms to construct supercell along positive directions
+!Cell information must be available
+!ndup1/2/3: Number of duplications after construction
+subroutine const_supercell(ndup1,ndup2,ndup3)
+use defvar
+implicit real*8 (a-h,o-z)
+real*8 vec(3)
+type(atomtype),allocatable :: a_old(:)
+
+allocate(a_old(ncenter))
+a_old=a
+ncenter_old=ncenter
+deallocate(a)
+ncenter=ncenter_old*ndup1*ndup2*ndup3
+allocate(a(ncenter))
+icen=0
+do i1=1,ndup1
+    do i2=1,ndup2
+        do i3=1,ndup3
+            call tvec_PBC(i1-1,i2-1,i3-1,vec)
+            a(icen+1:icen+ncenter_old)=a_old(:)
+            a(icen+1:icen+ncenter_old)%x=a_old(:)%x+vec(1)
+            a(icen+1:icen+ncenter_old)%y=a_old(:)%y+vec(2)
+            a(icen+1:icen+ncenter_old)%z=a_old(:)%z+vec(3)
+            icen=icen+ncenter_old
+        end do
+    end do
+end do
+cellv1=ndup1*cellv1
+cellv2=ndup2*cellv2
+cellv3=ndup3*cellv3
+nelec=nelec*ndup1*ndup2*ndup3
+deallocate(a_old,fragatm)
+allocate(fragatm(ncenter))
+nfragatm=ncenter
+forall (i=1:nfragatm) fragatm(i)=i
 end subroutine

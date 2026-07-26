@@ -1894,17 +1894,6 @@ do while(.true.)
 			write(*,*) "3: Plot both element symbol and atomic index"
 			write(*,*) "Note that the default setting can be set by ""iatmlabtype"" in settings.ini"
 			read(*,*) iatmlabtype
-		else if (i==19) then
-			if (iextrema_on_contour==0) then
-				write(*,*) "Input isovalue for defining the contour line, e.g. 0.5"
-				read(*,*) ctrval_2Dextrema
-				write(*,*) "Select the real space function to search for extrema on the contour lines"
-				call selfunc_interface(1,ifunc_2Dextrema)
-                iextrema_on_contour=1
-                if (ifunc_2Dextrema==12) call doinitlibreta(info)
-            else
-				iextrema_on_contour=0
-            end if
 		end if
 		
 		!Options only for idrawtype 1 =====================
@@ -2043,6 +2032,17 @@ do while(.true.)
                         end if
                     end do
                 end if
+			else if (i==19) then
+				if (iextrema_on_contour==0) then
+					write(*,*) "Input isovalue for defining the contour line, e.g. 0.5"
+					read(*,*) ctrval_2Dextrema
+					write(*,*) "Select the real space function to search for extrema on the contour lines"
+					call selfunc_interface(1,ifunc_2Dextrema)
+					iextrema_on_contour=1
+					if (ifunc_2Dextrema==12) call doinitlibreta(info)
+				else
+					iextrema_on_contour=0
+				end if
 			end if
 			
 			!Option only for idrawtype 6 ===========

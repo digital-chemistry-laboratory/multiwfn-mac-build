@@ -196,7 +196,7 @@ if (allocated(cubmat)) then
     write(*,*) "36 Output current grid data to .vti file"
     write(*,*) "37 Output current grid data to VASP grid data file"
 end if
-write(*,*) "             Generate input file of quantum chemistry codes:"
+write(*,*) "                Generate input file of computational codes:"
 if (allocated(CObasa)) then
     write(*,*) "10 Gaussian"
 else
@@ -4930,28 +4930,32 @@ real*8 cenloop(3),cen1(3),cenring(3),cenmove(3),vec1(3),vecc1(3,1),vecn(3),vecr(
 integer loopnatm
 integer,allocatable :: loopatm(:)
 
+write(*,*) "Reference: Chem. Commun., 59, 9770¨C9773 (2023). All details are described in this work"
+write(*,*)
+
 idetectout=1 !If skip frame if ring center deviates from loop center significantly (3 A)
 
 write(*,*) "Input total number of frames, e.g. 4001"
-!read(*,*) nframetraj
-nframetraj=500001
+read(*,*) nframetraj
+!nframetraj=500001
 
 write(*,*) "Input time interval between frames in ps, e.g. 2.0"
-!read(*,*) timestep
-timestep=0.2D0
+read(*,*) timestep
+!timestep=0.2D0
 
-write(*,*) "Input index of the atoms in ring, e.g. 2,3,7-10"
-!read(*,"(a)") c2000tmp
-c2000tmp="225-242"
+write(*,*) "Input index of the atoms in the ring, e.g. 2,3,7-10"
+read(*,"(a)") c2000tmp
+!c2000tmp="225-242"
 !c2000tmp="243-260"
 call str2arr(c2000tmp,ringnatm)
 allocate(ringatm(ringnatm))
 call str2arr(c2000tmp,ringnatm,ringatm)
 
 if (idetectout==1) then
-    write(*,*) "Input index of the atoms in the loop, e.g. 2,3,7-10"
-    !read(*,"(a)") c2000tmp
-    c2000tmp="16-18,20-22,43,49,62-63,82,97,112,127-128,145,149,154,179,186"
+    write(*,*) "Input index of the atoms in the loop enclosing the ring, e.g. 2,3,7-10"
+    write(*,*) "The atoms in the loop will be used to determine loop center"
+    read(*,"(a)") c2000tmp
+    !c2000tmp="16-18,20-22,43,49,62-63,82,97,112,127-128,145,149,154,179,186"
     !c2000tmp="23,28,33,38,52,57,64,69,100,105,159,164,169,174,197,202,207,212,217,222"
     call str2arr(c2000tmp,loopnatm)
     allocate(loopatm(loopnatm))
@@ -4959,13 +4963,13 @@ if (idetectout==1) then
 end if
 
 write(*,*) "Input radius of the ring in Angstrom, e.g. 3.7"
-!read(*,*) ringradius
-ringradius=7.396D0/2 !wB97XD/6-311G* radius of C18
+read(*,*) ringradius
+!ringradius=7.396D0/2 !wB97XD/6-311G* radius of C18
 ringradius=ringradius/b2a
 
 open(10,file=filename,status="old")
 open(11,file="rotate.txt",status="replace")
-!open(12,file="ring.xyz",status="replace")
+open(12,file="ring.xyz",status="replace")
 
 nskip=0
 iskiplast=0
@@ -5055,12 +5059,12 @@ do iframe=1,nframetraj
     end if
     
     !Output processed ring geometry
-    !write(12,*) ringnatm
-    !write(12,"('Frame',i13)") iframe
-    !do itmp=1,ringnatm
-    !    iatm=ringatm(itmp)
-	   ! write(12,"(a,3f16.8)") ind2name(a(iatm)%index),a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%z*b2a
-    !end do
+    write(12,*) ringnatm
+    write(12,"('Frame',i13)") iframe
+    do itmp=1,ringnatm
+        iatm=ringatm(itmp)
+	    write(12,"(a,3f16.8)") ind2name(a(iatm)%index),a(iatm)%x*b2a,a(iatm)%y*b2a,a(iatm)%z*b2a
+    end do
     
     alast=a
     if (mod(iframe,100)==0) call showprog(iframe,nframetraj)
@@ -5069,7 +5073,7 @@ call showprog(nframetraj,nframetraj)
 
 close(10)
 close(11)
-!close(12)
+close(12)
 
 if (nskip>0) then
     write(*,"(/,' Number of skipped frames:',i10,' (',f8.3,' %)')") nskip,float(nskip)/nframetraj*100
@@ -5084,8 +5088,8 @@ write(*,*) "Column 3: Tangential velocity (signed, Angstrom*rad/ps)"
 write(*,*) "Column 4: Tangential velocity (unsigned, Angstrom*rad/ps)"
 write(*,*) "Column 5: Angle velocity (signed, rad/ps)"
 write(*,*) "Column 6: Angle velocity (unsigned, rad/ps)"
-!write(*,*)
-!write(*,"(a)") " The ring coordinates with removal of overall rotation and translation with respect to the first frame has been exported to ring.xyz"
+write(*,*)
+write(*,"(a)") " The ring coordinates with removal of overall rotation and translation with respect to the first frame has been exported to ring.xyz"
 end subroutine
 
 

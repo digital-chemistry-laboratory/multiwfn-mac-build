@@ -64,9 +64,12 @@ end if
 
 write(*,*)
 write(*,*) "How many fragments do you want to define for NOCV analysis?  e.g. 2"
+write(*,*) "To return to main menu, press ENTER button directly"
+read(*,"(a)") c80tmp
+if (c80tmp==" ") return
 do while(.true.)
     !nfrag=2 !For debug !!!
-	read(*,*) nfrag
+	read(c80tmp,*) nfrag
 	if (nfrag>=2) exit
 	write(*,*) "Error: The number of fragments must be >= 2, input again"
 end do

@@ -1,8 +1,10 @@
 !-----------------------------------------
 !------ Fuzzy atomic space analysis ------
 !-----------------------------------------
-!Normally iwork=0. If iwork=1, directly choose isel==4 to calculate delocalization index in fuzzy atomic spase (namely fuzzy bond order, see statement in JPCA,110,5108 below Eq.9) and then return
-!If iwork=2, directly choose isel==8 to calculate Laplacian bond order and then return
+!Normally iwork=0
+!iwork=1: Directly choose isel==4 to calculate delocalization index in fuzzy atomic spase (namely fuzzy bond order, see statement in JPCA,110,5108 below Eq.9) and then return
+!iwork=2: Directly choose isel==8 to calculate Laplacian bond order and then return
+!iwork=11: Like iwork=1 to calculate fuzzy bond order, but return result to global matrix "bndordmat" rather than print data
 !
 !For periodic system, a special subroutine is used for integrating via even grids. For isolated systems, &
 !the integration grid is directly controlled by sphpot and radpot in settings.ini, since integrand may be not proportional to electron density,
@@ -184,7 +186,7 @@ if (iwork==0) then
     end if
 	read(*,*) isel
 	
-else if (iwork==1) then !Calculate fuzzy bond order
+else if (iwork==1.or.iwork==11) then !Calculate fuzzy bond order
 	isel=4 !Directly calculate delocalization index
     if (ifPBC>0) write(*,*) "Note: The fuzzy bond order will be calculated under Hirshfeld partition"
 else if (iwork==2) then
@@ -521,7 +523,7 @@ else if (isel==3.or.isel==33.or.isel==4.or.isel==44.or.isel==5.or.isel==6.or.ise
                     if (isel==3.or.isel==33) write(*,*) "If you hope to consider all orbitals, set ""ispecial"" in settings.ini to 3"
                 end if
 			end if
-            write(*,*) "Allocating memory..."
+            if (iwork/=11) write(*,*) "Allocating memory..."
 			if (allocated(AOM)) deallocate(AOM,AOMsum) !For PLR, the previous AOM and AOMsum allocated by PDI/FLU is too small, so here should be released
 			allocate(AOM(nmatsize,nmatsize,ncenter),AOMsum(nmatsize,nmatsize))
             if (allocated(AOMtmp)) deallocate(AOMtmp) 
@@ -554,7 +556,7 @@ else if (isel==3.or.isel==33.or.isel==4.or.isel==44.or.isel==5.or.isel==6.or.ise
 				if (ntmpb>0) write(*,"('       The highest',i6,' beta virtual orbitals will not be taken into account')") nmo-iendalpha-nmatsizeb
                 if ((isel==3.or.isel==33).and.(ntmpa>0.or.ntmpb>0)) write(*,*) "If you hope to consider all orbitals, set ""ispecial"" in settings.ini to 3"
 			end if
-            write(*,*) "Allocating memory..."
+            if (iwork/=11) write(*,*) "Allocating memory..."
 			if (allocated(AOM)) deallocate(AOM,AOMsum) 
 			if (allocated(AOMb)) deallocate(AOMb,AOMsumb)
 			allocate(AOM(nmatsizea,nmatsizea,ncenter),AOMb(nmatsizeb,nmatsizeb,ncenter))
@@ -634,9 +636,11 @@ xxinttot=0D0;yyinttot=0D0;zzinttot=0D0;xyinttot=0D0;yzinttot=0D0;xzinttot=0D0
 xxxinttot=0D0;yyyinttot=0D0;zzzinttot=0D0;yzzinttot=0D0;xzzinttot=0D0;xxzinttot=0D0;yyzinttot=0D0;xxyinttot=0D0;xyyinttot=0D0;xyzinttot=0D0
 
 if (ipartition==2.or.ifunc==-2) call setpromol !In this routine reload first molecule at the end
-write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
-write(*,*) "Please wait..."
-write(*,*)
+if (iwork/=11) then
+	write(*,"(' Radial points:',i5,'    Angular points:',i5,'   Total:',i10,' per center')") radpot,sphpot,radpot*sphpot
+	write(*,*) "Please wait..."
+	write(*,*)
+end if
 call walltime(nwalltime1)
 
 call Lebedevgen(sphpot,potx,poty,potz,potw)
@@ -1241,25 +1245,29 @@ if (isel==3.or.isel==4.or.isel==5.or.isel==6.or.isel==7.or.isel==9.or.isel==10.o
 		do iatm=1,ncenter
 			AOMsum=AOMsum+AOM(:,:,iatm)
 		end do
-		AOMerror=identmaterr(AOMsum)/ncenter
-		write(*,"(' Error of AOM is',f14.8)") AOMerror
-		call identmatmaxerr(AOMsum,errdiag,idiag,errndiag,indiag,jndiag)
-		write(*,"(' Maximum diagonal deviation to 1:   ',f10.6,' at orbital',i6)") errdiag,idiag
-		write(*,"(' Maximum nondiagonal deviation to 0:',f10.6,' between orbitals',2i6)") errndiag,indiag,jndiag
-        if (AOMerror>0.001D0) iwarn=1
+		if (iwork/=11) then
+			AOMerror=identmaterr(AOMsum)/ncenter
+			write(*,"(' Error of AOM is',f14.8)") AOMerror
+			call identmatmaxerr(AOMsum,errdiag,idiag,errndiag,indiag,jndiag)
+			write(*,"(' Maximum diagonal deviation to 1:   ',f10.6,' at orbital',i6)") errdiag,idiag
+			write(*,"(' Maximum nondiagonal deviation to 0:',f10.6,' between orbitals',2i6)") errndiag,indiag,jndiag
+			if (AOMerror>0.001D0) iwarn=1
+        end if
 	else if (wfntype==1.or.wfntype==4) then !UHF,U-post-HF
 		AOMerrorb=0D0
 		do iatm=1,ncenter
 			AOMsum=AOMsum+AOM(:,:,iatm)
 			if (nmatsizeb>0) AOMsumb=AOMsumb+AOMb(:,:,iatm)
 		end do
-		AOMerrora=identmaterr(AOMsum)/ncenter
-		write(*,"(' Error of alpha AOM is',f14.8)") AOMerrora
-        if (AOMerrora>0.001D0) iwarn=1
-		if (nmatsizeb>0) then
-			AOMerrorb=identmaterr(AOMsumb)/ncenter
-			write(*,"(' Error of Beta AOM is ',f14.8)") AOMerrorb
-			if (AOMerrorb>0.001D0) iwarn=1
+		if (iwork/=11) then
+			AOMerrora=identmaterr(AOMsum)/ncenter
+			write(*,"(' Error of alpha AOM is',f14.8)") AOMerrora
+			if (AOMerrora>0.001D0) iwarn=1
+			if (nmatsizeb>0) then
+				AOMerrorb=identmaterr(AOMsumb)/ncenter
+				if (iwork/=11) write(*,"(' Error of Beta AOM is ',f14.8)") AOMerrorb
+				if (AOMerrorb>0.001D0) iwarn=1
+			end if
         end if
     end if
 	if (iwarn==1) then
@@ -1289,8 +1297,10 @@ end if
 		write(*,*) "Press ENTER button to continue"
 		read(*,*)
 	end if
-    write(*,*)
-    write(*,*) "Calculating LI and DI from AOM..."
+    if (iwork/=11) then
+		write(*,*)
+		write(*,*) "Calculating LI and DI from AOM..."
+    end if
 	!RHF,R-post-HF, DI_A,B=2∑[i,j]dsqrt(n_i*n_j)*S_i,j_A * S_i,j_B     where i and j are non-spin orbitals
 	if (wfntype==0.or.wfntype==3) then
 		DI=0D0
@@ -1858,6 +1868,16 @@ else if (isel==4) then !Show LI and DI or fuzzy bond order
 		radpot=nradpotold
 		sphpot=nsphpotold
 		return !Fuzzy bond order has been shown, now (normally) return to bond order analysis interface
+	else if (iwork==11) then !Store fuzzy bond order to global matrix
+		if (allocated(bndordmat)) deallocate(bndordmat)
+        allocate(bndordmat(ncenter,ncenter))
+		if (wfntype==1.or.wfntype==2.or.wfntype==4) then
+			bndordmat=DIa+DIb
+		else if (wfntype==0.or.wfntype==3) then
+			bndordmat=DI
+        end if
+        if (outmedinfo==1) call showmatgau(bndordmat,"FBO matrix",form="f14.3")
+        return
 	end if
     
 else if (isel==44) then !FLI and IFDI

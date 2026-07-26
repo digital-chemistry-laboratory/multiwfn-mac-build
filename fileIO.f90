@@ -133,36 +133,48 @@ else if (index(filenameonly,"CHGCAR")/=0.or.index(filenameonly,"CHG")/=0.or.inde
     call readVASPgrd(thisfilename,infomode)
 else !Plain text file
 	ifiletype=0
+    ifload=0
     !Try to load as output file of a code
     open(10,file=thisfilename,status="old")
     call outputprog(10,iprog)
     close(10)
     if (iprog==1) then
         call loadGauout(10,thisfilename)
+        ifload=1
     else if (iprog==2) then
         call loadORCAout(10,thisfilename)
+        ifload=1
     end if
     !Try to load as input file of a code
-    if (iprog==0) then
+    if (ifload==0) then
         open(10,file=thisfilename,status="old")
         call inputprog(10,iprog)
         close(10)
         if (iprog==1) then !Read as CP2K input file
-            if (thisfilename(inamelen-2:inamelen)=="inp".or.thisfilename(inamelen-6:inamelen)=="restart") call readcp2k(thisfilename)
+            if (thisfilename(inamelen-2:inamelen)=="inp".or.thisfilename(inamelen-6:inamelen)=="restart") then
+				call readcp2k(thisfilename)
+				ifload=1
+            end if
         else if (iprog==2) then !Read as ORCA input file
             call readORCAinp(thisfilename,infomode)
+			ifload=1
         else if (iprog==3) then !Read as Quantum ESPRESSO input file
             call readQEinp(thisfilename)
+			ifload=1
         end if
     end if
     !Try to load as Turbomole input file ($coord in the first line)
-    open(10,file=thisfilename,status="old")
-    read(10,"(a)") c80tmp
-    close(10)
-    if (index(c80tmp,"$coord")/=0) then
-        write(*,"(a)") " Loading the file as coordinate file of Turbomole since the first line is ""$coord"""
-        call readTurbomole(thisfilename,infomode)
+    if (ifload==0) then
+		open(10,file=thisfilename,status="old")
+		read(10,"(a)") c80tmp
+		close(10)
+		if (index(c80tmp,"$coord")/=0) then
+			write(*,"(a)") " Loading the file as coordinate file of Turbomole since the first line is ""$coord"""
+			call readTurbomole(thisfilename,infomode)
+			ifload=1
+		end if
     end if
+    if (ifload==0) write(*,"(a)") " Note: Unable to recognize information from this file, so it is simply treated as a plain text file and no information is loaded temporarily"
 end if
 
 if (iresinfo==0.and.allocated(a)) then !Residue information was not loaded, initialize empty content
@@ -3602,7 +3614,7 @@ if (ifoundmospin==1) then !Have defined spin-type explicitly, don't reset spin-t
 	if (infomode==0) write(*,"(a)") " Note: Found $MOSPIN field, orbital spin types are directly loaded rather than automatically determined"
 	read(10,*)
 	read(10,*) MOtype
-	where (MOtype==3) MOtype=0
+	where (MOtype==3) MOtype=0 !MOtype==3 corresponds to closed-shell orbital
 end if
 
 !Load cell information if any. May be 1/2/3-dimension
@@ -3633,8 +3645,6 @@ end if
 close(10)
 
 !Determine MOtype of all orbitals and wfntype from occupancy
-!write(*,*) MOocc
-!pause
 if (sum(MOocc)==2*nmo.and.all(int(MOocc)==MOocc)) then
 	wfntype=0 !This is restricted wavefunction
 	MOtype=0
@@ -3654,7 +3664,6 @@ else if (any(MOocc/=int(MOocc))) then
 		wfntype=3
 		MOtype=0
 	else
-		wfntype=4 !This is unrestricted multiconfiguration wavefunction
 		if (ifoundmospin==0) then
 			MOtype=1
             if (nmo>1) then
@@ -3664,6 +3673,11 @@ else if (any(MOocc/=int(MOocc))) then
 		        MOtype(i:nmo)=2 !Beta
             end if
 		end if
+        if (all(MOtype==0)) then
+			wfntype=3
+        else
+			wfntype=4 !This is unrestricted multiconfiguration wavefunction
+        end if
 	end if
 else
 	wfntype=2 !This is RO wavefunction
@@ -3677,26 +3691,28 @@ end if
 call updatenelec
 
 !Sort orbitals so that the orbitals with same spin-type are contiguous, because the wfn file outputted by Molden2AIM is not always in line with this convention
-if (ifoundmospin==1.and.(wfntype==1.or.wfntype==4)) then
-	allocate(tmpCO(nmo,nprims),tmpMOtype(nmo),tmpMOocc(nmo),tmpMOene(nmo))
-	ipos=0
-	do itime=1,2
-		do imo=1,nmo
-			if ((itime==1.and.MOtype(imo)==1).or.(itime==2.and.MOtype(imo)==2)) then !Move alpha orbitals to tmp arrays
-				ipos=ipos+1
-				tmpCO(ipos,:)=CO(imo,:)
-				tmpMOocc(ipos)=MOocc(imo)
-				tmpMOene(ipos)=MOene(imo)
-				tmpMOtype(ipos)=MOtype(imo)
-			end if
+if (ifoundmospin==1.and.wfntype==4) then
+	if (any(MOtype/=0)) then
+		allocate(tmpCO(nmo,nprims),tmpMOtype(nmo),tmpMOocc(nmo),tmpMOene(nmo))
+		ipos=0
+		do itime=1,2
+			do imo=1,nmo
+				if ((itime==1.and.MOtype(imo)==1).or.(itime==2.and.MOtype(imo)==2)) then !Move alpha orbitals to tmp arrays
+					ipos=ipos+1
+					tmpCO(ipos,:)=CO(imo,:)
+					tmpMOocc(ipos)=MOocc(imo)
+					tmpMOene(ipos)=MOene(imo)
+					tmpMOtype(ipos)=MOtype(imo)
+				end if
+			end do
 		end do
-	end do
-	CO=tmpCO
-	MOocc=tmpMOocc
-	MOene=tmpMOene
-	MOtype=tmpMOtype
-	if (infomode==0) write(*,*) "Note: Sequence of orbitals has been sorted according to spin type"
-	deallocate(tmpCO,tmpMOocc,tmpMOene,tmpMOtype)
+		CO=tmpCO
+		MOocc=tmpMOocc
+		MOene=tmpMOene
+		MOtype=tmpMOtype
+		if (infomode==0) write(*,*) "Note: Sequence of orbitals has been sorted according to spin type"
+		deallocate(tmpCO,tmpMOocc,tmpMOene,tmpMOtype)
+    end if
 end if
 
 !Introduce EDF information
@@ -6191,7 +6207,7 @@ do while(.true.)
         do while(.true.)
             write(*,*) "Input the path of template input file, e.g. /sob/Bang/Dream.inp"
             write(*,"(a)") " Note: The template input file should contain all content of finally generated input file, &
-            but coordinate part should be written as [geometry] or [GEOMETRY], which will be replaced with geometry of present system"
+            &but coordinate part should be written as [geometry] or [GEOMETRY], which will be replaced with geometry of present system"
 	        read(*,"(a)") c200tmp
 	        inquire(file=c200tmp,exist=alive)
 	        if (alive) exit

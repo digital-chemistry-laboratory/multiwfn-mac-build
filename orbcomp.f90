@@ -210,7 +210,7 @@ do while(.true.)
         write(*,*) "You can also input one element name (case sensitive), e.g. Fe"
 		write(*,*) "If you press ENTER button directly, the atom will be arbitrary"
 		read(*,"(a)") c10000tmp
-		if (c10000tmp==" ".or.index(c10000tmp,'a')/=0) then
+		if (c10000tmp==" ") then
 			nselatm=ncenter
 			forall(i=1:nselatm) atmsellist(i)=i
 		else

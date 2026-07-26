@@ -17,7 +17,7 @@ integer,allocatable :: naelecCDA(:),nbelecCDA(:) !The number of alpha and beta e
 integer,allocatable :: iopsh(:),inatorb(:) !=1 means corresponding fragment is unrestricted open-shell / recording natural orbitals
 integer,allocatable :: iRO(:) !=1 means corresponding fragment is RO-SCF fragment
 !Below arrays relate to orbital information
-real*8,allocatable :: occCDA(:,:),occCDAb(:,:) !Occupation numbers. The last index denotes frag#
+real*8,allocatable :: occCDA(:,:),occCDAb(:,:) !Occupation numbers. The last index denotes frag#, 0 corresponds to complex
 real*8,allocatable :: eneCDA(:,:),eneCDAb(:,:) !MO energies, convert to eV after reading. The last index denotes frag#
 real*8,allocatable :: cobasCDA(:,:,:),cobasCDAb(:,:,:) !Coefficient matrices in AO basis. The last index denotes frag#. The "CDA" in the name is to avoid conflict with global variable
 !Below arrays will be computed rather than read
@@ -518,12 +518,20 @@ end if
 !============= Post-processing interface, but in fact CDA and ECDA are calculated by option 0
 do while(.true.)
 	write(*,*)
-	write(*,"(a,f8.5)") " -3 Set threshold of printing CDA result in option 0, current:",outthres
+    if (all( (occCDA(:,0)-nint(occCDA(:,0)))==0 )) then !Single determinant wavefunction
+		write(*,"(a,f8.5)") " -3 Set threshold of printing CDA result in options 0 , current:",outthres
+    else !Post-HF wavefunction
+		write(*,"(a,f8.5)") " -3 Set threshold of printing CDA result in options 0 and -1, current:",outthres
+    end if
 	if (iout==6) write(*,*) "-2 Switch output destination (for options 0, 1, 6), current: Screen"
 	if (iout==10) write(*,*) "-2 Switch output destination (for options 0, 1, 6), current: CDA.txt"
 	write(*,*) "-1 Return to main menu"
 	write(*,*) "0 Print CDA result and ECDA result"
-	write(*,*) "1 Print full CDA result (All high-lying orbitals will be shown)" !For SCF, all high-lying result must be 0 and thus meaningless
+    if (all( (occCDA(:,0)-nint(occCDA(:,0)))==0 )) then !Single determinant wavefunction
+		continue
+    else !Post-HF wavefunction
+		write(*,*) "1 Print full CDA result (all high-lying orbitals can be shown)"
+    end if
 	write(*,*) "2 Show fragment orbital contributions to specific complex orbital"
 	write(*,*) "3 Export coefficient matrix of complex orbitals in fragment orbital basis"
 	write(*,*) "4 Export overlap matrix between fragment orbitals"
@@ -559,7 +567,8 @@ do while(.true.)
 		!Calculate d,b,r terms
 10		if (iopshCDA==0) refocc=2D0 !Reference orbital occupation number
 		if (iopshCDA==1) refocc=1D0
-		write(*,*)
+        write(iout,"(' Note: Only complex orbitals with contribution to d/b/r term larger than',f8.5,' will be shown')") outthres
+        write(iout,*) 
 		write(iout,*) "   ============= Charge decomposition analysis (CDA) result ============="
 		write(iout,"(' d = The number of electrons donated from fragment',i3,' to fragment',i3)") ifrag,jfrag
 		write(iout,"(' b = The number of electrons back donated from fragment',i3,' to fragment',i3)") jfrag,ifrag
@@ -596,7 +605,7 @@ do while(.true.)
             if (abs(dterm(iorb))>outthres.or.abs(bterm(iorb))>outthres.or.abs(rterm(iorb))>outthres) then
 				if (isel==1) then !Output all complex orbitals
 					write(iout,"(i8,5f12.6)") iorb,occCDA(iorb,0),dterm(iorb),bterm(iorb),dterm(iorb)-bterm(iorb),rterm(iorb)
-				else if (isel==0) then
+				else if (isel==0) then !Only output low-lying complex orbitals
 					if (iorb<naelecCDA(0)+5.or.iorb==nmo) then
 						write(iout,"(i8,5f12.6)") iorb,occCDA(iorb,0),dterm(iorb),bterm(iorb),dterm(iorb)-bterm(iorb),rterm(iorb)
 					else

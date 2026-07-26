@@ -2857,6 +2857,7 @@ if (allocated(MOsym)) deallocate(MOsym)
 if (allocated(MOene)) deallocate(MOene)
 if (allocated(MOtype)) deallocate(MOtype)
 if (allocated(connmat)) deallocate(connmat)
+if (allocated(bndordmat)) deallocate(bndordmat)
 !Related to basis functions
 if (allocated(shtype)) deallocate(shtype,shcen,shcon,primshexp,primshcoeff)
 if (allocated(basshell)) deallocate(basshell,bascen,bastype,basstart,basend,primstart,primend,primconnorm)

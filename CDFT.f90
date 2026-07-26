@@ -7,7 +7,7 @@ use util
 implicit real*8 (a-h,o-z)
 character keywords*200,c10tmp*10,c200tmp*200,inpname*200,selectyn
 character c3p*3,c3q*3 !e.g. c3p="N+4" if np=4, c3q="N-4" if nq=4. c3 means three characters
-!Maximum number of electron states in order: N,N+p,N-q,N-2,N+1,N-1 (six slots)
+!Maximum number of electronic states in order: N,N+p,N-q,N-2,N+1,N-1 (six slots)
 !For nondegeneracy case, p=1 and q=1, slots 5 and 6 are not used
 !N-2 is only used for calculating w_cubic and epsilon. In this case only nondegeneracy case is supported
 !Slot 5 records N+1 when p/=1
@@ -28,11 +28,13 @@ real*8,allocatable :: ESPN(:,:,:),ESPNp(:,:,:),ESPNq(:,:,:) !ESP of N, N+p, N-q 
 real*8,allocatable :: OW_fpos(:,:,:),OW_fneg(:,:,:)
 real*8 OWfposgrid(radpot*sphpot),OWfneggrid(radpot*sphpot),promol(radpot*sphpot),tmpdens(radpot*sphpot),selfdens(radpot*sphpot),wfnval(nmo)
 real*8,allocatable :: atmcomp(:,:),atmref(:,:)
+real*8,allocatable :: BDDmat(:,:),bndmatNp(:,:),bndmatNq(:,:),bndmatN(:,:),bondarray(:)
+integer,allocatable :: idxlist1(:),idxlist2(:)
 type(content) gridatm(radpot*sphpot),gridatmorg(radpot*sphpot)
 cubfac=1D0
 
-write(*,"(/,a)") " !!! NOTE: If this module is used in your research, please NOT ONLY cite original paper of Multiwfn (J. Comput. Chem., 33, 580-592 (2012)), &
-&BUT ALSO cite the following book chapter, which comprehensively introduces feature and implementation of this module:"
+write(*,"(/,a)") " !!! NOTE: If this module is used in your research, please NOT ONLY cite original papers of Multiwfn, &
+&BUT ALSO cite the following book chapter, which comprehensively introduced feature and implementation of this module:"
 write(*,"(a)") " Tian Lu, Qinxue Chen. Realization of Conceptual Density Functional Theory and Information-Theoretic Approach in &
 &Multiwfn Program. In Conceptual Density Functional Theory, WILEY-VCH GmbH: Weinheim (2022); pp 631-647 DOI: 10.1002/9783527829941.ch31"
 
@@ -44,7 +46,7 @@ do while(.true.)
     write(*,*)
     write(*,*) "---- Calculate various quantities in conceptual density functional theory ----"
     if (np==1.and.nq==1) then
-		write(*,*) "-3 Set degree of FMO degeneracy for options 1, 2 and 3, current: Nondegenerate"
+		write(*,*) "-3 Set degree of FMO degeneracy, current: Nondegenerate"
     else
 		write(*,"(a,i2,a,i2,a)") " -3 Set degree of degeneracy for options 1, 2 and 3, current: Degeneracy of HOMO and LUMO are",nq," and",np,", respectively"
     end if
@@ -73,6 +75,7 @@ do while(.true.)
     write(*,*) "7 Calculate grid data of OW Fukui function and OW dual descriptor"
     write(*,*) "8 Calculate nucleophilic and electrophilic superdelocalizabilities"
     write(*,*) "9 Calculate grid data of Fukui potential and dual descriptor potential"
+    write(*,*) "10 Calculate bond dual descriptor (BDD)"
     read(*,*) isel
     
     if (isel==-3) then
@@ -163,11 +166,12 @@ do while(.true.)
         else
             iwcubic=1
         end if
-    else if (isel==2.or.isel==3.or.isel==9) then !Check wavefunction files
+    else if (isel==2.or.isel==3.or.isel==9.or.isel==10) then !Check wavefunction files
         wfnfile(1)="N.wfn"
         inquire(file=wfnfile(1),exist=alive)
         if (.not.alive) then
-            write(*,"(/,a)") " Unable to find N.wfn in current folder. Please input path of .wfn/wfx/fch/mwfn file of N electrons state, e.g. /sob/N.fch (Note that molden file should not be used, as it does not record system energy)"
+            write(*,"(/,a)") " Unable to find N.wfn in current folder. Please input path of .wfn/wfx/fch/mwfn file of N electrons state, e.g. /sob/N.mwfn"
+            if (isel==2) write(*,*) "Note: .molden file should not be used here, as it does not record energy"
             read(*,"(a)") c200tmp
             inquire(file=c200tmp,exist=alive)
             if (.not.alive) then
@@ -181,7 +185,7 @@ do while(.true.)
         wfnfile(2)=c3p//".wfn"
         inquire(file=wfnfile(2),exist=alive)
         if (.not.alive) then
-            write(*,"(/,a)") " Unable to find "//c3p//".wfn in current folder. Please input path of .wfn/wfx/fch/mwfn file of "//c3p//" electrons state, e.g. /sob/"//c3p//".fch"
+            write(*,"(/,a)") " Unable to find "//c3p//".wfn in current folder. Please input path of .wfn/wfx/fch/mwfn file of "//c3p//" electrons state, e.g. /sob/"//c3p//".mwfn"
             read(*,"(a)") c200tmp
             inquire(file=c200tmp,exist=alive)
             if (.not.alive) then
@@ -195,7 +199,7 @@ do while(.true.)
         wfnfile(3)=c3q//".wfn"
         inquire(file=wfnfile(3),exist=alive)
         if (.not.alive) then
-            write(*,"(/,a)") " Unable to find "//c3q//".wfn in current folder. Please input path of .wfn/wfx/fch/mwfn file of "//c3q//" electrons state, e.g. /sob/"//c3q//".fch"
+            write(*,"(/,a)") " Unable to find "//c3q//".wfn in current folder. Please input path of .wfn/wfx/fch/mwfn file of "//c3q//" electrons state, e.g. /sob/"//c3q//".mwfn"
             read(*,"(a)") c200tmp
             inquire(file=c200tmp,exist=alive)
             if (.not.alive) then
@@ -210,7 +214,7 @@ do while(.true.)
             wfnfile(4)="N-2.wfn"
             inquire(file=wfnfile(4),exist=alive)
             if (.not.alive) then
-                write(*,"(/,a)") " Unable to find N-2.wfn in current folder. Please input path of .wfn/wfx/fch/mwfn file of N-2 electrons state, e.g. /sob/N-2.fch"
+                write(*,"(/,a)") " Unable to find N-2.wfn in current folder. Please input path of .wfn/wfx/fch/mwfn file of N-2 electrons state, e.g. /sob/N-2.mwfn"
                 read(*,"(a)") c200tmp
                 inquire(file=c200tmp,exist=alive)
                 if (.not.alive) then
@@ -254,6 +258,7 @@ do while(.true.)
         end if
         
         spin(:)=0
+        write(*,*)
         write(*,*) "Input the net charge and spin multiplicity for N electrons state, e.g. 0 1"
         if (np==1.and.nq==1) then !Non-degeneracy case
 			if (iwcubic==0) write(*,"(a)") " Note: If pressing ENTER button directly, (0 1), (-1 2) and (1 2) will be employed for N, N+1 and N-1 states, respectively"
@@ -1084,7 +1089,91 @@ do while(.true.)
                 end if
             end if
         end do
-    
+
+    else if (isel==10) then !Bond dual descriptor (BDD)
+        allocate(bndmatNp(ncenter,ncenter),bndmatNq(ncenter,ncenter),bndmatN(ncenter,ncenter),BDDmat(ncenter,ncenter))
+        !N electrons
+        call dealloall(0)
+        call readinfile(wfnfile(1),1)
+        allocate(bndordmat(ncenter,ncenter))
+        write(*,*)
+        write(*,*) "Calculating fuzzy bond order for N electrons state..."
+        call fuzzyana(11)
+        bndmatN=bndordmat
+        !N+p electrons
+        call dealloall(0)
+        call readinfile(wfnfile(2),1)
+        write(*,*) "Calculating fuzzy bond order for "//c3p//" electrons state..."
+        allocate(bndordmat(ncenter,ncenter))
+        call fuzzyana(11)
+        bndmatNp=bndordmat
+        !N-q electrons
+        call dealloall(0)
+        call readinfile(wfnfile(3),1)
+        write(*,*) "Calculating fuzzy bond order for "//c3q//" electrons state..."
+        allocate(bndordmat(ncenter,ncenter))
+        call fuzzyana(11)
+        bndmatNq=bndordmat
+        call dealloall(0)
+        write(*,*) "Reloading N electrons state wavefunction file..."
+        call readinfile(wfnfile(1),1)
+        BDDmat=bndmatNp+bndmatNq-2*bndmatN
+        write(*,*)
+        if (outmedinfo==1) call showmatgau(BDDmat,"BDD matrix",form="f14.3")
+        nterm=ncenter*(ncenter-1)/2
+        allocate(bondarray(nterm),idxlist1(nterm),idxlist2(nterm))
+        itmp=0
+        do iatm=1,ncenter
+            do jatm=iatm+1,ncenter
+                itmp=itmp+1
+                idxlist1(itmp)=iatm
+                idxlist2(itmp)=jatm
+                bondarray(itmp)=BDDmat(iatm,jatm)
+            end do
+        end do
+        call sortr8(bondarray,"val",idxlist1,idxlist2)
+        if (nterm>10) then
+            write(*,*) "10 most negative BDD values:"
+        else
+            write(*,*) "Most negative BDD values:"
+        end if
+        nprint=0
+        do ibond=1,nterm
+            write(*,"(i6,'(',a,')',i6,'(',a,'):',f10.3)") idxlist1(ibond),a(idxlist1(ibond))%name,idxlist2(ibond),a(idxlist2(ibond))%name,bondarray(ibond)
+            nprint=nprint+1
+            if (nprint==10) exit
+        end do
+        write(*,*)
+        if (nterm>10) then
+            write(*,*) "10 most positive BDD values:"
+        else
+            write(*,*) "Most positive BDD values:"
+        end if
+        nprint=0
+        do ibond=nterm,1,-1
+            write(*,"(i6,'(',a,')',i6,'(',a,'):',f10.3)") idxlist1(ibond),a(idxlist1(ibond))%name,idxlist2(ibond),a(idxlist2(ibond))%name,bondarray(ibond)
+            nprint=nprint+1
+            if (nprint==10) exit
+        end do
+        write(*,*)
+        write(*,"(a)") " Do you want to export BDD of all bonds before and after sorting to BDD.txt and BDD_sorted.txt respectively in current folder? (y/n)"
+        read(*,*) selectyn
+        if (selectyn=='y'.or.selectyn=='Y') then
+            open(10,file="BDD.txt",status="replace")
+            do iatm=1,ncenter
+                do jatm=iatm+1,ncenter
+                    write(10,"(i6,'(',a,')',i6,'(',a,'):',f10.5)") iatm,a(iatm)%name,jatm,a(jatm)%name,BDDmat(iatm,jatm)
+                end do
+            end do
+            close(10)
+            open(10,file="BDD_sorted.txt",status="replace")
+            do ibond=1,nterm
+                write(10,"(i6,'(',a,')',i6,'(',a,'):',f10.3)") idxlist1(ibond),a(idxlist1(ibond))%name,idxlist2(ibond),a(idxlist2(ibond))%name,bondarray(ibond)
+            end do
+            close(10)
+            write(*,*) "Exporting finished!"
+        end if
+        deallocate(BDDmat,bndmatNp,bndmatNq,bndmatN,bondarray,idxlist1,idxlist2)
     end if
 end do
     

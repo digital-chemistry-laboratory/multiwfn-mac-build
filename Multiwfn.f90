@@ -2,6 +2,7 @@ program multiwfn
 use defvar
 use util
 use GUI
+use consolecolor
 use mod_2F2, only: set_alpha_level
 !USE fparser
 !use libreta
@@ -30,8 +31,13 @@ if (narg>0) then
 end if
 
 10 call loadsetting
+
+call set_color(C_BRIGHT_MAGENTA)
 write(*,*) "Multiwfn -- A Multifunctional Wavefunction Analyzer"
-write(*,*) "Version 3.8, update date: 2026-Jan-7"
+call reset_color()
+call set_color(C_GREEN)
+write(*,*) "Version 2026.7.15 (release date is the same as version name)"
+call reset_color()
 write(*,*) "Developer: Tian Lu (Beijing Kein Research Center for Natural Sciences)"
 write(*,*) "Multiwfn official website: http://sobereva.com/multiwfn"
 write(*,*) "Multiwfn English forum: http://sobereva.com/wfnbbs"
@@ -42,8 +48,10 @@ write(*,"(' ( Number of parallel threads:',i4,'  Current date: ',a,'-',a,'-',a,'
 nthreads,nowdate(1:4),nowdate(5:6),nowdate(7:8),nowtime(1:2),nowtime(3:4),nowtime(5:6)
 write(*,*)
 write(*,*) "Both following papers ***MUST BE CITED IN MAIN TEXT*** if Multiwfn is used:"
+call set_color(C_CYAN)
 write(*,*) " Tian Lu, Feiwu Chen, J. Comput. Chem., 33, 580 (2012) DOI: 10.1002/jcc.22885"
 write(*,*) " Tian Lu, J. Chem. Phys., 161, 082503 (2024) DOI: 10.1063/5.0216272"
+call reset_color()
 write(*,*) "See ""How to cite Multiwfn.pdf"" in Multiwfn binary package for more information"
 
 
@@ -256,7 +264,7 @@ end if
 
 
 !Special treatment and test new code
-!call infogain_customref
+!call dissym_factor
 
 !!!--------------------- Now everything start ---------------------!!!
 do while(.true.) !Main loop

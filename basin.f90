@@ -4212,7 +4212,7 @@ if (allocated(BOMb)) deallocate(BOMb)
 
 !Allocate space for BOM
 if (wfntype==0.or.wfntype==2.or.wfntype==3) then !RHF,ROHF,R-post-HF
-	if (wfntype==3) then !R-post-HF, need to consider all orbitals
+	if (wfntype==3.or.ispecial==3) then !R-post-HF, need to consider all orbitals
 		nmatsize=nmo
 	else !RHF,ROHF
 		!High-lying virtual orbitals will be deleted, especially for .fch case (In fact, before entering this function, those >= LUMO+10 has already been discarded)
@@ -4221,7 +4221,11 @@ if (wfntype==0.or.wfntype==2.or.wfntype==3) then !RHF,ROHF,R-post-HF
 		do nmatsize=nmo,1,-1
 			if (MOocc(nmatsize)/=0) exit
 		end do
-		if (nmo-nmatsize>0) write(*,"(' Note: The highest',i6,' virtual orbitals will not be taken into account')") nmo-nmatsize
+		if (nmo-nmatsize>0) then
+			write(*,"(' Note: The highest',i6,' virtual orbitals will not be taken into account')") nmo-nmatsize
+            write(*,*) "If you hope to consider all orbitals, set ""ispecial"" in settings.ini to 3"
+            write(*,*)
+        end if
 	end if
 	allocate(BOM(nmatsize,nmatsize,numrealatt),BOMtmp(nmatsize,nmatsize))
     nmatsizeb=0
@@ -4230,7 +4234,7 @@ else if (wfntype==1.or.wfntype==4) then !UHF,U-post-HF
 	do iendalpha=nmo,1,-1
 		if (MOtype(iendalpha)==1) exit
 	end do
-	if (wfntype==4) then !U-post-HF
+	if (wfntype==4.or.ispecial==3) then !U-post-HF
 		nmatsize=iendalpha !Total number of alpha orbitals
 		nmatsizeb=nmo-nmatsize !Total number of beta orbitals
 	else if (wfntype==1) then !UHF
@@ -4247,6 +4251,10 @@ else if (wfntype==1.or.wfntype==4) then !UHF,U-post-HF
 		end if
 		if (iendalpha-nmatsize>0) write(*,"(' Note: The highest',i6,' alpha virtual orbitals will not be taken into account')") iendalpha-nmatsize
 		if (nmo-iendalpha-nmatsizeb>0) write(*,"(' Note: The highest',i6,' beta virtual orbitals will not be taken into account')") nmo-iendalpha-nmatsizeb
+        if (iendalpha-nmatsize>0.or.nmo-iendalpha-nmatsizeb>0) then
+			write(*,*) "If you hope to consider all orbitals, set ""ispecial"" in settings.ini to 3"
+            write(*,*)
+        end if
 	end if
 	allocate(BOM(nmatsize,nmatsize,numrealatt),BOMb(nmatsizeb,nmatsizeb,numrealatt))
     allocate(BOMtmp(nmatsize,nmatsize),BOMtmpb(nmatsizeb,nmatsizeb))
