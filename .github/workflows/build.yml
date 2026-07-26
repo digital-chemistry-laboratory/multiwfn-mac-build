@@ -16,14 +16,14 @@ jobs:
 
     - name: Download source and settings
       run: |
-        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_src_Linux.zip
-        unzip Multiwfn_3.8_src_Linux.zip
-        mv Multiwfn_3.8_src_Linux/* . 
-        rmdir Multiwfn_3.8_src_Linux
-        rm Multiwfn_3.8_src_Linux.zip
-        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_bin_Linux_noGUI.zip
-        unzip -o -j Multiwfn_3.8_bin_Linux_noGUI.zip Multiwfn_3.8_bin_Linux_noGUI/{settings.ini,LICENSE.txt,examples/phenol.xyz}
-        rm Multiwfn_3.8_bin_Linux_noGUI.zip    
+        wget http://sobereva.com/multiwfn/misc/Multiwfn_2026.7.15_src_Linux.zip
+        unzip Multiwfn_2026.7.15_src_Linux.zip
+        mv Multiwfn_2026.7.15_src_Linux/* . 
+        rmdir Multiwfn_2026.7.15_src_Linux
+        rm Multiwfn_2026.7.15_src_Linux.zip
+        wget http://sobereva.com/multiwfn/misc/Multiwfn_2026.7.15_bin_Linux_noGUI.zip
+        unzip -o -j Multiwfn_2026.7.15_bin_Linux_noGUI.zip Multiwfn_2026.7.15_bin_Linux_noGUI/{settings.ini,LICENSE.txt,examples/phenol.xyz}
+        rm Multiwfn_2026.7.15_bin_Linux_noGUI.zip    
 
     - name: Install libraries
       run: |
@@ -48,14 +48,14 @@ jobs:
 
     - name: Download source and settings
       run: |
-        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_src_Linux.zip
-        unzip Multiwfn_3.8_src_Linux.zip
-        mv Multiwfn_3.8_src_Linux/* . 
-        rmdir Multiwfn_3.8_src_Linux
-        rm Multiwfn_3.8_src_Linux.zip
-        wget http://sobereva.com/multiwfn/misc/Multiwfn_3.8_bin_Linux_noGUI.zip
-        unzip -o -j Multiwfn_3.8_bin_Linux_noGUI.zip Multiwfn_3.8_bin_Linux_noGUI/{settings.ini,LICENSE.txt,examples/phenol.xyz}
-        rm Multiwfn_3.8_bin_Linux_noGUI.zip    
+        wget http://sobereva.com/multiwfn/misc/Multiwfn_2026.7.15_src_Linux.zip
+        unzip Multiwfn_2026.7.15_src_Linux.zip
+        mv Multiwfn_2026.7.15_src_Linux/* . 
+        rmdir Multiwfn_2026.7.15_src_Linux
+        rm Multiwfn_2026.7.15_src_Linux.zip
+        wget http://sobereva.com/multiwfn/misc/Multiwfn_2026.7.15_bin_Linux_noGUI.zip
+        unzip -o -j Multiwfn_2026.7.15_bin_Linux_noGUI.zip Multiwfn_2026.7.15_bin_Linux_noGUI/{settings.ini,LICENSE.txt,examples/phenol.xyz}
+        rm Multiwfn_2026.7.15_bin_Linux_noGUI.zip    
 
     - name: Install libraries
       run: |
