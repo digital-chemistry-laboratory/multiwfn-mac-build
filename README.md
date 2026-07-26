@@ -73,11 +73,11 @@ The DISLIN package needs to be installed on the system. Follow these steps:
 
 An example of how to do this is:
 ```shell
-wget https://www.dislin.de/downloads/macOS/dislin-11.5.macOS.intel.64.tar.gz
-# for Apple Silicon: wget https://www.dislin.de/downloads/macOS/dislin-11.5.macOS.arm.64.tar.gz
-tar -xvf dislin-11.5.macOS.intel.64.tar.gz
+wget https://www.dislin.de/downloads/macOS/dislin-11.6.macOS.intel.64.tar.gz
+# for Apple Silicon: wget https://www.dislin.de/downloads/macOS/dislin-11.6.macOS.arm.64.tar.gz
+tar -xvf dislin-11.6.macOS.intel.64.tar.gz
 export DISLIN=$HOME/bin/dislin
-cd dislin-11.5
+cd dislin-11.6
 ./INSTALL
 cd ..
 install_name_tool -id $DISLIN/libdislin_d.dylib $DISLIN/libdislin_d.dylib
