@@ -60,10 +60,10 @@ jobs:
     - name: Install libraries
       run: |
         brew install flint libx11 libxt mesa openmotif
-        wget https://www.dislin.de/downloads/macOS/dislin-11.5.macOS.arm.64.tar.gz
-        tar -xvf dislin-11.5.macOS.arm.64.tar.gz
+        wget https://www.dislin.de/downloads/macOS/dislin-11.6.macOS.arm.64.tar.gz
+        tar -xvf dislin-11.6.macOS.arm.64.tar.gz
         export DISLIN=$GITHUB_WORKSPACE/dislin
-        cd dislin-11.5
+        cd dislin-11.6
         ./INSTALL
         cd ..
         install_name_tool -id $DISLIN/libdislin_d.dylib $DISLIN/libdislin_d.dylib
